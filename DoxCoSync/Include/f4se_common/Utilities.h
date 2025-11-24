@@ -1,6 +1,8 @@
 #pragma once
 
+#include <Windows.h>
 #include "f4se_common/Relocation.h"
+#include "ITypes.h"
 
 // this has been tested to work for non-varargs functions
 // varargs functions end up with 'this' passed as the last parameter (ie. probably broken)

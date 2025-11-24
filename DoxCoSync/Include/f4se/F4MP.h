@@ -2,8 +2,8 @@
 
 #include "Networking.h"
 
-#include <f4se/PluginAPI.h>
-#include <f4se/Utilities.h>
+#include "f4se/PluginAPI.h"
+#include "f4se_common/Utilities.h"
 
 #define F4MP_VERSION "0.001"
 

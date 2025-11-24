@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Entity.h"
-#include "networking.h"
+#include "Networking.h"
 #include "Inventory.h"
 
 #include <array>
@@ -37,4 +37,5 @@ namespace f4mp
 		SPECIAL special;
 		Inventory inventory;
 	};
+
 }

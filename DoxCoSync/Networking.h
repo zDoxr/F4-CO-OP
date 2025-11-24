@@ -92,7 +92,7 @@ namespace f4mp
                 InvalidID = (ID)-1
             };
 
-        protected:
+		public:           //Was Protected
             struct _Interface
             {
                 ID id;

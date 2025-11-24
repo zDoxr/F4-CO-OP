@@ -19,12 +19,12 @@ namespace f4mp {
 
         class Librg;
 
-        // =========================================================================
-        //  EVENT BASE CLASS (used for connect/disconnect AND message payloads)
-        // =========================================================================
-        class Event1 : public networking::Event {
+        // =========================================================
+        // EVENT BASE CLASS
+        // =========================================================
+        class Event : public networking::Event {
         public:
-            using Type = networking::Event::Type;   // uint32_t
+            using Type = networking::Event::Type;
 
             Event(Librg* owner, Type type)
                 : owner_(owner), type_(type) {
@@ -33,33 +33,33 @@ namespace f4mp {
             Type GetType() const override { return type_; }
 
         protected:
-            networking::Networking& GetNetworking() override;
+            networking::Networking& GetNetworking() override {
+                return reinterpret_cast<networking::Networking&>(*owner_);
+            }
 
-            // No payload for pure connection events
             void _Read(void*, size_t) override {}
             void _Write(const void*, size_t) override {}
 
-        protected:
             Librg* owner_ = nullptr;
             Type   type_;
         };
 
 
-        // =========================================================================
-        //  SIMPLE MESSAGE BUFFER (binary read/write)
-        // =========================================================================
+        // =========================================================
+        // MESSAGE BUFFER
+        // =========================================================
         struct MessageBuffer {
-            std::vector<std::uint8_t> data;
-            std::size_t readPos = 0;
+            std::vector<uint8_t> data;
+            size_t readPos = 0;
 
-            void Write(const void* src, std::size_t size) {
+            void Write(const void* src, size_t size) {
                 const uint8_t* p = reinterpret_cast<const uint8_t*>(src);
                 data.insert(data.end(), p, p + size);
             }
 
-            void Read(void* dst, std::size_t size) {
+            void Read(void* dst, size_t size) {
                 if (readPos + size > data.size())
-                    size = (data.size() > readPos) ? (data.size() - readPos) : 0;
+                    size = data.size() - readPos;
 
                 if (size > 0) {
                     std::memcpy(dst, data.data() + readPos, size);
@@ -69,9 +69,9 @@ namespace f4mp {
         };
 
 
-        // =========================================================================
-        //  EVENT WITH PAYLOAD (Incoming and Outgoing variants use this)
-        // =========================================================================
+        // =========================================================
+        // PAYLOAD EVENT
+        // =========================================================
         class PayloadEvent : public Event {
         public:
             PayloadEvent(Librg* owner, Type t, MessageBuffer* buf)
@@ -104,9 +104,9 @@ namespace f4mp {
         };
 
 
-        // =========================================================================
-        //  Message = received packet
-        // =========================================================================
+        // =========================================================
+        // MESSAGE (incoming)
+        // =========================================================
         class Message : public PayloadEvent {
         public:
             Message(Librg* owner, Type t, MessageBuffer* buf)
@@ -114,9 +114,10 @@ namespace f4mp {
             }
         };
 
-        // =========================================================================
-        //  MessageData = outgoing payload builder
-        // =========================================================================
+
+        // =========================================================
+        // MESSAGE DATA (outgoing)
+        // =========================================================
         class MessageData : public PayloadEvent {
         public:
             MessageData(Librg* owner, Type t, MessageBuffer* buf)
@@ -125,18 +126,18 @@ namespace f4mp {
         };
 
 
-        // =========================================================================
-        //  ENTITY WRAPPER
-        // =========================================================================
+        // =========================================================
+        // ENTITY WRAPPER
+        // =========================================================
         class Entity : public networking::Entity {
         public:
             using ID = uint32_t;
 
-            ~Entity() { delete _interface; }
+            ~Entity();
 
             struct _Interface : public networking::Entity::_Interface {
                 Librg& net;
-                ID id;
+                ID     id;
 
                 _Interface(Librg& backend, ID initial = networking::Entity::InvalidID)
                     : net(backend), id(initial) {
@@ -151,15 +152,14 @@ namespace f4mp {
         };
 
 
-        // =========================================================================
-        //  LIBRG BACKEND (STEAM NETWORKING ONLY)
-        // =========================================================================
+        // =========================================================
+        // LIBRG BACKEND
+        // =========================================================
         class Librg : public networking::Networking {
         public:
             explicit Librg(bool server);
             ~Librg() override;
 
-            // ---- Networking implementation ----
             void Start(const std::string& address, int32_t port) override;
             void Stop() override;
             void Tick() override;
@@ -168,18 +168,20 @@ namespace f4mp {
             void RegisterMessage(networking::Event::Type) override {}
             void UnregisterMessage(networking::Event::Type) override {}
 
+            HSteamNetConnection ServerConn() const { return serverConn_; }
+            void SetServerConn(HSteamNetConnection conn) { serverConn_ = conn; }
+
         protected:
             Entity::_Interface* GetEntityInterface() override;
 
         public:
-            // Send raw byte packet ↓
             void SendRaw(const void* data, size_t size, bool reliable);
 
             static Librg& FromNetworking(networking::Networking& net) {
                 return static_cast<Librg&>(net);
             }
 
-            // F4MP callbacks
+            // Callbacks
             std::function<void(Event&)> onConnectionRequest;
             std::function<void(Event&)> onConnectionAccept;
             std::function<void(Event&)> onConnectionRefuse;
@@ -189,15 +191,14 @@ namespace f4mp {
             std::function<void(Event&)> onEntityRemove;
             std::function<void(Event&)> onClientStreamerUpdate;
 
-            // Exposed backend state for SteamConnectionHandler
+            // State exposed to SteamConnectionHandler
             bool IsServer() const { return isServer_; }
             ISteamNetworkingSockets* Steam() { return steam_; }
             HSteamListenSocket ListenSock() const { return listenSocket_; }
-            HSteamNetConnection ServerConn() const { return serverConn_; }
             std::vector<HSteamNetConnection>& Clients() { return clients_; }
 
         private:
-            // ---- internal state ----
+            // Internal state
             bool isServer_;
             ISteamNetworkingSockets* steam_ = nullptr;
 
@@ -206,20 +207,12 @@ namespace f4mp {
 
             std::vector<HSteamNetConnection> clients_;
 
-            // ---- helpers ----
+            // Helpers
             void HandleIncomingOnListenSocket();
             void HandleIncomingOnConnection();
 
             void DispatchRaw(const void* data, size_t size);
         };
-
-
-        // =========================================================================
-        // Event::GetNetworking()
-        // =========================================================================
-        inline networking::Networking& Event::GetNetworking() {
-            return *owner_;
-        }
 
     } // namespace librg
 } // namespace f4mp
