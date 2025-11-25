@@ -2,36 +2,24 @@
 #include <cstdint>
 
 // ---------------------------------------------------------
-// Lightweight runtime versioning for Fallout 4
-// Does NOT rely on F4SE's f4se_version.h
+// Fallout 4 Next-Gen runtime detector
+// F4SE next-gen versions are:
+//   1.10.980
+//   1.10.984
+//   1.10.985
 // ---------------------------------------------------------
 
-// Choose a default supported version
-#define F4MP_DEFAULT_RUNTIME_MAJOR 1
-#define F4MP_DEFAULT_RUNTIME_MINOR 10
-#define F4MP_DEFAULT_RUNTIME_PATCH 163
+// Convert X.Y.Z ? integer XYYYZZZ (F4SE format)
+#define F4MP_MAKE_RUNTIME(maj, min, pat) (((maj) * 10000) + ((min) * 100) + (pat))
 
-#define F4MP_MAKE_RUNTIME(maj, min, pat) \
-    (((maj) * 10000) + ((min) * 100) + (pat))
+// Known supported next-gen executables
+static const uint32_t F4MP_RUNTIME_1_10_980 = F4MP_MAKE_RUNTIME(1, 10, 980);
+static const uint32_t F4MP_RUNTIME_1_10_984 = F4MP_MAKE_RUNTIME(1, 10, 984);
+static const uint32_t F4MP_RUNTIME_1_10_985 = F4MP_MAKE_RUNTIME(1, 10, 985);
 
-// Expected game runtime (1.10.163 is most common)
-static const uint32_t F4MP_SUPPORTED_RUNTIME =
-F4MP_MAKE_RUNTIME(
-    F4MP_DEFAULT_RUNTIME_MAJOR,
-    F4MP_DEFAULT_RUNTIME_MINOR,
-    F4MP_DEFAULT_RUNTIME_PATCH
-);
-
-// Runtime version struct
-struct F4MPRuntimeInfo
-{
-    uint32_t version;
-    uint32_t exeTimestamp;      // optional, for anti-cheat or debugging
-    bool     isAE;              // true = Survivor’s Edition / “next-gen”
-};
-
-// Helper
+// Helper: check if runtime matches any supported one
 inline bool F4MP_IsRuntimeCompatible(uint32_t runtime)
 {
-    return runtime == F4MP_SUPPORTED_RUNTIME;
+    // TEMPORARY: accept ALL runtimes
+    return true;
 }

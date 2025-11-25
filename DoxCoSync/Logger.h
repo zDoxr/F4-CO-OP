@@ -1,28 +1,67 @@
 #pragma once
-#define _CRT_SECURE_NO_WARNINGS
+#include <windows.h>
+#include <shlobj.h>        // <-- REQUIRED for SHGetFolderPathA, CSIDL_*, SHGFP_*
 #include <cstdio>
 #include <cstdarg>
+#include <string>
 
-
-namespace f4mp
+// ------------------------------------------------------
+// Get log file path:  Documents\My Games\Fallout4\F4MP.log
+// ------------------------------------------------------
+inline std::string GetLogPath()
 {
-    inline void Log(const char* fmt, ...)
+    char docPath[MAX_PATH]{};
+
+    // This is the missing function + constants
+    if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PERSONAL, NULL, SHGFP_TYPE_CURRENT, docPath)))
     {
-        FILE* f = nullptr;
-        errno_t err = fopen_s(&f, "f4mp_log.txt", "a");
-
-        if (err != 0 || !f)
-            return;
-
-        va_list args;
-        va_start(args, fmt);
-
-        vfprintf(f, fmt, args);
-        fprintf(f, "\n");
-
-        va_end(args);
-        fclose(f);
+        std::string path(docPath);
+        path += "\\My Games\\Fallout4\\F4MP.log";
+        return path;
     }
+
+    // fallback: game directory
+    return "F4MP.log";
 }
 
-#define F4MP_LOG(fmt, ...) f4mp::Log("[F4MP] " fmt, ##__VA_ARGS__)
+// ------------------------------------------------------
+// Thread-safe file logger
+// ------------------------------------------------------
+inline void SafeLog(const char* fmt, ...)
+{
+    static CRITICAL_SECTION cs;
+    static bool initialized = false;
+
+    if (!initialized)
+    {
+        InitializeCriticalSection(&cs);
+        initialized = true;
+    }
+
+    EnterCriticalSection(&cs);
+
+    char buffer[2048];
+
+    va_list args;
+    va_start(args, fmt);
+    vsprintf_s(buffer, sizeof(buffer), fmt, args);   // <-- defined now
+    va_end(args);
+
+    FILE* f = nullptr;
+    std::string logPath = GetLogPath();
+
+    fopen_s(&f, logPath.c_str(), "a");
+    if (f)
+    {
+        fprintf(f, "%s\n", buffer);
+        fclose(f);
+    }
+
+    LeaveCriticalSection(&cs);
+}
+
+// ------------------------------------------------------
+// Macro for convenience:
+// F4MP_LOG("Value = %d", someVar);
+// ------------------------------------------------------
+#define F4MP_LOG(fmt, ...) SafeLog("[F4MP] " fmt, __VA_ARGS__)

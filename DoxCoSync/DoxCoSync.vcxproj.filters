@@ -66,6 +66,9 @@
     <ClInclude Include="Include\f4se_common\IErrors.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Include\f4se\GameReferences.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Character.cpp">

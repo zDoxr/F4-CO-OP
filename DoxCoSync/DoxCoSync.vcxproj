@@ -148,6 +148,7 @@
     <ClInclude Include="F4MP_Librg.h" />
     <ClInclude Include="F4MP_Main.h" />
     <ClInclude Include="Include\f4se\F4MP.h" />
+    <ClInclude Include="Include\f4se\GameReferences.h" />
     <ClInclude Include="Include\f4se\PluginAPI.h" />
     <ClInclude Include="Include\f4se\Utilities.h" />
     <ClInclude Include="Include\f4se_common\IErrors.h" />
