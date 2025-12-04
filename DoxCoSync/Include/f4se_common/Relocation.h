@@ -1,5 +1,9 @@
 #pragma once
 
+#include <stdint.h>
+#include <cstdint>
+
+
 class RelocationManager
 {
 public:

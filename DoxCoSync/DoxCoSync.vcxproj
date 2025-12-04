@@ -70,21 +70,36 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;DOXCOSYNC_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <AdditionalIncludeDirectories>C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se_common;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\Steam;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se_common;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\Steam;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>Default</LanguageStandard>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>GameNetworkingSockets.lib;GameNetworkingSockets_s.lib;steam_api64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>f4se_1_11_169.lib;f4se_common.lib;GameNetworkingSockets.lib;GameNetworkingSockets_s.lib;common.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -93,34 +108,41 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;DOXCOSYNC_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <AdditionalIncludeDirectories>C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se_common;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\Steam;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se_common;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\ImGui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>Default</LanguageStandard>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <DisableSpecificWarnings>4996;4244;4100;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>GameNetworkingSockets.lib;GameNetworkingSockets_s.lib;steam_api64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)lib;$(ProjectDir)ThirdParty/GNS/Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>f4se_1_11_169.lib;f4se_common.lib;common.lib;GameNetworkingSockets.lib;crypt32.lib;secur32.lib;iphlpapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;DOXCOSYNC_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <AdditionalIncludeDirectories>C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se_common;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\Steam;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se_common;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\Steam;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>Default</LanguageStandard>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>GameNetworkingSockets.lib;GameNetworkingSockets_s.lib;steam_api64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>f4se_1_11_169.lib;f4se_common.lib;GameNetworkingSockets.lib;GameNetworkingSockets_s.lib;common.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -129,49 +151,104 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;DOXCOSYNC_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <AdditionalIncludeDirectories>C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se_common;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\Steam;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se_common;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\ImGui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>Default</LanguageStandard>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <DisableSpecificWarnings>4996;4244;4100;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>GameNetworkingSockets.lib;GameNetworkingSockets_s.lib;steam_api64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)lib;$(ProjectDir)ThirdParty/GNS/Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>f4se_1_11_169.lib;f4se_common.lib;common.lib;GameNetworkingSockets.lib;crypt32.lib;secur32.lib;iphlpapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Character.h" />
-    <ClInclude Include="Entity.h" />
-    <ClInclude Include="F4MP_Librg.h" />
+    <ClInclude Include="ConsoleLogger.h" />
+    <ClInclude Include="CoSyncNet.h" />
+    <ClInclude Include="CoSyncOverlay.h" />
+    <ClInclude Include="DX11Hook.h" />
     <ClInclude Include="F4MP_Main.h" />
-    <ClInclude Include="Include\f4se\F4MP.h" />
+    <ClInclude Include="GameAPI.h" />
+    <ClInclude Include="GNS_Core.h" />
+    <ClInclude Include="GNS_Session.h" />
+    <ClInclude Include="Include\common\IErrors.h" />
+    <ClInclude Include="Include\common\ITypes.h" />
     <ClInclude Include="Include\f4se\GameReferences.h" />
+    <ClInclude Include="Include\f4se\NiTypes.h" />
     <ClInclude Include="Include\f4se\PluginAPI.h" />
-    <ClInclude Include="Include\f4se\Utilities.h" />
-    <ClInclude Include="Include\f4se_common\IErrors.h" />
-    <ClInclude Include="Include\f4se_common\ITypes.h" />
+    <ClInclude Include="Include\f4se_common\f4se_version.h" />
     <ClInclude Include="Include\f4se_common\Relocation.h" />
-    <ClInclude Include="Inventory.h" />
+    <ClInclude Include="Include\f4se_common\Utilities.h" />
+    <ClInclude Include="IniReader.h" />
+    <ClInclude Include="LocalPlayerState.h" />
     <ClInclude Include="Logger.h" />
-    <ClInclude Include="Networking.h" />
-    <ClInclude Include="Player.h" />
+    <ClInclude Include="PacketTypes.h" />
+    <ClInclude Include="PlayerStatePacket.h" />
+    <ClInclude Include="RemoteActorManager.h" />
+    <ClInclude Include="RemotePlayers.h" />
     <ClInclude Include="RuntimeVersion.h" />
-    <ClInclude Include="SteamConnectionHandler.h" />
+    <ClInclude Include="ThirdParty\GNS\Include\steam\isteamnetworkingmessages.h" />
+    <ClInclude Include="ThirdParty\GNS\Include\steam\isteamnetworkingsockets.h" />
+    <ClInclude Include="ThirdParty\GNS\Include\steam\isteamnetworkingutils.h" />
+    <ClInclude Include="ThirdParty\GNS\Include\steam\steamclientpublic.h" />
+    <ClInclude Include="ThirdParty\GNS\Include\steam\steamnetworkingcustomsignaling.h" />
+    <ClInclude Include="ThirdParty\GNS\Include\steam\steamnetworkingsockets.h" />
+    <ClInclude Include="ThirdParty\GNS\Include\steam\steamnetworkingsockets_flat.h" />
+    <ClInclude Include="ThirdParty\GNS\Include\steam\steamnetworkingtypes.h" />
+    <ClInclude Include="ThirdParty\GNS\Include\steam\steamtypes.h" />
+    <ClInclude Include="ThirdParty\GNS\Include\steam\steamuniverse.h" />
+    <ClInclude Include="ThirdParty\GNS\Include\steam\steam_api_common.h" />
+    <ClInclude Include="ThirdParty\ImGui\imconfig.h" />
+    <ClInclude Include="ThirdParty\ImGui\imgui.h" />
+    <ClInclude Include="ThirdParty\ImGui\imgui_impl_dx11.h" />
+    <ClInclude Include="ThirdParty\ImGui\imgui_impl_win32.h" />
+    <ClInclude Include="ThirdParty\ImGui\imgui_internal.h" />
+    <ClInclude Include="ThirdParty\ImGui\imstb_rectpack.h" />
+    <ClInclude Include="ThirdParty\ImGui\imstb_textedit.h" />
+    <ClInclude Include="ThirdParty\ImGui\imstb_truetype.h" />
+    <ClInclude Include="TickHook.h" />
     <ClInclude Include="Version.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Character.cpp" />
-    <ClCompile Include="Entity.cpp" />
-    <ClCompile Include="F4MP_Librg.cpp" />
+    <ClCompile Include="CoSyncNet.cpp" />
+    <ClCompile Include="CoSyncOverlay.cpp" />
+    <ClCompile Include="DX11Hook.cpp" />
     <ClCompile Include="F4MP_Main.cpp" />
     <ClCompile Include="F4MP_Plugin.cpp" />
-    <ClCompile Include="Inventory.cpp" />
-    <ClCompile Include="Networking.cpp" />
-    <ClCompile Include="Player.cpp" />
-    <ClCompile Include="SteamConnectionHandler.cpp" />
+    <ClCompile Include="GameAPI.cpp" />
+    <ClCompile Include="GameGlobals.cpp" />
+    <ClCompile Include="GNS_Core.cpp" />
+    <ClCompile Include="GNS_Session.cpp" />
+    <ClCompile Include="Include\f4se\GameReferences.cpp" />
+    <ClCompile Include="Include\f4se\NiTypes.cpp" />
+    <ClCompile Include="IniReader.cpp" />
+    <ClCompile Include="LocalPlayerState.cpp" />
+    <ClCompile Include="PlayerStatePacket.cpp" />
+    <ClCompile Include="RemoteActorManager.cpp" />
+    <ClCompile Include="RemotePlayers.cpp" />
+    <ClCompile Include="ThirdParty\ImGui\imgui.cpp" />
+    <ClCompile Include="ThirdParty\ImGui\imgui_demo.cpp" />
+    <ClCompile Include="ThirdParty\ImGui\imgui_draw.cpp" />
+    <ClCompile Include="ThirdParty\ImGui\imgui_impl_dx11.cpp" />
+    <ClCompile Include="ThirdParty\ImGui\imgui_impl_win32.cpp" />
+    <ClCompile Include="ThirdParty\ImGui\imgui_tables.cpp" />
+    <ClCompile Include="ThirdParty\ImGui\imgui_widgets.cpp" />
+    <ClCompile Include="TickHook.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ThirdParty\GNS\Bin\abseil_dll.dll" />
+    <None Include="ThirdParty\GNS\Bin\GameNetworkingSockets.dll" />
+    <None Include="ThirdParty\GNS\Bin\libcrypto-3-x64.dll" />
+    <None Include="ThirdParty\GNS\Bin\libprotobuf.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="ThirdParty\GNS\Lib\GameNetworkingSockets.lib" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

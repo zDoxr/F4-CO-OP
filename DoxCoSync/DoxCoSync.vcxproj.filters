@@ -13,90 +13,271 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="ThirdParty">
+      <UniqueIdentifier>{c0bc0258-a51f-411d-9e55-2caa3deeda80}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\GNS">
+      <UniqueIdentifier>{0ebf978d-e5ec-41b6-b311-30d251f32736}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\GNS\Bin">
+      <UniqueIdentifier>{697be891-9067-4684-a6ef-0b28216300c3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\GNS\Include">
+      <UniqueIdentifier>{856310a3-7692-4293-8427-e04b649183b4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\GNS\Lib">
+      <UniqueIdentifier>{b85d21bf-382c-4df8-a7cf-60724ac89a69}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\NetWorking">
+      <UniqueIdentifier>{cd13f348-0eed-446e-a612-6366ee7c9d4a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Logging">
+      <UniqueIdentifier>{f9481f6c-9fc8-44ea-9103-a93f58b8a61e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Game">
+      <UniqueIdentifier>{78d6dd1d-17ea-4c9f-a874-1dac21034c55}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Game\PlayerState">
+      <UniqueIdentifier>{bd91ee7a-55f0-499c-9c31-c10feff02db1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Game\Main">
+      <UniqueIdentifier>{8fc5538f-a5f4-4b0e-880d-b4a794d7e2e7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\ImGui">
+      <UniqueIdentifier>{f1a729ed-4377-475f-8d2d-7a0ff039eb9e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Hook">
+      <UniqueIdentifier>{8b1cab20-5e34-4054-b175-12678ebfef31}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Character.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Entity.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="F4MP_Librg.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="F4MP_Main.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Inventory.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Logger.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Networking.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Player.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="RuntimeVersion.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SteamConnectionHandler.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Version.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Include\f4se\F4MP.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Include\f4se\PluginAPI.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Include\f4se\Utilities.h">
+    <ClInclude Include="Include\f4se_common\Utilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Include\f4se_common\Relocation.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Include\f4se_common\ITypes.h">
+    <ClInclude Include="Include\common\ITypes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Include\f4se_common\IErrors.h">
+    <ClInclude Include="Include\common\IErrors.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\f4se\NiTypes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ConsoleLogger.h">
+      <Filter>Header Files\Logging</Filter>
+    </ClInclude>
+    <ClInclude Include="CoSyncNet.h">
+      <Filter>Header Files\NetWorking</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\f4se_common\f4se_version.h">
+      <Filter>Header Files\Logging</Filter>
+    </ClInclude>
+    <ClInclude Include="IniReader.h">
+      <Filter>Header Files\Logging</Filter>
+    </ClInclude>
+    <ClInclude Include="LocalPlayerState.h">
+      <Filter>Header Files\Game\PlayerState</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerStatePacket.h">
+      <Filter>Header Files\Game\PlayerState</Filter>
+    </ClInclude>
+    <ClInclude Include="F4MP_Main.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="GameAPI.h">
+      <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
     <ClInclude Include="Include\f4se\GameReferences.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="Logger.h">
+      <Filter>Header Files\Logging</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\f4se\PluginAPI.h">
+      <Filter>Header Files\Game</Filter>
+    </ClInclude>
+    <ClInclude Include="PacketTypes.h">
+      <Filter>Header Files\NetWorking</Filter>
+    </ClInclude>
+    <ClInclude Include="RemotePlayers.h">
+      <Filter>Header Files\Game\PlayerState</Filter>
+    </ClInclude>
+    <ClInclude Include="RuntimeVersion.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="TickHook.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="Version.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="GNS_Core.h">
+      <Filter>Header Files\NetWorking</Filter>
+    </ClInclude>
+    <ClInclude Include="GNS_Session.h">
+      <Filter>Header Files\NetWorking</Filter>
+    </ClInclude>
+    <ClInclude Include="CoSyncOverlay.h">
+      <Filter>Header Files\NetWorking</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\ImGui\imconfig.h">
+      <Filter>ThirdParty\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\ImGui\imgui.h">
+      <Filter>ThirdParty\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\ImGui\imgui_impl_dx11.h">
+      <Filter>ThirdParty\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\ImGui\imgui_impl_win32.h">
+      <Filter>ThirdParty\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\ImGui\imgui_internal.h">
+      <Filter>ThirdParty\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\ImGui\imstb_rectpack.h">
+      <Filter>ThirdParty\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\ImGui\imstb_textedit.h">
+      <Filter>ThirdParty\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\ImGui\imstb_truetype.h">
+      <Filter>ThirdParty\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\GNS\Include\steam\isteamnetworkingmessages.h">
+      <Filter>ThirdParty\GNS\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\GNS\Include\steam\isteamnetworkingsockets.h">
+      <Filter>ThirdParty\GNS\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\GNS\Include\steam\isteamnetworkingutils.h">
+      <Filter>ThirdParty\GNS\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\GNS\Include\steam\steam_api_common.h">
+      <Filter>ThirdParty\GNS\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\GNS\Include\steam\steamclientpublic.h">
+      <Filter>ThirdParty\GNS\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\GNS\Include\steam\steamnetworkingcustomsignaling.h">
+      <Filter>ThirdParty\GNS\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\GNS\Include\steam\steamnetworkingsockets.h">
+      <Filter>ThirdParty\GNS\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\GNS\Include\steam\steamnetworkingsockets_flat.h">
+      <Filter>ThirdParty\GNS\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\GNS\Include\steam\steamnetworkingtypes.h">
+      <Filter>ThirdParty\GNS\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\GNS\Include\steam\steamtypes.h">
+      <Filter>ThirdParty\GNS\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\GNS\Include\steam\steamuniverse.h">
+      <Filter>ThirdParty\GNS\Include</Filter>
+    </ClInclude>
+    <ClInclude Include="DX11Hook.h">
+      <Filter>Header Files\Hook</Filter>
+    </ClInclude>
+    <ClInclude Include="RemoteActorManager.h">
+      <Filter>Header Files\Game\PlayerState</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Character.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Entity.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="F4MP_Main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="F4MP_Plugin.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Inventory.cpp">
+    <ClCompile Include="TickHook.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Networking.cpp">
+    <ClCompile Include="GameGlobals.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Player.cpp">
+    <ClCompile Include="LocalPlayerState.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SteamConnectionHandler.cpp">
+    <ClCompile Include="GameAPI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="F4MP_Librg.cpp">
+    <ClCompile Include="Include\f4se\GameReferences.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PlayerStatePacket.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoSyncNet.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RemotePlayers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Include\f4se\NiTypes.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="IniReader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GNS_Core.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GNS_Session.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoSyncOverlay.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\ImGui\imgui.cpp">
+      <Filter>ThirdParty\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\ImGui\imgui_demo.cpp">
+      <Filter>ThirdParty\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\ImGui\imgui_draw.cpp">
+      <Filter>ThirdParty\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\ImGui\imgui_impl_dx11.cpp">
+      <Filter>ThirdParty\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\ImGui\imgui_impl_win32.cpp">
+      <Filter>ThirdParty\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\ImGui\imgui_tables.cpp">
+      <Filter>ThirdParty\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\ImGui\imgui_widgets.cpp">
+      <Filter>ThirdParty\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="DX11Hook.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RemoteActorManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ThirdParty\GNS\Bin\abseil_dll.dll">
+      <Filter>ThirdParty\GNS\Bin</Filter>
+    </None>
+    <None Include="ThirdParty\GNS\Bin\GameNetworkingSockets.dll">
+      <Filter>ThirdParty\GNS\Bin</Filter>
+    </None>
+    <None Include="ThirdParty\GNS\Bin\libcrypto-3-x64.dll">
+      <Filter>ThirdParty\GNS\Bin</Filter>
+    </None>
+    <None Include="ThirdParty\GNS\Bin\libprotobuf.dll">
+      <Filter>ThirdParty\GNS\Bin</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="ThirdParty\GNS\Lib\GameNetworkingSockets.lib">
+      <Filter>ThirdParty\GNS\Lib</Filter>
+    </Library>
   </ItemGroup>
 </Project>

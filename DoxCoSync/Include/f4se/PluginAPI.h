@@ -1,9 +1,7 @@
 #pragma once
 
-#include "f4se_common/ITypes.h"
+#include "common/ITypes.h"
 #include <Windows.h>
-
-#include "f4se/PluginAPI.h"
 
 typedef UInt32	PluginHandle;	// treat this as an opaque type
 

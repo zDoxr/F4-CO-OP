@@ -1,57 +1,56 @@
 #pragma once
 #include <windows.h>
-#include <shlobj.h>        // <-- REQUIRED for SHGetFolderPathA, CSIDL_*, SHGFP_*
+#include <shlobj.h>
 #include <cstdio>
 #include <cstdarg>
 #include <string>
 
-// ------------------------------------------------------
-// Get log file path:  Documents\My Games\Fallout4\F4MP.log
-// ------------------------------------------------------
+// ---------- Create full log path ----------
 inline std::string GetLogPath()
 {
     char docPath[MAX_PATH]{};
 
-    // This is the missing function + constants
     if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PERSONAL, NULL, SHGFP_TYPE_CURRENT, docPath)))
     {
-        std::string path(docPath);
-        path += "\\My Games\\Fallout4\\F4MP.log";
-        return path;
+        std::string folder = std::string(docPath) + "\\My Games\\Fallout4\\F4SE";
+        CreateDirectoryA((std::string(docPath) + "\\My Games\\Fallout4").c_str(), NULL);
+        CreateDirectoryA(folder.c_str(), NULL);
+
+        return folder + "\\F4MP.log";
     }
 
-    // fallback: game directory
+    // Fallback: write next to Fallout4.exe
     return "F4MP.log";
 }
 
-// ------------------------------------------------------
-// Thread-safe file logger
-// ------------------------------------------------------
-inline void SafeLog(const char* fmt, ...)
+// ---------- Thread-safe internal logger ----------
+inline void F4MP_LogInternal(const char* fmt, ...)
 {
     static CRITICAL_SECTION cs;
-    static bool initialized = false;
+    static bool cs_init = false;
 
-    if (!initialized)
-    {
+    if (!cs_init) {
         InitializeCriticalSection(&cs);
-        initialized = true;
+        cs_init = true;
     }
 
     EnterCriticalSection(&cs);
 
-    char buffer[2048];
+    char buffer[4096];
 
     va_list args;
     va_start(args, fmt);
-    vsprintf_s(buffer, sizeof(buffer), fmt, args);   // <-- defined now
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
 
-    FILE* f = nullptr;
-    std::string logPath = GetLogPath();
+    // Output to debugger
+    OutputDebugStringA(buffer);
+    OutputDebugStringA("\n");
 
-    fopen_s(&f, logPath.c_str(), "a");
-    if (f)
+    // Output to log file
+    std::string path = GetLogPath();
+    FILE* f = nullptr;
+    if (fopen_s(&f, path.c_str(), "a") == 0 && f)
     {
         fprintf(f, "%s\n", buffer);
         fclose(f);
@@ -60,8 +59,6 @@ inline void SafeLog(const char* fmt, ...)
     LeaveCriticalSection(&cs);
 }
 
-// ------------------------------------------------------
-// Macro for convenience:
-// F4MP_LOG("Value = %d", someVar);
-// ------------------------------------------------------
-#define F4MP_LOG(fmt, ...) SafeLog("[F4MP] " fmt, __VA_ARGS__)
+// ---------- Macro wrapper ----------
+#define F4MP_LOG(fmt, ...) \
+    F4MP_LogInternal("[F4MP] " fmt, ##__VA_ARGS__)
