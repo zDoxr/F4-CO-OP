@@ -2,6 +2,10 @@
 #include "ConsoleLogger.h"
 #include "GNS_Session.h"
 #include "CoSyncNet.h"
+#include "CoSyncTransport.h"
+#include "GNS_Core.h"
+#include "CoSyncOverlay.h"
+
 
 namespace f4mp
 {
@@ -12,88 +16,120 @@ namespace f4mp
     }
 
     // ------------------------------------------------------------
-    // Init() — called by Plugin after GameLoaded
+    // Init — basic bootstrap of GNS (SteamNetworkingSockets)
     // ------------------------------------------------------------
     void F4MP_Main::Init()
     {
-        auto& self = Get();
-
-        if (self.initialized.load())
-            return;
-
-        LOG_INFO("Main::Init() - Overlay-driven multiplayer");
-
-        // Nothing to auto-start anymore.
-        // Overlay UI will call StartHosting() or StartJoining().
-
-        self.initialized.store(true);
-    }
-
-    // ------------------------------------------------------------
-    // HOST START (called from Overlay)
-    // ------------------------------------------------------------
-    void F4MP_Main::StartHosting()
-    {
-        LOG_INFO("[MAIN] Starting HOST session...");
-
-        if (!GNS_Session::Get().StartHost())
+        if (initialized.load())
         {
-            LOG_ERROR("[MAIN] HOST start FAILED");
+            LOG_INFO("[MAIN] Init() ignored — already initialized");
             return;
         }
 
-        // 🔥 initialize state sync
-        CoSyncNet::Init(true);
+        LOG_INFO("[MAIN] Init() — CoSync Multiplayer Core");
 
-        isServer.store(true);
+        if (!GNS_Init())
+        {
+            LOG_ERROR("[MAIN] GNS_Init FAILED");
+            initialized.store(false);
+            return;
+        }
+
+        initialized.store(true);
+        LOG_INFO("[MAIN] CoSync Init OK");
     }
 
     // ------------------------------------------------------------
-    // CLIENT START (called from Overlay)
+    // HOST — via Hamachi IP (25.x.x.x)
+    // ------------------------------------------------------------
+    void F4MP_Main::StartHosting(const std::string& ip)
+    {
+        if (!initialized.load())
+            Init();
+
+        if (!initialized.load())
+        {
+            LOG_ERROR("[MAIN] StartHosting FAILED — CoSync not initialized");
+            return;
+        }
+
+        LOG_INFO("[MAIN] Hosting on IP: %s", ip.c_str());
+
+        // Start GNS host using the Hamachi address
+        if (!GNS_Session::Get().StartHost(ip.c_str()))
+        {
+            LOG_ERROR("[MAIN] Host FAILED (GNS StartHost)");
+            return;
+        }
+
+        // Transport attaches to existing host socket
+        if (!CoSyncTransport::InitAsHost())
+        {
+            LOG_ERROR("[MAIN] Host FAILED (Transport InitAsHost)");
+            return;
+        }
+
+        // Delay CoSyncNet initialization — handled in TickHook
+        CoSyncNet::SetMyName("Host");   // <<< add this
+        CoSyncNet::ScheduleInit(true);
+
+        isServer.store(true);
+        LOG_INFO("[MAIN] Host READY");
+    }
+
+    // ------------------------------------------------------------
+    // JOIN — IP:PORT (from overlay)
     // ------------------------------------------------------------
     void F4MP_Main::StartJoining(const std::string& connectStr)
     {
-        LOG_INFO("[MAIN] Starting CLIENT session with connect string: %s",
-            connectStr.c_str());
+        if (!initialized.load())
+            Init();
 
-        if (!GNS_Session::Get().StartClient(connectStr))
+        if (!initialized.load())
         {
-            LOG_ERROR("[MAIN] CLIENT join FAILED");
+            LOG_ERROR("[MAIN] StartJoining FAILED — CoSync not initialized");
             return;
         }
 
-        // 🔥 initialize state sync
-        CoSyncNet::Init(false);
+        LOG_INFO("[MAIN] Joining host at: %s", connectStr.c_str());
+
+        // Start GNS client
+        if (!GNS_Session::Get().StartClient(connectStr))
+        {
+            LOG_ERROR("[MAIN] Client FAILED (GNS StartClient)");
+            return;
+        }
+
+        // Attach transport to existing client connection
+        if (!CoSyncTransport::InitAsClient(connectStr))
+        {
+            LOG_ERROR("[MAIN] Client FAILED (Transport InitAsClient)");
+            return;
+        }
+
+        // Delay CoSyncNet init — TickHook handles final startup
+        CoSyncNet::ScheduleInit(false);
+        CoSyncNet::SetMyName("Client");
 
         isServer.store(false);
+        LOG_INFO("[MAIN] Client connected OK");
     }
 
     // ------------------------------------------------------------
-    // Shutdown
+    // Shutdown — clean networking
     // ------------------------------------------------------------
     void F4MP_Main::Shutdown()
     {
-        auto& self = Get();
-
-        LOG_INFO("[MAIN] Shutdown");
+        LOG_INFO("[MAIN] Shutdown()");
 
         CoSyncNet::Shutdown();
-        self.isServer.store(false);
-        self.initialized.store(false);
-    }
+        CoSyncTransport::Shutdown();
 
-    // ------------------------------------------------------------
-    // GameTick — called every frame by TickHook
-    // ------------------------------------------------------------
-    void F4MP_Main::GameTick(float dt)
-    {
-        (void)dt;
+        if (initialized.load())
+            GNS_Shutdown();
 
-        // Pump GNS messages
-        GNS_Session::Get().Tick();
-
-        // Networking logic inside CoSyncNet
-        CoSyncNet::Tick(0.0);
+        initialized.store(false);
+        isServer.store(false);
     }
 
 } // namespace f4mp

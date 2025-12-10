@@ -7,6 +7,13 @@
 #include "TickHook.h"
 #include "DX11Hook.h"
 #include "CoSyncOverlay.h"
+#include "SteamDiagnostics.h"
+#include "CoSyncSteam.h"
+#include "CoSyncSteamManager.h"
+
+
+
+
 
 // NG-required version export
 extern "C"
@@ -40,10 +47,19 @@ void OnF4SEMessage(F4SEMessagingInterface::Message* msg)
     case F4SEMessagingInterface::kMessage_GameLoaded:
         LOG_INFO("GameLoaded::Initializing CoSync...");
 
-        f4mp::F4MP_Main::Init();
+        CoSyncSteamManager::OnGameLoaded();
+
+        f4mp::F4MP_Main::Get().Init();
+
 
         LOG_INFO("CoSync: Installing TickHook...");
         InstallTickHook();
+
+        // Safe point to touch Steam.
+            if (!CoSyncSteam_IsReady())
+            {
+                LOG_WARN("[CoSyncSteam] Not ready on GameLoaded (Steam overlay disabled or failure)");
+            }
 
         LOG_INFO("[DX11Hook] Installing Present hook...");
         if (!InitDX11Hook())
@@ -54,12 +70,10 @@ void OnF4SEMessage(F4SEMessagingInterface::Message* msg)
         {
             LOG_INFO("[DX11Hook] Present hook installed successfully.");
         }
+
         break;
 
-        // OPTIONALLY:
-        // case F4SEMessagingInterface::kMessage_PostLoadGame:
-        //     LOG_INFO("Save Loaded - could re-sync here");
-        //     break;
+        
     }
 }
 
@@ -70,6 +84,13 @@ bool F4SEPlugin_Load(const F4SEInterface* f4se)
 {
     LOG_INFO("CoSync - F4SEPlugin_Load");
 
+
+    if (!CoSyncSteam_Init())
+
+    {
+        LOG_ERROR("[CoSyncSteam] Init failed (Steam friends/invites disabled)");
+    }
+
     g_pluginHandle = f4se->GetPluginHandle();
 
     g_messaging = (F4SEMessagingInterface*)f4se->QueryInterface(kInterface_Messaging);
@@ -78,6 +99,8 @@ bool F4SEPlugin_Load(const F4SEInterface* f4se)
         LOG_ERROR("Messaging interface missing!");
         return false;
     }
+    
+
 
     LOG_INFO("Registering GameLoaded listener...");
     g_messaging->RegisterListener(g_pluginHandle, "F4SE", OnF4SEMessage);

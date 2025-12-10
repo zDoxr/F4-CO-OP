@@ -1,226 +1,140 @@
-#include "CoSyncOverlay.h"
+﻿#include "CoSyncOverlay.h"
 #include "ConsoleLogger.h"
+#include "imgui.h"
+#include "HamachiUtil.h"
 #include "F4MP_Main.h"
 #include "GNS_Session.h"
 
-#include <Windows.h>
-#include <d3d11.h>
-#include <dxgi.h>
+#include <cstring>
 
-#include "imgui.h"
-#include "imgui_impl_win32.h"
-#include "imgui_impl_dx11.h"
+static bool g_overlayVisible = true;
+static bool g_overlayInitialized = false;
 
-CoSyncOverlay& CoSyncOverlay::Get()
+// Shared IP text field
+static std::string g_ipField;
+
+// Return value buffer for CoSyncOverlay_GetHostIP()
+static std::string g_lastReturnedHostIP;
+
+// ------------------------------------------------------------
+// Visibility
+// ------------------------------------------------------------
+void CoSyncOverlay_ToggleVisible() { g_overlayVisible = !g_overlayVisible; }
+void CoSyncOverlay_Show() { g_overlayVisible = true; }
+void CoSyncOverlay_Hide() { g_overlayVisible = false; }
+bool CoSyncOverlay_IsVisible() { return g_overlayVisible; }
+
+// ------------------------------------------------------------
+// Init / Shutdown
+// ------------------------------------------------------------
+void CoSyncOverlay_Init(IDXGISwapChain* swap)
 {
-    static CoSyncOverlay inst;
-    return inst;
+    LOG_INFO("[Overlay] CoSyncOverlay_Init called");
+    g_overlayInitialized = true;
 }
 
-bool CoSyncOverlay::Init(IDXGISwapChain* chain)
+void CoSyncOverlay_Shutdown()
 {
-    if (initialized)
-        return true;
-
-    LOG_INFO("[Overlay] Init called");
-
-    if (!chain)
-    {
-        LOG_ERROR("[Overlay] Init failed: swapchain is null");
-        return false;
-    }
-
-    HRESULT hr = chain->GetDevice(__uuidof(ID3D11Device), (void**)&device);
-    if (FAILED(hr) || !device)
-    {
-        LOG_ERROR("[Overlay] GetDevice failed (hr=0x%08X)", hr);
-        return false;
-    }
-
-    device->GetImmediateContext(&context);
-    if (!context)
-    {
-        LOG_ERROR("[Overlay] GetImmediateContext failed");
-        return false;
-    }
-
-    // -----------------------------
-    // ImGui setup
-    // -----------------------------
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-
-    ImGuiIO& io = ImGui::GetIO();
-    io.IniFilename = nullptr; // do not write imgui.ini to game folder
-
-    HWND gameHwnd = FindWindowA("Fallout4", nullptr);
-    if (!gameHwnd)
-    {
-        LOG_WARN("[Overlay] Could not find Fallout4 window, using foreground");
-        gameHwnd = GetForegroundWindow();
-    }
-
-    ImGui_ImplWin32_Init(gameHwnd);
-    ImGui_ImplDX11_Init(device, context);
-
-    initialized = true;
-    LOG_INFO("[Overlay] Init successful");
-    return true;
+    LOG_INFO("[Overlay] Shutdown");
+    g_overlayInitialized = false;
 }
 
-void CoSyncOverlay::ToggleVisible()
+// ------------------------------------------------------------
+// Helper for external callers: returns last host IP
+// ------------------------------------------------------------
+const char* CoSyncOverlay_GetHostIP()
 {
-    visible = !visible;
+    g_lastReturnedHostIP = g_ipField;
+    return g_lastReturnedHostIP.c_str();
 }
 
-//
-// --------------------------------------------------------------------
-// MAIN WINDOW
-// --------------------------------------------------------------------
-void CoSyncOverlay::ShowMainWindow()
+// ------------------------------------------------------------
+// Render UI
+// ------------------------------------------------------------
+void CoSyncOverlay_Render()
 {
-    ImGui::Begin("CoSync Multiplayer", nullptr,
-        ImGuiWindowFlags_AlwaysAutoResize |
-        ImGuiWindowFlags_NoCollapse);
-
-    f4mp::F4MP_Main& mp = f4mp::F4MP_Main::Get();
-
-    GNS_Session& gns = GNS_Session::Get();
-
-    bool isHost = gns.IsHost();
-    bool isClient = gns.IsClient();
-    bool isConnected = gns.IsConnected();
-
-    ImGui::Text("CoSync Multiplayer System");
-    ImGui::Separator();
-
-    ImGui::Text("Status: %s",
-        isHost ? "Host" :
-        isClient ? "Client" :
-        "Not connected");
-
-    ImGui::Text("Connection: %s",
-        isConnected ? "Connected" : "Not connected");
-    ImGui::Separator();
-
-    // -----------------------------------------------------------
-    // BEFORE HOSTING / JOINING
-    // -----------------------------------------------------------
-    if (!isHost && !isClient)
-    {
-        static char joinString[64] = "127.0.0.1:27020";
-
-        if (ImGui::Button("Host Game"))
-        {
-            LOG_INFO("[Overlay] Host button pressed");
-            mp.StartHosting();
-        }
-
-        ImGui::Separator();
-        ImGui::Text("Join a Friend:");
-
-        ImGui::InputText("Connect String", joinString, IM_ARRAYSIZE(joinString));
-
-        if (ImGui::Button("Join Game"))
-        {
-            LOG_INFO("[Overlay] Join button pressed");
-            mp.StartJoining(joinString);
-        }
-
-        ImGui::End();
+    if (!g_overlayInitialized || !g_overlayVisible)
         return;
+
+    ImGui::Begin(
+        "CoSync Multiplayer",
+        nullptr,
+        ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_AlwaysAutoResize
+    );
+
+    // ------------------------------------------------------------
+    // Auto-detect Hamachi IP ONCE
+    // ------------------------------------------------------------
+    if (g_ipField.empty())
+    {
+        std::string ip = HamachiUtil::GetHamachiIPv4();
+        if (!ip.empty())
+        {
+            g_ipField = ip;
+            LOG_INFO("[Overlay] Auto-detected Hamachi IP: %s", ip.c_str());
+        }
     }
 
-    // -----------------------------------------------------------
-    // AFTER HOST OR CLIENT CONNECTED
-    // -----------------------------------------------------------
+    // ============================================================
+    // HOST SECTION
+    // ============================================================
+    ImGui::Text("Host on Hamachi IP");
 
-    if (isHost)
+    char hostBuf[64] = {};
+    strncpy_s(hostBuf, g_ipField.c_str(), sizeof(hostBuf) - 1);
+
+    if (ImGui::InputText("##hostip", hostBuf, sizeof(hostBuf)))
+        g_ipField = hostBuf;
+
+    if (ImGui::Button("Start Hosting"))
     {
-        ImGui::Text("You are the HOST");
-
-        // GetHostConnectString returns std::string � copy into temp buffer
-        std::string connect = gns.GetHostConnectString();
-        char buffer[128] = {};
-        strncpy_s(buffer, connect.c_str(), sizeof(buffer) - 1);
-
-        ImGui::Text("Share this Join Code:");
-        ImGui::InputText("##joincode", buffer, sizeof(buffer),
-            ImGuiInputTextFlags_ReadOnly);
+        if (g_ipField.empty())
+        {
+            LOG_ERROR("[Overlay] Cannot host — IP field empty");
+        }
+        else
+        {
+            LOG_INFO("[Overlay] Host clicked using IP: %s", g_ipField.c_str());
+            f4mp::F4MP_Main::Get().StartHosting(g_ipField);
+        }
     }
-    else if (isClient)
+
+    // If hosting, show active endpoint
+    std::string listenStr = GNS_Session::Get().GetHostConnectString();
+    if (!listenStr.empty())
     {
-        ImGui::Text("Connected as CLIENT");
+        ImGui::Text("Listening on: %s", listenStr.c_str());
+        ImGui::Separator();
+    }
+
+    // ============================================================
+    // CLIENT SECTION
+    // ============================================================
+    ImGui::Text("Join Game (Hamachi IP:48000)");
+
+    char joinBuf[64] = {};
+    strncpy_s(joinBuf, g_ipField.c_str(), sizeof(joinBuf) - 1);
+
+    if (ImGui::InputText("##joinip", joinBuf, sizeof(joinBuf)))
+        g_ipField = joinBuf;
+
+    if (ImGui::Button("Join Game"))
+    {
+        if (g_ipField.empty())
+        {
+            LOG_ERROR("[Overlay] Cannot join — IP field empty");
+        }
+        else
+        {
+            std::string connectTo = g_ipField + ":48000";
+            LOG_INFO("[Overlay] Join clicked -> %s", connectTo.c_str());
+            f4mp::F4MP_Main::Get().StartJoining(connectTo);
+        }
     }
 
     ImGui::Separator();
-    ImGui::Text("Friends & Invites (placeholder)");
-
-    static const char* dummyFriends[] =
-    {
-        "FriendA", "FriendB", "FriendC"
-    };
-    static int selectedFriend = -1;
-
-    ImGui::ListBox("Friends", &selectedFriend,
-        dummyFriends, IM_ARRAYSIZE(dummyFriends));
-
-    static char newFriend[32] = "";
-    ImGui::InputText("Add Friend", newFriend, IM_ARRAYSIZE(newFriend));
-
-    if (ImGui::Button("Add"))
-    {
-        LOG_INFO("[Overlay] Add friend (TODO): %s", newFriend);
-        newFriend[0] = '\0';
-    }
-
-    if (ImGui::Button("Invite Selected"))
-    {
-        if (selectedFriend >= 0)
-        {
-            LOG_INFO("[Overlay] Invite friend: %s",
-                dummyFriends[selectedFriend]);
-        }
-    }
+    ImGui::Text("Press INSERT to toggle overlay");
 
     ImGui::End();
-}
-
-void CoSyncOverlay::Render()
-{
-    if (!initialized || !visible)
-        return;
-
-    ImGui_ImplDX11_NewFrame();
-    ImGui_ImplWin32_NewFrame();
-    ImGui::NewFrame();
-
-    ShowMainWindow();
-
-    ImGui::Render();
-    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-}
-
-void CoSyncOverlay::Shutdown()
-{
-    if (!initialized)
-        return;
-
-    ImGui_ImplDX11_Shutdown();
-    ImGui_ImplWin32_Shutdown();
-    ImGui::DestroyContext();
-
-    if (context)
-    {
-        context->Release();
-        context = nullptr;
-    }
-
-    if (device)
-    {
-        device->Release();
-        device = nullptr;
-    }
-
-    initialized = false;
 }

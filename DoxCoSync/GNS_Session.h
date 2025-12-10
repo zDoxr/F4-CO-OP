@@ -1,4 +1,5 @@
 ﻿#pragma once
+
 #include <string>
 #include "steam/steamnetworkingsockets.h"
 
@@ -14,26 +15,31 @@ class GNS_Session
 public:
     static GNS_Session& Get();
 
-    bool StartHost();
-    bool StartClient(const std::string& connectString);
+    // Startup
+    bool StartHost(const char* ip);                   // Host using Hamachi/LAN
+    bool StartClient(const std::string& connectStr); // Client connecting to host
 
+    // Called from global SteamNetworking callback
+    void HandleConnectionStatusChanged(const SteamNetConnectionStatusChangedCallback_t* info);
+
+    // Per-frame pump
     void Tick();
 
-    bool IsConnected() const { return m_connected; }
-    bool IsHost() const { return m_role == GNSRole::Host; }
-    bool IsClient() const { return m_role == GNSRole::Client; }
-
-    std::string GetHostConnectString() const;
-
-    /// ✔ You MUST HAVE THIS
+    // Send text packet (CoSyncTransport uses this)
     void SendText(const std::string& text);
 
+    // Host overlay connection string (“25.x.x.x:48000”)
+    std::string GetHostConnectString() const;
+
 private:
-    GNS_Session() = default;
+    GNS_Session();
 
-    GNSRole m_role = GNSRole::None;
-    bool    m_connected = false;
+    void ProcessConnectionMessages(HSteamNetConnection conn);
 
-    HSteamListenSocket   m_listenSocket = k_HSteamListenSocket_Invalid;
-    HSteamNetConnection  m_connection = k_HSteamNetConnection_Invalid;
+    GNSRole m_role;
+    bool    m_connected;
+
+    HSteamListenSocket   m_listenSocket;
+    HSteamNetPollGroup   m_pollGroup;
+    HSteamNetConnection  m_connection;
 };

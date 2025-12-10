@@ -49,6 +49,18 @@
     <Filter Include="Header Files\Hook">
       <UniqueIdentifier>{8b1cab20-5e34-4054-b175-12678ebfef31}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\NetWorking\CoSyncSteam">
+      <UniqueIdentifier>{2249c144-2447-4b22-ab91-953c9f1ef070}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\MinHook">
+      <UniqueIdentifier>{c388c0b7-f920-4aaa-ac75-838a019b1229}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\MinHook\hde">
+      <UniqueIdentifier>{7d2dedbd-7537-4d26-a75f-3f9e251b31d7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\MinHook\Include">
+      <UniqueIdentifier>{0a0e8478-66af-46b1-b00e-e8b2f53882eb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Include\f4se_common\Utilities.h">
@@ -101,9 +113,6 @@
     </ClInclude>
     <ClInclude Include="PacketTypes.h">
       <Filter>Header Files\NetWorking</Filter>
-    </ClInclude>
-    <ClInclude Include="RemotePlayers.h">
-      <Filter>Header Files\Game\PlayerState</Filter>
     </ClInclude>
     <ClInclude Include="RuntimeVersion.h">
       <Filter>Header Files\Game\Main</Filter>
@@ -183,8 +192,65 @@
     <ClInclude Include="DX11Hook.h">
       <Filter>Header Files\Hook</Filter>
     </ClInclude>
-    <ClInclude Include="RemoteActorManager.h">
+    <ClInclude Include="SteamDiagnostics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CoSyncSteam.h">
+      <Filter>Header Files\NetWorking\CoSyncSteam</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\MinHook\src\hde\hde32.h">
+      <Filter>ThirdParty\MinHook\hde</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\MinHook\src\hde\hde64.h">
+      <Filter>ThirdParty\MinHook\hde</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\MinHook\src\hde\pstdint.h">
+      <Filter>ThirdParty\MinHook\hde</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\MinHook\src\hde\table32.h">
+      <Filter>ThirdParty\MinHook\hde</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\MinHook\src\hde\table64.h">
+      <Filter>ThirdParty\MinHook\hde</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\MinHook\src\buffer.h">
+      <Filter>ThirdParty\MinHook</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\MinHook\src\trampoline.h">
+      <Filter>ThirdParty\MinHook</Filter>
+    </ClInclude>
+    <ClInclude Include="CoSyncTransport.h">
+      <Filter>Header Files\NetWorking</Filter>
+    </ClInclude>
+    <ClInclude Include="CoSyncSteamManager.h">
+      <Filter>Header Files\NetWorking\CoSyncSteam</Filter>
+    </ClInclude>
+    <ClInclude Include="HamachiUtil.h">
+      <Filter>Header Files\NetWorking</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\f4se\GameInput.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="IntellisenseFix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CoSyncPlayer.h">
       <Filter>Header Files\Game\PlayerState</Filter>
+    </ClInclude>
+    <ClInclude Include="CoSyncPlayerManager.h">
+      <Filter>Header Files\Game\PlayerState</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\f4se\GameRTTI.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\f4se\GameObjects.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="LocalPlayerStateGlobals.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PatternScan.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -213,9 +279,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CoSyncNet.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="RemotePlayers.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Include\f4se\NiTypes.cpp">
@@ -257,7 +320,58 @@
     <ClCompile Include="DX11Hook.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="RemoteActorManager.cpp">
+    <ClCompile Include="SteamDiagnostics.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoSyncSteam.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\MinHook\src\hde\hde32.c">
+      <Filter>ThirdParty\MinHook\hde</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\MinHook\src\hde\hde64.c">
+      <Filter>ThirdParty\MinHook\hde</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\MinHook\src\buffer.c">
+      <Filter>ThirdParty\MinHook</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\MinHook\src\hook.c">
+      <Filter>ThirdParty\MinHook</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\MinHook\src\trampoline.c">
+      <Filter>ThirdParty\MinHook</Filter>
+    </ClCompile>
+    <ClCompile Include="CoSyncTransport.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoSyncSteamManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="HamachiUtil.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Include\f4se\GameInput.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Include\f4se\BSString.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoSyncPlayer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoSyncPlayerManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Include\f4se\GameRTTI.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="LocalPlayerStateGlobals.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GameAPI_Relocs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoSyncGame.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -273,6 +387,9 @@
     </None>
     <None Include="ThirdParty\GNS\Bin\libprotobuf.dll">
       <Filter>ThirdParty\GNS\Bin</Filter>
+    </None>
+    <None Include="Include\f4se\GameRTTI.inl">
+      <Filter>Header Files</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

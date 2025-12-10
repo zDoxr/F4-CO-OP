@@ -1,133 +1,160 @@
-
-#include "GameAPI.h"
-
-#include "ConsoleLogger.h"
+﻿#include "GameAPI.h"
 #include "LocalPlayerState.h"
+#include "ConsoleLogger.h"
 
-#include "f4se/GameReferences.h"
+#include "f4se/GameRTTI.h"
 #include "f4se/GameObjects.h"
-#include "f4se/GameFormComponents.h"
+#include "f4se/GameReferences.h"
 #include "f4se_common/Relocation.h"
 
-// We only use raw memory offsets for transform updates, just like TickHook.cpp
-// No engine-only helper calls that caused compile errors before.
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+
+// FO4 Player Reference
+extern RelocPtr<PlayerCharacter*> g_player;
+
+// NOTE: Signature chosen to match Papyrus native PlaceAtMe for FO4.
+// If this turns out to be wrong, we will see it in logs / crash point.
+typedef TESObjectREFR* (*_PlaceAtMe_Native)(
+    VirtualMachine* vm,
+    UInt32 stackId,
+    TESObjectREFR** target,
+    TESForm* form,
+    SInt32 count,
+    bool bForcePersist,
+    bool bInitiallyDisabled,
+    bool bDeleteWhenAble
+    );
+
+// Provided by GameAPI_Relocs.cpp
+extern RelocAddr<_PlaceAtMe_Native> PlaceAtMe_Native;
 
 namespace GameAPI
 {
-    //
-    // 1. Safe accessor for the local player
-    //
-    PlayerCharacter* GetPlayer()
+    // ============================================================
+    // SpawnRemoteActor
+    // ============================================================
+    Actor* SpawnRemoteActor(UInt32 baseFormID)
     {
-        // g_player is a RelocPtr<PlayerCharacter*>, declared in GameReferences.h
-        if (!g_player.GetPtr())
-            return nullptr;
+        LOG_INFO("[GameAPI] SpawnRemoteActor begin baseFormID=%08X", baseFormID);
 
-        return *g_player.GetPtr();
+        TESForm* form = LookupFormByID(baseFormID);
+        if (!form)
+        {
+            LOG_ERROR("[GameAPI] LookupFormByID(%08X) returned NULL", baseFormID);
+            return nullptr;
+        }
+
+        // Make sure this is some kind of actor base
+        TESActorBase* actorBase = DYNAMIC_CAST(form, TESForm, TESActorBase);
+        if (!actorBase)
+        {
+            LOG_ERROR("[GameAPI] Form %08X is NOT TESActorBase (cannot spawn as Actor)", baseFormID);
+            return nullptr;
+        }
+
+        // More specific check for TESNPC (optional; creatures may still be valid)
+        TESNPC* npc = DYNAMIC_CAST(form, TESForm, TESNPC);
+        if (npc)
+        {
+            LOG_DEBUG("[GameAPI] Base form %08X is TESNPC (ok to spawn)", baseFormID);
+        }
+        else
+        {
+            LOG_DEBUG("[GameAPI] Base form %08X is TESActorBase but NOT TESNPC (creature or other actor type)", baseFormID);
+        }
+
+        PlayerCharacter* player = *g_player;
+        if (!player)
+        {
+            LOG_ERROR("[GameAPI] Player not ready (g_player null)");
+            return nullptr;
+        }
+
+        if (!PlaceAtMe_Native)
+        {
+            LOG_ERROR("[GameAPI] PlaceAtMe_Native reloc is NULL – cannot spawn");
+            return nullptr;
+        }
+
+        LOG_DEBUG("[GameAPI] Using PlaceAtMe_Native=%p targetREFR=%p",
+            (void*)PlaceAtMe_Native.GetUIntPtr(), player);
+
+        VirtualMachine* fakeVM = nullptr;
+        UInt32 fakeStackID = 0;
+        TESObjectREFR* target = player;
+
+        TESObjectREFR* spawned = nullptr;
+
+        // Call the native – if the signature is wrong, this is where it will blow up.
+        spawned = PlaceAtMe_Native(
+            fakeVM,
+            fakeStackID,
+            &target,
+            form,
+            1,              // count
+            false,          // forcePersist
+            true,           // initiallyDisabled so AI does not run
+            false           // deleteWhenAble
+        );
+
+        if (!spawned)
+        {
+            LOG_ERROR("[GameAPI] PlaceAtMe_Native returned NULL for form %08X", baseFormID);
+            return nullptr;
+        }
+
+        Actor* actor = DYNAMIC_CAST(spawned, TESObjectREFR, Actor);
+        if (!actor)
+        {
+            LOG_ERROR("[GameAPI] Spawned ref %p is NOT an Actor (baseFormID=%08X)", spawned, baseFormID);
+            return nullptr;
+        }
+
+        LOG_INFO("[GameAPI] SpawnRemoteActor OK actor=%p baseFormID=%08X", actor, baseFormID);
+        return actor;
     }
 
-    // ------------------------------------------------------------------------
-    // 2. Offsets for position/rotation (same as in TickHook.cpp)
-    // ------------------------------------------------------------------------
-
-    // NOTE: These MUST match what you're using in TickHook.cpp.
-    // If you ever change them there, change them here too.
-    static constexpr uintptr_t kPosX_Offset = 0xD0;
-    static constexpr uintptr_t kPosY_Offset = 0xD4;
-    static constexpr uintptr_t kPosZ_Offset = 0xD8;
-
-    static constexpr uintptr_t kRotX_Offset = 0xE0;
-    static constexpr uintptr_t kRotY_Offset = 0xE4;
-    static constexpr uintptr_t kRotZ_Offset = 0xE8;
-
-    // ------------------------------------------------------------------------
-    // 3. Apply transforms + basic movement flags to an arbitrary Actor
-    // ------------------------------------------------------------------------
-
-     void GameAPI::ApplyRemotePlayerStateToActor(Actor* actor, const LocalPlayerState& state)
+    // ============================================================
+    // PositionRemoteActor – direct position + rotation write
+    // ============================================================
+    void PositionRemoteActor(Actor* actor, const NiPoint3& pos, const NiPoint3& rot)
     {
         if (!actor)
             return;
 
-        uintptr_t base = reinterpret_cast<uintptr_t>(actor);
-
-        // --- Position ---
-        *reinterpret_cast<float*>(base + kPosX_Offset) = state.position.x;
-        *reinterpret_cast<float*>(base + kPosY_Offset) = state.position.y;
-        *reinterpret_cast<float*>(base + kPosZ_Offset) = state.position.z;
-
-        // --- Rotation ---
-        *reinterpret_cast<float*>(base + kRotX_Offset) = state.rotation.x;
-        *reinterpret_cast<float*>(base + kRotY_Offset) = state.rotation.y;
-        *reinterpret_cast<float*>(base + kRotZ_Offset) = state.rotation.z;
-
-        // For now, we are NOT touching health/AP via ActorValueOwner,
-        // because FO4's AV API is different and has been a source of compile errors.
-        // We'll just log them so you can see the values coming in.
-
-        LOG_DEBUG(
-            "[GameAPI] Applied remote state to actor %p: "
-            "pos=(%.2f, %.2f, %.2f) rot=(%.2f, %.2f, %.2f) "
-            "hp=%.1f/%.1f ap=%.1f/%.1f moving=%d",
-            actor,
-            state.position.x, state.position.y, state.position.z,
-            state.rotation.x, state.rotation.y, state.rotation.z,
-            state.health, state.maxHealth,
-            state.ap, state.maxActionPoints,
-            state.isMoving ? 1 : 0
-        );
+        actor->pos = pos;
+        actor->rot = rot;
     }
 
-    // ------------------------------------------------------------------------
-    // 4. "High-level" convenience: apply to *some* actor
-    //
-    // For now, this just reuses the local player so you can see it working.
-    // Later we will:
-    //   - Spawn / manage dedicated remote actors
-    //   - Map SteamID -> Actor* and apply per-remote-player.
-    // ------------------------------------------------------------------------
-
-     void ApplyRemotePlayerState(const LocalPlayerState& state)
+    // ============================================================
+    // ApplyRemotePlayerStateToActor
+    // ============================================================
+    void ApplyRemotePlayerStateToActor(Actor* actor, const LocalPlayerState& state)
     {
-        // TEMP: Just apply to local player so you can visually verify that
-        // replication path works (you'll see yourself being "dragged" by
-        // the incoming network state).
-        PlayerCharacter* pc = GetPlayer();
-        if (!pc)
+        if (!actor)
             return;
 
-        ApplyRemotePlayerStateToActor(pc, state);
+        actor->pos = state.position;
+        actor->rot = state.rotation;
     }
 
-
-
-
-    Actor* GameAPI::SpawnActor(UInt32 formID)
+    // ============================================================
+    // NativeMoveTo – simple pos move
+    // ============================================================
+    void NativeMoveTo(Actor* actor, const NiPoint3& pos)
     {
-        LOG_WARN("[GameAPI] SpawnActor called but not implemented yet");
-        return nullptr;
+        if (!actor)
+            return;
+
+        actor->pos = pos;
     }
 
-    void GameAPI::MoveActorTo(Actor* actor, const NiPoint3& pos, const NiPoint3& rot)
+    // ============================================================
+    // SetActorTransform (compat)
+    // ============================================================
+    void SetActorTransform(Actor* actor, const NiPoint3& pos, const NiPoint3& rot)
     {
-        LOG_WARN("[GameAPI] MoveActorTo called but not implemented yet");
+        PositionRemoteActor(actor, pos, rot);
     }
-
-    void GameAPI::SetActorHealth(Actor* actor, float value, float maxValue)
-    {
-        LOG_WARN("[GameAPI] SetActorHealth called but not implemented yet");
-    }
-
-    void GameAPI::ApplyImpulse(Actor* actor, const NiPoint3& velocity)
-    {
-        LOG_WARN("[GameAPI] ApplyImpulse called but not implemented yet");
-    }
-
-
-
-
-
-
-
-
-} // namespace GameAPI
+}

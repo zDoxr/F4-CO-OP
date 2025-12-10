@@ -3,66 +3,55 @@
 #include "f4se/NiTypes.h"
 #include "f4se/GameReferences.h"
 #include "f4se/GameObjects.h"
+#include "f4se/GameTypes.h"
 
 #include "ConsoleLogger.h"
 #include "LocalPlayerState.h"
+#include "LocalPlayerStateGlobals.h"
 #include "GameAPI.h"
+#include "CoSyncNet.h"
+#include "CoSyncSteam.h"
 #include "F4MP_Main.h"
 #include "TickHook.h"
-#include "CoSyncNet.h"
+#include "CoSyncPlayer.h"
 
 #define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
 #include <Windows.h>
 
-// ===========================================================================
-// VTABLE LOCATION (your verified, working one)
 // ============================================================================
-static RelocAddr<uintptr_t> g_ActorVTable_RVA(0x02555320);
+//   PlayerCharacter::vtbl (FO4 NG 1.11.169)
+// ============================================================================
 
-using ActorUpdateFn = char (*)(Actor* actor, __int64 a2);
+// Provided by F4SE
+extern RelocPtr<PlayerCharacter*> g_player;
+
+// FO4 NG: the vtable entry we hook (0x140D636C0) uses a 3-arg __fastcall and
+// returns 64-bit (not char). We must match this EXACTLY or we crash.
+using ActorUpdateFn = __int64(__fastcall*)(PlayerCharacter* actor, void* arg2, void* arg3);
 static ActorUpdateFn g_ActorUpdate_Original = nullptr;
 
-// Logging / network throttles
+// Timing
 static double g_lastLogTime = 0.0;
 static double g_lastNetSendTime = 0.0;
 static bool   g_worldLoadedAnnounced = false;
 
-// ============================================================================
-// Time helper
-// ============================================================================
-static double GetNowSeconds()
-{
-    LARGE_INTEGER freq{};
-    LARGE_INTEGER counter{};
-
-    if (!QueryPerformanceFrequency(&freq) || freq.QuadPart == 0)
-        return 0.0;
-
-    if (!QueryPerformanceCounter(&counter))
-        return 0.0;
-
-    return static_cast<double>(counter.QuadPart) /
-        static_cast<double>(freq.QuadPart);
-}
-
-// ============================================================================
-// Position / rotation offsets (valid for FO4 v1.10.163)
-// ============================================================================
-static constexpr uintptr_t kPosX_Offset = 0xD0;
-static constexpr uintptr_t kPosY_Offset = 0xD4;
-static constexpr uintptr_t kPosZ_Offset = 0xD8;
-
-static constexpr uintptr_t kRotX_Offset = 0xE0;
-static constexpr uintptr_t kRotY_Offset = 0xE4;
-static constexpr uintptr_t kRotZ_Offset = 0xE8;
-
-// ============================================================================
-// Velocity tracking
-// ============================================================================
+// Previous frame (for velocity)
 static NiPoint3 g_prevPos{ 0.f, 0.f, 0.f };
 static bool     g_hasPrevPos = false;
 static double   g_prevTime = 0.0;
+
+
+
+// ============================================================================
+// Time Helpers
+// ============================================================================
+static double GetNowSeconds()
+{
+    LARGE_INTEGER f, c;
+    QueryPerformanceFrequency(&f);
+    QueryPerformanceCounter(&c);
+    return static_cast<double>(c.QuadPart) / static_cast<double>(f.QuadPart);
+}
 
 static float LengthSq(const NiPoint3& v)
 {
@@ -70,14 +59,18 @@ static float LengthSq(const NiPoint3& v)
 }
 
 // ============================================================================
-// ActorUpdate Hook
+//   HOOK — PlayerCharacter::Update-like entry at vtbl[21]
+//   (sub_140D636C0 on 1.11.169 NG)
 // ============================================================================
-static char ActorUpdate_Hook(PlayerCharacter* actor, __int64 a2)
+static __int64 __fastcall ActorUpdate_Hook(
+    PlayerCharacter* actor,
+    void* arg2,
+    void* arg3)
 {
-    LOG_WARN("[CoSync] TOP OF HOOK REACHED (1)");
-
-    char result = g_ActorUpdate_Original(actor, a2);
-    LOG_WARN("[CoSync] AFTER ORIGINAL CALLED (2)");
+    // Call original first so we preserve expected behavior
+    __int64 result = 0;
+    if (g_ActorUpdate_Original)
+        result = g_ActorUpdate_Original(actor, arg2, arg3);
 
     if (!actor)
         return result;
@@ -86,34 +79,19 @@ static char ActorUpdate_Hook(PlayerCharacter* actor, __int64 a2)
     if (!localPlayer || actor != localPlayer)
         return result;
 
-    LOG_WARN("[CoSync] PASSED LOCAL PLAYER CHECK (3)");
+    NiPoint3 pos = actor->pos;
+    NiPoint3 rot = actor->rot;
 
-    uintptr_t base = reinterpret_cast<uintptr_t>(actor);
-
-    // ----------------------------------------------------------------------
-    // POSITION + ROTATION
-    // ----------------------------------------------------------------------
-    NiPoint3 pos{
-        *reinterpret_cast<float*>(base + kPosX_Offset),
-        *reinterpret_cast<float*>(base + kPosY_Offset),
-        *reinterpret_cast<float*>(base + kPosZ_Offset)
-    };
-
-    NiPoint3 rot{
-        *reinterpret_cast<float*>(base + kRotX_Offset),
-        *reinterpret_cast<float*>(base + kRotY_Offset),
-        *reinterpret_cast<float*>(base + kRotZ_Offset)
-    };
-
-    // ----------------------------------------------------------------------
-    // VELOCITY
-    // ----------------------------------------------------------------------
-    double   now = GetNowSeconds();
+    // ========================================================================
+    // VELOCITY CALCULATION
+    // ========================================================================
+    double  now = GetNowSeconds();
+    double  dt = 0.0;
     NiPoint3 vel{ 0.f, 0.f, 0.f };
 
     if (g_hasPrevPos)
     {
-        double dt = now - g_prevTime;
+        dt = now - g_prevTime;
         if (dt > 0.0001)
         {
             vel.x = (pos.x - g_prevPos.x) / static_cast<float>(dt);
@@ -128,108 +106,91 @@ static char ActorUpdate_Hook(PlayerCharacter* actor, __int64 a2)
 
     bool isMoving = (LengthSq(vel) > 1.0f);
 
-    // ----------------------------------------------------------------------
-    // WORLD READY CHECKS
-    // ----------------------------------------------------------------------
-    LOG_WARN("[CoSync] ABOUT TO CHECK WORLD READY (4)");
-    LOG_WARN("[CoSync] now=%.6f last=%.6f diff=%.6f",
-        now, g_lastLogTime, now - g_lastLogTime);
-
+    // ========================================================================
+    // WORLD READY CHECK
+    // ========================================================================
     bool hasCell = (actor->parentCell != nullptr);
     bool hasValidCell = hasCell && (actor->parentCell->formID != 0);
+    bool hasValidPos = !(pos.x == 0.f && pos.y == 0.f && pos.z == 0.f);
 
-    bool hasMovementController =
-        (*reinterpret_cast<uintptr_t*>(base + 0x148) != 0) ||
-        (*reinterpret_cast<uintptr_t*>(base + 0x1A0) != 0);
-
-    bool hasValidPos =
-        !(pos.x == 0.f && pos.y == 0.f && pos.z == 0.f);
-
-    bool worldReady = hasValidCell && hasMovementController && hasValidPos;
-
+    bool worldReady = hasValidCell && hasValidPos;
     if (!worldReady)
     {
         if (!g_worldLoadedAnnounced)
-            LOG_WARN("[CoSync] WORLD NOT READY (5)");
+            LOG_WARN("[CoSync] WORLD NOT READY (player/cell not valid)");
         return result;
     }
 
     if (!g_worldLoadedAnnounced)
     {
         g_worldLoadedAnnounced = true;
-        LOG_INFO("[CoSync] WORLD LOADED — Player and cell fully valid!");
+        LOG_INFO("[CoSync] WORLD LOADED — Player and cell valid!");
     }
 
-    // ----------------------------------------------------------------------
-    // TEMP placeholders (hook up real HP/AP later via GameAPI)
-    // ----------------------------------------------------------------------
-    float  hp = 0.f;
-    float  maxHp = 0.f;
-    float  ap = 0.f;
-    float  maxAp = 0.f;
-    UInt32 weaponFormID = 0;
-    bool   isSprinting = false;
-    bool   isCrouching = false;
-    bool   isJumping = false;
+    // Make sure CoSyncNet delayed init runs once the world actually exists
+    CoSyncNet::PerformPendingInit();
 
-    // ----------------------------------------------------------------------
-    // Fill global local player state
-    // ----------------------------------------------------------------------
+    // ========================================================================
+    // FILL LOCAL PLAYER STATE
+    // ========================================================================
     g_localPlayerState.position = pos;
     g_localPlayerState.rotation = rot;
     g_localPlayerState.velocity = vel;
     g_localPlayerState.isMoving = isMoving;
-    g_localPlayerState.isSprinting = isSprinting;
-    g_localPlayerState.isCrouching = isCrouching;
-    g_localPlayerState.isJumping = isJumping;
-    g_localPlayerState.equippedWeaponFormID = weaponFormID;
+    g_localPlayerState.isSprinting = false;  // TODO: hook sprint flag
+    g_localPlayerState.isCrouching = false;  // TODO: hook crouch flag
+    g_localPlayerState.isJumping = false;  // TODO: hook jump flag
+
     g_localPlayerState.formID = actor->formID;
     g_localPlayerState.cellFormID = actor->parentCell ? actor->parentCell->formID : 0;
-    g_localPlayerState.health = hp;
-    g_localPlayerState.maxHealth = maxHp;
-    g_localPlayerState.ap = ap;
-    g_localPlayerState.maxActionPoints = maxAp;
 
-    LOG_WARN("[CoSync] ABOUT TO PRINT FINAL STATE LOG (6)");
+    // Placeholder stats for now
+    g_localPlayerState.health = 0.f;
+    g_localPlayerState.maxHealth = 0.f;
+    g_localPlayerState.ap = 0.f;
+    g_localPlayerState.maxActionPoints = 0.f;
 
-    // ----------------------------------------------------------------------
-    // LOG THROTTLE
-    // ----------------------------------------------------------------------
+    // Periodic debug log
     if (now - g_lastLogTime > 0.5)
     {
         g_lastLogTime = now;
-
-        LOG_DEBUG(
-            "[CoSync] PlayerState: pos=(%.2f %.2f %.2f) "
-            "rot=(%.2f %.2f %.2f) vel=(%.2f %.2f %.2f) "
-            "hp=%.1f/%.1f ap=%.1f/%.1f move=%d",
-            pos.x, pos.y, pos.z,
-            rot.x, rot.y, rot.z,
-            vel.x, vel.y, vel.z,
-            hp, maxHp,
-            ap, maxAp,
-            isMoving
-        );
+        LOG_DEBUG("[CoSync] PlayerState pos=(%.2f %.2f %.2f) rot=(%.2f %.2f %.2f)",
+            pos.x, pos.y, pos.z, rot.x, rot.y, rot.z);
     }
 
-    // ----------------------------------------------------------------------
-    // NETWORK SEND THROTTLE (~20 FPS for network)
-    // ----------------------------------------------------------------------
-    if (now - g_lastNetSendTime > 0.05)   // 50ms
+    // ========================================================================
+    // NETWORK SEND (ONLY when connected & initialized)
+    // ========================================================================
+    if (CoSyncNet::IsConnected() && CoSyncNet::IsInitialized())
     {
-        g_lastNetSendTime = now;
-        CoSyncNet::SendLocalPlayerState(g_localPlayerState);
+        // ~20Hz send rate (50ms)
+        if (now - g_lastNetSendTime > 0.05)
+        {
+            g_lastNetSendTime = now;
+            LOG_DEBUG("[CoSync] TickHook sending LocalPlayerState");
+            CoSyncNet::SendLocalPlayerState(g_localPlayerState);
+        }
     }
+
+    // ========================================================================
+    // Optional: global tick (for future game-level sync)
+    // ========================================================================
+    double frameDt = dt;
+    if (frameDt <= 0.0 || frameDt > 1.0)
+        frameDt = 1.0 / 60.0;
+
+    // If/when you want this back:
+    // f4mp::F4MP_Main::Get().GameTick(static_cast<float>(frameDt));
 
     return result;
 }
 
 // ============================================================================
-// InstallTickHook
+//   INSTALL HOOK
 // ============================================================================
 void InstallTickHook()
 {
-    LOG_DEBUG("[CoSync] InstallTickHook: starting hook");
+    LOG_INFO("[CoSync] ========== InstallTickHook START ==========");
 
     PlayerCharacter* pc = *g_player;
     if (!pc)
@@ -238,32 +199,52 @@ void InstallTickHook()
         return;
     }
 
+    LOG_INFO("[CoSync] PlayerCharacter instance = %p", pc);
+
     uintptr_t* vtbl = *(uintptr_t**)pc;
     if (!vtbl)
     {
-        LOG_ERROR("[CoSync] Player vtable NULL");
+        LOG_ERROR("[CoSync] Player vtable is NULL");
         return;
     }
 
     LOG_INFO("[CoSync] PlayerCharacter vtable @ %p", vtbl);
 
-    constexpr UInt32 kUpdateIndex = 19;
+    // New index for FO4 NG: 21 (entry pointing to sub_140D636C0)
+    constexpr UInt32 kIndex = 21;
 
-    g_ActorUpdate_Original =
-        reinterpret_cast<ActorUpdateFn>(vtbl[kUpdateIndex]);
+    uintptr_t origFn = vtbl[kIndex];
+    if (!origFn)
+    {
+        LOG_ERROR("[CoSync] vtbl[%u] is NULL – cannot hook", kIndex);
+        return;
+    }
 
-    LOG_DEBUG("[CoSync] Original PlayerCharacter::Update = %p",
-        (void*)g_ActorUpdate_Original);
+    LOG_INFO("[CoSync] PlayerCharacter::Update-like (vtbl[%u]) = %p", kIndex, (void*)origFn);
 
-    DWORD oldProt = 0;
-    VirtualProtect(&vtbl[kUpdateIndex], sizeof(uintptr_t),
-        PAGE_EXECUTE_READWRITE, &oldProt);
+    
 
-    vtbl[kUpdateIndex] = (uintptr_t)&ActorUpdate_Hook;
+    g_ActorUpdate_Original = reinterpret_cast<ActorUpdateFn>(origFn);
 
-    DWORD dummy = 0;
-    VirtualProtect(&vtbl[kUpdateIndex], sizeof(uintptr_t),
-        oldProt, &dummy);
+    // Patch vtable entry
+    DWORD oldProt;
+    if (!VirtualProtect(&vtbl[kIndex], sizeof(uintptr_t), PAGE_EXECUTE_READWRITE, &oldProt))
+    {
+        LOG_ERROR("[CoSync] VirtualProtect (unlock) failed, GetLastError=%u", GetLastError());
+        return;
+    }
 
-    LOG_DEBUG("[CoSync] Hook installed on Update (index 19)");
+    vtbl[kIndex] = reinterpret_cast<uintptr_t>(&ActorUpdate_Hook);
+
+    DWORD dummy;
+    VirtualProtect(&vtbl[kIndex], sizeof(uintptr_t), oldProt, &dummy);
+
+    // Reset timing helpers on install (optional but clean)
+    g_hasPrevPos = false;
+    g_worldLoadedAnnounced = false;
+    g_lastLogTime = 0.0;
+    g_lastNetSendTime = 0.0;
+
+    LOG_INFO("[CoSync] TickHook installed successfully (index %u)", kIndex);
+    LOG_INFO("[CoSync] ========== InstallTickHook END ==========");
 }

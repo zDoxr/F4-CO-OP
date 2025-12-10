@@ -10,31 +10,27 @@ namespace f4mp
     public:
         static F4MP_Main& Get();
 
-        // Core lifecycle (called by plugin)
-        static void Init();
-        static void Shutdown();
-        static void GameTick(float dt);
+        // Called once when DLL loads (steam/network initialization)
+        void Init();
 
-        // Overlay-driven multiplayer controls
-        void StartHosting();
+        // Host a multiplayer session on given IP (Hamachi)
+        void StartHosting(const std::string& ip);
+
+        // Join a host using "IP:PORT"
         void StartJoining(const std::string& connectStr);
 
-        // Query network status
-        bool IsServer() const { return isServer.load(); }
-        bool IsNetworkReady() const;   // Connected host <-> client
+        // Shutdown all networking (called on plugin unload)
+        void Shutdown();
 
-        // Incoming message handler (future use)
-        void OnGNSMessage(const std::string& msg);
+        
+
+        bool IsInitialized() const { return initialized.load(); }
+        bool IsServer() const { return isServer.load(); }
 
     private:
         F4MP_Main() = default;
-        ~F4MP_Main() = default;
-
-        F4MP_Main(const F4MP_Main&) = delete;
-        F4MP_Main& operator=(const F4MP_Main&) = delete;
 
         std::atomic<bool> initialized{ false };
         std::atomic<bool> isServer{ false };
     };
-
-} // namespace f4mp
+}

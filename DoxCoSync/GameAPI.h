@@ -1,24 +1,32 @@
-#pragma once
+﻿#pragma once
 
 #include "f4se/NiTypes.h"
 #include "f4se/GameReferences.h"
-#include "LocalPlayerState.h"
+#include "f4se/GameObjects.h"
+
+// Forward
+class LocalPlayerState;
 
 namespace GameAPI
 {
-    PlayerCharacter* GetPlayer();
+    // Spawn remote actor from a baseFormID
+    Actor* SpawnRemoteActor(UInt32 baseFormID);
 
-    Actor* SpawnActor(UInt32 formID);
+    // Writes Actor position + rotation
+    void PositionRemoteActor(Actor* actor, const NiPoint3& pos, const NiPoint3& rot);
 
-    void MoveActorTo(Actor* actor, const NiPoint3& pos, const NiPoint3& rot);
-
-    void SetActorHealth(Actor* actor, float value, float maxValue);
-
-    void ApplyImpulse(Actor* actor, const NiPoint3& velocity);
-
-    
+    // Applies full LocalPlayerState (pos + rot only for now)
     void ApplyRemotePlayerStateToActor(Actor* actor, const LocalPlayerState& state);
 
-    //wrapper
-    void ApplyRemotePlayerState(const LocalPlayerState& state);
+    // Position only helper (pos only)
+    void NativeMoveTo(Actor* actor, const NiPoint3& pos);
+
+    // For old naming compatibility
+    void SetActorTransform(Actor* actor, const NiPoint3& pos, const NiPoint3& rot);
+}
+
+// Global convenience wrapper
+inline void NativeMoveTo(Actor* actor, const NiPoint3& pos)
+{
+    GameAPI::NativeMoveTo(actor, pos);
 }

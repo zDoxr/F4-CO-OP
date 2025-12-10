@@ -1,49 +1,65 @@
-
 #include "LocalPlayerState.h"
 #include "ConsoleLogger.h"
+#include "LocalPlayerStateGlobals.h"
 #include "f4se/GameReferences.h"
+#include "f4se_common/Utilities.h"
+#include "f4se/GameTypes.h"
+#include "f4se_common/Relocation.h"
 
-// MUST MATCH TickHook offsets
-static constexpr uintptr_t kPosX_Offset = 0xD0;
-static constexpr uintptr_t kPosY_Offset = 0xD4;
-static constexpr uintptr_t kPosZ_Offset = 0xD8;
-
-static constexpr uintptr_t kRotX_Offset = 0xE0;
-static constexpr uintptr_t kRotY_Offset = 0xE4;
-static constexpr uintptr_t kRotZ_Offset = 0xE8;
-
-// Global instance
-LocalPlayerState g_localPlayerState;
-
-// ------------------------------------------------------
-// NO velocity reading in LocalPlayerState
-// TickHook computes it and sets g_localPlayerState.velocity
-// ------------------------------------------------------
+// ---------------------------------------------------------------------------
+// CaptureLocalPlayerState
+// Called one-time after world load OR whenever a full static refresh is needed.
+// TickHook updates all dynamic fields every frame.
+// ---------------------------------------------------------------------------
 void CaptureLocalPlayerState(PlayerCharacter* pc)
 {
     if (!pc)
         return;
 
-    uintptr_t base = reinterpret_cast<uintptr_t>(pc);
+    // ----------------------------------------------------
+    // Identity (username is assigned externally)
+    // ----------------------------------------------------
 
-    // --- Position ---
-    g_localPlayerState.position.x = *reinterpret_cast<float*>(base + kPosX_Offset);
-    g_localPlayerState.position.y = *reinterpret_cast<float*>(base + kPosY_Offset);
-    g_localPlayerState.position.z = *reinterpret_cast<float*>(base + kPosZ_Offset);
+    // ----------------------------------------------------
+    // Base form and cell
+    // ----------------------------------------------------
+    g_localPlayerState.formID = pc->formID;
+    g_localPlayerState.cellFormID = pc->parentCell ? pc->parentCell->formID : 0;
 
-    // --- Rotation ---
-    g_localPlayerState.rotation.x = *reinterpret_cast<float*>(base + kRotX_Offset);
-    g_localPlayerState.rotation.y = *reinterpret_cast<float*>(base + kRotY_Offset);
-    g_localPlayerState.rotation.z = *reinterpret_cast<float*>(base + kRotZ_Offset);
+    // ----------------------------------------------------
+    // Transform
+    // ----------------------------------------------------
+    g_localPlayerState.position = pc->pos;
+    g_localPlayerState.rotation = pc->rot;
 
-    // HEALTH/AP = zero until Phase 7
-    g_localPlayerState.health = 0.f;
-    g_localPlayerState.maxHealth = 0.f;
-    g_localPlayerState.ap = 0.f;
-    g_localPlayerState.maxActionPoints = 0.f;
+    // Velocity is handled in TickHook — do not overwrite here.
 
-    LOG_DEBUG("[LocalPlayerState] captured pos=(%.2f %.2f %.2f)",
+    // ----------------------------------------------------
+    // Stats (TickHook or future systems can fill these)
+    // ----------------------------------------------------
+    // g_localPlayerState.health
+    // g_localPlayerState.maxHealth
+    // g_localPlayerState.ap
+    // g_localPlayerState.maxActionPoints
+
+    // ----------------------------------------------------
+    // Movement Flags (reset; TickHook updates them)
+    // ----------------------------------------------------
+    g_localPlayerState.isMoving = false;
+    g_localPlayerState.isSprinting = false;
+    g_localPlayerState.isCrouching = false;
+    g_localPlayerState.isJumping = false;
+
+    // ----------------------------------------------------
+    // Equipped weapon — TickHook updates this later
+    // ----------------------------------------------------
+    // g_localPlayerState.equippedWeaponFormID
+
+    LOG_DEBUG("[LocalPlayerState] captured pos=(%.2f %.2f %.2f) rot=(%.2f %.2f %.2f)",
         g_localPlayerState.position.x,
         g_localPlayerState.position.y,
-        g_localPlayerState.position.z);
+        g_localPlayerState.position.z,
+        g_localPlayerState.rotation.x,
+        g_localPlayerState.rotation.y,
+        g_localPlayerState.rotation.z);
 }

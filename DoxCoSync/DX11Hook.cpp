@@ -1,6 +1,17 @@
+﻿// DX11Hook.cpp
 #include "DX11Hook.h"
 #include "CoSyncOverlay.h"
 #include "ConsoleLogger.h"
+#include <Windows.h>
+#include <d3d11.h>
+#include <dxgi.h>
+#include <d3dcompiler.h>
+#include "TickHook.h"
+#include "imgui.h"
+#include "imgui_impl_dx11.h"
+#include "imgui_impl_win32.h"
+
+#include "GNS_Session.h"  // <<< NEW: so we can tick networking every frame
 
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -8,46 +19,184 @@
 
 typedef HRESULT(__stdcall* PresentFn)(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT Flags);
 
-static PresentFn       g_originalPresent = nullptr;
-static bool            g_presentHookInstalled = false;
+// ImGui Win32 handler
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-// Dummy window handle (only for creating dummy device)
-static HWND            g_dummyHwnd = nullptr;
+// ---------------------------------------------------------------------
+// Globals
+// ---------------------------------------------------------------------
+static PresentFn                 g_originalPresent = nullptr;
+static bool                      g_presentHookInstalled = false;
 
-// Very small Win32 dummy proc
+static HWND                      g_dummyHwnd = nullptr;
+static HWND                      g_gameHwnd = nullptr;
+static WNDPROC                   g_originalGameWndProc = nullptr;
+
+static ID3D11Device* g_d3dDevice = nullptr;
+static ID3D11DeviceContext* g_d3dContext = nullptr;
+static ID3D11RenderTargetView* g_mainRTV = nullptr;
+
+static bool                      g_imguiInitialized = false;
+
+// ---------------------------------------------------------------------
+// Dummy wndproc (for dummy device creation only)
+// ---------------------------------------------------------------------
 static LRESULT CALLBACK DummyWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
-// Our hooked Present
+// ---------------------------------------------------------------------
+// Game WndProc hook — routes input to ImGui when overlay is visible
+// ---------------------------------------------------------------------
+static LRESULT CALLBACK GameWndProc_Hook(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    // Only let ImGui process when our overlay is visible
+    if (CoSyncOverlay_IsVisible())
+    {
+        // If ImGui handles the message, eat it so the game doesn't see it
+        if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
+            return TRUE;
+    }
+
+    // Otherwise, pass through to the original game wndproc
+    return CallWindowProc(g_originalGameWndProc, hWnd, msg, wParam, lParam);
+}
+
+// ---------------------------------------------------------------------
+// Create / recreate render target view from swap chain
+// ---------------------------------------------------------------------
+static void CreateRenderTarget(IDXGISwapChain* pSwapChain)
+{
+    if (!pSwapChain || !g_d3dDevice)
+        return;
+
+    if (g_mainRTV)
+    {
+        g_mainRTV->Release();
+        g_mainRTV = nullptr;
+    }
+
+    ID3D11Texture2D* pBackBuffer = nullptr;
+    if (SUCCEEDED(pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&pBackBuffer)))
+    {
+        g_d3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_mainRTV);
+        pBackBuffer->Release();
+    }
+}
+
+// ---------------------------------------------------------------------
+// Hooked Present
+// ---------------------------------------------------------------------
 static HRESULT __stdcall HookedPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT Flags)
 {
-    // Initialize overlay once we see a real swapchain from the game
-    static bool overlayInitialized = false;
-    if (!overlayInitialized)
+    // One–time ImGui + device init based on the REAL game swapchain
+    if (!g_imguiInitialized)
     {
-        if (CoSyncOverlay::Get().Init(pSwapChain))
+        // Get device + context from the game swapchain
+        if (SUCCEEDED(pSwapChain->GetDevice(__uuidof(ID3D11Device), (void**)&g_d3dDevice)) &&
+            g_d3dDevice)
         {
-            LOG_INFO("[DX11Hook] CoSyncOverlay initialized from Present hook");
-            overlayInitialized = true;
+            g_d3dDevice->GetImmediateContext(&g_d3dContext);
+        }
+
+        DXGI_SWAP_CHAIN_DESC desc = {};
+        pSwapChain->GetDesc(&desc);
+        g_gameHwnd = desc.OutputWindow;
+
+        CreateRenderTarget(pSwapChain);
+
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGui::StyleColorsDark();
+
+        ImGui_ImplWin32_Init(g_gameHwnd);
+        ImGui_ImplDX11_Init(g_d3dDevice, g_d3dContext);
+
+        g_imguiInitialized = true;
+
+        // Hook the game window's WndProc so ImGui can see messages
+        if (g_gameHwnd && !g_originalGameWndProc)
+        {
+            g_originalGameWndProc = (WNDPROC)SetWindowLongPtr(
+                g_gameHwnd,
+                GWLP_WNDPROC,
+                (LONG_PTR)GameWndProc_Hook
+            );
+
+            if (!g_originalGameWndProc)
+            {
+                LOG_ERROR("[DX11Hook] Failed to hook game WndProc");
+            }
+            else
+            {
+                LOG_INFO("[DX11Hook] Game WndProc hooked successfully");
+            }
+        }
+
+        // Now it’s safe to init our overlay (it will see a valid ImGui context)
+        CoSyncOverlay_Init(pSwapChain);
+
+        LOG_INFO("[DX11Hook] ImGui + CoSyncOverlay fully initialized");
+    }
+
+    // If ImGui is ready, build a frame
+    if (g_imguiInitialized && g_d3dContext)
+    {
+        ImGui_ImplDX11_NewFrame();
+        ImGui_ImplWin32_NewFrame();
+        ImGui::NewFrame();
+
+        // TOGGLE OVERLAY VISIBILITY
+        if (GetAsyncKeyState(VK_INSERT) & 1)
+        {
+            CoSyncOverlay_ToggleVisible();
+        }
+
+        // INPUT & CURSOR HANDLING
+        ImGuiIO& io = ImGui::GetIO();
+        const bool visible = CoSyncOverlay_IsVisible();
+
+        io.WantCaptureMouse = visible;
+        io.WantCaptureKeyboard = visible;
+
+        // Fallout 4 hides the cursor in gameplay; we force it visible when overlay is open
+        if (visible)
+        {
+            ShowCursor(TRUE);
         }
         else
         {
-            LOG_ERROR("[DX11Hook] CoSyncOverlay init failed");
+            ShowCursor(FALSE);
         }
+
+        // Draw our overlay
+        CoSyncOverlay_Render();
+
+        ImGui::EndFrame();
+        ImGui::Render();
+
+        // Make sure we render to the correct RT
+        if (g_mainRTV)
+        {
+            g_d3dContext->OMSetRenderTargets(1, &g_mainRTV, nullptr);
+        }
+
+        ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
     }
 
-    // Render overlay every frame (if initialized)
-    if (overlayInitialized)
-    {
-        CoSyncOverlay::Get().Render();
-    }
-
-    // Call original Present
-    return g_originalPresent(pSwapChain, SyncInterval, Flags);
+    // 🔥 NEW: Pump networking every frame so IP callbacks always fire
+    GNS_Session::Get().Tick();
+    
+    // Always call original Present at the end
+    return g_originalPresent
+        ? g_originalPresent(pSwapChain, SyncInterval, Flags)
+        : S_OK;
 }
 
+// ---------------------------------------------------------------------
+// Install hook
+// ---------------------------------------------------------------------
 bool InitDX11Hook()
 {
     if (g_presentHookInstalled)
@@ -55,11 +204,9 @@ bool InitDX11Hook()
 
     LOG_INFO("[DX11Hook] Initializing DX11 Present hook");
 
-    // --------------------------------------------------------
-    // 1) Create dummy hidden window
-    // --------------------------------------------------------
     HINSTANCE hInst = GetModuleHandle(nullptr);
 
+    // 1) Register dummy window class
     WNDCLASSEXA wc = {};
     wc.cbSize = sizeof(wc);
     wc.style = CS_HREDRAW | CS_VREDRAW;
@@ -73,6 +220,7 @@ bool InitDX11Hook()
         return false;
     }
 
+    // 2) Create dummy window
     g_dummyHwnd = CreateWindowExA(
         0,
         wc.lpszClassName,
@@ -91,9 +239,7 @@ bool InitDX11Hook()
         return false;
     }
 
-    // --------------------------------------------------------
-    // 2) Create dummy D3D11 device + swapchain
-    // --------------------------------------------------------
+    // 3) Create dummy device/swapchain just to grab vtable
     DXGI_SWAP_CHAIN_DESC scd = {};
     scd.BufferCount = 1;
     scd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -106,16 +252,6 @@ bool InitDX11Hook()
     scd.Windowed = TRUE;
     scd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 
-    UINT createDeviceFlags = 0;
-
-    D3D_FEATURE_LEVEL featureLevel;
-    const D3D_FEATURE_LEVEL featureLevelsRequested[] =
-    {
-        D3D_FEATURE_LEVEL_11_0,
-        D3D_FEATURE_LEVEL_10_1,
-        D3D_FEATURE_LEVEL_10_0
-    };
-
     IDXGISwapChain* pSwapChain = nullptr;
     ID3D11Device* pDevice = nullptr;
     ID3D11DeviceContext* pContext = nullptr;
@@ -124,33 +260,28 @@ bool InitDX11Hook()
         nullptr,                    // default adapter
         D3D_DRIVER_TYPE_HARDWARE,
         nullptr,
-        createDeviceFlags,
-        featureLevelsRequested,
-        _countof(featureLevelsRequested),
+        0,
+        nullptr,
+        0,
         D3D11_SDK_VERSION,
         &scd,
         &pSwapChain,
         &pDevice,
-        &featureLevel,
+        nullptr,
         &pContext
     );
 
     if (FAILED(hr) || !pSwapChain)
     {
-        LOG_ERROR("[DX11Hook] D3D11CreateDeviceAndSwapChain failed (hr=0x%08X)", hr);
+        LOG_ERROR("[DX11Hook] D3D11CreateDeviceAndSwapChain failed (0x%08X)", hr);
         if (g_dummyHwnd)
         {
             DestroyWindow(g_dummyHwnd);
             g_dummyHwnd = nullptr;
-            UnregisterClassA(wc.lpszClassName, hInst);
-
         }
         return false;
     }
 
-    // --------------------------------------------------------
-    // 3) Grab vtable and hook Present (index 8)
-    // --------------------------------------------------------
     void** vtbl = *reinterpret_cast<void***>(pSwapChain);
     if (!vtbl)
     {
@@ -164,7 +295,6 @@ bool InitDX11Hook()
     }
 
     g_originalPresent = reinterpret_cast<PresentFn>(vtbl[8]);
-
     LOG_INFO("[DX11Hook] Original Present = %p", g_originalPresent);
 
     DWORD oldProtect = 0;
@@ -184,13 +314,11 @@ bool InitDX11Hook()
     DWORD dummy = 0;
     VirtualProtect(&vtbl[8], sizeof(void*), oldProtect, &dummy);
 
-    LOG_INFO("[DX11Hook] Present hook installed");
+    LOG_INFO("[DX11Hook] Present hook installed successfully.");
 
-    // Cleanup dummy objects (hook remains valid)
     pSwapChain->Release();
     pDevice->Release();
     pContext->Release();
-
     DestroyWindow(g_dummyHwnd);
     g_dummyHwnd = nullptr;
 
@@ -198,16 +326,46 @@ bool InitDX11Hook()
     return true;
 }
 
+// ---------------------------------------------------------------------
+// Shutdown
+// ---------------------------------------------------------------------
 void ShutdownDX11Hook()
 {
-    if (!g_presentHookInstalled)
-        return;
+    LOG_INFO("[DX11Hook] ShutdownDX11Hook");
 
-    LOG_INFO("[DX11Hook] ShutdownDX11Hook called (no unhook implemented yet)");
+    // Restore original WndProc if we hooked it
+    if (g_gameHwnd && g_originalGameWndProc)
+    {
+        SetWindowLongPtr(g_gameHwnd, GWLP_WNDPROC, (LONG_PTR)g_originalGameWndProc);
+        g_originalGameWndProc = nullptr;
+        g_gameHwnd = nullptr;
+    }
 
-    CoSyncOverlay::Get().Shutdown();
+    CoSyncOverlay_Shutdown();
 
-    // If we want to unhook later, we would need to keep the vtable pointer
-    // and original function pointer, and restore vtbl[8].
-    // For now we assume process exit will clean up everything.
+    if (g_mainRTV)
+    {
+        g_mainRTV->Release();
+        g_mainRTV = nullptr;
+    }
+
+    if (g_d3dContext)
+    {
+        g_d3dContext->Release();
+        g_d3dContext = nullptr;
+    }
+
+    if (g_d3dDevice)
+    {
+        g_d3dDevice->Release();
+        g_d3dDevice = nullptr;
+    }
+
+    if (g_imguiInitialized)
+    {
+        ImGui_ImplDX11_Shutdown();
+        ImGui_ImplWin32_Shutdown();
+        ImGui::DestroyContext();
+        g_imguiInitialized = false;
+    }
 }

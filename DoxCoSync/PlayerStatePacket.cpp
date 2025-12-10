@@ -1,136 +1,251 @@
-#include "PlayerStatePacket.h"
-#include "ConsoleLogger.h"
-#include <sstream>
+﻿#include "PlayerStatePacket.h"
 
-// ------------------------------------------------------------
-// Utility: return true if text begins with "STATE:"
-// ------------------------------------------------------------
-bool IsPlayerStateString(const std::string& msg)
+#include "ConsoleLogger.h"
+#include "CoSyncNet.h"  // for GetMyName (optional fallback)
+
+#include <sstream>
+#include <vector>
+#include <cstdlib>
+
+// --------------------------------------------------------
+// Helper: split string by a single character delimiter
+// --------------------------------------------------------
+static std::vector<std::string> Split(const std::string& s, char delim)
 {
-    return msg.rfind(kPlayerStatePrefix, 0) == 0;
+    std::vector<std::string> parts;
+    std::string              tmp;
+    std::istringstream       iss(s);
+
+    while (std::getline(iss, tmp, delim))
+        parts.push_back(tmp);
+
+    return parts;
 }
 
-// ------------------------------------------------------------
-// Serialize player state into a single text line:
-//
-// Example:
-// STATE:posX,posY,posZ|rotX,rotY,rotZ|velX,velY,velZ|hp,maxHp|ap,maxAp|moving
-//
-// ------------------------------------------------------------
-bool SerializePlayerStateToString(const LocalPlayerState& st, std::string& out)
+// --------------------------------------------------------
+// IsPlayerStateString
+// --------------------------------------------------------
+bool IsPlayerStateString(const std::string& in)
 {
+    // Very simple: must start with "STATE:"
+    if (in.size() < 6)
+        return false;
+
+    if (in.compare(0, 6, "STATE:") == 0)
+        return true;
+
+    // Some callers may prepend other tags; be strict for now
+    return false;
+}
+
+// --------------------------------------------------------
+// SerializePlayerStateToString
+// --------------------------------------------------------
+bool SerializePlayerStateToString(const LocalPlayerState& state, std::string& out)
+{
+    // Use username from state if present; otherwise fallback to CoSyncNet identity.
+    std::string username = state.username;
+    if (username.empty())
+        username = CoSyncNet::GetMyName();
+
     std::ostringstream ss;
 
-    ss << kPlayerStatePrefix
-        << st.position.x << "," << st.position.y << "," << st.position.z << "|"
-        << st.rotation.x << "," << st.rotation.y << "," << st.rotation.z << "|"
-        << st.velocity.x << "," << st.velocity.y << "," << st.velocity.z << "|"
-        << st.health << "," << st.maxHealth << "|"
-        << st.ap << "," << st.maxActionPoints << "|"
-        << (st.isMoving ? 1 : 0);
+    // 0: header: STATE:formID,cellFormID
+    ss << "STATE:"
+        << state.formID << "," << state.cellFormID << "|";
+
+    // 1: position
+    ss << state.position.x << ","
+        << state.position.y << ","
+        << state.position.z << "|";
+
+    // 2: rotation
+    ss << state.rotation.x << ","
+        << state.rotation.y << ","
+        << state.rotation.z << "|";
+
+    // 3: velocity
+    ss << state.velocity.x << ","
+        << state.velocity.y << ","
+        << state.velocity.z << "|";
+
+    // 4: health/maxHealth
+    ss << state.health << ","
+        << state.maxHealth << "|";
+
+    // 5: AP / maxAP
+    ss << state.ap << ","
+        << state.maxActionPoints << "|";
+
+    // 6: movement flags
+    ss << (state.isMoving ? 1 : 0) << ","
+        << (state.isSprinting ? 1 : 0) << ","
+        << (state.isCrouching ? 1 : 0) << ","
+        << (state.isJumping ? 1 : 0) << "|";
+
+    // 7: equipped weapon
+    ss << state.equippedWeaponFormID << "|";
+
+    // 8: username (NEW 9th field)
+    ss << username;
 
     out = ss.str();
     return true;
 }
 
-// ------------------------------------------------------------
-// Deserialize the string format created above
-// ------------------------------------------------------------
-bool DeserializePlayerStateFromString(const std::string& text, LocalPlayerState& out)
+// --------------------------------------------------------
+// DeserializePlayerStateFromString
+// --------------------------------------------------------
+bool DeserializePlayerStateFromString(const std::string& in, LocalPlayerState& out)
 {
-    if (!IsPlayerStateString(text))
+    if (!IsPlayerStateString(in))
         return false;
 
-    // Remove "STATE:"
-    std::string payload = text.substr(strlen(kPlayerStatePrefix));
+    // Split on '|'
+    std::vector<std::string> fields = Split(in, '|');
 
-    // Split by '|'
-    std::vector<std::string> fields;
+    // Expect at least 8 fields (old) or 9 fields (new with username).
+    if (fields.size() < 8)
     {
-        size_t start = 0;
-        size_t pos;
-        while ((pos = payload.find('|', start)) != std::string::npos)
+        LOG_ERROR("[PlayerState] BAD PACKET: expected >=8 fields, got %zu", fields.size());
+        return false;
+    }
+
+    // ----------------------------------------------------
+    // 0: "STATE:form,cell"
+    // ----------------------------------------------------
+    const std::string& header = fields[0];
+    std::string        formCell = header.substr(6); // skip "STATE:"
+
+    std::vector<std::string> fc = Split(formCell, ',');
+    if (fc.size() != 2)
+    {
+        LOG_ERROR("[PlayerState] BAD HEADER: '%s'", header.c_str());
+        return false;
+    }
+
+    out.formID = static_cast<UInt32>(std::strtoul(fc[0].c_str(), nullptr, 10));
+    out.cellFormID = static_cast<UInt32>(std::strtoul(fc[1].c_str(), nullptr, 10));
+
+    // ----------------------------------------------------
+    // 1: position x,y,z
+    // ----------------------------------------------------
+    {
+        std::vector<std::string> p = Split(fields[1], ',');
+        if (p.size() != 3)
         {
-            fields.push_back(payload.substr(start, pos - start));
-            start = pos + 1;
+            LOG_ERROR("[PlayerState] BAD POS: '%s'", fields[1].c_str());
+            return false;
         }
-        fields.push_back(payload.substr(start));
+        out.position.x = std::strtof(p[0].c_str(), nullptr);
+        out.position.y = std::strtof(p[1].c_str(), nullptr);
+        out.position.z = std::strtof(p[2].c_str(), nullptr);
     }
 
-    if (fields.size() < 6)
+    // ----------------------------------------------------
+    // 2: rotation x,y,z
+    // ----------------------------------------------------
     {
-        LOG_ERROR("[PlayerState] Invalid packet: wrong field count");
-        return false;
-    }
-
-    auto parseVec3 = [](const std::string& s, float v[3]) -> bool
+        std::vector<std::string> r = Split(fields[2], ',');
+        if (r.size() != 3)
         {
-            size_t p1 = s.find(',');
-            if (p1 == std::string::npos) return false;
-
-            size_t p2 = s.find(',', p1 + 1);
-            if (p2 == std::string::npos) return false;
-
-            try {
-                v[0] = std::stof(s.substr(0, p1));
-                v[1] = std::stof(s.substr(p1 + 1, p2 - p1 - 1));
-                v[2] = std::stof(s.substr(p2 + 1));
-            }
-            catch (...) { return false; }
-
-            return true;
-        };
-
-    float pos[3], rot[3], vel[3];
-
-    if (!parseVec3(fields[0], pos)) return false;
-    if (!parseVec3(fields[1], rot)) return false;
-    if (!parseVec3(fields[2], vel)) return false;
-
-    out.position = { pos[0], pos[1], pos[2] };
-    out.rotation = { rot[0], rot[1], rot[2] };
-    out.velocity = { vel[0], vel[1], vel[2] };
-
-    // HP
-    {
-        size_t comma = fields[3].find(',');
-        if (comma == std::string::npos) return false;
-
-        out.health = std::stof(fields[3].substr(0, comma));
-        out.maxHealth = std::stof(fields[3].substr(comma + 1));
+            LOG_ERROR("[PlayerState] BAD ROT: '%s'", fields[2].c_str());
+            return false;
+        }
+        out.rotation.x = std::strtof(r[0].c_str(), nullptr);
+        out.rotation.y = std::strtof(r[1].c_str(), nullptr);
+        out.rotation.z = std::strtof(r[2].c_str(), nullptr);
     }
 
-    // AP
+    // ----------------------------------------------------
+    // 3: velocity x,y,z
+    // ----------------------------------------------------
     {
-        size_t comma = fields[4].find(',');
-        if (comma == std::string::npos) return false;
-
-        out.ap = std::stof(fields[4].substr(0, comma));
-        out.maxActionPoints = std::stof(fields[4].substr(comma + 1));
+        std::vector<std::string> v = Split(fields[3], ',');
+        if (v.size() != 3)
+        {
+            LOG_ERROR("[PlayerState] BAD VEL: '%s'", fields[3].c_str());
+            return false;
+        }
+        out.velocity.x = std::strtof(v[0].c_str(), nullptr);
+        out.velocity.y = std::strtof(v[1].c_str(), nullptr);
+        out.velocity.z = std::strtof(v[2].c_str(), nullptr);
     }
 
-    // Moving
-    out.isMoving = (fields[5] == "1");
+    // ----------------------------------------------------
+    // 4: health,maxHealth
+    // ----------------------------------------------------
+    {
+        std::vector<std::string> hp = Split(fields[4], ',');
+        if (hp.size() == 2)
+        {
+            out.health = std::strtof(hp[0].c_str(), nullptr);
+            out.maxHealth = std::strtof(hp[1].c_str(), nullptr);
+        }
+        else
+        {
+            out.health = out.maxHealth = 0.0f;
+        }
+    }
+
+    // ----------------------------------------------------
+    // 5: ap,maxAP
+    // ----------------------------------------------------
+    {
+        std::vector<std::string> ap = Split(fields[5], ',');
+        if (ap.size() == 2)
+        {
+            out.ap = std::strtof(ap[0].c_str(), nullptr);
+            out.maxActionPoints = std::strtof(ap[1].c_str(), nullptr);
+        }
+        else
+        {
+            out.ap = out.maxActionPoints = 0.0f;
+        }
+    }
+
+    // ----------------------------------------------------
+    // 6: flags: isMoving,isSprinting,isCrouching,isJumping
+    // ----------------------------------------------------
+    {
+        std::vector<std::string> f = Split(fields[6], ',');
+        if (f.size() == 4)
+        {
+            out.isMoving = (std::strtol(f[0].c_str(), nullptr, 10) != 0);
+            out.isSprinting = (std::strtol(f[1].c_str(), nullptr, 10) != 0);
+            out.isCrouching = (std::strtol(f[2].c_str(), nullptr, 10) != 0);
+            out.isJumping = (std::strtol(f[3].c_str(), nullptr, 10) != 0);
+        }
+        else
+        {
+            out.isMoving = out.isSprinting = out.isCrouching = out.isJumping = false;
+        }
+    }
+
+    // ----------------------------------------------------
+    // 7: equipped weapon formID
+    // ----------------------------------------------------
+    {
+        out.equippedWeaponFormID =
+            static_cast<UInt32>(std::strtoul(fields[7].c_str(), nullptr, 10));
+    }
+
+    // ----------------------------------------------------
+    // 8: username (optional; may be missing on old packets)
+    // ----------------------------------------------------
+    if (fields.size() >= 9)
+    {
+        out.username = fields[8];
+    }
+    else
+    {
+        // Old packet: leave username unchanged
+        if (out.username.empty())
+            out.username = "Remote";
+    }
+
+    // timestamp is local-only; set to "now-ish" (monotonic-ish)
+    out.timestamp = GetTickCount64() / 1000.0; // seconds
 
     return true;
-}
-
-
-// ------------------------------------------------------------
-// Legacy binary packet helpers (unused for GNS)
-// ------------------------------------------------------------
-
-bool SerializePlayerState(const LocalPlayerState&, std::vector<UInt8>&)
-{
-    return false; // Not used anymore
-}
-
-bool DeserializePlayerState(const UInt8*, size_t, LocalPlayerState&)
-{
-    return false; // Not used anymore
-}
-
-bool IsPlayerStatePacket(const UInt8*, size_t)
-{
-    return false; // Not used anymore
 }
