@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include "f4se/GameReferences.h"
+#include "GameReferences.h"
 #include "LocalPlayerState.h"
 
 class CoSyncPlayer

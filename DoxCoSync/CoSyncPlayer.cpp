@@ -1,6 +1,6 @@
 #include "CoSyncPlayer.h"
 #include "ConsoleLogger.h"
-#include "GameAPI.h"
+#include "CoSyncGameAPI.h"
 
 CoSyncPlayer::CoSyncPlayer(const std::string& name)
     : username(name)
@@ -37,7 +37,7 @@ bool CoSyncPlayer::SpawnInWorld(TESObjectREFR* anchor, TESForm* baseForm)
     }
 
     // Use new GameAPI function
-    Actor* spawned = GameAPI::SpawnRemoteActor(baseForm->formID);
+    Actor* spawned = CoSyncGameAPI::SpawnRemoteActor(baseForm->formID);
     if (!spawned)
     {
         LOG_ERROR("[CoSyncPlayer] SpawnRemoteActor FAILED for '%s' base=%08X",
@@ -48,7 +48,7 @@ bool CoSyncPlayer::SpawnInWorld(TESObjectREFR* anchor, TESForm* baseForm)
     actorRef = spawned;
     hasSpawned = true;
 
-    GameAPI::PositionRemoteActor(actorRef, lastState.position, lastState.rotation);
+    CoSyncGameAPI::PositionRemoteActor(actorRef, lastState.position, lastState.rotation);
 
     LOG_INFO("[CoSyncPlayer] Spawned remote actor=%p for '%s'",
         actorRef, username.c_str());
@@ -62,5 +62,5 @@ void CoSyncPlayer::ApplyStateToActor()
     if (!actorRef || !hasSpawned)
         return;
 
-    GameAPI::ApplyRemotePlayerStateToActor(actorRef, lastState);
+    CoSyncGameAPI::ApplyRemotePlayerStateToActor(actorRef, lastState);
 }

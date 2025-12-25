@@ -1,6 +1,7 @@
 ﻿#pragma once
 
-#include "f4se/NiTypes.h"
+#include "ITypes.h"
+#include "NiTypes.h"
 #include <string>
 
 class LocalPlayerState
@@ -8,9 +9,9 @@ class LocalPlayerState
 public:
     std::string username;
 
-    NiPoint3 position;
-    NiPoint3 rotation;
-    NiPoint3 velocity;
+    NiPoint3 position{ 0.0f, 0.0f, 0.0f };
+    NiPoint3 rotation{ 0.0f, 0.0f, 0.0f };
+    NiPoint3 velocity{ 0.0f, 0.0f, 0.0f };
 
     bool isMoving = false;
     bool isSprinting = false;
@@ -33,3 +34,5 @@ public:
     // REQUIRED BY CoSyncPlayerManager
     double timestamp = 0.0;
 };
+
+extern LocalPlayerState g_localPlayerState;

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "f4se/NiTypes.h"
+#include "NiTypes.h"
 
-#include "f4se/GameReferences.h"
+#include "GameReferences.h"
 
 
 void InstallTickHook();

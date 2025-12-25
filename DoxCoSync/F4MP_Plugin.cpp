@@ -1,5 +1,8 @@
-﻿#include <Windows.h>
-#include "f4se/PluginAPI.h"
+﻿#include "ITypes.h"
+#include "IErrors.h"
+#include "IDebugLog.h"
+#include <Windows.h>
+#include "PluginAPI.h"
 #include "f4se_version.h"
 #include "Logger.h"
 #include "ConsoleLogger.h"
@@ -10,6 +13,7 @@
 #include "SteamDiagnostics.h"
 #include "CoSyncSteam.h"
 #include "CoSyncSteamManager.h"
+
 
 
 
@@ -28,7 +32,7 @@ extern "C"
 
         0,
         0,
-        { RUNTIME_VERSION_1_11_169, 0 },
+        { RUNTIME_VERSION_1_11_191, 0 },
 
         0,
     };

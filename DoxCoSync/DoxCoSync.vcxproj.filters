@@ -63,29 +63,11 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Include\f4se_common\Utilities.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Include\f4se_common\Relocation.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Include\common\ITypes.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Include\common\IErrors.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Include\f4se\NiTypes.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ConsoleLogger.h">
       <Filter>Header Files\Logging</Filter>
     </ClInclude>
     <ClInclude Include="CoSyncNet.h">
       <Filter>Header Files\NetWorking</Filter>
-    </ClInclude>
-    <ClInclude Include="Include\f4se_common\f4se_version.h">
-      <Filter>Header Files\Logging</Filter>
     </ClInclude>
     <ClInclude Include="IniReader.h">
       <Filter>Header Files\Logging</Filter>
@@ -99,23 +81,11 @@
     <ClInclude Include="F4MP_Main.h">
       <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
-    <ClInclude Include="GameAPI.h">
-      <Filter>Header Files\Game\Main</Filter>
-    </ClInclude>
-    <ClInclude Include="Include\f4se\GameReferences.h">
-      <Filter>Header Files\Game\Main</Filter>
-    </ClInclude>
     <ClInclude Include="Logger.h">
       <Filter>Header Files\Logging</Filter>
     </ClInclude>
-    <ClInclude Include="Include\f4se\PluginAPI.h">
-      <Filter>Header Files\Game</Filter>
-    </ClInclude>
     <ClInclude Include="PacketTypes.h">
       <Filter>Header Files\NetWorking</Filter>
-    </ClInclude>
-    <ClInclude Include="RuntimeVersion.h">
-      <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
     <ClInclude Include="TickHook.h">
       <Filter>Header Files\Game\Main</Filter>
@@ -228,9 +198,6 @@
     <ClInclude Include="HamachiUtil.h">
       <Filter>Header Files\NetWorking</Filter>
     </ClInclude>
-    <ClInclude Include="Include\f4se\GameInput.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="IntellisenseFix.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -240,17 +207,11 @@
     <ClInclude Include="CoSyncPlayerManager.h">
       <Filter>Header Files\Game\PlayerState</Filter>
     </ClInclude>
-    <ClInclude Include="Include\f4se\GameRTTI.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Include\f4se\GameObjects.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="LocalPlayerStateGlobals.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="PatternScan.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CoSyncGameAPI.h">
+      <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -269,19 +230,10 @@
     <ClCompile Include="LocalPlayerState.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GameAPI.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Include\f4se\GameReferences.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="PlayerStatePacket.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CoSyncNet.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Include\f4se\NiTypes.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="IniReader.cpp">
@@ -350,28 +302,16 @@
     <ClCompile Include="HamachiUtil.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Include\f4se\GameInput.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Include\f4se\BSString.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="CoSyncPlayer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CoSyncPlayerManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Include\f4se\GameRTTI.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="LocalPlayerStateGlobals.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GameAPI_Relocs.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="CoSyncGame.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoSyncGameAPI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -387,9 +327,6 @@
     </None>
     <None Include="ThirdParty\GNS\Bin\libprotobuf.dll">
       <Filter>ThirdParty\GNS\Bin</Filter>
-    </None>
-    <None Include="Include\f4se\GameRTTI.inl">
-      <Filter>Header Files</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

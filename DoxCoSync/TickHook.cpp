@@ -1,19 +1,22 @@
-﻿#include "common/ITypes.h"
-#include "f4se_common/Relocation.h"
-#include "f4se/NiTypes.h"
-#include "f4se/GameReferences.h"
-#include "f4se/GameObjects.h"
-#include "f4se/GameTypes.h"
-
+﻿#include "ITypes.h"
+#include "Relocation.h"
+#include "NiTypes.h"
+#include "GameReferences.h"
+#include "GameObjects.h"
+#include "GameTypes.h"
 #include "ConsoleLogger.h"
 #include "LocalPlayerState.h"
-#include "LocalPlayerStateGlobals.h"
 #include "GameAPI.h"
 #include "CoSyncNet.h"
 #include "CoSyncSteam.h"
 #include "F4MP_Main.h"
 #include "TickHook.h"
 #include "CoSyncPlayer.h"
+
+
+
+
+
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>

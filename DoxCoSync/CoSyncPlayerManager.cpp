@@ -2,9 +2,9 @@
 #include "GameAPI.h"
 #include "ConsoleLogger.h"
 
-#include "f4se/GameReferences.h"
-#include "f4se/GameRTTI.h"
-#include "f4se_common/Relocation.h"
+#include "GameReferences.h"
+#include "GameRTTI.h"
+#include "Relocation.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>

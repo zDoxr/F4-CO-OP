@@ -111,7 +111,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <AdditionalIncludeDirectories>C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se_common;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\ImGui;$(ProjectDir)ThirdParty\MinHook\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include;C:\Users\hotto\Desktop\CoSync\Testing\f4se\f4se;C:\Users\hotto\Desktop\CoSync\Testing\f4se\f4se_common;C:\Users\hotto\Desktop\CoSync\Testing\common\common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\ImGui;$(ProjectDir)ThirdParty\MinHook\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>Default</LanguageStandard>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <DisableSpecificWarnings>4996;4244;4100;%(DisableSpecificWarnings)</DisableSpecificWarnings>
@@ -120,8 +120,8 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>$(ProjectDir)lib;$(ProjectDir)ThirdParty/GNS/Lib;$(ProjectDir)ThirdParty/MinHook/Lib;$(projectDir)\Include\f4se\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>f4se_1_11_169.lib;f4se_common.lib;common.lib;GameNetworkingSockets.lib;crypt32.lib;secur32.lib;iphlpapi.lib;minhook.x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\hotto\Desktop\CoSync\Testing\common\build\Release;$(ProjectDir)ThirdParty/GNS/Lib;$(ProjectDir)ThirdParty/MinHook/Lib;C:\Users\hotto\Desktop\CoSync\Testing\f4se\build\f4se\f4se_common\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>common.lib;f4se_common.lib;GameNetworkingSockets.lib;crypt32.lib;secur32.lib;iphlpapi.lib;minhook.x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
   </ItemDefinitionGroup>
@@ -154,7 +154,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <AdditionalIncludeDirectories>C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se_common;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\ImGui;$(ProjectDir)ThirdParty\MinHook\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include;C:\Users\hotto\Desktop\CoSync\Testing\f4se\f4se;C:\Users\hotto\Desktop\CoSync\Testing\f4se\f4se_common;C:\Users\hotto\Desktop\CoSync\Testing\common\common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\ImGui;$(ProjectDir)ThirdParty\MinHook\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>Default</LanguageStandard>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <DisableSpecificWarnings>4996;4244;4100;%(DisableSpecificWarnings)</DisableSpecificWarnings>
@@ -163,13 +163,14 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>$(ProjectDir)lib;$(ProjectDir)ThirdParty/GNS/Lib;$(ProjectDir)ThirdParty/MinHook/Lib;$(projectDir)\Include\f4se\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>f4se_1_11_169.lib;f4se_common.lib;common.lib;GameNetworkingSockets.lib;crypt32.lib;secur32.lib;iphlpapi.lib;minhook.x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\hotto\Desktop\CoSync\Testing\common\build\Release;$(ProjectDir)ThirdParty/GNS/Lib;$(ProjectDir)ThirdParty/MinHook/Lib;C:\Users\hotto\Desktop\CoSync\Testing\f4se\build\f4se\f4se_common\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>common.lib;f4se_common.lib;GameNetworkingSockets.lib;crypt32.lib;secur32.lib;iphlpapi.lib;minhook.x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="ConsoleLogger.h" />
+    <ClInclude Include="CoSyncGameAPI.h" />
     <ClInclude Include="CoSyncNet.h" />
     <ClInclude Include="CoSyncOverlay.h" />
     <ClInclude Include="CoSyncPlayer.h" />
@@ -179,30 +180,16 @@
     <ClInclude Include="CoSyncTransport.h" />
     <ClInclude Include="DX11Hook.h" />
     <ClInclude Include="F4MP_Main.h" />
-    <ClInclude Include="GameAPI.h" />
     <ClInclude Include="GNS_Core.h" />
     <ClInclude Include="GNS_Session.h" />
     <ClInclude Include="HamachiUtil.h" />
-    <ClInclude Include="Include\common\IErrors.h" />
-    <ClInclude Include="Include\common\ITypes.h" />
-    <ClInclude Include="Include\f4se\GameInput.h" />
-    <ClInclude Include="Include\f4se\GameObjects.h" />
-    <ClInclude Include="Include\f4se\GameReferences.h" />
-    <ClInclude Include="Include\f4se\GameRTTI.h" />
-    <ClInclude Include="Include\f4se\NiTypes.h" />
-    <ClInclude Include="Include\f4se\PluginAPI.h" />
-    <ClInclude Include="Include\f4se_common\f4se_version.h" />
-    <ClInclude Include="Include\f4se_common\Relocation.h" />
-    <ClInclude Include="Include\f4se_common\Utilities.h" />
     <ClInclude Include="IniReader.h" />
     <ClInclude Include="IntellisenseFix.h" />
     <ClInclude Include="LocalPlayerState.h" />
-    <ClInclude Include="LocalPlayerStateGlobals.h" />
     <ClInclude Include="Logger.h" />
     <ClInclude Include="PacketTypes.h" />
     <ClInclude Include="PatternScan.h" />
     <ClInclude Include="PlayerStatePacket.h" />
-    <ClInclude Include="RuntimeVersion.h" />
     <ClInclude Include="SteamDiagnostics.h" />
     <ClInclude Include="ThirdParty\GNS\Include\steam\isteamnetworkingmessages.h" />
     <ClInclude Include="ThirdParty\GNS\Include\steam\isteamnetworkingsockets.h" />
@@ -235,6 +222,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CoSyncGame.cpp" />
+    <ClCompile Include="CoSyncGameAPI.cpp" />
     <ClCompile Include="CoSyncNet.cpp" />
     <ClCompile Include="CoSyncOverlay.cpp" />
     <ClCompile Include="CoSyncPlayer.cpp" />
@@ -245,20 +233,12 @@
     <ClCompile Include="DX11Hook.cpp" />
     <ClCompile Include="F4MP_Main.cpp" />
     <ClCompile Include="F4MP_Plugin.cpp" />
-    <ClCompile Include="GameAPI.cpp" />
-    <ClCompile Include="GameAPI_Relocs.cpp" />
     <ClCompile Include="GameGlobals.cpp" />
     <ClCompile Include="GNS_Core.cpp" />
     <ClCompile Include="GNS_Session.cpp" />
     <ClCompile Include="HamachiUtil.cpp" />
-    <ClCompile Include="Include\f4se\BSString.cpp" />
-    <ClCompile Include="Include\f4se\GameInput.cpp" />
-    <ClCompile Include="Include\f4se\GameReferences.cpp" />
-    <ClCompile Include="Include\f4se\GameRTTI.cpp" />
-    <ClCompile Include="Include\f4se\NiTypes.cpp" />
     <ClCompile Include="IniReader.cpp" />
     <ClCompile Include="LocalPlayerState.cpp" />
-    <ClCompile Include="LocalPlayerStateGlobals.cpp" />
     <ClCompile Include="PlayerStatePacket.cpp" />
     <ClCompile Include="SteamDiagnostics.cpp" />
     <ClCompile Include="ThirdParty\ImGui\imgui.cpp" />
@@ -276,7 +256,6 @@
     <ClCompile Include="TickHook.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Include\f4se\GameRTTI.inl" />
     <None Include="ThirdParty\GNS\Bin\abseil_dll.dll" />
     <None Include="ThirdParty\GNS\Bin\GameNetworkingSockets.dll" />
     <None Include="ThirdParty\GNS\Bin\libcrypto-3-x64.dll" />
