@@ -169,7 +169,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameUtilities.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusVM.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="ConsoleLogger.h" />
+    <ClInclude Include="CoSyncActorValues.h" />
     <ClInclude Include="CoSyncGameAPI.h" />
     <ClInclude Include="CoSyncNet.h" />
     <ClInclude Include="CoSyncOverlay.h" />
@@ -178,6 +185,7 @@
     <ClInclude Include="CoSyncSteam.h" />
     <ClInclude Include="CoSyncSteamManager.h" />
     <ClInclude Include="CoSyncTransport.h" />
+    <ClInclude Include="CoSyncWorld.h" />
     <ClInclude Include="DX11Hook.h" />
     <ClInclude Include="F4MP_Main.h" />
     <ClInclude Include="GNS_Core.h" />
@@ -221,6 +229,16 @@
     <ClInclude Include="Version.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameForms.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameUtilities.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusVM.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="CoSyncActorValues.cpp" />
     <ClCompile Include="CoSyncGame.cpp" />
     <ClCompile Include="CoSyncGameAPI.cpp" />
     <ClCompile Include="CoSyncNet.cpp" />

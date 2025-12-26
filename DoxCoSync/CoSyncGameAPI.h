@@ -8,7 +8,10 @@ class LocalPlayerState;
 
 namespace CoSyncGameAPI
 {
-    // Functions
+    // Only declare in header
+    extern NiPoint3 rot;
+    extern NiPoint3 pos;
+
     Actor* SpawnRemoteActor(UInt32 baseFormID);
 
     void PositionRemoteActor(
@@ -21,8 +24,4 @@ namespace CoSyncGameAPI
         Actor* actor,
         const LocalPlayerState& state
     );
-
-    // Globals (DECLARATIONS ONLY)
-    extern NiPoint3 rot;
-    extern NiPoint3 pos;
 }

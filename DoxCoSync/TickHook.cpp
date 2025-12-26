@@ -12,7 +12,7 @@
 #include "F4MP_Main.h"
 #include "TickHook.h"
 #include "CoSyncPlayer.h"
-
+#include "CoSyncPlayerManager.h"
 
 
 
@@ -61,15 +61,15 @@ static float LengthSq(const NiPoint3& v)
     return v.x * v.x + v.y * v.y + v.z * v.z;
 }
 
-// ============================================================================
-//   HOOK — PlayerCharacter::Update-like entry at vtbl[21]
-//   (sub_140D636C0 on 1.11.169 NG)
-// ============================================================================
+
 static __int64 __fastcall ActorUpdate_Hook(
     PlayerCharacter* actor,
     void* arg2,
     void* arg3)
 {
+    LOG_DEBUG("[TickHook] ActorUpdate_Hook running");
+
+
     // Call original first so we preserve expected behavior
     __int64 result = 0;
     if (g_ActorUpdate_Original)
@@ -120,19 +120,30 @@ static __int64 __fastcall ActorUpdate_Hook(
     if (!worldReady)
     {
         if (!g_worldLoadedAnnounced)
-            LOG_WARN("[CoSync] WORLD NOT READY (player/cell not valid)");
+            LOG_WARN("[TickHook] WORLD NOT READY (player/cell not valid)");
         return result;
     }
 
     if (!g_worldLoadedAnnounced)
     {
         g_worldLoadedAnnounced = true;
-        LOG_INFO("[CoSync] WORLD LOADED — Player and cell valid!");
+        LOG_INFO("[TickHook] WORLD LOADED — Player and cell valid!");
     }
 
     // Make sure CoSyncNet delayed init runs once the world actually exists
     CoSyncNet::PerformPendingInit();
 
+    // Only do network + inbox work when session is actually active.
+    // (WorldReady is already true here)
+    if (CoSyncNet::IsInitialized())
+    {
+        CoSyncNet::Tick(now);                 // pumps transport only
+        g_CoSyncPlayerManager.ProcessInbox(); // spawn/move on game thread
+        g_CoSyncPlayerManager.Tick();         // timeouts/cleanup
+    }
+
+
+   
     // ========================================================================
     // FILL LOCAL PLAYER STATE
     // ========================================================================
@@ -157,7 +168,7 @@ static __int64 __fastcall ActorUpdate_Hook(
     if (now - g_lastLogTime > 0.5)
     {
         g_lastLogTime = now;
-        LOG_DEBUG("[CoSync] PlayerState pos=(%.2f %.2f %.2f) rot=(%.2f %.2f %.2f)",
+        LOG_DEBUG("[TickHook] PlayerState pos=(%.2f %.2f %.2f) rot=(%.2f %.2f %.2f)",
             pos.x, pos.y, pos.z, rot.x, rot.y, rot.z);
     }
 
@@ -170,7 +181,7 @@ static __int64 __fastcall ActorUpdate_Hook(
         if (now - g_lastNetSendTime > 0.05)
         {
             g_lastNetSendTime = now;
-            LOG_DEBUG("[CoSync] TickHook sending LocalPlayerState");
+            LOG_DEBUG("[TickHook] TickHook sending LocalPlayerState");
             CoSyncNet::SendLocalPlayerState(g_localPlayerState);
         }
     }
@@ -193,25 +204,25 @@ static __int64 __fastcall ActorUpdate_Hook(
 // ============================================================================
 void InstallTickHook()
 {
-    LOG_INFO("[CoSync] ========== InstallTickHook START ==========");
+    LOG_INFO("[TickHook] ========== InstallTickHook START ==========");
 
     PlayerCharacter* pc = *g_player;
     if (!pc)
     {
-        LOG_ERROR("[CoSync] Cannot install hook — g_player is NULL");
+        LOG_ERROR("[TickHook] Cannot install hook — g_player is NULL");
         return;
     }
 
-    LOG_INFO("[CoSync] PlayerCharacter instance = %p", pc);
+    LOG_INFO("[TickHook] PlayerCharacter instance = %p", pc);
 
     uintptr_t* vtbl = *(uintptr_t**)pc;
     if (!vtbl)
     {
-        LOG_ERROR("[CoSync] Player vtable is NULL");
+        LOG_ERROR("[TickHook] Player vtable is NULL");
         return;
     }
 
-    LOG_INFO("[CoSync] PlayerCharacter vtable @ %p", vtbl);
+    LOG_INFO("[TickHook] PlayerCharacter vtable @ %p", vtbl);
 
     // New index for FO4 NG: 21 (entry pointing to sub_140D636C0)
     constexpr UInt32 kIndex = 21;
@@ -219,11 +230,11 @@ void InstallTickHook()
     uintptr_t origFn = vtbl[kIndex];
     if (!origFn)
     {
-        LOG_ERROR("[CoSync] vtbl[%u] is NULL – cannot hook", kIndex);
+        LOG_ERROR("[TickHook] vtbl[%u] is NULL – cannot hook", kIndex);
         return;
     }
 
-    LOG_INFO("[CoSync] PlayerCharacter::Update-like (vtbl[%u]) = %p", kIndex, (void*)origFn);
+    LOG_INFO("[TickHook] PlayerCharacter::Update-like (vtbl[%u]) = %p", kIndex, (void*)origFn);
 
     
 
@@ -233,7 +244,7 @@ void InstallTickHook()
     DWORD oldProt;
     if (!VirtualProtect(&vtbl[kIndex], sizeof(uintptr_t), PAGE_EXECUTE_READWRITE, &oldProt))
     {
-        LOG_ERROR("[CoSync] VirtualProtect (unlock) failed, GetLastError=%u", GetLastError());
+        LOG_ERROR("[TickHook] VirtualProtect (unlock) failed, GetLastError=%u", GetLastError());
         return;
     }
 
@@ -248,6 +259,6 @@ void InstallTickHook()
     g_lastLogTime = 0.0;
     g_lastNetSendTime = 0.0;
 
-    LOG_INFO("[CoSync] TickHook installed successfully (index %u)", kIndex);
-    LOG_INFO("[CoSync] ========== InstallTickHook END ==========");
+    LOG_INFO("[TickHook] TickHook installed successfully (index %u)", kIndex);
+    LOG_INFO("[TickHook] ========== InstallTickHook END ==========");
 }

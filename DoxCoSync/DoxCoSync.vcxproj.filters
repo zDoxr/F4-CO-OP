@@ -213,6 +213,18 @@
     <ClInclude Include="CoSyncGameAPI.h">
       <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
+    <ClInclude Include="CoSyncActorValues.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusVM.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameUtilities.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CoSyncWorld.h">
+      <Filter>Header Files\Game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="F4MP_Main.cpp">
@@ -312,6 +324,18 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CoSyncGameAPI.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoSyncActorValues.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusVM.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameForms.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameUtilities.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

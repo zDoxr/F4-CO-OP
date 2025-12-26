@@ -47,11 +47,27 @@ bool CoSyncPlayer::SpawnInWorld(TESObjectREFR* anchor, TESForm* baseForm)
 
     actorRef = spawned;
     hasSpawned = true;
+    lastPacketTime = lastState.timestamp;
 
-    CoSyncGameAPI::PositionRemoteActor(actorRef, lastState.position, lastState.rotation);
+
+    actorRef->middleProcess->Set3DUpdateFlag(
+        Actor::AIProcess::RESET_MODEL |
+        Actor::AIProcess::RESET_SKIN |
+        Actor::AIProcess::RESET_SKELETON
+    );
+
+    actorRef->middleProcess->Update3DModel(actorRef, true);
+
+    CoSyncGameAPI::PositionRemoteActor(
+        actorRef,
+        lastState.position,
+        lastState.rotation
+    );
+
 
     LOG_INFO("[CoSyncPlayer] Spawned remote actor=%p for '%s'",
         actorRef, username.c_str());
+
 
     return true;
 }

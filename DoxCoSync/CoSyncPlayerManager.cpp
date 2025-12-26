@@ -1,7 +1,7 @@
 #include "CoSyncPlayerManager.h"
 #include "GameAPI.h"
 #include "ConsoleLogger.h"
-
+#include "CoSyncWorld.h"
 #include "GameReferences.h"
 #include "GameRTTI.h"
 #include "Relocation.h"
@@ -13,6 +13,10 @@ extern RelocPtr<PlayerCharacter*> g_player;
 
 CoSyncPlayerManager g_CoSyncPlayerManager;
 
+
+
+
+
 // ----------------------------------------------------------
 // Time helper
 // ----------------------------------------------------------
@@ -23,6 +27,16 @@ static double NowSeconds()
     QueryPerformanceCounter(&c);
     return (double)c.QuadPart / (double)f.QuadPart;
 }
+
+
+
+
+void CoSyncPlayerManager::EnqueueIncoming(const std::string& msg)
+{
+    std::lock_guard<std::mutex> lock(m_inboxMutex);
+    m_inbox.push_back(msg);
+}
+
 
 // ----------------------------------------------------------
 // GetOrCreate
@@ -42,40 +56,91 @@ CoSyncPlayer& CoSyncPlayerManager::GetOrCreate(const std::string& username)
 // ----------------------------------------------------------
 void CoSyncPlayerManager::ProcessIncomingState(const std::string& msg)
 {
+   
+
+
+    LOG_INFO("[CoSyncPM] ProcessIncomingState: %s", msg.c_str());
+
+
+
+
+    if (!IsPlayerStateString(msg))
+        return;
+
     LocalPlayerState st;
     if (!DeserializePlayerStateFromString(msg, st))
         return;
 
-    auto& rp = GetOrCreate(st.username);
-    rp.UpdateFromState(st);
 
-    // TEMP: disable spawning while we debug the crash
-#if 0
-    if (!rp.hasSpawned)
+    LOG_INFO("[CoSyncPM] Parsed user='%s' pos=(%.2f %.2f %.2f)",
+        st.username.c_str(), st.position.x, st.position.y, st.position.z);
+
+
+    if (st.username.empty())
+        return;
+
+    // 1) Get/Create player entry
+    CoSyncPlayer& p = GetOrCreate(st.username);
+
+    // 2) Always update the cached state
+    p.UpdateFromState(st);
+
+    // 3) If the world isn't ready yet, do NOT spawn/move.
+    if (!CoSyncWorld::IsWorldReady())
     {
-        constexpr UInt32 kBaseFormID = 0x00020749;
-        TESForm* base = LookupFormByID(kBaseFormID);
+        LOG_DEBUG("[CoSyncPM] World not ready; queued state for '%s'", st.username.c_str());
+        return;
+    }
 
-        if (!base)
+    // 4) World is ready: ensure spawned, then apply
+    if (!p.hasSpawned || !p.actorRef)
+    {
+        // You can pass anchor = local player ref, baseForm = whatever you chose (or resolve from st/baseFormID)
+        auto* anchor = static_cast<TESObjectREFR*>(*g_player);
+        static TESForm* s_baseForm = nullptr;
+        if (!s_baseForm)
+            s_baseForm = LookupFormByID(0x0014890C);
+
+        TESForm* baseForm = s_baseForm;
+
+
+        if (!p.SpawnInWorld(anchor, baseForm))
         {
-            LOG_ERROR("[CoSyncPM] Failed to find base NPC %08X", kBaseFormID);
-        }
-        else
-        {
-            LOG_INFO("[CoSyncPM] Spawning remote NPC for '%s'...", st.username.c_str());
-
-            TESObjectREFR* anchor = reinterpret_cast<TESObjectREFR*>(*g_player);
-
-            if (!rp.SpawnInWorld(anchor, base))
-            {
-                LOG_ERROR("[CoSyncPM] SpawnInWorld FAILED for '%s'", st.username.c_str());
-            }
+            LOG_WARN("[CoSyncPM] SpawnInWorld failed for '%s'", st.username.c_str());
+            return;
         }
     }
-#endif
+    auto* anchor = static_cast<TESObjectREFR*>(*g_player);
+    LOG_INFO("[CoSyncPM] SpawnCheck worldReady=%d hasSpawned=%d actorRef=%p anchor=%p",
+        CoSyncWorld::IsWorldReady() ? 1 : 0, p.hasSpawned ? 1 : 0, p.actorRef, anchor);
 
-    // Still apply state if we ever add actors back in
-    rp.ApplyStateToActor();
+    TESForm* baseForm = LookupFormByID(0x0014890C);
+    LOG_INFO("[CoSyncPM] baseForm LookupFormByID(0014890C) -> %p", baseForm);
+
+
+    p.ApplyStateToActor();
+}
+
+void CoSyncPlayerManager::ProcessInbox()
+{
+    
+
+
+    // Move inbox into a local vector quickly (minimal lock time)
+    std::vector<std::string> local;
+    {
+        std::lock_guard<std::mutex> lock(m_inboxMutex);
+        local.swap(m_inbox);
+
+        LOG_DEBUG("[CoSyncPM] ProcessInbox drained %zu msgs", local.size());
+
+    }
+
+    // Now process on game thread without holding the lock
+    for (auto& msg : local)
+    {
+        ProcessIncomingState(msg);
+    }
 }
 
 
@@ -84,13 +149,15 @@ void CoSyncPlayerManager::ProcessIncomingState(const std::string& msg)
 // ----------------------------------------------------------
 void CoSyncPlayerManager::Tick()
 {
+    // 1) Apply queued network updates on the GAME THREAD
+    ProcessInbox();
+
+    // 2) Timeout cleanup
     double now = NowSeconds();
 
     for (auto it = m_players.begin(); it != m_players.end(); )
     {
         CoSyncPlayer& rp = it->second;
-
-        // timeout handling
 
         if (now - rp.lastPacketTime > 45.0)
         {
@@ -98,7 +165,6 @@ void CoSyncPlayerManager::Tick()
 
             if (rp.actorRef)
             {
-                // hide underground instead of immediate delete
                 rp.actorRef->pos = NiPoint3(0, 0, -10000);
                 rp.actorRef = nullptr;
             }
@@ -110,3 +176,4 @@ void CoSyncPlayerManager::Tick()
         ++it;
     }
 }
+

@@ -185,7 +185,6 @@ static HRESULT __stdcall HookedPresent(IDXGISwapChain* pSwapChain, UINT SyncInte
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
     }
 
-    // 🔥 NEW: Pump networking every frame so IP callbacks always fire
     GNS_Session::Get().Tick();
     
     // Always call original Present at the end

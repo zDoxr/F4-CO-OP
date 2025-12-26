@@ -9,6 +9,9 @@
 #include <cstring>
 #include <functional>
 #include <unordered_map>
+#include <mutex>
+#include <deque>
+
 
 // Static state
 namespace
@@ -19,6 +22,11 @@ namespace
     bool   s_pendingInit = false;
     bool   s_pendingHostFlag = false;
     bool   s_connected = false;
+
+
+    std::mutex s_inboxMutex;
+    std::deque<std::string> s_inbox;
+
 
     // Identity
     std::string s_myName = "Player";
@@ -118,9 +126,8 @@ void CoSyncNet::Tick(double now)
 
     // Pump underlying sockets / transports (receive/send)
     CoSyncTransport::Tick(now);
-
-    // Tick remote players (timeout cleanup, interpolation in future)
-    g_CoSyncPlayerManager.Tick();
+    
+   
 }
 
 // ---------------------------------------------------------------------------
@@ -143,28 +150,16 @@ void CoSyncNet::SendLocalPlayerState(const LocalPlayerState& state)
 // ---------------------------------------------------------------------------
 void CoSyncNet::OnReceive(const std::string& msg)
 {
-    // First, let CoSyncPlayerManager handle spawning + transforms.
-    g_CoSyncPlayerManager.ProcessIncomingState(msg);
-
-    // Then maintain a simple peer list for overlay/debug.
-    if (!IsPlayerStateString(msg))
+    if (msg.rfind("HELLO|", 0) == 0)
+    {
+        LOG_INFO("[CoSyncNet] Handshake received: %s", msg.c_str());
         return;
+    }
 
-    LocalPlayerState st;
-    if (!DeserializePlayerStateFromString(msg, st))
-        return;
-
-    if (st.username.empty())
-        return;
-
-    uint64_t id = std::hash<std::string>{}(st.username);
-
-    auto& peer = s_peers[id];
-    peer.steamID = id;
-    peer.username = st.username;
-    peer.lastState = st;
-    peer.lastUpdateTime = GetNowSeconds();
+    g_CoSyncPlayerManager.EnqueueIncoming(msg);
 }
+
+
 
 // ---------------------------------------------------------------------------
 // Identity
@@ -217,7 +212,12 @@ void CoSyncNet::OnGNSConnected()
 {
     s_connected = true;
     LOG_INFO("[CoSyncNet] GNS connected");
+
+    // 🔥 NEW: immediate handshake
+    std::string hello = "HELLO|" + std::string(GetMyName());
+    CoSyncTransport::Send(hello);
 }
+
 
 bool CoSyncNet::IsConnected()
 {
