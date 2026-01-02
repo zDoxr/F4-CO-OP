@@ -1,27 +1,23 @@
 #pragma once
 
-#include "GameReferences.h"
-#include "GameObjects.h"
-#include "NiTypes.h"
+#include <cstdint>
 
-class LocalPlayerState;
+#include "ITypes.h"          // UInt32
+#include "NiTypes.h"         // NiPoint3
+#include "GameReferences.h"  // Actor
+
+// NOTE:
+// - SpawnRemoteActor is executed on the game thread (via F4SE task).
+// - Uses PlaceAtMe_Native.
+// - No engine hooks / internal callees.
 
 namespace CoSyncGameAPI
 {
-    // Only declare in header
-    extern NiPoint3 rot;
-    extern NiPoint3 pos;
-
     Actor* SpawnRemoteActor(UInt32 baseFormID);
 
     void PositionRemoteActor(
         Actor* actor,
         const NiPoint3& pos,
         const NiPoint3& rot
-    );
-
-    void ApplyRemotePlayerStateToActor(
-        Actor* actor,
-        const LocalPlayerState& state
     );
 }

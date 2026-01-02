@@ -1,5 +1,4 @@
 ﻿#include "CoSyncTransport.h"
-#include "TickHook.h"
 #include "ConsoleLogger.h"
 #include "GNS_Session.h"
 
@@ -9,6 +8,9 @@ namespace
     bool s_isHost = false;
 
     std::function<void(const std::string&)> s_receiveCallback;
+
+    // throttle spam
+    double s_lastTickLog = 0.0;
 }
 
 // -----------------------------------------------------------------------------
@@ -22,7 +24,6 @@ bool CoSyncTransport::InitAsHost()
         return true;
     }
 
-    // GNS_Session::StartHost() is called by F4MP_Main::StartHosting() BEFORE this.
     s_initialized = true;
     s_isHost = true;
 
@@ -41,7 +42,6 @@ bool CoSyncTransport::InitAsClient(const std::string& connectStr)
         return true;
     }
 
-    // GNS_Session::StartClient() is called by F4MP_Main::StartJoining() BEFORE this.
     s_initialized = true;
     s_isHost = false;
 
@@ -65,20 +65,21 @@ void CoSyncTransport::Shutdown()
 }
 
 // -----------------------------------------------------------------------------
-// Tick
-//
-// Currently the real socket polling is done in GNS_Session::Tick(), which you
-// are already calling from your DX11 Present hook. This function exists for
-// future flexibility and so CoSyncNet has a stable interface.
+// Tick (ONLY place we drive GNS now)
 // -----------------------------------------------------------------------------
-void CoSyncTransport::Tick(double /*now*/)
+void CoSyncTransport::Tick(double now)
 {
-    
+    if (!s_initialized)
+        return;
+
     GNS_Session::Get().Tick();
-    
-	LOG_DEBUG("[CoSyncTransport] Tick");
-    
-    
+
+    // Throttle spam to ~1Hz if you still want it.
+    if (now - s_lastTickLog > 1.0)
+    {
+        s_lastTickLog = now;
+        LOG_DEBUG("[CoSyncTransport] Tick");
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -94,25 +95,17 @@ void CoSyncTransport::Send(const std::string& msg)
 
     GNS_Session::Get().SendText(msg);
     LOG_DEBUG("[CoSyncTransport] SEND %zu bytes: %s", msg.size(), msg.c_str());
-
 }
 
 // -----------------------------------------------------------------------------
 // ForwardMessage
-//
-// This is called by GNS_Session when it receives a complete text message.
-// It forwards the payload into the higher-level CoSyncNet callback.
 // -----------------------------------------------------------------------------
 void CoSyncTransport::ForwardMessage(const std::string& msg)
 {
     if (s_receiveCallback)
-    {
         s_receiveCallback(msg);
-    }
     else
-    {
         LOG_WARN("[Transport] Received message but no callback is set");
-    }
 }
 
 // -----------------------------------------------------------------------------

@@ -1,10 +1,12 @@
-﻿#include "GNS_Session.h"
+﻿// GNS_Session.cpp
+#include "GNS_Session.h"
+
 #include "ConsoleLogger.h"
 #include "CoSyncTransport.h"
 #include "CoSyncNet.h"
+
 #include "steam/steamnetworkingsockets.h"
 #include "steam/isteamnetworkingutils.h"
-#include "TickHook.h"
 
 static void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* info);
 static bool g_callbacksRegistered = false;
@@ -41,11 +43,6 @@ GNS_Session& GNS_Session::Get()
 }
 
 GNS_Session::GNS_Session()
-    : m_role(GNSRole::None)
-    , m_connected(false)
-    , m_listenSocket(k_HSteamListenSocket_Invalid)
-    , m_pollGroup(k_HSteamNetPollGroup_Invalid)
-    , m_connection(k_HSteamNetConnection_Invalid)
 {
     auto* sock = gSockets();
     if (sock)
@@ -58,11 +55,69 @@ GNS_Session::GNS_Session()
     }
 }
 
+void GNS_Session::ResetSession()
+{
+    auto* sock = gSockets();
+    if (!sock)
+        return;
+
+    // Close host listen socket
+    if (m_listenSocket != k_HSteamListenSocket_Invalid)
+    {
+        sock->CloseListenSocket(m_listenSocket);
+        m_listenSocket = k_HSteamListenSocket_Invalid;
+    }
+
+    // Close client connection
+    if (m_serverConn != k_HSteamNetConnection_Invalid)
+    {
+        sock->CloseConnection(m_serverConn, 0, "reset", false);
+        m_serverConn = k_HSteamNetConnection_Invalid;
+    }
+
+    // Close host connections (pending + connected)
+    for (auto conn : m_pendingClientConns)
+        sock->CloseConnection(conn, 0, "reset", false);
+    m_pendingClientConns.clear();
+
+    for (auto conn : m_clientConns)
+        sock->CloseConnection(conn, 0, "reset", false);
+    m_clientConns.clear();
+
+    m_role = GNSRole::None;
+    m_connected = false;
+}
+
+void GNS_Session::CloseConnection(HSteamNetConnection conn, const char* reason)
+{
+    auto* sock = gSockets();
+    if (!sock || conn == k_HSteamNetConnection_Invalid)
+        return;
+
+    sock->CloseConnection(conn, 0, reason ? reason : "closed", false);
+
+    if (m_role == GNSRole::Client)
+    {
+        if (conn == m_serverConn)
+            m_serverConn = k_HSteamNetConnection_Invalid;
+
+        m_connected = false;
+    }
+    else if (m_role == GNSRole::Host)
+    {
+        Host_RemoveAny(conn);
+
+        // Host is "connected" if it still has any fully connected clients
+        m_connected = !m_clientConns.empty();
+    }
+}
+
 bool GNS_Session::StartHost(const char* ip)
 {
+    ResetSession();
+
     m_role = GNSRole::Host;
     m_connected = false;
-    m_connection = k_HSteamNetConnection_Invalid;
 
     EnsureCallbacksRegistered();
 
@@ -103,9 +158,10 @@ bool GNS_Session::StartHost(const char* ip)
 
 bool GNS_Session::StartClient(const std::string& connectString)
 {
+    ResetSession();
+
     m_role = GNSRole::Client;
     m_connected = false;
-    m_connection = k_HSteamNetConnection_Invalid;
 
     EnsureCallbacksRegistered();
 
@@ -144,20 +200,72 @@ bool GNS_Session::StartClient(const std::string& connectString)
 
     LOG_INFO("[GNS] Connecting to %s", connectString.c_str());
 
-    m_connection = sock->ConnectByIPAddress(addr, 2, opts);
-    if (m_connection == k_HSteamNetConnection_Invalid)
+    m_serverConn = sock->ConnectByIPAddress(addr, 2, opts);
+    if (m_serverConn == k_HSteamNetConnection_Invalid)
     {
         LOG_ERROR("[GNS] Connect FAILED");
         return false;
     }
 
     if (m_pollGroup != k_HSteamNetPollGroup_Invalid)
-        sock->SetConnectionPollGroup(m_connection, m_pollGroup);
+        sock->SetConnectionPollGroup(m_serverConn, m_pollGroup);
 
     return true;
 }
 
-void GNS_Session::ProcessConnectionMessages(HSteamNetConnection conn)
+// -----------------------------
+// Host connection management
+// -----------------------------
+void GNS_Session::Host_TrackPending(HSteamNetConnection conn)
+{
+    if (conn == k_HSteamNetConnection_Invalid)
+        return;
+
+    // Pending means: accepted/being established, but not yet in Connected state
+    m_pendingClientConns.insert(conn);
+
+    LOG_INFO("[GNS] Host pending clients=%zu connected clients=%zu",
+        m_pendingClientConns.size(), m_clientConns.size());
+}
+
+void GNS_Session::Host_PromoteToConnected(HSteamNetConnection conn)
+{
+    if (conn == k_HSteamNetConnection_Invalid)
+        return;
+
+    // Remove from pending if present
+    auto it = m_pendingClientConns.find(conn);
+    if (it != m_pendingClientConns.end())
+        m_pendingClientConns.erase(it);
+
+    // Add to connected set
+    m_clientConns.insert(conn);
+
+    LOG_INFO("[GNS] Host CONNECTED clients=%zu (pending=%zu)",
+        m_clientConns.size(), m_pendingClientConns.size());
+}
+
+void GNS_Session::Host_RemoveAny(HSteamNetConnection conn)
+{
+    if (conn == k_HSteamNetConnection_Invalid)
+        return;
+
+    auto itP = m_pendingClientConns.find(conn);
+    if (itP != m_pendingClientConns.end())
+        m_pendingClientConns.erase(itP);
+
+    auto itC = m_clientConns.find(conn);
+    if (itC != m_clientConns.end())
+        m_clientConns.erase(itC);
+
+    LOG_INFO("[GNS] Host tracking clients=%zu (pending=%zu)",
+        m_clientConns.size(), m_pendingClientConns.size());
+}
+
+// -----------------------------
+// Receive processing
+// -----------------------------
+void GNS_Session::ProcessMessagesOnConnection(HSteamNetConnection conn)
 {
     auto* sock = gSockets();
     if (!sock)
@@ -165,8 +273,7 @@ void GNS_Session::ProcessConnectionMessages(HSteamNetConnection conn)
 
     ISteamNetworkingMessage* msgs[32];
     int count = sock->ReceiveMessagesOnConnection(conn, msgs, 32);
-
-    if (count < 0)
+    if (count <= 0)
         return;
 
     for (int i = 0; i < count; i++)
@@ -183,6 +290,33 @@ void GNS_Session::ProcessConnectionMessages(HSteamNetConnection conn)
     }
 }
 
+void GNS_Session::ProcessMessagesOnPollGroup()
+{
+    auto* sock = gSockets();
+    if (!sock || m_pollGroup == k_HSteamNetPollGroup_Invalid)
+        return;
+
+    ISteamNetworkingMessage* msgs[32];
+    int count = sock->ReceiveMessagesOnPollGroup(m_pollGroup, msgs, 32);
+    if (count <= 0)
+        return;
+
+    for (int i = 0; i < count; i++)
+    {
+        std::string text(
+            reinterpret_cast<char*>(msgs[i]->m_pData),
+            static_cast<size_t>(msgs[i]->m_cbSize)
+        );
+
+        msgs[i]->Release();
+
+        CoSyncTransport::ForwardMessage(text);
+    }
+}
+
+// -----------------------------
+// Connection status callback
+// -----------------------------
 void GNS_Session::HandleConnectionStatusChanged(const SteamNetConnectionStatusChangedCallback_t* info)
 {
     auto* sock = gSockets();
@@ -206,30 +340,43 @@ void GNS_Session::HandleConnectionStatusChanged(const SteamNetConnectionStatusCh
             if (m_pollGroup != k_HSteamNetPollGroup_Invalid)
                 sock->SetConnectionPollGroup(info->m_hConn, m_pollGroup);
 
-            m_connection = info->m_hConn;
+            // Track as pending ONLY (do not set session "connected" yet)
+            Host_TrackPending(info->m_hConn);
         }
         break;
 
     case k_ESteamNetworkingConnectionState_Connected:
-        if (info->m_hConn == m_connection && !m_connected)
+        if (m_role == GNSRole::Client)
         {
-            
-            m_connected = true;
-            LOG_INFO("[GNS] Connection established!");
+            if (info->m_hConn == m_serverConn && !m_connected)
+            {
+                m_connected = true;
+                LOG_INFO("[GNS] Client connected!");
+                CoSyncNet::OnGNSConnected();
+            }
+        }
+        else if (m_role == GNSRole::Host)
+        {
+            // Promote this conn to the connected set
+            Host_PromoteToConnected(info->m_hConn);
 
-            CoSyncNet::OnGNSConnected();
+            // Host session becomes "connected" when first client reaches Connected state
+            if (!m_connected)
+            {
+                m_connected = true;
+                LOG_INFO("[GNS] Host has at least one CONNECTED client!");
+                CoSyncNet::OnGNSConnected();
+            }
         }
         break;
 
     case k_ESteamNetworkingConnectionState_ClosedByPeer:
     case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
-        if (info->m_hConn == m_connection)
-        {
-            LOG_WARN("[GNS] Connection closed (conn=%u)", info->m_hConn);
-            sock->CloseConnection(info->m_hConn, 0, nullptr, false);
-            m_connection = k_HSteamNetConnection_Invalid;
-            m_connected = false;
-        }
+        LOG_WARN("[GNS] Connection closed (conn=%u, state=%d)", info->m_hConn, (int)info->m_info.m_eState);
+        CloseConnection(info->m_hConn, "closed");
+        break;
+
+    default:
         break;
     }
 }
@@ -239,28 +386,64 @@ void GNS_Session::Tick()
     auto* sock = gSockets();
     if (!sock)
         return;
-	
 
     sock->RunCallbacks();
-	
 
-    if (m_connection != k_HSteamNetConnection_Invalid && m_connected)
-        ProcessConnectionMessages(m_connection);
-	
+    // Read messages once session is actually connected
+    if (m_connected)
+        ProcessMessagesOnPollGroup();
+
+    // Fallback if poll group is invalid
+    if (m_pollGroup == k_HSteamNetPollGroup_Invalid && m_connected)
+    {
+        if (m_role == GNSRole::Client)
+        {
+            if (m_serverConn != k_HSteamNetConnection_Invalid)
+                ProcessMessagesOnConnection(m_serverConn);
+        }
+        else if (m_role == GNSRole::Host)
+        {
+            for (auto conn : m_clientConns)
+                ProcessMessagesOnConnection(conn);
+        }
+    }
 }
 
 void GNS_Session::SendText(const std::string& text)
 {
-    if (!m_connected || m_connection == k_HSteamNetConnection_Invalid)
+    auto* sock = gSockets();
+    if (!sock || !m_connected)
         return;
 
-    gSockets()->SendMessageToConnection(
-        m_connection,
-        text.c_str(),
-        static_cast<uint32>(text.size()),
-        k_nSteamNetworkingSend_Reliable,
-        nullptr
-    );
+    const void* data = text.data();
+    const uint32 cb = static_cast<uint32>(text.size());
+
+    if (m_role == GNSRole::Client)
+    {
+        if (m_serverConn == k_HSteamNetConnection_Invalid)
+            return;
+
+        sock->SendMessageToConnection(
+            m_serverConn,
+            data,
+            cb,
+            k_nSteamNetworkingSend_Reliable,
+            nullptr
+        );
+        return;
+    }
+
+    // Host: broadcast to all fully connected clients only
+    for (auto conn : m_clientConns)
+    {
+        sock->SendMessageToConnection(
+            conn,
+            data,
+            cb,
+            k_nSteamNetworkingSend_Reliable,
+            nullptr
+        );
+    }
 }
 
 std::string GNS_Session::GetHostConnectString() const

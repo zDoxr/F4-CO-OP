@@ -4,81 +4,98 @@
 #include <unordered_map>
 #include <cstdint>
 
+#include "NiTypes.h"
 #include "LocalPlayerState.h"
 
-// High-level CoSync networking layer that sits on top of
-// GNS_Session + CoSyncTransport and feeds CoSyncPlayerManager.
-namespace CoSyncNet
+// -----------------------------------------------------------------------------
+// CoSyncNet
+//
+// F4MP-aligned responsibilities:
+//   - Session lifecycle
+//   - Network send / receive
+//   - Authority routing (host vs client)
+//   - Serialization + enqueue ONLY
+//
+// RULES:
+//   - NEVER spawns actors
+//   - NEVER moves actors
+//   - NEVER touches the world
+//
+// All world interaction lives in:
+//   CoSyncPlayerManager + CoSyncSpawnTasks
+// -----------------------------------------------------------------------------
+class CoSyncNet
 {
-    // A remote peer on the LAN/Hamachi network.
-    // NOTE: steamID is kept for backwards compatibility but is
-    //       now effectively a generic LAN/Hamachi numeric ID.
+public:
+    // -------------------------------------------------------------------------
+    // RemotePeer (diagnostic / bookkeeping only)
+    // NOT authoritative for world state
+    // -------------------------------------------------------------------------
     struct RemotePeer
     {
-        uint64_t         steamID = 0;    // can be hash(username) or other ID
-        std::string      username;
-        LocalPlayerState lastState;
-        double           lastUpdateTime = 0.0;
+        uint64_t steamID = 0;
+        std::string username;
+        LocalPlayerState lastState{};
+        double lastUpdateTime = 0.0;
     };
 
-    // ------------------------------------------------------
-    // Initialization / shutdown
-    // ------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // Lifecycle
+    // -------------------------------------------------------------------------
+    static void Init(bool host);
+    static void Shutdown();
 
-    // Init immediately (normally called after world loaded).
-    // 'host' = true → host; false → client.
-    void Init(bool host);
+    // Deferred init until world is ready
+    static void ScheduleInit(bool host);
+    static void PerformPendingInit();
 
-    // Shut down networking runtime and clear peer list.
-    void Shutdown();
+    // Per-frame tick (game thread only)
+    static void Tick(double now);
 
-    // Schedules Init(host) to run once the world is loaded.
-    // TickHook will call PerformPendingInit() to complete it.
-    void ScheduleInit(bool host);
+    // -------------------------------------------------------------------------
+    // Sending
+    // -------------------------------------------------------------------------
 
-    // Called from TickHook after WORLD LOADED to perform
-    // the pending Init, if any.
-    void PerformPendingInit();
+    // Legacy full-state packet (optional / debug)
+    static void SendLocalPlayerState(const LocalPlayerState& state);
 
-    // Per-frame network tick (CoSyncNet-level; not sockets only).
-    void Tick(double now);
+    // CLIENT → HOST
+    // Send transform updates ONLY
+    // CREATE is host-authoritative and never sent by clients
+    static void SendMyEntityUpdate(
+        uint32_t entityID,
+        const NiPoint3& pos,
+        const NiPoint3& rot,
+        const NiPoint3& vel
+    );
 
-    // ------------------------------------------------------
-    // Outgoing player-state replication
-    // ------------------------------------------------------
-    void SendLocalPlayerState(const LocalPlayerState& state);
+    // -------------------------------------------------------------------------
+    // Receiving
+    // -------------------------------------------------------------------------
 
-    // ------------------------------------------------------
-    // Incoming network packet callback (called by transport)
-    // ------------------------------------------------------
-    void OnReceive(const std::string& msg);
+    // Called ONLY by CoSyncTransport receive callback
+    // Must NEVER touch the world
+    static void OnReceive(const std::string& msg);
 
-    // ------------------------------------------------------
-    // Identity (LAN/Hamachi)
-    // ------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // Identity
+    // -------------------------------------------------------------------------
+    static uint64_t GetMySteamID();
+    static const char* GetMyName();
+    static void SetMyName(const std::string& name);
 
-    // Returns a numeric ID for this client (hash of username or 0 if unset).
-    uint64_t    GetMySteamID();
+    // -------------------------------------------------------------------------
+    // State
+    // -------------------------------------------------------------------------
+    static bool IsInitialized();
+    static bool IsSessionActive();
+    static bool IsConnected();
 
-    // Returns our username (for packet field 8).
-    const char* GetMyName();
+    // Optional diagnostics (NOT authoritative)
+    static const std::unordered_map<uint64_t, RemotePeer>& GetPeers();
 
-    // CoSyncNet.h
-    void SetMyName(const std::string& name);
-
-
-    bool IsInitialized();
-
-    // Overall session flag (host or client active)
-    bool IsSessionActive();
-
-    // ------------------------------------------------------
-    // Peer list (for overlay/debug)
-    // ------------------------------------------------------
-    const std::unordered_map<uint64_t, RemotePeer>& GetPeers();
-
-    // Called from GNS_Session when socket connection is established.
-    void OnGNSConnected();
-
-    bool IsConnected();
-}
+    // -------------------------------------------------------------------------
+    // Transport callback
+    // -------------------------------------------------------------------------
+    static void OnGNSConnected();
+};

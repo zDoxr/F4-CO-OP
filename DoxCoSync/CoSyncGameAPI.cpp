@@ -1,79 +1,80 @@
-// CoSyncGameAPI.cpp
-#include "CoSyncGameAPI.h"
+﻿#include "CoSyncGameAPI.h"
 
-#include "GameReferences.h"
-#include "GameObjects.h"
-#include "GameUtilities.h"
-
-#include "PapyrusVM.h"
 #include "ConsoleLogger.h"
+#include "Relocation.h"
 
-#include "CoSyncActorValues.h"
-#include "LocalPlayerState.h"
+#include "GameForms.h"
+#include "GameObjects.h"
+#include "GameReferences.h"
+#include "PapyrusVM.h"
 
-// F4SE globals you already define elsewhere
 extern RelocPtr<PlayerCharacter*> g_player;
+extern RelocPtr<GameVM*>          g_gameVM;
 
-// ============================================================
-// CoSyncGameAPI globals
-// ============================================================
-NiPoint3 CoSyncGameAPI::rot = { 0.0f, 0.0f, 0.0f };
-NiPoint3 CoSyncGameAPI::pos = { 0.0f, 0.0f, 0.0f };
+// -----------------------------------------------------------------------------
+// F4MP RULE:
+// Proxy actors MUST be spawned from a TESNPC base.
+// Pick ONE known-good NPC and reuse it for all remote players.
+// -----------------------------------------------------------------------------
 
-// ============================================================
-// Spawn a remote actor using Papyrus native PlaceAtMe
-// ============================================================
-Actor* CoSyncGameAPI::SpawnRemoteActor(UInt32 baseFormID)
+static constexpr UInt32 kProxyNPCBaseFormID = 00000007;
+
+// -----------------------------------------------------------------------------
+
+static TESObjectREFR* GetPlayerRef()
 {
-    // Ensure GameVM / VirtualMachine is available
-    if (!*g_gameVM || !(*g_gameVM)->m_virtualMachine)
+    PlayerCharacter* pc = *g_player;
+    return pc ? static_cast<TESObjectREFR*>(pc) : nullptr;
+}
+
+// -----------------------------------------------------------------------------
+
+Actor* CoSyncGameAPI::SpawnRemoteActor(UInt32 /*baseFormID*/)
+{
+    TESObjectREFR* anchor = GetPlayerRef();
+    if (!anchor)
     {
-        LOG_ERROR("[CoSyncGameAPI] GameVM not available");
+        LOG_ERROR("[Spawn] No player anchor");
         return nullptr;
     }
 
-    VirtualMachine* vm = (*g_gameVM)->m_virtualMachine;
-
-    // Resolve the base form
-    TESForm* form = LookupFormByID(baseFormID);
-    if (!form)
+    TESForm* baseForm = LookupFormByID(kProxyNPCBaseFormID);
+    if (!baseForm)
     {
-        LOG_ERROR("[CoSyncGameAPI] Base form %08X not found", baseFormID);
+        LOG_ERROR(
+            "[Spawn] Proxy NPC base missing: 0x%08X",
+            kProxyNPCBaseFormID
+        );
         return nullptr;
     }
 
-    // Get local player
-    PlayerCharacter* player = *g_player;
-    if (!player)
-    {
-        LOG_ERROR("[CoSyncGameAPI] PlayerCharacter is null");
-        return nullptr;
-    }
-
-    TESObjectREFR* playerRef = static_cast<TESObjectREFR*>(player);
-
-    // Spawn
-    TESObjectREFR* spawned = PlaceAtMe_Native(
-        vm,
-        0,              // stackId
-        &playerRef,     // target
-        form,
-        1,              // count
-        true,           // force persist
-        false,          // initially disabled
-        false           // delete when able
+    LOG_INFO(
+        "[Spawn] PlaceObjectAtMe proxy NPC base=0x%08X anchor=%p",
+        kProxyNPCBaseFormID,
+        anchor
     );
+
+    TESObjectREFR* spawned =
+        CALL_MEMBER_FN(anchor, PlaceObjectAtMe)(
+            baseForm,
+            1,
+            false, // forcePersist
+            true,  // initiallyDisabled  <<< REQUIRED
+            false
+            );
 
     if (!spawned)
     {
-        LOG_ERROR("[CoSyncGameAPI] PlaceAtMe_Native failed for %08X", baseFormID);
+        LOG_ERROR("[Spawn] PlaceObjectAtMe FAILED");
         return nullptr;
     }
 
-    // Convert to Actor*
-    if (spawned->formType != Actor::kTypeID)
+    if (spawned->formType != kFormType_ACHR)
     {
-        LOG_ERROR("[CoSyncGameAPI] Spawned form is not an Actor (%u)", spawned->formType);
+        LOG_ERROR(
+            "[Spawn] Spawned ref not Actor (formType=%u)",
+            spawned->formType
+        );
         return nullptr;
     }
 
@@ -82,57 +83,44 @@ Actor* CoSyncGameAPI::SpawnRemoteActor(UInt32 baseFormID)
 
 
 
-// ============================================================
-// Move / rotate an actor using engine-native MoveRefrToPosition
-// ============================================================
+
+// -----------------------------------------------------------------------------
+
 void CoSyncGameAPI::PositionRemoteActor(
     Actor* actor,
-    const NiPoint3& inPos,
-    const NiPoint3& inRot
-)
+    const NiPoint3& pos,
+    const NiPoint3& rot)
 {
     if (!actor)
         return;
 
-    // Cache into globals (some systems prefer stable addresses)
-    CoSyncGameAPI::pos = inPos;
-    CoSyncGameAPI::rot = inRot;
+    TESObjectREFR* refr = static_cast<TESObjectREFR*>(actor);
 
-    // IMPORTANT:
-    // MoveRefrToPosition expects a handle pointer OR nullptr.
-    // Do NOT pass refcount or fake values.
+    TESObjectCELL* cell = refr->parentCell;
+    TESWorldSpace* ws = CALL_MEMBER_FN(refr, GetWorldspace)();
+
+    if (!cell || !ws)
+    {
+        TESObjectREFR* anchor = GetPlayerRef();
+        if (!anchor)
+            return;
+
+        cell = anchor->parentCell;
+        ws = CALL_MEMBER_FN(anchor, GetWorldspace)();
+    }
+
+    if (!cell || !ws)
+        return;
+
+    NiPoint3 p = pos;
+    NiPoint3 r = rot;
+
     MoveRefrToPosition(
-        actor,
-        nullptr,                // handle (nullptr is safe here)
-        actor->parentCell,
-        nullptr,                // worldspace (engine resolves)
-        &CoSyncGameAPI::pos,
-        &CoSyncGameAPI::rot
+        refr,
+        nullptr,
+        cell,
+        ws,
+        &p,
+        &r
     );
-}
-
-// ============================================================
-// Apply replicated state (pos/rot + basic actor values)
-// ============================================================
-void CoSyncGameAPI::ApplyRemotePlayerStateToActor(
-    Actor* actor,
-    const LocalPlayerState& state
-)
-{
-    if (!actor)
-        return;
-
-    // Position + rotation first
-    PositionRemoteActor(actor, state.position, state.rotation);
-
-    // Resolve AVs once
-    static ActorValueInfo* avHealth = GetActorValueInfoByName("Health");
-    static ActorValueInfo* avAP = GetActorValueInfoByName("ActionPoints");
-
-    // Apply values (if found)
-    if (avHealth)
-        Actor_SetActorValue(actor, avHealth, state.health);
-
-    if (avAP)
-        Actor_SetActorValue(actor, avAP, state.ap);
 }

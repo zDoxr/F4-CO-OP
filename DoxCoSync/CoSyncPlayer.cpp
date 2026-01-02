@@ -1,82 +1,105 @@
-#include "CoSyncPlayer.h"
+ï»¿#include "CoSyncPlayer.h"
+
 #include "ConsoleLogger.h"
 #include "CoSyncGameAPI.h"
+#include "GameForms.h"
+
+extern RelocPtr<PlayerCharacter*> g_player;
+
+// -----------------------------------------------------------------------------
+
+static NiPoint3 VoidPos()
+{
+    return NiPoint3{ 0.f, 0.f, -20000.f };
+}
+
+static NiPoint3 ZeroRot()
+{
+    return NiPoint3{ 0.f, 0.f, 0.f };
+}
+
+static TESObjectREFR* GetAnchor()
+{
+    PlayerCharacter* pc = *g_player;
+    return pc ? static_cast<TESObjectREFR*>(pc) : nullptr;
+}
+
+// -----------------------------------------------------------------------------
 
 CoSyncPlayer::CoSyncPlayer(const std::string& name)
     : username(name)
 {
+    isLocalPlayer = false; // ALWAYS remote
 }
 
-void CoSyncPlayer::UpdateFromState(const LocalPlayerState& state)
-{
-    lastState = state;
-    lastState.username = username;
-    lastPacketTime = state.timestamp;
+// -----------------------------------------------------------------------------
 
-    LOG_DEBUG("[CoSyncPlayer] UpdateFromState '%s' pos(%.2f %.2f %.2f)",
-        username.c_str(),
-        state.position.x, state.position.y, state.position.z
-    );
-}
-
-bool CoSyncPlayer::SpawnInWorld(TESObjectREFR* anchor, TESForm* baseForm)
+bool CoSyncPlayer::SpawnInWorld(TESObjectREFR* anchor, TESForm*)
 {
-    if (hasSpawned && actorRef)
-        return true;
+    if (!anchor)
+        anchor = GetAnchor();
 
     if (!anchor)
     {
-        LOG_ERROR("[CoSyncPlayer] Spawn FAILED for '%s' — anchor NULL", username.c_str());
+        LOG_ERROR("[CoSyncPlayer] No anchor for spawn entityID=%u", entityID);
         return false;
     }
 
-    if (!baseForm)
+    if (hasSpawned)
+        return true;
+
+    LOG_INFO(
+        "[CoSyncPlayer] Spawn START entityID=%u",
+        entityID
+    );
+
+    Actor* actor = CoSyncGameAPI::SpawnRemoteActor(0);
+    if (!actor)
     {
-        LOG_ERROR("[CoSyncPlayer] Spawn FAILED for '%s' — baseForm NULL", username.c_str());
+        LOG_ERROR("[CoSyncPlayer] SpawnRemoteActor FAILED entityID=%u", entityID);
         return false;
     }
 
-    // Use new GameAPI function
-    Actor* spawned = CoSyncGameAPI::SpawnRemoteActor(baseForm->formID);
-    if (!spawned)
-    {
-        LOG_ERROR("[CoSyncPlayer] SpawnRemoteActor FAILED for '%s' base=%08X",
-            username.c_str(), baseForm->formID);
-        return false;
-    }
+    actorRef = actor;
 
-    actorRef = spawned;
+    // F4MP CRITICAL STEP
+    CoSyncGameAPI::PositionRemoteActor(actorRef, VoidPos(), ZeroRot());
+
     hasSpawned = true;
-    lastPacketTime = lastState.timestamp;
 
-
-    actorRef->middleProcess->Set3DUpdateFlag(
-        Actor::AIProcess::RESET_MODEL |
-        Actor::AIProcess::RESET_SKIN |
-        Actor::AIProcess::RESET_SKELETON
+    LOG_INFO(
+        "[CoSyncPlayer] Spawn END entityID=%u actor=%p",
+        entityID, actorRef
     );
-
-    actorRef->middleProcess->Update3DModel(actorRef, true);
-
-    CoSyncGameAPI::PositionRemoteActor(
-        actorRef,
-        lastState.position,
-        lastState.rotation
-    );
-
-
-    LOG_INFO("[CoSyncPlayer] Spawned remote actor=%p for '%s'",
-        actorRef, username.c_str());
-
 
     return true;
 }
 
+// -----------------------------------------------------------------------------
 
-void CoSyncPlayer::ApplyStateToActor()
+void CoSyncPlayer::ApplyPendingTransformIfAny()
 {
-    if (!actorRef || !hasSpawned)
+    if (!hasSpawned || !actorRef || !hasPendingTransform)
         return;
 
-    CoSyncGameAPI::ApplyRemotePlayerStateToActor(actorRef, lastState);
+    CoSyncGameAPI::PositionRemoteActor(
+        actorRef,
+        pendingPos,
+        pendingRot
+    );
+
+    hasPendingTransform = false;
+}
+
+// -----------------------------------------------------------------------------
+
+void CoSyncPlayer::UpdateFromState(const LocalPlayerState& state)
+{
+    lastState = state;
+
+    pendingPos = state.position;
+    pendingRot = state.rotation;
+    pendingVel = state.velocity;
+
+    hasPendingTransform = true;
 }

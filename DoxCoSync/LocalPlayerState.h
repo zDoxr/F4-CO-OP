@@ -1,38 +1,55 @@
 ﻿#pragma once
 
-#include "ITypes.h"
-#include "NiTypes.h"
 #include <string>
+#include "NiTypes.h"
+#include "ITypes.h"
 
-class LocalPlayerState
+// NOTE:
+// - position, rotation, velocity use engine-native units
+// - rotation is ALWAYS radians (never degrees)
+// - this struct represents the authoritative local snapshot
+
+struct LocalPlayerState
 {
-public:
+    // -------------------------
+    // Identity
+    // -------------------------
     std::string username;
 
-    NiPoint3 position{ 0.0f, 0.0f, 0.0f };
-    NiPoint3 rotation{ 0.0f, 0.0f, 0.0f };
-    NiPoint3 velocity{ 0.0f, 0.0f, 0.0f };
+    // -------------------------
+    // Transform (ENGINE NATIVE)
+    // -------------------------
+    NiPoint3 position{ 0.f, 0.f, 0.f };
 
+    // rotation is in RADIANS (engine-native)
+    NiPoint3 rotation{ 0.f, 0.f, 0.f };
+
+    NiPoint3 velocity{ 0.f, 0.f, 0.f };
+
+    // -------------------------
+    // Movement flags
+    // -------------------------
     bool isMoving = false;
     bool isSprinting = false;
     bool isCrouching = false;
     bool isJumping = false;
 
-    float health = 0.0f;
-    float maxHealth = 0.0f;
-    float ap = 0.0f;
-    float maxActionPoints = 0.0f;
-
+    // -------------------------
+    // World identity
+    // -------------------------
     UInt32 formID = 0;
     UInt32 cellFormID = 0;
 
-    // REQUIRED BY PlayerStatePacket
-    UInt32 equippedWeaponFormID = 0;
-    UInt32 leftHandFormID = 0;
-    UInt32 rightHandFormID = 0;
+    // -------------------------
+    // Stats (optional / future)
+    // -------------------------
+    float health = 0.f;
+    float maxHealth = 0.f;
+    float ap = 0.f;
+    float maxActionPoints = 0.f;
 
-    // REQUIRED BY CoSyncPlayerManager
+    // -------------------------
+    // Timestamp (seconds)
+    // -------------------------
     double timestamp = 0.0;
 };
-
-extern LocalPlayerState g_localPlayerState;

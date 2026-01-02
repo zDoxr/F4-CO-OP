@@ -61,6 +61,9 @@
     <Filter Include="ThirdParty\MinHook\Include">
       <UniqueIdentifier>{0a0e8478-66af-46b1-b00e-e8b2f53882eb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Scripts">
+      <UniqueIdentifier>{bc276678-3104-41d9-8336-88689bdc0679}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ConsoleLogger.h">
@@ -225,6 +228,45 @@
     <ClInclude Include="CoSyncWorld.h">
       <Filter>Header Files\Game</Filter>
     </ClInclude>
+    <ClInclude Include="CoSyncEntityTypes.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="Packets_EntityCreate.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="Packets_EntityUpdate.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="CoSyncEntityRegistry.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="CoSyncMessageTypes.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="CoSyncMessageHelpers.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="EntitySerialization.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="CoSyncPlayerSpawner.h">
+      <Filter>Header Files\Game\PlayerState</Filter>
+    </ClInclude>
+    <ClInclude Include="GameTasks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CoSyncSpawnTasks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\Hooks_Threads.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Tasks.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="LocalPlayerStateGlobals.h">
+      <Filter>Header Files\Game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="F4MP_Main.cpp">
@@ -336,6 +378,30 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameUtilities.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoSyncEntityRegistry.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoSyncPlayerSpawner.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GameTasks.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoSyncSpawnTasks.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\Hooks_Threads.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se_common\Utilities.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="LocalPlayerStateGlobals.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Papyrus_CoSync.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
