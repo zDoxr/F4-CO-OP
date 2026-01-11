@@ -4,10 +4,11 @@
 #include <functional>
 #include <deque>
 #include <mutex>
+#include "steam/steamnetworkingsockets.h"
 
 namespace CoSyncTransport
 {
-    using ReceiveCallback = std::function<void(const std::string&, double now)>;
+    using ReceiveCallback = std::function<void(const std::string&, double now, HSteamNetConnection conn)>;
     using ConnectedCallback = std::function<void()>;
 
     // -------------------------------------------------------------------------
@@ -36,7 +37,7 @@ namespace CoSyncTransport
     // Incoming (network thread → transport)
     // Thread-safe. MUST NOT touch game systems.
     // -------------------------------------------------------------------------
-    void ForwardMessage(const std::string& msg);
+    void ForwardMessage(const std::string& msg, HSteamNetConnection conn);
 
     // -------------------------------------------------------------------------
     // Callbacks (game thread)
@@ -52,7 +53,13 @@ namespace CoSyncTransport
     // -------------------------------------------------------------------------
     // Optional pull-based API (game thread)
     // -------------------------------------------------------------------------
-    size_t DrainInbox(std::deque<std::string>& out);
+    struct InboxMessage
+    {
+        std::string text;
+        HSteamNetConnection conn = k_HSteamNetConnection_Invalid;
+    };
+
+    size_t DrainInbox(std::deque<InboxMessage>& out);
 
     // -------------------------------------------------------------------------
     // Diagnostics

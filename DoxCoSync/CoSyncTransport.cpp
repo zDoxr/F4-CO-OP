@@ -16,7 +16,7 @@ namespace
 
     // Thread-safe inbound queue (network thread -> game thread)
     std::mutex s_inboxMutex;
-    std::deque<std::string> s_inbox;
+    std::deque<CoSyncTransport::InboxMessage> s_inbox;
 
     // Throttle spam
     double s_lastTickLog = 0.0;
@@ -112,25 +112,26 @@ void CoSyncTransport::Send(const std::string& msg)
 // -----------------------------------------------------------------------------
 // Incoming: called from GNS receive path (may be non-game-thread)
 // -----------------------------------------------------------------------------
-void CoSyncTransport::ForwardMessage(const std::string& msg)
+void CoSyncTransport::ForwardMessage(const std::string& msg, HSteamNetConnection conn)
 {
     if (!s_initialized)
         return;
 
-    LOG_INFO("[Transport] ForwardMessage %zu bytes: %.80s", msg.size(), msg.c_str());
+    LOG_INFO("[Transport] ForwardMessage %zu bytes (conn=%u): %.80s",
+        msg.size(), conn, msg.c_str());
 
     std::lock_guard<std::mutex> lk(s_inboxMutex);
 
     if (s_inbox.size() >= kInboxHardCap)
         s_inbox.pop_front();
 
-    s_inbox.push_back(msg);
+    s_inbox.push_back({ msg, conn });
 }
 
 // -----------------------------------------------------------------------------
 // Optional pull-based drain
 // -----------------------------------------------------------------------------
-size_t CoSyncTransport::DrainInbox(std::deque<std::string>& out)
+size_t CoSyncTransport::DrainInbox(std::deque<InboxMessage>& out)
 {
     out.clear();
 
@@ -177,7 +178,7 @@ void CoSyncTransport::Tick(double now)
             s_connectedCallback();
     }
 
-    std::deque<std::string> drained;
+    std::deque<InboxMessage> drained;
     const size_t count = DrainInbox(drained);
 
     if (count > 0)
@@ -187,7 +188,7 @@ void CoSyncTransport::Tick(double now)
         if (s_receiveCallback)
         {
             for (auto& m : drained)
-                s_receiveCallback(m, now);
+                s_receiveCallback(m.text, now, m.conn);
         }
         else
         {

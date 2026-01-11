@@ -206,6 +206,7 @@
     <ClInclude Include="LocalPlayerStateGlobals.h" />
     <ClInclude Include="Logger.h" />
     <ClInclude Include="Packets_EntityCreate.h" />
+    <ClInclude Include="Packets_EntityDestroy.h" />
     <ClInclude Include="Packets_EntityUpdate.h" />
     <ClInclude Include="PacketTypes.h" />
     <ClInclude Include="Papyrus_CoSync.h" />

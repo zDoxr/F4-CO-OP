@@ -3,6 +3,7 @@
 
 #include <string>
 #include <unordered_set>
+#include <unordered_map>
 #include <cstdint>
 
 #include "steam/steamnetworkingsockets.h"
@@ -75,4 +76,6 @@ private:
     // - connected: fully established clients we can treat as "in-session"
     std::unordered_set<HSteamNetConnection> m_pendingClientConns;
     std::unordered_set<HSteamNetConnection> m_clientConns;
+    // Connection -> peer SteamID (tracked on HELLO)
+    std::unordered_map<HSteamNetConnection, uint64_t> m_peerSteamIDs;
 };

@@ -347,16 +347,17 @@ bool CoSyncSteam_IsReady()
 
 const char* CoSyncSteam_GetPersonaName()
 {
-    // TEMP STUB: don't actually touch Steam friends.
-    LOG_WARN("[CoSyncSteam] GetPersonaName stubbed out (no Steam calls)");
-    return nullptr;
+    
+    CoSyncSteam_RefreshIdentity();
+    if (g_personaName.empty())
+        return nullptr;
+    return g_personaName.c_str();
 }
 
 uint64_t CoSyncSteam_GetSelfSteamID64()
 {
-    // TEMP STUB: return 0 instead of using Steam.
-    LOG_WARN("[CoSyncSteam] GetSelfSteamID64 stubbed out (no Steam calls)");
-    return 0;
+    CoSyncSteam_RefreshIdentity();
+    return g_selfSteamID64;
 }
 
 int CoSyncSteam_GetFriendCount()

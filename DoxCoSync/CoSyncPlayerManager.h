@@ -6,6 +6,7 @@
 #include <mutex>
 #include <memory>
 
+#include "Packets_EntityDestroy.h"
 #include "Packets_EntityCreate.h"
 #include "Packets_EntityUpdate.h"
 #include "CoSyncEntityState.h"
@@ -19,13 +20,15 @@ struct InboxItem
     enum class Type : uint8_t
     {
         Create,
-        Update
+        Update,
+        Destroy
     };
 
     Type type = Type::Update;
 
     EntityCreatePacket create{};
     EntityUpdatePacket update{};
+    EntityDestroyPacket destroy{};
 };
 
 class CoSyncPlayer;
@@ -52,6 +55,7 @@ public:
     // Network entry points (THREAD-SAFE)
     void EnqueueEntityCreate(const EntityCreatePacket& p);
     void EnqueueEntityUpdate(const EntityUpdatePacket& p);
+    void EnqueueEntityDestroy(const EntityDestroyPacket& p);
 
     // Game-thread processing
     void ProcessInbox();
@@ -73,6 +77,9 @@ private:
     // Internal processing (GAME THREAD ONLY)
     void ProcessEntityCreate(const EntityCreatePacket& p);
     void ProcessEntityUpdate(const EntityUpdatePacket& u);
+    void ProcessEntityDestroy(const EntityDestroyPacket& d);
+    void DespawnEntity(uint32_t entityID, const char* reason);
+    void HandleTimeouts(double now);
 
     void PumpDeferredSpawns();
 

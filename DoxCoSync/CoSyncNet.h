@@ -6,6 +6,7 @@
 
 #include "NiTypes.h"
 #include "LocalPlayerState.h"
+#include "steam/SteamNetworkingSockets.h"
 
 // -----------------------------------------------------------------------------
 // CoSyncNet
@@ -80,7 +81,7 @@ public:
 
     // Called ONLY by CoSyncTransport receive callback
     // Must NEVER touch the world
-    static void OnReceive(const std::string& msg, double now);
+    static void OnReceive(const std::string& msg, double now, HSteamNetConnection conn);
 
     // -------------------------------------------------------------------------
     // Identity
@@ -90,6 +91,7 @@ public:
 
     static const char* GetMyName();
     static void SetMyName(const std::string& name);
+    static void SetMySteamID(uint64_t steamID);
 
     static bool IsHost();
 

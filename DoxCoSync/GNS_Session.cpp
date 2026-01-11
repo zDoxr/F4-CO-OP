@@ -4,12 +4,60 @@
 #include "ConsoleLogger.h"
 #include "CoSyncTransport.h"
 #include "CoSyncNet.h"
+#include "CoSyncMessageHelpers.h"
+#include "EntitySerialization.h"
 
 #include "steam/steamnetworkingsockets.h"
 #include "steam/isteamnetworkingutils.h"
 
+#include <functional>
+#include <sstream>
+
+
+
+
 static void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* info);
 static bool g_callbacksRegistered = false;
+
+namespace
+{
+    uint64_t HashName(const std::string& name)
+    {
+        return static_cast<uint64_t>(std::hash<std::string>{}(name));
+    }
+
+    bool ParseHelloSteamID(const std::string& msg, uint64_t& sid)
+    {
+        sid = 0;
+
+        if (!IsHello(msg))
+            return false;
+
+        std::stringstream ss(msg.substr(6));
+        std::string name;
+        if (!std::getline(ss, name, '|') || name.empty())
+            return false;
+
+        std::string tok;
+        if (std::getline(ss, tok, '|') && !tok.empty())
+        {
+            try { sid = std::stoull(tok); }
+            catch (...) { sid = 0; }
+        }
+
+        if (sid == 0)
+            sid = HashName(name);
+
+        return sid != 0;
+    }
+
+    uint32_t EntityIDFromSteamID(uint64_t sid)
+    {
+        return static_cast<uint32_t>(sid & 0xFFFFFFFFu);
+    }
+}
+
+
 
 // Shortcut to sockets instance
 static ISteamNetworkingSockets* gSockets()
@@ -83,6 +131,7 @@ void GNS_Session::ResetSession()
     for (auto conn : m_clientConns)
         sock->CloseConnection(conn, 0, "reset", false);
     m_clientConns.clear();
+	m_peerSteamIDs.clear();
 
     m_role = GNSRole::None;
     m_connected = false;
@@ -285,8 +334,12 @@ void GNS_Session::ProcessMessagesOnConnection(HSteamNetConnection conn)
 
         msgs[i]->Release();
 
+        uint64_t sid = 0;
+        if (ParseHelloSteamID(text, sid))
+            m_peerSteamIDs[conn] = sid;
+
         // Forward to CoSyncTransport → CoSyncNet::OnReceive
-        CoSyncTransport::ForwardMessage(text);
+        CoSyncTransport::ForwardMessage(text, conn);
     }
 }
 
@@ -308,9 +361,15 @@ void GNS_Session::ProcessMessagesOnPollGroup()
             static_cast<size_t>(msgs[i]->m_cbSize)
         );
 
+
+        const HSteamNetConnection conn = msgs[i]->m_conn;
         msgs[i]->Release();
 
-        CoSyncTransport::ForwardMessage(text);
+
+        uint64_t sid = 0;
+        if (ParseHelloSteamID(text, sid) && conn != k_HSteamNetConnection_Invalid)
+            m_peerSteamIDs[conn] = sid;
+        CoSyncTransport::ForwardMessage(text, msgs[i]->m_conn);
     }
 }
 
@@ -373,10 +432,24 @@ void GNS_Session::HandleConnectionStatusChanged(const SteamNetConnectionStatusCh
     case k_ESteamNetworkingConnectionState_ClosedByPeer:
     case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
         LOG_WARN("[GNS] Connection closed (conn=%u, state=%d)", info->m_hConn, (int)info->m_info.m_eState);
+        uint64_t peerSteamID = 0;
+        auto it = m_peerSteamIDs.find(info->m_hConn);
+        if (it != m_peerSteamIDs.end())
+            peerSteamID = it->second;
         CloseConnection(info->m_hConn, "closed");
-        break;
+        m_peerSteamIDs.erase(info->m_hConn);
+        if (m_role == GNSRole::Host && peerSteamID != 0)
+        {
+            EntityDestroyPacket d{};
+            d.entityID = EntityIDFromSteamID(peerSteamID);
 
-    default:
+            const std::string msg = SerializeEntityDestroy(d);
+            CoSyncTransport::Send(msg);
+            CoSyncTransport::ForwardMessage(msg, info->m_hConn);
+        }
+        
+
+    
         break;
     }
 }

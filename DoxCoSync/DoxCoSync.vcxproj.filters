@@ -279,6 +279,9 @@
     <ClInclude Include="CoSyncEntityState.h">
       <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
+    <ClInclude Include="Packets_EntityDestroy.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="F4MP_Main.cpp">

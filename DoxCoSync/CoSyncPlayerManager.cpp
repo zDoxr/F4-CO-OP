@@ -4,9 +4,12 @@
 #include "ConsoleLogger.h"
 #include "CoSyncWorld.h"
 #include "CoSyncSpawnTasks.h"
+#include "CoSyncEntityRegistry.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#include <algorithm>
+#include <vector>
 
 // -----------------------------------------------------------------------------
 // Globals
@@ -59,6 +62,25 @@ void CoSyncPlayerManager::EnqueueEntityUpdate(const EntityUpdatePacket& p)
     m_inbox.push_back(item);
 }
 
+void CoSyncPlayerManager::EnqueueEntityDestroy(const EntityDestroyPacket& p)
+{
+    if (p.entityID == 0 || p.entityID == m_localEntityID)
+        return;
+
+    std::lock_guard<std::mutex> lk(m_inboxMutex);
+
+    InboxItem item{};
+    item.type = InboxItem::Type::Destroy;
+    item.destroy = p;
+
+    m_inbox.push_back(item);
+    LOG_INFO("[PlayerMgr] Enqueued DESTROY entity=%u", p.entityID);
+}
+
+
+
+
+
 // -----------------------------------------------------------------------------
 // Inbox processing (GAME THREAD ONLY)
 // -----------------------------------------------------------------------------
@@ -84,6 +106,9 @@ void CoSyncPlayerManager::ProcessInbox()
 
         case InboxItem::Type::Update:
             ProcessEntityUpdate(item.update);
+            break;
+        case InboxItem::Type::Destroy:
+            ProcessEntityDestroy(item.destroy);
             break;
 
         default:
@@ -188,6 +213,50 @@ void CoSyncPlayerManager::ProcessEntityUpdate(const EntityUpdatePacket& u)
 }
 
 // -----------------------------------------------------------------------------
+// DESTROY handling (NO SPAWN EVER)
+// -----------------------------------------------------------------------------
+void CoSyncPlayerManager::ProcessEntityDestroy(const EntityDestroyPacket& d)
+{
+    if (d.entityID == 0 || d.entityID == m_localEntityID)
+        return;
+
+    DespawnEntity(d.entityID, "network destroy");
+}
+
+void CoSyncPlayerManager::DespawnEntity(uint32_t entityID, const char* reason)
+{
+    if (entityID == 0 || entityID == m_localEntityID)
+        return;
+
+    {
+        std::lock_guard<std::mutex> lk(m_spawnMutex);
+        m_pendingCreates.erase(
+            std::remove_if(
+                m_pendingCreates.begin(),
+                m_pendingCreates.end(),
+                [entityID](const EntityCreatePacket& p)
+                {
+                    return p.entityID == entityID;
+                }),
+            m_pendingCreates.end());
+    }
+
+    g_CoSyncEntities.Remove(entityID);
+
+    auto itPlayer = m_playersByEntityID.find(entityID);
+    if (itPlayer != m_playersByEntityID.end())
+    {
+        LOG_INFO("[PlayerMgr] Despawn entity=%u actor=%p (%s)",
+            entityID, itPlayer->second ? itPlayer->second->actorRef : nullptr, reason);
+        m_playersByEntityID.erase(itPlayer);
+    }
+
+    auto itState = m_statesByEntityID.find(entityID);
+    if (itState != m_statesByEntityID.end())
+        m_statesByEntityID.erase(itState);
+}
+
+// -----------------------------------------------------------------------------
 // Deferred spawning (≤ 1 per tick — F4MP RULE)
 // -----------------------------------------------------------------------------
 void CoSyncPlayerManager::PumpDeferredSpawns()
@@ -242,6 +311,7 @@ void CoSyncPlayerManager::Tick()
 
     // Apply transforms + smoothing
     const double now = NowSeconds();
+    HandleTimeouts(now);
 
     for (auto& kv : m_playersByEntityID)
     {
@@ -253,4 +323,28 @@ void CoSyncPlayerManager::Tick()
         player.ApplyPendingTransformIfAny();
         player.TickSmoothing(now);
     }
+}
+
+void CoSyncPlayerManager::HandleTimeouts(double now)
+{
+    constexpr double kEntityTimeoutSec = 15.0;
+
+    std::vector<uint32_t> expired;
+    expired.reserve(m_statesByEntityID.size());
+
+    for (const auto& kv : m_statesByEntityID)
+    {
+        const CoSyncEntityState& st = kv.second;
+        if (st.entityID == 0 || st.entityID == m_localEntityID)
+            continue;
+
+        if (st.lastUpdateLocalTime <= 0.0)
+            continue;
+
+        if ((now - st.lastUpdateLocalTime) > kEntityTimeoutSec)
+            expired.push_back(st.entityID);
+    }
+
+    for (uint32_t entityID : expired)
+        DespawnEntity(entityID, "timeout");
 }

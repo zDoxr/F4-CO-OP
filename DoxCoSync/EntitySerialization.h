@@ -8,32 +8,10 @@
 
 #include "Packets_EntityCreate.h"
 #include "Packets_EntityUpdate.h"
+#include "Packets_EntityDestroy.h"
+#include "CoSyncMessageHelpers.h"
 
-// ============================================================================
-// Prefix checks (single source of truth)
-// ============================================================================
 
-inline bool IsEntityCreate(const std::string& msg)
-{
-    return msg.size() >= 3 && msg.rfind("EC|", 0) == 0;
-}
-
-inline bool IsEntityUpdate(const std::string& msg)
-{
-    return msg.size() >= 3 && msg.rfind("EU|", 0) == 0;
-}
-
-// ============================================================================
-// ENTITY CREATE
-//
-// Format:
-// EC|entityID|type|baseFormID|ownerEntityID|px,py,pz|rx,ry,rz
-//
-// Rules (F4MP-style):
-//  • CREATE defines existence
-//  • Loss-tolerant
-//  • Must never crash
-// ============================================================================
 
 inline std::string SerializeEntityCreate(const EntityCreatePacket& p)
 {
@@ -151,6 +129,41 @@ inline bool DeserializeEntityUpdate(const std::string& msg, EntityUpdatePacket& 
 
     if (!std::isfinite(out.timestamp) || out.timestamp < 0.0)
         out.timestamp = 0.0;
+
+    return true;
+}
+// ============================================================================
+// ENTITY DESTROY
+//
+// Format:
+// ED|entityID|reasonFlags
+// ============================================================================
+
+inline std::string SerializeEntityDestroy(const EntityDestroyPacket& p)
+{
+    std::ostringstream ss;
+    ss << "ED|"
+        << p.entityID << "|"
+        << p.reasonFlags;
+    return ss.str();
+}
+
+inline bool DeserializeEntityDestroy(const std::string& msg, EntityDestroyPacket& out)
+{
+    if (!IsEntityDestroy(msg))
+        return false;
+
+    std::stringstream ss(msg.substr(3));
+    std::string tok;
+
+    if (!std::getline(ss, tok, '|')) return false;
+    out.entityID = static_cast<uint32_t>(std::strtoul(tok.c_str(), nullptr, 10));
+    if (out.entityID == 0) return false;
+
+    if (std::getline(ss, tok, '|') && !tok.empty())
+        out.reasonFlags = static_cast<uint32_t>(std::strtoul(tok.c_str(), nullptr, 10));
+    else
+        out.reasonFlags = 0;
 
     return true;
 }

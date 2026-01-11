@@ -6,8 +6,11 @@
 #include "CoSyncWorld.h"
 #include "TickHook.h"
 #include "Packets_EntityCreate.h"
+#include "CoSyncEntityRegistry.h"
 #include "Packets_EntityUpdate.h"
 #include "EntitySerialization.h"
+#include "GameReferences.h"
+#include "Packets_EntityDestroy.h"
 
 #include <mutex>
 #include <unordered_map>
@@ -33,10 +36,28 @@ namespace
     bool s_hostCreatePublished = false;
 
     std::unordered_map<uint64_t, CoSyncNet::RemotePeer> s_peers;
+    struct ConnectionPeer
+    {
+        uint64_t steamID = 0;
+        uint32_t entityID = 0;
+    };
+    std::unordered_map<HSteamNetConnection, ConnectionPeer> s_connectionPeers;
     std::mutex s_peersMutex;
 
     // Proxy base used for remote players
     constexpr uint32_t kRemotePlayerBaseForm = 0x00000007;
+
+    // Host: NPC replication cadence + motion tracking
+    double s_lastNpcUpdateTime = 0.0;
+
+    struct NpcMotionState
+    {
+        NiPoint3 lastPos{ 0.f, 0.f, 0.f };
+        double lastTime = 0.0;
+        bool hasLast = false;
+    };
+
+    std::unordered_map<uint32_t, NpcMotionState> s_npcMotionByEntity;
 
     
 }
@@ -52,6 +73,17 @@ static uint32_t EntityIDFromSteamID(uint64_t sid)
 static uint64_t HashName(const std::string& name)
 {
     return static_cast<uint64_t>(std::hash<std::string>{}(name));
+}
+
+static bool IsNpcEntity(uint32_t entityID)
+{
+    const auto& states = g_CoSyncPlayerManager.GetStates();
+    auto it = states.find(entityID);
+    if (it == states.end())
+        return false;
+
+    const CoSyncEntityState& st = it->second;
+    return st.hasCreate && st.lastCreate.type == CoSyncEntityType::NPC;
 }
 
 // Parse HELLO messages.
@@ -130,6 +162,63 @@ static void HostPublishHostCreateIfNeeded()
     s_hostCreatePublished = true;
 }
 
+static void HostBroadcastNpcUpdates(double now)
+{
+    if (!s_isHost || !s_connected)
+        return;
+
+    if (now - s_lastNpcUpdateTime < 0.05)
+        return;
+
+    s_lastNpcUpdateTime = now;
+
+    const auto& states = g_CoSyncPlayerManager.GetStates();
+    for (const auto& kv : states)
+    {
+        const CoSyncEntityState& st = kv.second;
+        if (!st.hasCreate || st.lastCreate.type != CoSyncEntityType::NPC)
+            continue;
+
+        Actor* actor = g_CoSyncEntities.GetActor(st.entityID);
+        if (!actor)
+            continue;
+
+        if (!actor->parentCell || actor->parentCell->formID == 0)
+            continue;
+
+        if (!CALL_MEMBER_FN(actor, GetWorldspace)())
+            continue;
+
+        NpcMotionState& motion = s_npcMotionByEntity[st.entityID];
+        const NiPoint3 pos = actor->pos;
+        NiPoint3 vel{ 0.f, 0.f, 0.f };
+        if (motion.hasLast)
+        {
+            const double dt = now - motion.lastTime;
+            if (dt > 0.0001)
+            {
+                vel.x = (pos.x - motion.lastPos.x) / float(dt);
+                vel.y = (pos.y - motion.lastPos.y) / float(dt);
+                vel.z = (pos.z - motion.lastPos.z) / float(dt);
+            }
+        }
+
+        motion.lastPos = pos;
+        motion.lastTime = now;
+        motion.hasLast = true;
+
+        EntityUpdatePacket u{};
+        u.entityID = st.entityID;
+        u.flags = 0;
+        u.pos = pos;
+        u.rot = actor->rot;
+        u.vel = vel;
+        u.timestamp = now;
+
+        CoSyncTransport::Send(SerializeEntityUpdate(u));
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Lifecycle
 // -----------------------------------------------------------------------------
@@ -166,6 +255,7 @@ void CoSyncNet::Shutdown()
     {
         std::lock_guard<std::mutex> lk(s_peersMutex);
         s_peers.clear();
+		s_connectionPeers.clear();
     }
 
     CoSyncTransport::Shutdown();
@@ -177,9 +267,9 @@ void CoSyncNet::ScheduleInit(bool isHost)
     s_pendingHostFlag = isHost;
 
     CoSyncTransport::SetReceiveCallback(
-        [](const std::string& msg, double now)
+        [](const std::string& msg, double now, HSteamNetConnection conn)
         {
-            CoSyncNet::OnReceive(msg, now);
+            CoSyncNet::OnReceive(msg, now, conn);
         }
     );
 
@@ -223,6 +313,9 @@ void CoSyncNet::Tick(double now)
     // Host: ensure host CREATE is published once, after connection
     if (s_isHost)
         HostPublishHostCreateIfNeeded();
+    // Host: drive NPC replication from authoritative AI state
+    if (s_isHost)
+        HostBroadcastNpcUpdates(now);
 
     // IMPORTANT: PlayerManager::Tick() already calls ProcessInbox()
     g_CoSyncPlayerManager.Tick();
@@ -268,9 +361,9 @@ static void HostBroadcastUpdateInternal(EntityUpdatePacket u, double now)
 // -----------------------------------------------------------------------------
 // Receiving (AUTHORITY SPLIT)
 // -----------------------------------------------------------------------------
-void CoSyncNet::OnReceive(const std::string& msg, double now)
+void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnection conn)
 {
-    LOG_DEBUG("[CoSyncNet] RX RAW: %s", msg.c_str());
+    LOG_DEBUG("[CoSyncNet] RX RAW (conn=%u): %s", conn, msg.c_str());
 
     // ---------------- HELLO ----------------
     if (msg.rfind("HELLO|", 0) == 0)
@@ -296,6 +389,18 @@ void CoSyncNet::OnReceive(const std::string& msg, double now)
             peer.username = name;
             peer.assignedEntityID = peerEID;
             peer.lastUpdateTime = now;
+
+            if (s_isHost && conn != k_HSteamNetConnection_Invalid)
+            {
+                s_connectionPeers[conn] = ConnectionPeer{ sid, peerEID };
+            }
+        }
+
+        if (s_isHost && conn != k_HSteamNetConnection_Invalid)
+        {
+            LOG_INFO("[CoSyncNet] Host mapped conn=%u sid=%llu eid=%u",
+                conn, (unsigned long long)sid, peerEID);
+
         }
 
         if (s_isHost)
@@ -325,6 +430,40 @@ void CoSyncNet::OnReceive(const std::string& msg, double now)
 
         if (s_isHost)
         {
+            LOG_WARN("[CoSyncNet] Dropping non-host NPC update entity=%u", u.entityID);
+
+            uint64_t expectedSid = 0;
+            uint32_t expectedEid = 0;
+            bool hasMapping = false;
+
+            {
+                std::lock_guard<std::mutex> lk(s_peersMutex);
+                auto it = s_connectionPeers.find(conn);
+                if (it != s_connectionPeers.end())
+                {
+                    expectedSid = it->second.steamID;
+                    expectedEid = it->second.entityID;
+                    hasMapping = true;
+                }
+            }
+
+            if (!hasMapping)
+            {
+                LOG_WARN("[CoSyncNet] Dropping UPDATE from unknown conn=%u entity=%u",
+                    conn, u.entityID);
+                return;
+            }
+
+            if (u.entityID != expectedEid)
+            {
+                LOG_WARN("[CoSyncNet] Dropping UPDATE mismatch conn=%u sid=%llu expectedEID=%u gotEID=%u",
+                    conn, (unsigned long long)expectedSid, expectedEid, u.entityID);
+                return;
+            }
+
+            LOG_DEBUG("[CoSyncNet] Accepted UPDATE conn=%u sid=%llu eid=%u",
+                conn, (unsigned long long)expectedSid, expectedEid);
+
             // HOST: rebroadcast authoritative update to clients + apply locally
             HostBroadcastUpdateInternal(u, now);
         }
@@ -336,6 +475,16 @@ void CoSyncNet::OnReceive(const std::string& msg, double now)
 
         return;
     }
+
+
+    if (IsEntityDestroy(msg))
+    {
+        EntityDestroyPacket d{};
+        if (DeserializeEntityDestroy(msg, d))
+            g_CoSyncPlayerManager.EnqueueEntityDestroy(d);
+        return;
+    }
+
 
     // ---------------- CREATE ----------------
     if (!s_isHost && IsEntityCreate(msg))
@@ -378,6 +527,12 @@ void CoSyncNet::SetMyName(const std::string& name)
     s_myEntityID = 0;
 }
 
+void CoSyncNet::SetMySteamID(uint64_t steamID)
+{
+    s_mySteamID = steamID;
+    s_myEntityID = 0;
+}
+
 bool CoSyncNet::IsHost() { return s_isHost; }
 bool CoSyncNet::IsInitialized() { return s_initialized; }
 bool CoSyncNet::IsSessionActive() { return s_sessionActive; }
@@ -398,7 +553,7 @@ void CoSyncNet::OnGNSConnected()
     // Ensure local ID is set before any inbound CREATE is processed
     g_CoSyncPlayerManager.SetLocalEntityID(GetMyEntityID());
 
-    ResetTickHookSendTimer();
+    
 
     std::ostringstream ss;
     ss << "HELLO|" << s_myName << "|" << GetMySteamID();
@@ -411,6 +566,12 @@ void CoSyncNet::OnGNSConnected()
 void CoSyncNet::OnGNSDisconnected()
 {
     s_connected = false;
+
+    {
+        std::lock_guard<std::mutex> lk(s_peersMutex);
+        s_connectionPeers.clear();
+    }
+
 }
 
 
