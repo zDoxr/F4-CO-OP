@@ -7,11 +7,13 @@
 #include "GameObjects.h"
 #include "GameReferences.h"
 #include "GameUtilities.h"
+#include "PapyrusEvents.h"
 #include "PapyrusVM.h"
 
 extern RelocPtr<PlayerCharacter*> g_player;
 extern RelocPtr<GameVM*>          g_gameVM;
 extern RelocAddr<_PlaceAtMe_Native> PlaceAtMe_Native;
+RelocAddr<_CallFunctionNoWait> CallFunctionNoWait_Internal(0x01132340);
 
 // -----------------------------------------------------------------------------
 // Helpers
@@ -111,6 +113,28 @@ void CoSyncGameAPI::PositionRemoteActor(
         const_cast<NiPoint3*>(&pos),
         const_cast<NiPoint3*>(&rot)
     );
+}
+
+
+// -----------------------------------------------------------------------------
+// AI control (Papyrus - no wait)
+// -----------------------------------------------------------------------------
+void CoSyncGameAPI::DisableActorAI(Actor* actor)
+{
+    if (!actor)
+        return;
+
+    VMArray<VMVariable> args;
+    CallFunctionNoWait(actor, BSFixedString("DisableAI"), args);
+}
+
+void CoSyncGameAPI::EnableActorAI(Actor* actor)
+{
+    if (!actor)
+        return;
+
+    VMArray<VMVariable> args;
+    CallFunctionNoWait(actor, BSFixedString("EnableAI"), args);
 }
 
 

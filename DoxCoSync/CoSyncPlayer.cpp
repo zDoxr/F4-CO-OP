@@ -1,5 +1,6 @@
 ﻿#include "CoSyncPlayer.h"
 #include "CoSyncPlayerManager.h"
+#include "CoSyncEntityRegistry.h"
 #include "ConsoleLogger.h"
 #include "GameObjects.h"
 #include "GameForms.h"
@@ -83,6 +84,11 @@ bool CoSyncPlayer::SpawnInWorld(TESObjectREFR* anchor, TESNPC* npcBase)
     }
 
     actorRef = actor;
+
+    if (!g_CoSyncEntities.Register(entityID, actorRef))
+    {
+        LOG_ERROR("[CoSyncPlayer] Failed to register entity=%u actor=%p", entityID, actorRef);
+    }
 
 
 

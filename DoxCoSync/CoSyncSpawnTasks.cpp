@@ -53,10 +53,14 @@ public:
     SpawnRemotePlayerTask(
         uint32_t entityID,
         uint32_t baseFormID,
+        CoSyncEntityType createType,
+        uint32_t spawnFlags,
         const NiPoint3& spawnPos,
         const NiPoint3& spawnRot)
         : m_entityID(entityID)
         , m_baseFormID(baseFormID)
+        , m_createType(createType)
+        , m_spawnFlags(spawnFlags)
         , m_spawnPos(spawnPos)
         , m_spawnRot(spawnRot)
     {
@@ -97,6 +101,12 @@ public:
         // This ensures the proxy exists in-world at a deterministic transform
         CoSyncGameAPI::PositionRemoteActor(pl.actorRef, m_spawnPos, m_spawnRot);
 
+        if (m_createType == CoSyncEntityType::NPC
+            && (m_spawnFlags & EntityCreatePacket::RemoteControlled))
+        {
+            CoSyncGameAPI::DisableActorAI(pl.actorRef);
+        }
+
         // IMPORTANT:
         // Do NOT try to manage smoothing state here beyond seeding the
         // player’s transform buffer via ApplyPendingTransformIfAny() / ApplyUpdate().
@@ -108,6 +118,8 @@ public:
 private:
     uint32_t m_entityID;
     uint32_t m_baseFormID;
+    CoSyncEntityType m_createType;
+    uint32_t m_spawnFlags;
     NiPoint3 m_spawnPos;
     NiPoint3 m_spawnRot;
 
@@ -126,6 +138,8 @@ void CoSyncSpawnTasks::Init(const F4SETaskInterface* taskInterface)
 void CoSyncSpawnTasks::EnqueueSpawn(
     uint32_t entityID,
     uint32_t baseFormID,
+    CoSyncEntityType createType,
+    uint32_t spawnFlags,
     const NiPoint3& spawnPos,
     const NiPoint3& spawnRot)
 {
@@ -136,6 +150,6 @@ void CoSyncSpawnTasks::EnqueueSpawn(
     }
 
     s_taskIFace->AddTask(
-        new SpawnRemotePlayerTask(entityID, baseFormID, spawnPos, spawnRot)
+        new SpawnRemotePlayerTask(entityID, baseFormID, createType, spawnFlags, spawnPos, spawnRot)
     );
 }

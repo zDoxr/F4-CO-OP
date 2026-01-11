@@ -292,6 +292,8 @@ void CoSyncPlayerManager::PumpDeferredSpawns()
     CoSyncSpawnTasks::EnqueueSpawn(
         p.entityID,
         p.baseFormID,
+        p.type,
+        p.spawnFlags,
         p.spawnPos,
         p.spawnRot
     );
