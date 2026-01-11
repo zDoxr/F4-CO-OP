@@ -2619,7 +2619,8 @@ void ImGui::TableMergeDrawChannels(ImGuiTable* table)
     int merge_group_mask = 0x00;
     MergeGroup merge_groups[4];
 
-    // Use a reusable temp buffer for the merge masks as they are dynamically sized.
+    // Use a reusable temp buffer for the merge masks as they are 
+    // ally sized.
     const int max_draw_channels = (4 + table->ColumnsCount * 2);
     const int size_for_masks_bitarrays_one = (int)ImBitArrayGetStorageSizeInBytes(max_draw_channels);
     g.TempBuffer.reserve(size_for_masks_bitarrays_one * 5);

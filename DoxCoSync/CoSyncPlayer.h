@@ -2,25 +2,29 @@
 
 #include <string>
 #include <cstdint>
+#include <deque>
 
 #include "NiTypes.h"
 #include "GameReferences.h"
 #include "LocalPlayerState.h"
+#include "Packets_EntityUpdate.h"   // explicit, do NOT pull from PlayerManager
 
 // -----------------------------------------------------------------------------
 // CoSyncPlayer
 //
 // F4MP-aligned remote entity proxy
 //
-// Represents ONE remote network entity.
-// Owns exactly ONE Actor* spawned via PlaceAtMe.
-// Never authoritative. Never local.
+// RESPONSIBILITIES:
+//   ✔ Owns exactly ONE Actor* proxy
+//   ✔ Applies authoritative UPDATE packets
+//   ✔ Smooths movement (client-side only)
+//   ✔ NEVER sends network data
+//   ✔ NEVER decides authority
 //
-// RULES (MATCHES F4MP):
-//  - Spawn ONLY via CREATE
-//  - UPDATE never spawns
-//  - Void-spawn first
-//  - Transforms buffered until actor exists
+// HARD RULES:
+//   - isLocalPlayer is ALWAYS false
+//   - Spawning happens ONLY via CREATE
+//   - UPDATE never causes spawn
 // -----------------------------------------------------------------------------
 class CoSyncPlayer
 {
@@ -28,27 +32,35 @@ public:
     explicit CoSyncPlayer(const std::string& name);
 
     // -------------------------------------------------------------------------
-    // Spawn (CREATE → game thread only)
+    // Spawn (GAME THREAD ONLY)
+    // Called ONLY by CoSyncSpawnTasks
     // -------------------------------------------------------------------------
-    bool SpawnInWorld(TESObjectREFR* anchor, TESForm* baseForm);
+    bool SpawnInWorld(TESObjectREFR* anchor, TESNPC* npcBase);
 
     // -------------------------------------------------------------------------
-    // Replication
+    // Network replication (GAME THREAD)
     // -------------------------------------------------------------------------
+    void ApplyUpdate(const EntityUpdatePacket& u);
+
+    // Applies cached transform if UPDATE arrived before spawn
     void ApplyPendingTransformIfAny();
-    void UpdateFromState(const LocalPlayerState& state);
+
+    // Per-frame interpolation (client-side smoothing)
+    void TickSmoothing(double now);
 
 public:
     // -------------------------------------------------------------------------
     // Identity
     // -------------------------------------------------------------------------
     uint32_t    entityID = 0;
+    uint32_t    ownerEntityID = 0;
     std::string username;
 
     // -------------------------------------------------------------------------
     // Authority
     // -------------------------------------------------------------------------
-    bool isLocalPlayer = false; // ALWAYS false for CoSyncPlayer
+    // ALWAYS false for CoSyncPlayer
+    bool isLocalPlayer = false;
 
     // -------------------------------------------------------------------------
     // Actor proxy
@@ -57,18 +69,47 @@ public:
     bool   hasSpawned = false;
 
     // -------------------------------------------------------------------------
-    // Buffered transform (UPDATE before spawn safe)
+    // Buffered transform (UPDATE-before-spawn safety)
     // -------------------------------------------------------------------------
     bool     hasPendingTransform = false;
     NiPoint3 pendingPos{ 0.f, 0.f, 0.f };
     NiPoint3 pendingRot{ 0.f, 0.f, 0.f };
     NiPoint3 pendingVel{ 0.f, 0.f, 0.f }; // informational only
 
+    // -----------------------------------------------------------------------------
+// F4MP-style transform buffer
+// -----------------------------------------------------------------------------
+    struct NetTransform
+    {
+        NiPoint3 pos{ 0.f, 0.f, 0.f };
+        NiPoint3 rot{ 0.f, 0.f, 0.f };
+        float    scale = 1.0f;
+
+        double   t = 0.0; // host-time (authoritative timeline)
+    };
+
+    std::deque<NetTransform> m_tfBuffer;
+
+    // Buffer tuning (F4MP-ish)
+    double m_lastHostT = 0.0;
+    bool   m_hasAny = false;
+
+
     // -------------------------------------------------------------------------
-    // Timing
+    // Timing / telemetry
     // -------------------------------------------------------------------------
     double lastPacketTime = 0.0;
 
-    // Debug / future
+    // -------------------------------------------------------------------------
+    // Debug / future expansion
+    // -------------------------------------------------------------------------
     LocalPlayerState lastState{};
+
+
+
+
+    bool IsOwner(uint32_t localEntityID) const
+    {
+        return ownerEntityID != 0 && ownerEntityID == localEntityID;
+    }
 };

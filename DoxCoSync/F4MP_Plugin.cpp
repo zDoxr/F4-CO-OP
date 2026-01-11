@@ -18,6 +18,7 @@
 
 
 
+extern bool RegisterCoSyncPapyrus(VirtualMachine* vm);
 
 
 
@@ -85,6 +86,11 @@ void OnF4SEMessage(F4SEMessagingInterface::Message* msg)
 }
 
 
+bool RegisterCoSyncPapyrus(VirtualMachine* vm);
+
+
+
+
 extern "C"
 __declspec(dllexport)
 bool F4SEPlugin_Load(const F4SEInterface* f4se)
@@ -92,20 +98,17 @@ bool F4SEPlugin_Load(const F4SEInterface* f4se)
     LOG_INFO("CoSync - F4SEPlugin_Load");
 
     // ------------------------------------------------------------
-    // Steam hook (optional but fine where it is)
+    // Steam hook
     // ------------------------------------------------------------
     if (!CoSyncSteam_Init())
     {
         LOG_ERROR("[CoSyncSteam] Init failed (Steam friends/invites disabled)");
     }
 
-    // ------------------------------------------------------------
-    // Plugin handle
-    // ------------------------------------------------------------
     g_pluginHandle = f4se->GetPluginHandle();
 
     // ------------------------------------------------------------
-    // Messaging interface (you already had this correct)
+    // Messaging
     // ------------------------------------------------------------
     g_messaging = (F4SEMessagingInterface*)f4se->QueryInterface(kInterface_Messaging);
     if (!g_messaging)
@@ -118,11 +121,27 @@ bool F4SEPlugin_Load(const F4SEInterface* f4se)
     g_messaging->RegisterListener(g_pluginHandle, "F4SE", OnF4SEMessage);
 
     // ------------------------------------------------------------
-    // ✅ CRITICAL FIX: Task interface (THIS STOPS THE FREEZE)
+    // Papyrus
+    // ------------------------------------------------------------
+    auto* papyrus = (F4SEPapyrusInterface*)f4se->QueryInterface(kInterface_Papyrus);
+    if (!papyrus)
+    {
+        LOG_ERROR("Papyrus interface missing!");
+        return false;
+    }
+
+    if (!papyrus->Register(RegisterCoSyncPapyrus))
+    {
+        LOG_ERROR("Papyrus->Register(RegisterCoSyncPapyrus) failed!");
+        return false;
+    }
+
+    LOG_INFO("Papyrus registration queued successfully.");
+
+    // ------------------------------------------------------------
+    // Task interface (CRITICAL)
     // ------------------------------------------------------------
     auto* taskIFace = (F4SETaskInterface*)f4se->QueryInterface(kInterface_Task);
-    CoSyncSpawnTasks::Init(taskIFace);
-
     if (!taskIFace)
     {
         LOG_ERROR("Task interface missing!");
@@ -132,8 +151,8 @@ bool F4SEPlugin_Load(const F4SEInterface* f4se)
         CoSyncSpawnTasks::Init(taskIFace);
     }
 
-
     LOG_INFO("Plugin load complete");
     return true;
 }
+
 

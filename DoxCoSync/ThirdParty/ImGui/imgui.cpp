@@ -204,7 +204,8 @@ CODE
  ----------
  - Remember to check the wonderful Wiki: https://github.com/ocornut/imgui/wiki
  - Your code creates the UI every frame of your application loop, if your code doesn't run the UI is gone!
-   The UI can be highly dynamic, there are no construction or destruction steps, less superfluous
+   The UI can be highly 
+   , there are no construction or destruction steps, less superfluous
    data retention on your side, less state duplication, less state synchronization, fewer bugs.
  - Call and read ImGui::ShowDemoWindow() for demo code demonstrating most features.
    Or browse https://pthom.github.io/imgui_manual_online/manual/imgui_manual.html for interactive web version.

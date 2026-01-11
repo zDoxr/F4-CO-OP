@@ -7,6 +7,8 @@
 
 void InstallTickHook();
 
+void ResetTickHookSendTimer();
+
 
 
 

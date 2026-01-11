@@ -1,57 +1,77 @@
 ﻿#include "CoSyncTransport.h"
+
+#include "Logger.h"
 #include "ConsoleLogger.h"
 #include "GNS_Session.h"
+
+#include <utility>
 
 namespace
 {
     bool s_initialized = false;
     bool s_isHost = false;
 
-    std::function<void(const std::string&)> s_receiveCallback;
+    CoSyncTransport::ReceiveCallback   s_receiveCallback;
+    CoSyncTransport::ConnectedCallback s_connectedCallback; // NEW
 
-    // throttle spam
+    // Thread-safe inbound queue (network thread -> game thread)
+    std::mutex s_inboxMutex;
+    std::deque<std::string> s_inbox;
+
+    // Throttle spam
     double s_lastTickLog = 0.0;
+
+    // Hard safety cap to prevent runaway memory usage if something floods.
+    constexpr size_t kInboxHardCap = 4096;
+
+    bool s_connectionNotified = false; // NEW (fire once)
 }
 
 // -----------------------------------------------------------------------------
-// InitAsHost
+// Lifecycle
 // -----------------------------------------------------------------------------
 bool CoSyncTransport::InitAsHost()
 {
     if (s_initialized && s_isHost)
     {
-        LOG_INFO("[Transport] InitAsHost called but already initialized as host");
+        LOG_INFO("[Transport] InitAsHost: already initialized as host");
         return true;
     }
 
     s_initialized = true;
     s_isHost = true;
+    s_connectionNotified = false;
+
+    {
+        std::lock_guard<std::mutex> lk(s_inboxMutex);
+        s_inbox.clear();
+    }
 
     LOG_INFO("[Transport] InitAsHost OK");
     return true;
 }
 
-// -----------------------------------------------------------------------------
-// InitAsClient
-// -----------------------------------------------------------------------------
 bool CoSyncTransport::InitAsClient(const std::string& connectStr)
 {
     if (s_initialized && !s_isHost)
     {
-        LOG_INFO("[Transport] InitAsClient called but already initialized as client");
+        LOG_INFO("[Transport] InitAsClient: already initialized as client");
         return true;
     }
 
     s_initialized = true;
     s_isHost = false;
+    s_connectionNotified = false;
+
+    {
+        std::lock_guard<std::mutex> lk(s_inboxMutex);
+        s_inbox.clear();
+    }
 
     LOG_INFO("[Transport] InitAsClient OK (%s)", connectStr.c_str());
     return true;
 }
 
-// -----------------------------------------------------------------------------
-// Shutdown
-// -----------------------------------------------------------------------------
 void CoSyncTransport::Shutdown()
 {
     if (!s_initialized)
@@ -62,25 +82,17 @@ void CoSyncTransport::Shutdown()
     s_initialized = false;
     s_isHost = false;
     s_receiveCallback = nullptr;
-}
+    s_connectedCallback = nullptr; // NEW
+    s_connectionNotified = false;
 
-// -----------------------------------------------------------------------------
-// Tick (ONLY place we drive GNS now)
-// -----------------------------------------------------------------------------
-void CoSyncTransport::Tick(double now)
-{
-    if (!s_initialized)
-        return;
-
-    GNS_Session::Get().Tick();
-
-    // Throttle spam to ~1Hz if you still want it.
-    if (now - s_lastTickLog > 1.0)
     {
-        s_lastTickLog = now;
-        LOG_DEBUG("[CoSyncTransport] Tick");
+        std::lock_guard<std::mutex> lk(s_inboxMutex);
+        s_inbox.clear();
     }
 }
+
+bool CoSyncTransport::IsInitialized() { return s_initialized; }
+bool CoSyncTransport::IsHost() { return s_isHost; }
 
 // -----------------------------------------------------------------------------
 // Send
@@ -94,31 +106,104 @@ void CoSyncTransport::Send(const std::string& msg)
     }
 
     GNS_Session::Get().SendText(msg);
-    LOG_DEBUG("[CoSyncTransport] SEND %zu bytes: %s", msg.size(), msg.c_str());
+    LOG_DEBUG("[CoSyncTransport] SEND %zu bytes", msg.size());
 }
 
 // -----------------------------------------------------------------------------
-// ForwardMessage
+// Incoming: called from GNS receive path (may be non-game-thread)
 // -----------------------------------------------------------------------------
 void CoSyncTransport::ForwardMessage(const std::string& msg)
 {
-    if (s_receiveCallback)
-        s_receiveCallback(msg);
-    else
-        LOG_WARN("[Transport] Received message but no callback is set");
+    if (!s_initialized)
+        return;
+
+    LOG_INFO("[Transport] ForwardMessage %zu bytes: %.80s", msg.size(), msg.c_str());
+
+    std::lock_guard<std::mutex> lk(s_inboxMutex);
+
+    if (s_inbox.size() >= kInboxHardCap)
+        s_inbox.pop_front();
+
+    s_inbox.push_back(msg);
 }
 
 // -----------------------------------------------------------------------------
-// SetReceiveCallback
+// Optional pull-based drain
 // -----------------------------------------------------------------------------
-void CoSyncTransport::SetReceiveCallback(std::function<void(const std::string&)> fn)
+size_t CoSyncTransport::DrainInbox(std::deque<std::string>& out)
+{
+    out.clear();
+
+    std::lock_guard<std::mutex> lk(s_inboxMutex);
+    if (s_inbox.empty())
+        return 0;
+
+    out.swap(s_inbox);
+    return out.size();
+}
+
+// -----------------------------------------------------------------------------
+// Callbacks
+// -----------------------------------------------------------------------------
+void CoSyncTransport::SetReceiveCallback(ReceiveCallback fn)
 {
     s_receiveCallback = std::move(fn);
     LOG_INFO("[Transport] Receive callback set");
 }
 
+void CoSyncTransport::SetConnectedCallback(ConnectedCallback fn) // NEW
+{
+    s_connectedCallback = std::move(fn);
+    LOG_INFO("[Transport] Connected callback set");
+}
+
 // -----------------------------------------------------------------------------
-// GetHostConnectString
+// Tick (game thread)
+// -----------------------------------------------------------------------------
+void CoSyncTransport::Tick(double now)
+{
+    if (!s_initialized)
+        return;
+
+    GNS_Session::Get().Tick();
+
+    // Detect connection once
+    if (!s_connectionNotified && GNS_Session::Get().IsConnected()) // NEW
+    {
+        s_connectionNotified = true;
+        LOG_INFO("[Transport] Connection established");
+
+        if (s_connectedCallback)
+            s_connectedCallback();
+    }
+
+    std::deque<std::string> drained;
+    const size_t count = DrainInbox(drained);
+
+    if (count > 0)
+    {
+        LOG_DEBUG("[Transport] Drained %zu inbound messages", count);
+
+        if (s_receiveCallback)
+        {
+            for (auto& m : drained)
+                s_receiveCallback(m, now);
+        }
+        else
+        {
+            LOG_WARN("[Transport] Dropped %zu inbound messages (no receive callback)", count);
+        }
+    }
+
+    if (now - s_lastTickLog > 1.0)
+    {
+        s_lastTickLog = now;
+        LOG_DEBUG("[CoSyncTransport] Tick (inbox=%zu)", count);
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Diagnostics
 // -----------------------------------------------------------------------------
 std::string CoSyncTransport::GetHostConnectString()
 {

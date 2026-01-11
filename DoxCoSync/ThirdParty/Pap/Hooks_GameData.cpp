@@ -1,0 +1,45 @@
+#include "Hooks_GameData.h"
+#include "GameThreads.h"
+#include "GameData.h"
+#include "Relocation.h"
+#include "SafeWrite.h"
+#include "BranchTrampoline.h"
+#include "xbyak.h"
+#include "PluginManager.h"
+
+typedef UInt64 (* _InitGameDataThread_Run_Original)(InitGameDataThread * thread);
+RelocAddr <_InitGameDataThread_Run_Original> InitGameDataThread_Run_Original(0x00C41320);
+
+typedef void (* _GameDataReady_Original)(bool isReady);
+// writes to g_isGameDataReady
+
+// 
+RelocAddr <_GameDataReady_Original> GameDataReady_Original(0x008289B0);
+
+UInt64 InitGameDataRun_Hook(InitGameDataThread * thread)
+{
+	UInt64 res = InitGameDataThread_Run_Original(thread);
+	PluginManager::Dispatch_Message(0, F4SEMessagingInterface::kMessage_GameLoaded, (void*)NULL, 0, NULL);
+	return res;
+}
+
+void GameDataReady_Hook(bool isReady)
+{
+	// This message is before so if the listener reads from the global it will be the previous value
+	PluginManager::Dispatch_Message(0, F4SEMessagingInterface::kMessage_GameDataReady, (void*)isReady, 1, NULL);
+	(*g_isGameDataReady) = isReady;
+}
+
+void Hooks_GameData_Init()
+{
+
+}
+
+void Hooks_GameData_Commit()
+{
+	// ??_7InitGameDataThread@?A0x0a0dfc9e@@6B@
+	RelocAddr <uintptr_t> InitGameDataThread_Run(0x0255DB48 + 8); 
+
+	SafeWrite64(InitGameDataThread_Run.GetUIntPtr(), (UInt64)InitGameDataRun_Hook);
+	g_branchTrampoline.Write6Branch(GameDataReady_Original.GetUIntPtr(), (uintptr_t)GameDataReady_Hook);
+}

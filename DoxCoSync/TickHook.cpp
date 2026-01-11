@@ -4,12 +4,12 @@
 #include "GameReferences.h"
 #include "GameObjects.h"
 #include "GameTypes.h"
-#include "LocalPlayerStateGlobals.h"
+
 #include "ConsoleLogger.h"
+#include "LocalPlayerStateGlobals.h"
 #include "LocalPlayerState.h"
+
 #include "CoSyncNet.h"
-#include "CoSyncPlayerManager.h"
-#include "TickHook.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -18,15 +18,12 @@
 extern RelocPtr<PlayerCharacter*> g_player;
 extern LocalPlayerState g_localPlayerState;
 
-// ------------------------------------------------------------
-// Fallout 4 PlayerCharacter::Update hook
-// ------------------------------------------------------------
 using ActorUpdateFn = __int64(__fastcall*)(PlayerCharacter* actor, void* arg2, void* arg3);
 static ActorUpdateFn g_ActorUpdate_Original = nullptr;
 
-// ------------------------------------------------------------
-// State
-// ------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Local tracking (LOCAL PLAYER ONLY)
+// -----------------------------------------------------------------------------
 static bool   g_hasPrevPos = false;
 static double g_prevTime = 0.0;
 static double g_lastNetSendTime = 0.0;
@@ -34,12 +31,11 @@ static double g_lastNetSendTime = 0.0;
 static bool     g_localEntityBound = false;
 static uint32_t g_localEntityID = 0;
 
-// IMPORTANT: aggregate init (NiPoint3 has no safe default ctor)
-static NiPoint3 g_prevPos = { 0.f, 0.f, 0.f };
+static NiPoint3 g_prevPos{ 0.f, 0.f, 0.f };
 
-// ------------------------------------------------------------
-// Timing helpers
-// ------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------------
 static double GetNowSeconds()
 {
     LARGE_INTEGER f{}, c{};
@@ -53,13 +49,16 @@ static float LengthSq(const NiPoint3& v)
     return v.x * v.x + v.y * v.y + v.z * v.z;
 }
 
-// ------------------------------------------------------------
-// Hook
-// ------------------------------------------------------------
-static __int64 __fastcall ActorUpdate_Hook(PlayerCharacter* actor, void* arg2, void* arg3)
+// -----------------------------------------------------------------------------
+// PlayerCharacter update hook (LOCAL PLAYER ONLY)
+// -----------------------------------------------------------------------------
+static __int64 __fastcall ActorUpdate_Hook(
+    PlayerCharacter* actor,
+    void* arg2,
+    void* arg3)
 {
-    // Always call original first (F4MP does this)
-    __int64 result = g_ActorUpdate_Original
+    __int64 result =
+        g_ActorUpdate_Original
         ? g_ActorUpdate_Original(actor, arg2, arg3)
         : 0;
 
@@ -70,7 +69,25 @@ static __int64 __fastcall ActorUpdate_Hook(PlayerCharacter* actor, void* arg2, v
     if (!localPlayer || actor != localPlayer)
         return result;
 
-    // ---- F4MP WORLD GATE ----
+    const double now = GetNowSeconds();
+
+    // Deferred init (safe)
+    if (!CoSyncNet::IsInitialized())
+        CoSyncNet::PerformPendingInit();
+
+    // Bind local entity ID ONCE
+    if (!g_localEntityBound)
+    {
+        g_localEntityID = CoSyncNet::GetMyEntityID();
+        g_localEntityBound = true;
+
+        LOG_INFO(
+            "[TickHook] Local entity bound: entityID=%u",
+            g_localEntityID
+        );
+    }
+
+    // World validity checks
     if (!actor->parentCell || actor->parentCell->formID == 0)
         return result;
 
@@ -80,35 +97,10 @@ static __int64 __fastcall ActorUpdate_Hook(PlayerCharacter* actor, void* arg2, v
     const NiPoint3 pos = actor->pos;
     const NiPoint3 rot = actor->rot;
 
-    // Prevent bogus origin spam during early frames
     if (pos.x == 0.f && pos.y == 0.f && pos.z == 0.f)
         return result;
 
-    const double now = GetNowSeconds();
-
-    // ------------------------------------------------------------
-    // Networking lifecycle (F4MP-style deferred init)
-    // ------------------------------------------------------------
-    if (!CoSyncNet::IsInitialized())
-        CoSyncNet::PerformPendingInit();
-
-    // Bind a stable local entity ID ONCE (does not spawn anything).
-    // This MUST match what the host uses when emitting EntityCreate for this peer.
-    if (!g_localEntityBound)
-    {
-        const uint64_t sid = CoSyncNet::GetMySteamID();
-        g_localEntityID = static_cast<uint32_t>(sid & 0xFFFFFFFFu);
-        g_CoSyncPlayerManager.SetLocalEntityID(g_localEntityID);
-
-        g_localEntityBound = true;
-
-        LOG_INFO("[TickHook] Local entity bound: steam/hash=%llu -> entityID=%u",
-            (unsigned long long)sid, g_localEntityID);
-    }
-
-    // ------------------------------------------------------------
-    // Velocity (client-side only, never authoritative)
-    // ------------------------------------------------------------
+    // Velocity
     NiPoint3 vel{ 0.f, 0.f, 0.f };
     if (g_hasPrevPos)
     {
@@ -125,49 +117,27 @@ static __int64 __fastcall ActorUpdate_Hook(PlayerCharacter* actor, void* arg2, v
     g_prevTime = now;
     g_hasPrevPos = true;
 
-    const bool isMoving = (LengthSq(vel) > 1.0f);
-
-    // ------------------------------------------------------------
-    // Fill LocalPlayerState (pure data, no side effects)
-    // ------------------------------------------------------------
-    g_localPlayerState.username = CoSyncNet::GetMyName();
+    // Populate local state (diagnostic + future use)
     g_localPlayerState.timestamp = now;
-
     g_localPlayerState.position = pos;
     g_localPlayerState.rotation = rot;
     g_localPlayerState.velocity = vel;
 
-    g_localPlayerState.isMoving = isMoving;
-    g_localPlayerState.isSprinting = false;
-    g_localPlayerState.isCrouching = false;
-    g_localPlayerState.isJumping = false;
-
-    // Keep these as local debug/telemetry identifiers (not network entity authority)
     g_localPlayerState.formID = actor->formID;
     g_localPlayerState.cellFormID = actor->parentCell->formID;
 
-    // ------------------------------------------------------------
-    // Drive networking ONCE per tick (F4MP rule)
-    // ------------------------------------------------------------
-    CoSyncNet::Tick(now);
-
-    // ------------------------------------------------------------
-    // Entity protocol (F4MP authority split)
-    //   - Client sends UPDATE only
-    //   - Host creates/broadcasts CREATE
-    // ------------------------------------------------------------
-    if (CoSyncNet::IsConnected() && CoSyncNet::IsInitialized())
+    // Network send (CLIENT → HOST)
+    if (CoSyncNet::IsConnected())
     {
-        // Throttle updates (~20 Hz)
-        if (now - g_lastNetSendTime >= 0.05)
+        if (now - g_lastNetSendTime >= 0.05) // ~20 Hz
         {
             g_lastNetSendTime = now;
 
             CoSyncNet::SendMyEntityUpdate(
-                g_localEntityID,                 // authoritative network entityID
-                g_localPlayerState.position,
-                g_localPlayerState.rotation,
-                g_localPlayerState.velocity
+                g_localEntityID,
+                pos,
+                rot,
+                vel
             );
         }
     }
@@ -175,9 +145,9 @@ static __int64 __fastcall ActorUpdate_Hook(PlayerCharacter* actor, void* arg2, v
     return result;
 }
 
-// ------------------------------------------------------------
-// Hook install
-// ------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Hook installation
+// -----------------------------------------------------------------------------
 void InstallTickHook()
 {
     LOG_INFO("[TickHook] Installing PlayerCharacter update hook");
@@ -196,7 +166,7 @@ void InstallTickHook()
         return;
     }
 
-    constexpr UInt32 kIndex = 21; // FO4 PlayerCharacter::Update
+    constexpr UInt32 kIndex = 21;
     uintptr_t origFn = vtbl[kIndex];
     if (!origFn)
     {
@@ -211,7 +181,7 @@ void InstallTickHook()
     vtbl[kIndex] = reinterpret_cast<uintptr_t>(&ActorUpdate_Hook);
     VirtualProtect(&vtbl[kIndex], sizeof(uintptr_t), oldProt, &oldProt);
 
-    // Reset state
+    // Reset tracking
     g_hasPrevPos = false;
     g_prevTime = 0.0;
     g_lastNetSendTime = 0.0;

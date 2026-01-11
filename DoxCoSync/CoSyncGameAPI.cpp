@@ -6,21 +6,16 @@
 #include "GameForms.h"
 #include "GameObjects.h"
 #include "GameReferences.h"
+#include "GameUtilities.h"
 #include "PapyrusVM.h"
 
 extern RelocPtr<PlayerCharacter*> g_player;
 extern RelocPtr<GameVM*>          g_gameVM;
+extern RelocAddr<_PlaceAtMe_Native> PlaceAtMe_Native;
 
 // -----------------------------------------------------------------------------
-// F4MP RULE:
-// Proxy actors MUST be spawned from a TESNPC base.
-// Pick ONE known-good NPC and reuse it for all remote players.
+// Helpers
 // -----------------------------------------------------------------------------
-
-static constexpr UInt32 kProxyNPCBaseFormID = 00000007;
-
-// -----------------------------------------------------------------------------
-
 static TESObjectREFR* GetPlayerRef()
 {
     PlayerCharacter* pc = *g_player;
@@ -28,64 +23,75 @@ static TESObjectREFR* GetPlayerRef()
 }
 
 // -----------------------------------------------------------------------------
-
-Actor* CoSyncGameAPI::SpawnRemoteActor(UInt32 /*baseFormID*/)
+// SpawnRemoteActor — F4MP-aligned
+//   - Uses PlaceAtMe native (Papyrus)
+//   - Does NOT move/position beyond engine defaults
+//   - Caller is responsible for first placement
+// -----------------------------------------------------------------------------
+Actor* CoSyncGameAPI::SpawnRemoteActor(TESNPC* npcBase)
 {
+    if (!npcBase)
+    {
+        LOG_WARN("[CoSyncGameAPI] SpawnRemoteActor: npcBase=null");
+        return nullptr;
+    }
+
     TESObjectREFR* anchor = GetPlayerRef();
     if (!anchor)
     {
-        LOG_ERROR("[Spawn] No player anchor");
+        LOG_WARN("[CoSyncGameAPI] SpawnRemoteActor: anchor missing");
         return nullptr;
     }
 
-    TESForm* baseForm = LookupFormByID(kProxyNPCBaseFormID);
-    if (!baseForm)
+    GameVM* gameVM = *g_gameVM;
+    if (!gameVM)
     {
-        LOG_ERROR(
-            "[Spawn] Proxy NPC base missing: 0x%08X",
-            kProxyNPCBaseFormID
-        );
+        LOG_ERROR("[CoSyncGameAPI] SpawnRemoteActor: GameVM missing");
         return nullptr;
     }
 
-    LOG_INFO(
-        "[Spawn] PlaceObjectAtMe proxy NPC base=0x%08X anchor=%p",
-        kProxyNPCBaseFormID,
-        anchor
-    );
+    VirtualMachine* vm = gameVM->m_virtualMachine;
+    if (!vm)
+    {
+        LOG_ERROR("[CoSyncGameAPI] SpawnRemoteActor: VirtualMachine missing");
+        return nullptr;
+    }
 
-    TESObjectREFR* spawned =
-        CALL_MEMBER_FN(anchor, PlaceObjectAtMe)(
-            baseForm,
-            1,
-            false, // forcePersist
-            true,  // initiallyDisabled  <<< REQUIRED
-            false
-            );
+    TESForm* form = static_cast<TESForm*>(npcBase);
+
+    TESObjectREFR* spawned = (*PlaceAtMe_Native)(
+        vm,
+        0,          // stackId (unused here)
+        &anchor,    // target
+        form,       // base form
+        1,          // count
+        true,       // bForcePersist
+        false,      // bInitiallyDisabled
+        false       // bDeleteWhenAble
+        );
 
     if (!spawned)
     {
-        LOG_ERROR("[Spawn] PlaceObjectAtMe FAILED");
+        LOG_ERROR("[CoSyncGameAPI] SpawnRemoteActor: PlaceAtMe failed (base=0x%08X)", npcBase->formID);
         return nullptr;
     }
 
-    if (spawned->formType != kFormType_ACHR)
+    if (spawned->formType != Actor::kTypeID)
     {
-        LOG_ERROR(
-            "[Spawn] Spawned ref not Actor (formType=%u)",
-            spawned->formType
-        );
+        LOG_ERROR("[CoSyncGameAPI] SpawnRemoteActor: spawned formType=%u is not Actor (base=0x%08X)",
+            (uint32_t)spawned->formType, npcBase->formID);
         return nullptr;
     }
 
     return static_cast<Actor*>(spawned);
 }
 
-
-
-
 // -----------------------------------------------------------------------------
-
+// PositionRemoteActor — F4MP-aligned
+//   IMPORTANT:
+//     Do NOT write actor->pos/rot directly.
+//     Use engine move to keep internal state coherent.
+// -----------------------------------------------------------------------------
 void CoSyncGameAPI::PositionRemoteActor(
     Actor* actor,
     const NiPoint3& pos,
@@ -94,33 +100,19 @@ void CoSyncGameAPI::PositionRemoteActor(
     if (!actor)
         return;
 
-    TESObjectREFR* refr = static_cast<TESObjectREFR*>(actor);
+    UInt32 dummyHandle = 0;
 
-    TESObjectCELL* cell = refr->parentCell;
-    TESWorldSpace* ws = CALL_MEMBER_FN(refr, GetWorldspace)();
-
-    if (!cell || !ws)
-    {
-        TESObjectREFR* anchor = GetPlayerRef();
-        if (!anchor)
-            return;
-
-        cell = anchor->parentCell;
-        ws = CALL_MEMBER_FN(anchor, GetWorldspace)();
-    }
-
-    if (!cell || !ws)
-        return;
-
-    NiPoint3 p = pos;
-    NiPoint3 r = rot;
-
+    // F4SE signature is not const-correct; cast is intentional and safe
     MoveRefrToPosition(
-        refr,
+        actor,
+        &dummyHandle,
+        actor->parentCell,
         nullptr,
-        cell,
-        ws,
-        &p,
-        &r
+        const_cast<NiPoint3*>(&pos),
+        const_cast<NiPoint3*>(&rot)
     );
 }
+
+
+
+

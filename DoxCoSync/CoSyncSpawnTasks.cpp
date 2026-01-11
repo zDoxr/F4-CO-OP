@@ -1,14 +1,16 @@
 ﻿#include "CoSyncSpawnTasks.h"
 
-#include "PluginAPI.h"          // F4SETaskInterface
-#include "Tasks.h"              // ITaskDelegate
-
+#include "PluginAPI.h"
+#include "Tasks.h"
 #include "ConsoleLogger.h"
-#include "CoSyncPlayerManager.h"
 
-#include "Relocation.h"
+#include "CoSyncPlayerManager.h"
+#include "CoSyncPlayer.h"
+#include "CoSyncGameAPI.h"
+
 #include "GameReferences.h"
 #include "GameForms.h"
+#include "GameObjects.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -24,22 +26,26 @@ static const F4SETaskInterface* s_taskIFace = nullptr;
 // -----------------------------------------------------------------------------
 // Helpers
 // -----------------------------------------------------------------------------
-static double NowSeconds()
-{
-    LARGE_INTEGER f{}, c{};
-    QueryPerformanceFrequency(&f);
-    QueryPerformanceCounter(&c);
-    return double(c.QuadPart) / double(f.QuadPart);
-}
-
 static TESObjectREFR* GetAnchor()
 {
     PlayerCharacter* pc = *g_player;
     return pc ? static_cast<TESObjectREFR*>(pc) : nullptr;
 }
 
+static TESNPC* ResolveNPC(UInt32 baseFormID)
+{
+    TESForm* f = LookupFormByID(baseFormID);
+    if (!f)
+        return nullptr;
+
+    if (f->formType != TESNPC::kTypeID)
+        return nullptr;
+
+    return static_cast<TESNPC*>(f);
+}
+
 // -----------------------------------------------------------------------------
-// Main-thread spawn task
+// Main-thread spawn task (F4MP-aligned)
 // -----------------------------------------------------------------------------
 class SpawnRemotePlayerTask final : public ITaskDelegate
 {
@@ -47,77 +53,65 @@ public:
     SpawnRemotePlayerTask(
         uint32_t entityID,
         uint32_t baseFormID,
-        const NiPoint3& pos,
-        const NiPoint3& rot)
+        const NiPoint3& spawnPos,
+        const NiPoint3& spawnRot)
         : m_entityID(entityID)
         , m_baseFormID(baseFormID)
-        , m_pos(pos)
-        , m_rot(rot)
+        , m_spawnPos(spawnPos)
+        , m_spawnRot(spawnRot)
     {
     }
 
     void Run() override
     {
-        LOG_DEBUG("[SpawnTask] Run() main-thread id=%u", m_entityID);
+        LOG_DEBUG("[SpawnTask] Run entity=%u base=0x%08X", m_entityID, m_baseFormID);
 
         CoSyncPlayer& pl = g_CoSyncPlayerManager.GetOrCreateByEntityID(m_entityID);
 
+        // Never double-spawn
         if (pl.hasSpawned && pl.actorRef)
-        {
-            LOG_DEBUG("[SpawnTask] Already spawned id=%u", m_entityID);
             return;
-        }
 
-        TESForm* baseForm = LookupFormByID(m_baseFormID);
-        if (!baseForm)
+        TESNPC* npcBase = ResolveNPC(m_baseFormID);
+        if (!npcBase)
         {
-            LOG_ERROR(
-                "[SpawnTask] BaseForm not found 0x%08X id=%u",
-                m_baseFormID,
-                m_entityID
-            );
+            LOG_ERROR("[SpawnTask] BaseForm 0x%08X is not TESNPC", m_baseFormID);
             return;
         }
 
         TESObjectREFR* anchor = GetAnchor();
         if (!anchor)
         {
-            // World readiness & retry logic is handled by PlayerManager
-            LOG_WARN("[SpawnTask] Anchor missing; abort spawn id=%u", m_entityID);
+            LOG_WARN("[SpawnTask] Anchor missing (player not ready?)");
             return;
         }
 
-        LOG_INFO(
-            "[SpawnTask] SpawnInWorld START id=%u baseForm=0x%08X",
-            m_entityID,
-            m_baseFormID
-        );
-
-        if (!pl.SpawnInWorld(anchor, baseForm))
+        // Spawn actor
+        if (!pl.SpawnInWorld(anchor, npcBase))
         {
-            LOG_ERROR("[SpawnTask] SpawnInWorld FAILED id=%u", m_entityID);
+            LOG_ERROR("[SpawnTask] SpawnInWorld FAILED entity=%u", m_entityID);
             return;
         }
 
-        // Apply initial transform AFTER spawn (F4MP behavior)
-        pl.lastPacketTime = NowSeconds();
-        pl.pendingPos = m_pos;
-        pl.pendingRot = m_rot;
-        pl.hasPendingTransform = true;
-        pl.ApplyPendingTransformIfAny();
+        // Apply CREATE placement immediately (snap once)
+        // This ensures the proxy exists in-world at a deterministic transform
+        CoSyncGameAPI::PositionRemoteActor(pl.actorRef, m_spawnPos, m_spawnRot);
 
-        LOG_INFO(
-            "[SpawnTask] SpawnInWorld DONE id=%u actor=%p",
-            m_entityID,
-            pl.actorRef
-        );
+        // IMPORTANT:
+        // Do NOT try to manage smoothing state here beyond seeding the
+        // player’s transform buffer via ApplyPendingTransformIfAny() / ApplyUpdate().
+        // If your CoSyncPlayer uses a transform buffer, the snap above is enough;
+        // subsequent UPDATEs will drive interpolation.
+        LOG_INFO("[SpawnTask] Spawn DONE entity=%u actor=%p", m_entityID, pl.actorRef);
     }
 
 private:
-    uint32_t m_entityID = 0;
-    uint32_t m_baseFormID = 0;
-    NiPoint3 m_pos{ 0.f, 0.f, 0.f };
-    NiPoint3 m_rot{ 0.f, 0.f, 0.f };
+    uint32_t m_entityID;
+    uint32_t m_baseFormID;
+    NiPoint3 m_spawnPos;
+    NiPoint3 m_spawnRot;
+
+
 };
 
 // -----------------------------------------------------------------------------
@@ -137,20 +131,10 @@ void CoSyncSpawnTasks::EnqueueSpawn(
 {
     if (!s_taskIFace || !s_taskIFace->AddTask)
     {
-        LOG_ERROR(
-            "[CoSyncSpawnTasks] Task interface unavailable; cannot spawn id=%u",
-            entityID
-        );
+        LOG_ERROR("[CoSyncSpawnTasks] Task interface unavailable");
         return;
     }
 
-    LOG_DEBUG(
-        "[CoSyncSpawnTasks] Queue spawn id=%u baseForm=0x%08X",
-        entityID,
-        baseFormID
-    );
-
-    // F4SE deletes the task after Run()
     s_taskIFace->AddTask(
         new SpawnRemotePlayerTask(entityID, baseFormID, spawnPos, spawnRot)
     );

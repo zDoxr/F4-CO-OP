@@ -1,23 +1,27 @@
 #pragma once
 
-#include <cstdint>
-
-#include "ITypes.h"          // UInt32
-#include "NiTypes.h"         // NiPoint3
-#include "GameReferences.h"  // Actor
-
-// NOTE:
-// - SpawnRemoteActor is executed on the game thread (via F4SE task).
-// - Uses PlaceAtMe_Native.
-// - No engine hooks / internal callees.
+#include "NiTypes.h"
+#include "GameReferences.h"   // Actor
+#include "GameForms.h"        // TESNPC
 
 namespace CoSyncGameAPI
 {
-    Actor* SpawnRemoteActor(UInt32 baseFormID);
+    // Spawns a remote NPC actor using PlaceAtMe (F4MP style)
+    Actor* SpawnRemoteActor(TESNPC* npcBase);
 
+    // Applies position + rotation to an existing actor
     void PositionRemoteActor(
         Actor* actor,
         const NiPoint3& pos,
         const NiPoint3& rot
     );
+
+
+    void DisableActorAI(Actor* actor);
+    void EnableActorAI(Actor* actor);
+
+
 }
+
+
+

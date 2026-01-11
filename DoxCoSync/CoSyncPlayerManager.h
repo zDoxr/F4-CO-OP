@@ -4,10 +4,11 @@
 #include <unordered_map>
 #include <deque>
 #include <mutex>
+#include <memory>
 
 #include "Packets_EntityCreate.h"
 #include "Packets_EntityUpdate.h"
-#include "CoSyncPlayer.h"
+#include "CoSyncEntityState.h"
 
 // -----------------------------------------------------------------------------
 // InboxItem
@@ -22,85 +23,76 @@ struct InboxItem
     };
 
     Type type = Type::Update;
+
     EntityCreatePacket create{};
     EntityUpdatePacket update{};
 };
+
+class CoSyncPlayer;
 
 // -----------------------------------------------------------------------------
 // CoSyncPlayerManager
 //
 // F4MP-aligned responsibilities:
-//   - Owns remote entity proxies (CoSyncPlayer)
-//   - Buffers network messages (Create / Update)
-//   - Applies updates on game thread
-//   - Defers spawning until world is ready
 //
-// RULES:
+//   ✔ Owns ALL remote entity proxies (CoSyncPlayer)
+//   ✔ Owns ALL remote entity state (CoSyncEntityState)
+//   ✔ Buffers CREATE / UPDATE packets from networking
+//   ✔ Applies everything on the GAME THREAD only
+//   ✔ Spawns ≤ 1 entity per tick (CRITICAL F4MP RULE)
+//
+// HARD RULES (DO NOT BREAK):
 //   - UPDATE packets NEVER cause spawning
 //   - CREATE packets are the ONLY spawn trigger
-//   - Spawning is rate-limited (≤1 per tick)
+//   - Local player entity is NEVER proxied
 // -----------------------------------------------------------------------------
 class CoSyncPlayerManager
 {
 public:
-    // -------------------------------------------------------------------------
-    // Network entry points (thread-safe)
-    // -------------------------------------------------------------------------
+    // Network entry points (THREAD-SAFE)
     void EnqueueEntityCreate(const EntityCreatePacket& p);
     void EnqueueEntityUpdate(const EntityUpdatePacket& p);
 
-    // -------------------------------------------------------------------------
     // Game-thread processing
-    // -------------------------------------------------------------------------
-    // Drains inbox → routes to ProcessEntity*
     void ProcessInbox();
-
-    // Per-frame tick:
-    //   - pumps deferred spawns
-    //   - handles timeouts / cleanup
     void Tick();
 
-    // -------------------------------------------------------------------------
     // Identity
-    // -------------------------------------------------------------------------
-    // Prevents spawning/updating a proxy for the local player
-    // MUST be set once local entity ID is known
     void SetLocalEntityID(uint32_t id) { m_localEntityID = id; }
 
-    // Lookup or create a remote proxy slot
+    // Proxy (world) registry
     CoSyncPlayer& GetOrCreateByEntityID(uint32_t entityID);
 
+    // State registry (network-only)
+    CoSyncEntityState& GetOrCreateState(uint32_t entityID);
+
+    // Optional: readonly accessors if you want UI/overlay later
+    const std::unordered_map<uint32_t, CoSyncEntityState>& GetStates() const { return m_statesByEntityID; }
+
 private:
-    // -------------------------------------------------------------------------
-    // Internal processing (game thread only)
-    // -------------------------------------------------------------------------
+    // Internal processing (GAME THREAD ONLY)
     void ProcessEntityCreate(const EntityCreatePacket& p);
     void ProcessEntityUpdate(const EntityUpdatePacket& u);
 
-    // Spawn at most ONE queued CREATE per tick (F4MP rule)
     void PumpDeferredSpawns();
 
 private:
-    // -------------------------------------------------------------------------
-    // Network inbox (can be written from networking layer)
-    // -------------------------------------------------------------------------
+    // Network inbox
     std::mutex m_inboxMutex;
     std::deque<InboxItem> m_inbox;
 
-    // -------------------------------------------------------------------------
     // Deferred CREATE queue (spawn-only)
-    // -------------------------------------------------------------------------
     std::mutex m_spawnMutex;
     std::deque<EntityCreatePacket> m_pendingCreates;
 
-    // -------------------------------------------------------------------------
-    // Remote entity registry
-    // -------------------------------------------------------------------------
-    std::unordered_map<uint32_t, CoSyncPlayer> m_playersByEntityID;
+    // Remote entity registry (world proxies)
+    std::unordered_map<uint32_t, std::unique_ptr<CoSyncPlayer>> m_playersByEntityID;
 
-    // Local authoritative entity ID (never proxied)
-    uint32_t m_localEntityID = 0; // 0 = unknown/unset
+    // Remote state registry (network-only)
+    std::unordered_map<uint32_t, CoSyncEntityState> m_statesByEntityID;
+
+    // Local authoritative entity ID
+    uint32_t m_localEntityID = 0;
 };
 
-// Global instance (mirrors F4MP singleton-style manager)
 extern CoSyncPlayerManager g_CoSyncPlayerManager;

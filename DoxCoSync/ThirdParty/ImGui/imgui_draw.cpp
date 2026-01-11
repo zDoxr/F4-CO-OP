@@ -2408,7 +2408,8 @@ void ImGui::ShadeVertsTransformPos(ImDrawList* draw_list, int vert_start_idx, in
 // [SECTION] ImFontConfig
 //-----------------------------------------------------------------------------
 
-// FIXME-NEWATLAS: Oversample specification could be more dynamic. For now, favoring automatic selection.
+// FIXME-NEWATLAS: Oversample specification could be more 
+// . For now, favoring automatic selection.
 ImFontConfig::ImFontConfig()
 {
     memset(this, 0, sizeof(*this));

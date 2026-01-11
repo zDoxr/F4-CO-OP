@@ -1,0 +1,30 @@
+#include "GameFormComponents.h"
+#include "GameForms.h"
+
+RelocAddr <_EvaluationConditions> EvaluationConditions(0x00768AE0);
+
+#ifdef _DEBUG
+#include "GameExtraData.h"
+
+void BGSInventoryItem::Dump()
+{
+	_MESSAGE("%016I64X %s", form->formID, GetObjectClassName(form));
+	gLog.Indent();
+	stack->Dump();
+	gLog.Outdent();
+}
+
+void BGSInventoryItem::Stack::Dump()
+{
+	_MESSAGE("Count: %d", count);
+	if(extraData)
+		extraData->Dump();
+
+	if(next) {
+		gLog.Indent();
+		next->Dump();
+		gLog.Outdent();
+	}
+	
+}
+#endif

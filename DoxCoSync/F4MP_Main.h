@@ -10,7 +10,11 @@ namespace f4mp
     public:
         static F4MP_Main& Get();
 
-        // Called once when DLL loads (steam/network initialization)
+        // ------------------------------------------------------------
+        // Lifecycle
+        // ------------------------------------------------------------
+
+        // Called once when DLL loads (Steam / GNS bootstrap)
         void Init();
 
         // Host a multiplayer session on given IP (Hamachi)
@@ -19,11 +23,16 @@ namespace f4mp
         // Join a host using "IP:PORT"
         void StartJoining(const std::string& connectStr);
 
+        // Global per-frame tick (GAME THREAD ONLY)
+        // This is the ONLY place CoSyncNet::Tick is driven.
+        void Tick(double now);
+
         // Shutdown all networking (called on plugin unload)
         void Shutdown();
 
-        
-
+        // ------------------------------------------------------------
+        // State
+        // ------------------------------------------------------------
         bool IsInitialized() const { return initialized.load(); }
         bool IsServer() const { return isServer.load(); }
 

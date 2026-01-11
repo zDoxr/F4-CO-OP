@@ -629,7 +629,8 @@ public:
 	//-----------------------------------------------------------------------------
 	uint64 GetStaticAccountKey() const
 	{
-		// note we do NOT include the account instance (which is a dynamic property) in the static account key
+		// note we do NOT include the account instance (which is a 
+		// property) in the static account key
 		return (uint64) ( ( ( (uint64) m_steamid.m_comp.m_EUniverse ) << 56 ) + ((uint64) m_steamid.m_comp.m_EAccountType << 52 ) + m_steamid.m_comp.m_unAccountID );
 	}
 

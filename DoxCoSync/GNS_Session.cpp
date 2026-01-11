@@ -389,25 +389,25 @@ void GNS_Session::Tick()
 
     sock->RunCallbacks();
 
-    // Read messages once session is actually connected
-    if (m_connected)
-        ProcessMessagesOnPollGroup();
+    if (!m_connected)
+        return;
 
-    // Fallback if poll group is invalid
-    if (m_pollGroup == k_HSteamNetPollGroup_Invalid && m_connected)
+    // Primary path
+    ProcessMessagesOnPollGroup();
+
+    // Fallbacks / redundancy
+    if (m_role == GNSRole::Client)
     {
-        if (m_role == GNSRole::Client)
-        {
-            if (m_serverConn != k_HSteamNetConnection_Invalid)
-                ProcessMessagesOnConnection(m_serverConn);
-        }
-        else if (m_role == GNSRole::Host)
-        {
-            for (auto conn : m_clientConns)
-                ProcessMessagesOnConnection(conn);
-        }
+        if (m_serverConn != k_HSteamNetConnection_Invalid)
+            ProcessMessagesOnConnection(m_serverConn);
+    }
+    else if (m_role == GNSRole::Host)
+    {
+        for (auto conn : m_clientConns)
+            ProcessMessagesOnConnection(conn);
     }
 }
+
 
 void GNS_Session::SendText(const std::string& text)
 {

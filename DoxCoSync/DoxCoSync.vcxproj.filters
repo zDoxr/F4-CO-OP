@@ -64,6 +64,9 @@
     <Filter Include="Scripts">
       <UniqueIdentifier>{bc276678-3104-41d9-8336-88689bdc0679}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Papy">
+      <UniqueIdentifier>{9a75f119-f2ff-405a-bab9-163f442cae7e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ConsoleLogger.h">
@@ -219,9 +222,6 @@
     <ClInclude Include="CoSyncActorValues.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusVM.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameUtilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -266,6 +266,18 @@
     </ClInclude>
     <ClInclude Include="LocalPlayerStateGlobals.h">
       <Filter>Header Files\Game</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusArgs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se_common\Utilities.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Papyrus_CoSync.h">
+      <Filter>Header Files\Papy</Filter>
+    </ClInclude>
+    <ClInclude Include="CoSyncEntityState.h">
+      <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -371,9 +383,6 @@
     <ClCompile Include="CoSyncActorValues.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusVM.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameForms.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -402,6 +411,39 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Papyrus_CoSync.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusArgs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusValue.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusVM.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameExtraData.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusInterfaces.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Heap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameAPI.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameTypes.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameObjects.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoSyncWorld.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoSyncEntityState.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,5 +1,6 @@
 ﻿#include "CoSyncPlayerManager.h"
 
+#include "CoSyncPlayer.h"
 #include "ConsoleLogger.h"
 #include "CoSyncWorld.h"
 #include "CoSyncSpawnTasks.h"
@@ -24,178 +25,191 @@ static double NowSeconds()
 }
 
 // -----------------------------------------------------------------------------
-// Inbox enqueue
+// Network entry points
 // -----------------------------------------------------------------------------
 void CoSyncPlayerManager::EnqueueEntityCreate(const EntityCreatePacket& p)
 {
-    std::lock_guard<std::mutex> lock(m_inboxMutex);
-    m_inbox.push_back({ InboxItem::Type::Create, p, {} });
+    // Ignore self CREATE immediately
+    if (p.entityID != 0 && p.entityID == m_localEntityID)
+    {
+        LOG_INFO("[PlayerMgr] Ignoring CREATE for local entity=%u", p.entityID);
+        return;
+    }
 
-    LOG_INFO("[CoSyncPM] Enqueue CREATE id=%u baseForm=0x%08X", p.entityID, p.baseFormID);
+    std::lock_guard<std::mutex> lk(m_inboxMutex);
+
+    InboxItem item{};
+    item.type = InboxItem::Type::Create;
+    item.create = p;
+
+    m_inbox.push_back(item);
+    LOG_INFO("[PlayerMgr] Enqueued CREATE entity=%u", p.entityID);
 }
 
 void CoSyncPlayerManager::EnqueueEntityUpdate(const EntityUpdatePacket& p)
 {
-    std::lock_guard<std::mutex> lock(m_inboxMutex);
-    m_inbox.push_back({ InboxItem::Type::Update, {}, p });
+	LOG_DEBUG("[PlayerMgr] Enqueued UPDATE entity=%u", p.entityID);
 
-    LOG_DEBUG("[CoSyncPM] Enqueue UPDATE id=%u pos(%.1f %.1f %.1f)",
-        p.entityID, p.pos.x, p.pos.y, p.pos.z);
+    std::lock_guard<std::mutex> lk(m_inboxMutex);
+
+    InboxItem item{};
+    item.type = InboxItem::Type::Update;
+    item.update = p;
+
+    m_inbox.push_back(item);
 }
 
 // -----------------------------------------------------------------------------
-// ProcessInbox
-// - Drains inbox into a local queue (minimizes lock time)
-// - NEVER spawns directly inside ProcessInbox
+// Inbox processing (GAME THREAD ONLY)
 // -----------------------------------------------------------------------------
 void CoSyncPlayerManager::ProcessInbox()
 {
-    std::deque<InboxItem> local;
+    std::deque<InboxItem> inbox;
+
     {
-        std::lock_guard<std::mutex> lock(m_inboxMutex);
-        local.swap(m_inbox);
+        std::lock_guard<std::mutex> lk(m_inboxMutex);
+        if (m_inbox.empty())
+            return;
+
+        inbox.swap(m_inbox);
     }
 
-    if (!local.empty())
-        LOG_DEBUG("[CoSyncPM] ProcessInbox drained %zu msgs", local.size());
-
-    for (auto& item : local)
+    for (auto& item : inbox)
     {
-        if (item.type == InboxItem::Type::Create)
+        switch (item.type)
+        {
+        case InboxItem::Type::Create:
             ProcessEntityCreate(item.create);
-        else
+            break;
+
+        case InboxItem::Type::Update:
             ProcessEntityUpdate(item.update);
+            break;
+
+        default:
+            break;
+        }
     }
 }
 
 // -----------------------------------------------------------------------------
-// Player lookup
-// IMPORTANT FIX:
-//   Initialize lastPacketTime when we first create a slot.
-//   Otherwise, entities that never receive UPDATE would "never timeout"
-//   if you use any grace logic incorrectly.
+// State registry (network-only)
+// -----------------------------------------------------------------------------
+CoSyncEntityState& CoSyncPlayerManager::GetOrCreateState(uint32_t entityID)
+{
+    auto it = m_statesByEntityID.find(entityID);
+    if (it != m_statesByEntityID.end())
+        return it->second;
+
+    CoSyncEntityState st{};
+    st.entityID = entityID;
+
+    auto [insIt, _] = m_statesByEntityID.emplace(entityID, std::move(st));
+    return insIt->second;
+}
+
+// -----------------------------------------------------------------------------
+// Proxy registry (world)
 // -----------------------------------------------------------------------------
 CoSyncPlayer& CoSyncPlayerManager::GetOrCreateByEntityID(uint32_t entityID)
 {
     auto it = m_playersByEntityID.find(entityID);
     if (it != m_playersByEntityID.end())
-        return it->second;
+        return *it->second;
 
-    auto result = m_playersByEntityID.emplace(entityID, CoSyncPlayer("Remote"));
-    CoSyncPlayer& player = result.first->second;
-    player.entityID = entityID;
+    auto player = std::make_unique<CoSyncPlayer>("Remote");
+    player->entityID = entityID;
 
-    // Start lifetime timer immediately (prevents “immortal entities”)
-    player.lastPacketTime = NowSeconds();
+    CoSyncPlayer& ref = *player;
+    m_playersByEntityID.emplace(entityID, std::move(player));
 
-    LOG_INFO("[CoSyncPM] Created CoSyncPlayer slot for entityID=%u", entityID);
-    return player;
+    LOG_INFO("[PlayerMgr] Created CoSyncPlayer entity=%u", entityID);
+    return ref;
 }
 
 // -----------------------------------------------------------------------------
-// CREATE
-// - Only CREATE can cause a spawn
-// - If world isn't ready, queue to m_pendingCreates (NOT back into inbox)
-// - If world is ready, queue a spawn task (deferred via task system)
-// - Dedupe: don't queue duplicate pending CREATEs for the same entityID
+// CREATE handling (NO SPAWN HERE; only queues)
 // -----------------------------------------------------------------------------
 void CoSyncPlayerManager::ProcessEntityCreate(const EntityCreatePacket& p)
 {
-    // Prevent proxy for local entity if configured
-    if (m_localEntityID != 0 && p.entityID == m_localEntityID)
+    if (p.entityID == 0)
+        return;
+
+    if (p.entityID == m_localEntityID)
     {
-        LOG_DEBUG("[CoSyncPM] CREATE ignored for local entity id=%u", p.entityID);
+        LOG_DEBUG("[PlayerMgr] Ignoring CREATE for local entity");
         return;
     }
 
-    if (p.entityID == 0 || p.baseFormID == 0)
+    // Record CREATE into state registry (F4MP style)
     {
-        LOG_ERROR("[CoSyncPM] CREATE invalid (entityID=%u baseFormID=0x%08X)", p.entityID, p.baseFormID);
-        return;
+        CoSyncEntityState& st = GetOrCreateState(p.entityID);
+        st.hasCreate = true;
+        st.lastCreate = p;
+        st.lastUpdateLocalTime = NowSeconds();
     }
 
-    CoSyncPlayer& player = GetOrCreateByEntityID(p.entityID);
-    if (player.hasSpawned && player.actorRef)
+    // Queue for deferred spawn (≤1 per tick)
     {
-        LOG_DEBUG("[CoSyncPM] CREATE ignored; already spawned id=%u", p.entityID);
-        return;
-    }
-
-    // World not ready: store CREATE until Tick() can pump it
-    if (!CoSyncWorld::IsWorldReady())
-    {
-        std::lock_guard<std::mutex> lock(m_spawnMutex);
-
-        // Dedupe by entityID so we don’t stack repeated CREATEs
-        for (const auto& existing : m_pendingCreates)
-        {
-            if (existing.entityID == p.entityID)
-            {
-                LOG_DEBUG("[CoSyncPM] World not ready; CREATE already pending id=%u", p.entityID);
-                return;
-            }
-        }
-
+        std::lock_guard<std::mutex> lk(m_spawnMutex);
         m_pendingCreates.push_back(p);
-
-        LOG_WARN("[CoSyncPM] World not ready; deferred CREATE queued id=%u (pending=%zu)",
-            p.entityID, m_pendingCreates.size());
-        return;
     }
 
-    // World ready: enqueue a spawn task (game thread safe)
-    LOG_INFO("[CoSyncPM] Queue spawn id=%u baseForm=0x%08X at (%.2f %.2f %.2f)",
-        p.entityID, p.baseFormID,
-        p.spawnPos.x, p.spawnPos.y, p.spawnPos.z);
-
-    CoSyncSpawnTasks::EnqueueSpawn(p.entityID, p.baseFormID, p.spawnPos, p.spawnRot);
+    LOG_INFO("[PlayerMgr] Queued CREATE for spawn entity=%u base=0x%08X",
+        p.entityID, p.baseFormID);
 }
 
 // -----------------------------------------------------------------------------
-// UPDATE
-// - MUST NEVER spawn
-// - Cache last known transform even if not spawned yet (applies after spawn)
+// UPDATE handling (NO SPAWN EVER)
 // -----------------------------------------------------------------------------
 void CoSyncPlayerManager::ProcessEntityUpdate(const EntityUpdatePacket& u)
 {
-    // Prevent applying updates to local entity if configured
-    if (m_localEntityID != 0 && u.entityID == m_localEntityID)
-        return;
-
     if (u.entityID == 0)
         return;
 
+    if (u.entityID == m_localEntityID)
+        return;
+
+    // Record UPDATE into state registry (F4MP style)
+    {
+        CoSyncEntityState& st = GetOrCreateState(u.entityID);
+        st.hasUpdate = true;
+        st.lastUpdate = u;
+        //st.username = u.username;
+        st.lastUpdateLocalTime = NowSeconds();
+    }
+
+    // Keep your existing behavior: cache update into proxy slot too.
+    // (Later we can make CoSyncPlayer read from CoSyncEntityState only.)
     CoSyncPlayer& player = GetOrCreateByEntityID(u.entityID);
+    player.ApplyUpdate(u);
 
-    // Always advance lastPacketTime on UPDATE
-    player.lastPacketTime = NowSeconds();
 
-    if (!u.username.empty())
-        player.username = u.username;
-
-    // Cache transform always; ApplyPendingTransformIfAny will no-op if not spawned.
-    player.pendingPos = u.pos;
-    player.pendingRot = u.rot;
-    player.pendingVel = u.vel;
-    player.hasPendingTransform = true;
-
-    // If actor exists, apply immediately; otherwise it will apply after spawn completes.
-    player.ApplyPendingTransformIfAny();
 }
 
 // -----------------------------------------------------------------------------
-// Deferred spawn pump
-// - spawns at most ONE per Tick()
-// - avoids spawn storms and makes frame pacing predictable
+// Deferred spawning (≤ 1 per tick — F4MP RULE)
 // -----------------------------------------------------------------------------
 void CoSyncPlayerManager::PumpDeferredSpawns()
 {
+    static bool s_warned = false;
+
     if (!CoSyncWorld::IsWorldReady())
+    {
+        if (!s_warned)
+        {
+			s_warned = true;
+            LOG_WARN("[PlayerMgr] World not ready; deferring spawns");
+            
+        }
+
         return;
+
+    }
 
     EntityCreatePacket p{};
     {
-        std::lock_guard<std::mutex> lock(m_spawnMutex);
+        std::lock_guard<std::mutex> lk(m_spawnMutex);
         if (m_pendingCreates.empty())
             return;
 
@@ -203,58 +217,40 @@ void CoSyncPlayerManager::PumpDeferredSpawns()
         m_pendingCreates.pop_front();
     }
 
-    // Local guard
-    if (m_localEntityID != 0 && p.entityID == m_localEntityID)
-        return;
-
-    if (p.entityID == 0 || p.baseFormID == 0)
-        return;
-
-    CoSyncPlayer& player = GetOrCreateByEntityID(p.entityID);
-    if (player.hasSpawned && player.actorRef)
-        return;
-
-    LOG_INFO("[CoSyncPM] PumpDeferredSpawns -> EnqueueSpawn id=%u baseForm=0x%08X",
+    LOG_INFO("[PlayerMgr] Spawning entity=%u base=0x%08X",
         p.entityID, p.baseFormID);
 
-    CoSyncSpawnTasks::EnqueueSpawn(p.entityID, p.baseFormID, p.spawnPos, p.spawnRot);
+    CoSyncSpawnTasks::EnqueueSpawn(
+        p.entityID,
+        p.baseFormID,
+        p.spawnPos,
+        p.spawnRot
+    );
+
+    CoSyncPlayer& player = GetOrCreateByEntityID(p.entityID);
+    player.ownerEntityID = p.ownerEntityID;
+
 }
 
 // -----------------------------------------------------------------------------
-// Tick
-// - pumps deferred spawns
-// - handles timeouts
-// IMPORTANT FIX:
-//   Do NOT use "last = now when lastPacketTime==0" style grace.
-//   That creates immortal entities.
-//   We set lastPacketTime on slot creation, so timeout logic is stable.
+// Per-frame tick (GAME THREAD)
 // -----------------------------------------------------------------------------
 void CoSyncPlayerManager::Tick()
 {
+	ProcessInbox();
     PumpDeferredSpawns();
 
+    // Apply transforms + smoothing
     const double now = NowSeconds();
 
-    for (auto it = m_playersByEntityID.begin(); it != m_playersByEntityID.end(); )
+    for (auto& kv : m_playersByEntityID)
     {
-        CoSyncPlayer& rp = it->second;
+        CoSyncPlayer& player = *kv.second;
 
-        // 45s timeout like your current standard
-        if ((now - rp.lastPacketTime) > 45.0)
-        {
-            LOG_WARN("[CoSyncPM] Remote entityID=%u timed out", rp.entityID);
-
-            if (rp.actorRef)
-            {
-                // Soft remove: punt to void. Replace later with proper disable/delete.
-                rp.actorRef->pos = NiPoint3{ 0.f, 0.f, -10000.f };
-                rp.actorRef = nullptr;
-            }
-
-            it = m_playersByEntityID.erase(it);
+        if (!player.hasSpawned)
             continue;
-        }
 
-        ++it;
+        player.ApplyPendingTransformIfAny();
+        player.TickSmoothing(now);
     }
 }

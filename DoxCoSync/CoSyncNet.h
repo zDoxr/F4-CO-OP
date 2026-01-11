@@ -10,58 +10,63 @@
 // -----------------------------------------------------------------------------
 // CoSyncNet
 //
-// F4MP-aligned responsibilities:
-//   - Session lifecycle
-//   - Network send / receive
-//   - Authority routing (host vs client)
-//   - Serialization + enqueue ONLY
+// RESPONSIBILITIES (STRICT):
+//  - Session lifecycle (host/client)
+//  - Network send / receive
+//  - Authority routing
+//  - Packet parsing + enqueue ONLY
 //
-// RULES:
-//   - NEVER spawns actors
-//   - NEVER moves actors
-//   - NEVER touches the world
+// HARD RULES:
+//  - NEVER spawns actors
+//  - NEVER moves actors
+//  - NEVER touches the world
 //
-// All world interaction lives in:
-//   CoSyncPlayerManager + CoSyncSpawnTasks
+// World interaction lives in:
+//   - CoSyncPlayerManager
+//   - CoSyncSpawnTasks
 // -----------------------------------------------------------------------------
 class CoSyncNet
 {
 public:
     // -------------------------------------------------------------------------
-    // RemotePeer (diagnostic / bookkeeping only)
-    // NOT authoritative for world state
+    // RemotePeer
+    //
+    // Diagnostic + bookkeeping ONLY.
+    // NOT authoritative world state.
     // -------------------------------------------------------------------------
     struct RemotePeer
     {
         uint64_t steamID = 0;
         std::string username;
+
+        // Debug / UI only
         LocalPlayerState lastState{};
         double lastUpdateTime = 0.0;
+
+        // Deterministic entity assignment (host-side)
+        uint32_t assignedEntityID = 0;
     };
 
     // -------------------------------------------------------------------------
     // Lifecycle
     // -------------------------------------------------------------------------
-    static void Init(bool host);
+    static void Init(bool isHost);
     static void Shutdown();
 
     // Deferred init until world is ready
-    static void ScheduleInit(bool host);
+    static void ScheduleInit(bool isHost);
     static void PerformPendingInit();
 
     // Per-frame tick (game thread only)
+    // Does NOT touch world state
     static void Tick(double now);
 
     // -------------------------------------------------------------------------
     // Sending
     // -------------------------------------------------------------------------
 
-    // Legacy full-state packet (optional / debug)
-    static void SendLocalPlayerState(const LocalPlayerState& state);
-
     // CLIENT → HOST
-    // Send transform updates ONLY
-    // CREATE is host-authoritative and never sent by clients
+    // Sends ONLY transform updates
     static void SendMyEntityUpdate(
         uint32_t entityID,
         const NiPoint3& pos,
@@ -75,14 +80,18 @@ public:
 
     // Called ONLY by CoSyncTransport receive callback
     // Must NEVER touch the world
-    static void OnReceive(const std::string& msg);
+    static void OnReceive(const std::string& msg, double now);
 
     // -------------------------------------------------------------------------
     // Identity
     // -------------------------------------------------------------------------
     static uint64_t GetMySteamID();
+    static uint32_t GetMyEntityID();
+
     static const char* GetMyName();
     static void SetMyName(const std::string& name);
+
+    static bool IsHost();
 
     // -------------------------------------------------------------------------
     // State
@@ -91,11 +100,12 @@ public:
     static bool IsSessionActive();
     static bool IsConnected();
 
-    // Optional diagnostics (NOT authoritative)
+    // Diagnostics (NOT authoritative)
     static const std::unordered_map<uint64_t, RemotePeer>& GetPeers();
 
     // -------------------------------------------------------------------------
-    // Transport callback
+    // Transport callbacks
     // -------------------------------------------------------------------------
     static void OnGNSConnected();
+    static void OnGNSDisconnected();
 };

@@ -6,6 +6,8 @@
 #include "GNS_Core.h"
 #include "CoSyncOverlay.h"
 
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 namespace f4mp
 {
@@ -55,22 +57,19 @@ namespace f4mp
 
         LOG_INFO("[MAIN] Hosting on IP: %s", ip.c_str());
 
-        // Start GNS host using the Hamachi address
         if (!GNS_Session::Get().StartHost(ip.c_str()))
         {
             LOG_ERROR("[MAIN] Host FAILED (GNS StartHost)");
             return;
         }
 
-        // Transport attaches to existing host socket
         if (!CoSyncTransport::InitAsHost())
         {
             LOG_ERROR("[MAIN] Host FAILED (Transport InitAsHost)");
             return;
         }
 
-        // Delay CoSyncNet initialization — handled in TickHook
-        CoSyncNet::SetMyName("Host");   // <<< add this
+        CoSyncNet::SetMyName("Host");
         CoSyncNet::ScheduleInit(true);
 
         isServer.store(true);
@@ -93,26 +92,35 @@ namespace f4mp
 
         LOG_INFO("[MAIN] Joining host at: %s", connectStr.c_str());
 
-        // Start GNS client
         if (!GNS_Session::Get().StartClient(connectStr))
         {
             LOG_ERROR("[MAIN] Client FAILED (GNS StartClient)");
             return;
         }
 
-        // Attach transport to existing client connection
         if (!CoSyncTransport::InitAsClient(connectStr))
         {
             LOG_ERROR("[MAIN] Client FAILED (Transport InitAsClient)");
             return;
         }
 
-        // Delay CoSyncNet init — TickHook handles final startup
-        CoSyncNet::ScheduleInit(false);
         CoSyncNet::SetMyName("Client");
+        CoSyncNet::ScheduleInit(false);
 
         isServer.store(false);
         LOG_INFO("[MAIN] Client connected OK");
+    }
+
+    // ------------------------------------------------------------
+    // PER-FRAME TICK (GLOBAL)
+    // ------------------------------------------------------------
+    void F4MP_Main::Tick(double now)
+    {
+        if (!initialized.load())
+            return;
+
+        // ✅ This is the ONLY place CoSyncNet ticks
+        CoSyncNet::Tick(now);
     }
 
     // ------------------------------------------------------------

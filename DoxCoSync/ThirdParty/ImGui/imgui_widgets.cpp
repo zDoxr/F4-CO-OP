@@ -3929,7 +3929,8 @@ namespace ImStb
 #include "imstb_textedit.h"
 }
 
-// If you want to use InputText() with std::string or any custom dynamic string type, use the wrapper in misc/cpp/imgui_stdlib.h/.cpp!
+// If you want to use InputText() with std::string or any custom 
+// string type, use the wrapper in misc/cpp/imgui_stdlib.h/.cpp!
 bool ImGui::InputText(const char* label, char* buf, size_t buf_size, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
 {
     IM_ASSERT(!(flags & ImGuiInputTextFlags_Multiline)); // call InputTextMultiline()

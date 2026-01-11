@@ -7,16 +7,10 @@
 
 // -----------------------------------------------------------------------------
 // EntityCreatePacket
-// -----------------------------------------------------------------------------
-// PURPOSE:
-// - Authoritative spawn instruction from HOST → CLIENTS
-// - Mirrors F4MP behavior exactly:
 //
-//   RULES (CRITICAL):
-//   - CREATE defines existence
-//   - UPDATE never spawns
-//   - EntityCreatePacket is sent ONCE per entity lifetime
-//   - Rotation is ALWAYS RADIANS (never degrees)
+// Sent HOST → ALL
+// Defines the existence of an entity.
+// This is the ONLY packet that may cause spawning.
 // -----------------------------------------------------------------------------
 struct EntityCreatePacket
 {
@@ -33,12 +27,29 @@ struct EntityCreatePacket
     // ActorBase / NPC_ form ID used for spawning
     uint32_t baseFormID = 0;
 
-    // Optional: entity that owns/controls this one
+    // Optional: entity that owns / controls this one
     // 0 = none / world-owned
     uint32_t ownerEntityID = 0;
 
     // -----------------------------------------------------------------
+    // Spawn behavior flags (F4MP-aligned)
+    // -----------------------------------------------------------------
+
+    enum SpawnFlags : uint32_t
+    {
+        None = 0,
+        RemoteControlled = 1 << 0, // receives UPDATE packets
+        HiddenOnSpawn = 1 << 1, // spawn hidden until first UPDATE
+        Persistent = 1 << 2, // do not auto-despawn
+    };
+
+    uint32_t spawnFlags = HiddenOnSpawn | RemoteControlled;
+
+    // -----------------------------------------------------------------
     // Initial spawn transform (ENGINE NATIVE)
+    // NOTE:
+    //  - Used only for initial placement
+    //  - UPDATE packets take over after spawn
     // -----------------------------------------------------------------
 
     // Position in world space
@@ -46,4 +57,10 @@ struct EntityCreatePacket
 
     // Rotation in RADIANS
     NiPoint3 spawnRot{ 0.f, 0.f, 0.f };
+
+    // -----------------------------------------------------------------
+    // Reserved (future-proofing)
+    // -----------------------------------------------------------------
+    uint32_t reserved0 = 0;
+    uint32_t reserved1 = 0;
 };
