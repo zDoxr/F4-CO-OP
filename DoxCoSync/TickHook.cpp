@@ -74,6 +74,10 @@ static __int64 __fastcall ActorUpdate_Hook(
     // Deferred init (safe)
     if (!CoSyncNet::IsInitialized())
         CoSyncNet::PerformPendingInit();
+    if (!CoSyncNet::IsConnected())
+		return result;
+    else 
+		CoSyncNet::Tick(now);
 
     // Bind local entity ID ONCE
     if (!g_localEntityBound)

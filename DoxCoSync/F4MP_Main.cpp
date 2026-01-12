@@ -2,7 +2,7 @@
 #include "ConsoleLogger.h"
 #include "GNS_Session.h"
 #include "CoSyncNet.h"
-#include "CoSyncSteam.h"
+
 #include "CoSyncTransport.h"
 #include "GNS_Core.h"
 #include "CoSyncOverlay.h"
@@ -70,11 +70,7 @@ namespace f4mp
             return;
         }
 
-        const char* personaName = CoSyncSteam_GetPersonaName();
-        const uint64_t steamID = CoSyncSteam_GetSelfSteamID64();
-        CoSyncNet::SetMyName(personaName && *personaName ? personaName : "Host");
-        if (steamID != 0)
-            CoSyncNet::SetMySteamID(steamID);
+        CoSyncNet::SetMyName("Host");
         CoSyncNet::ScheduleInit(true);
 
         isServer.store(true);
@@ -109,11 +105,7 @@ namespace f4mp
             return;
         }
 
-        const char* personaName = CoSyncSteam_GetPersonaName();
-        const uint64_t steamID = CoSyncSteam_GetSelfSteamID64();
-        CoSyncNet::SetMyName(personaName && *personaName ? personaName : "Client");
-        if (steamID != 0)
-            CoSyncNet::SetMySteamID(steamID);
+        CoSyncNet::SetMyName("Client");
         CoSyncNet::ScheduleInit(false);
 
         isServer.store(false);

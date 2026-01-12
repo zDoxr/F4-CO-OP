@@ -75,6 +75,24 @@ public:
         const NiPoint3& vel
     );
 
+    // HOST → ALL
+    // Broadcasts NPC CREATE, optionally enqueueing locally for host spawn
+    static void HostBroadcastNpcCreate(
+        uint32_t entityID,
+        uint32_t baseFormID,
+        const NiPoint3& spawnPos,
+        const NiPoint3& spawnRot,
+        bool enqueueLocal
+    );
+
+    // Convenience helper for authoritative NPC spawns
+    static void HostSpawnNpc(
+        uint32_t entityID,
+        uint32_t baseFormID,
+        const NiPoint3& spawnPos,
+        const NiPoint3& spawnRot
+    );
+
     // -------------------------------------------------------------------------
     // Receiving
     // -------------------------------------------------------------------------

@@ -120,6 +120,8 @@ static bool ParseHello(const std::string& msg, std::string& name, uint64_t& sid)
 static void HostBroadcastCreateInternal(
     uint32_t entityID,
     uint32_t baseFormID,
+    CoSyncEntityType type,
+    uint32_t spawnFlags,
     const NiPoint3& spawnPos,
     const NiPoint3& spawnRot,
     bool enqueueLocal)
@@ -132,15 +134,33 @@ static void HostBroadcastCreateInternal(
 
     // Ownership: the entity controls itself for now (player proxies)
     p.ownerEntityID = entityID;
-    p.type = CoSyncEntityType::Player;
+    p.type = type;
+    p.spawnFlags = spawnFlags;
 
     CoSyncTransport::Send(SerializeEntityCreate(p));
 
     if (enqueueLocal)
         g_CoSyncPlayerManager.EnqueueEntityCreate(p);
 
-    LOG_INFO("[CoSyncNet] Host broadcast CREATE entity=%u base=0x%08X local=%d",
-        entityID, baseFormID, enqueueLocal ? 1 : 0);
+    LOG_INFO("[CoSyncNet] Host broadcast CREATE entity=%u base=0x%08X type=%u flags=0x%08X local=%d",
+        entityID, baseFormID, static_cast<uint32_t>(type), spawnFlags, enqueueLocal ? 1 : 0);
+}
+
+static void HostBroadcastPlayerCreate(
+    uint32_t entityID,
+    uint32_t baseFormID,
+    const NiPoint3& spawnPos,
+    const NiPoint3& spawnRot,
+    bool enqueueLocal)
+{
+    HostBroadcastCreateInternal(
+        entityID,
+        baseFormID,
+        CoSyncEntityType::Player,
+        EntityCreatePacket::HiddenOnSpawn | EntityCreatePacket::RemoteControlled,
+        spawnPos,
+        spawnRot,
+        enqueueLocal);
 }
 
 static void HostPublishHostCreateIfNeeded()
@@ -151,7 +171,7 @@ static void HostPublishHostCreateIfNeeded()
     const uint32_t hostEID = EntityIDFromSteamID(CoSyncNet::GetMySteamID());
 
     // Send to clients; do NOT spawn local proxy for host
-    HostBroadcastCreateInternal(
+    HostBroadcastPlayerCreate(
         hostEID,
         kRemotePlayerBaseForm,
         NiPoint3{ 0.f, 0.f, 0.f },
@@ -346,6 +366,40 @@ void CoSyncNet::SendMyEntityUpdate(
     CoSyncTransport::Send(SerializeEntityUpdate(u));
 }
 
+void CoSyncNet::HostBroadcastNpcCreate(
+    uint32_t entityID,
+    uint32_t baseFormID,
+    const NiPoint3& spawnPos,
+    const NiPoint3& spawnRot,
+    bool enqueueLocal)
+{
+    if (!s_isHost || !s_connected)
+        return;
+
+    HostBroadcastCreateInternal(
+        entityID,
+        baseFormID,
+        CoSyncEntityType::NPC,
+        EntityCreatePacket::RemoteControlled,
+        spawnPos,
+        spawnRot,
+        enqueueLocal);
+}
+
+void CoSyncNet::HostSpawnNpc(
+    uint32_t entityID,
+    uint32_t baseFormID,
+    const NiPoint3& spawnPos,
+    const NiPoint3& spawnRot)
+{
+    HostBroadcastNpcCreate(
+        entityID,
+        baseFormID,
+        spawnPos,
+        spawnRot,
+        true);
+}
+
 static void HostBroadcastUpdateInternal(EntityUpdatePacket u, double now)
 {
     // Host-authoritative timestamp
@@ -364,6 +418,8 @@ static void HostBroadcastUpdateInternal(EntityUpdatePacket u, double now)
 void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnection conn)
 {
     LOG_DEBUG("[CoSyncNet] RX RAW (conn=%u): %s", conn, msg.c_str());
+
+    const bool isHostRole = s_isHost || (s_pendingInit && s_pendingHostFlag);
 
     // ---------------- HELLO ----------------
     if (msg.rfind("HELLO|", 0) == 0)
@@ -390,26 +446,26 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
             peer.assignedEntityID = peerEID;
             peer.lastUpdateTime = now;
 
-            if (s_isHost && conn != k_HSteamNetConnection_Invalid)
+            if (isHostRole && conn != k_HSteamNetConnection_Invalid)
             {
                 s_connectionPeers[conn] = ConnectionPeer{ sid, peerEID };
             }
         }
 
-        if (s_isHost && conn != k_HSteamNetConnection_Invalid)
+        if (isHostRole && conn != k_HSteamNetConnection_Invalid)
         {
             LOG_INFO("[CoSyncNet] Host mapped conn=%u sid=%llu eid=%u",
                 conn, (unsigned long long)sid, peerEID);
 
         }
 
-        if (s_isHost)
+        if (isHostRole)
         {
             // Ensure host CREATE exists for this client (host proxy on clients)
             HostPublishHostCreateIfNeeded();
 
             // Broadcast peer CREATE and enqueue locally so host spawns proxy for client
-            HostBroadcastCreateInternal(
+            HostBroadcastPlayerCreate(
                 peerEID,
                 kRemotePlayerBaseForm,
                 NiPoint3{ 0.f, 0.f, 0.f },
@@ -428,7 +484,7 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
         if (!DeserializeEntityUpdate(msg, u))
             return;
 
-        if (s_isHost)
+        if (isHostRole)
         {
             LOG_WARN("[CoSyncNet] Dropping non-host NPC update entity=%u", u.entityID);
 
@@ -487,7 +543,7 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
 
 
     // ---------------- CREATE ----------------
-    if (!s_isHost && IsEntityCreate(msg))
+    if (!isHostRole && IsEntityCreate(msg))
     {
         EntityCreatePacket p{};
         if (DeserializeEntityCreate(msg, p))
