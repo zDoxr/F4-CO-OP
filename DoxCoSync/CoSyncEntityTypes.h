@@ -21,7 +21,5 @@ enum class CoSyncEntityType : uint8_t
     Player = 1,   // Remote human-controlled player
     NPC = 2,   // AI-controlled actor (host authoritative)
 
-    // Future-safe expansion (do not renumber existing values)
-    // Companion = 3,
-    // Creature  = 4,
+    
 };

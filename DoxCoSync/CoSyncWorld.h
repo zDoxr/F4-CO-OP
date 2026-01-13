@@ -16,5 +16,11 @@ extern RelocPtr<PlayerCharacter*> g_player;
 namespace CoSyncWorld
 {
     bool IsWorldReady();
+
+
 }
+
+
+
+
 

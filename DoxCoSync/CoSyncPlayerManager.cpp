@@ -1,10 +1,14 @@
 ﻿#include "CoSyncPlayerManager.h"
 
+#include "CoSyncTransport.h"
 #include "CoSyncPlayer.h"
 #include "ConsoleLogger.h"
 #include "CoSyncWorld.h"
 #include "CoSyncSpawnTasks.h"
+#include "EntitySerialization.h"
 #include "CoSyncEntityRegistry.h"
+#include "CoSyncEntityTypes.h"
+#include "CoSyncNet.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -21,11 +25,17 @@ CoSyncPlayerManager g_CoSyncPlayerManager;
 // -----------------------------------------------------------------------------
 static double NowSeconds()
 {
-    LARGE_INTEGER f{}, c{};
-    QueryPerformanceFrequency(&f);
+    static double s_freq = [] {
+        LARGE_INTEGER f{};
+        QueryPerformanceFrequency(&f);
+        return double(f.QuadPart);
+        }();
+
+    LARGE_INTEGER c{};
     QueryPerformanceCounter(&c);
-    return static_cast<double>(c.QuadPart) / static_cast<double>(f.QuadPart);
+    return double(c.QuadPart) / s_freq;
 }
+
 
 // -----------------------------------------------------------------------------
 // Network entry points
@@ -157,60 +167,65 @@ CoSyncPlayer& CoSyncPlayerManager::GetOrCreateByEntityID(uint32_t entityID)
 // -----------------------------------------------------------------------------
 void CoSyncPlayerManager::ProcessEntityCreate(const EntityCreatePacket& p)
 {
-    if (p.entityID == 0)
+    if (p.entityID == 0 || p.entityID == m_localEntityID)
         return;
 
-    if (p.entityID == m_localEntityID)
-    {
-        LOG_DEBUG("[PlayerMgr] Ignoring CREATE for local entity");
-        return;
-    }
+    CoSyncEntityState& st = GetOrCreateState(p.entityID);
 
-    // Record CREATE into state registry (F4MP style)
-    {
-        CoSyncEntityState& st = GetOrCreateState(p.entityID);
-        st.hasCreate = true;
-        st.lastCreate = p;
-        st.lastUpdateLocalTime = NowSeconds();
-    }
+    st.isLocallyOwned = (p.ownerEntityID == m_localEntityID);
 
-    // Queue for deferred spawn (≤1 per tick)
+    // Always remember last CREATE
+    st.lastCreate = p;
+    st.hasCreate = true;
+    st.lastUpdateLocalTime = NowSeconds(); // treat CREATE as “alive” signal
+
+    // NPC detection
+    st.isNPC = (p.type == CoSyncEntityType::NPC);
+
+
+    // Authority rule
+    st.hostAuthoritative = st.isNPC && CoSyncNet::IsHost();
+
+    // Queue spawn only once (avoid duplicates)
+    if (!st.spawnQueued)
     {
+        st.spawnQueued = true;
         std::lock_guard<std::mutex> lk(m_spawnMutex);
         m_pendingCreates.push_back(p);
-    }
 
-    LOG_INFO("[PlayerMgr] Queued CREATE for spawn entity=%u base=0x%08X",
-        p.entityID, p.baseFormID);
+        LOG_INFO("[PlayerMgr] Queued CREATE for spawn entity=%u base=0x%08X",
+            p.entityID, p.baseFormID);
+    }
 }
+
+
+
+
+
+
+
 
 // -----------------------------------------------------------------------------
 // UPDATE handling (NO SPAWN EVER)
 // -----------------------------------------------------------------------------
 void CoSyncPlayerManager::ProcessEntityUpdate(const EntityUpdatePacket& u)
 {
-    if (u.entityID == 0)
+    if (u.entityID == 0 || u.entityID == m_localEntityID)
         return;
 
-    if (u.entityID == m_localEntityID)
-        return;
+    CoSyncEntityState& st = GetOrCreateState(u.entityID);
 
-    // Record UPDATE into state registry (F4MP style)
-    {
-        CoSyncEntityState& st = GetOrCreateState(u.entityID);
-        st.hasUpdate = true;
-        st.lastUpdate = u;
-        //st.username = u.username;
-        st.lastUpdateLocalTime = NowSeconds();
-    }
+    // Update “alive” time even if create hasn’t arrived yet (good for re-ordering)
+    st.lastUpdateLocalTime = NowSeconds();
+    st.lastUpdate = u;
 
-    // Keep your existing behavior: cache update into proxy slot too.
-    // (Later we can make CoSyncPlayer read from CoSyncEntityState only.)
+    if (!st.hasCreate)
+        return; // keep state only until CREATE arrives
+
     CoSyncPlayer& player = GetOrCreateByEntityID(u.entityID);
     player.ApplyUpdate(u);
-
-
 }
+
 
 // -----------------------------------------------------------------------------
 // DESTROY handling (NO SPAWN EVER)
@@ -303,6 +318,60 @@ void CoSyncPlayerManager::PumpDeferredSpawns()
 
 }
 
+
+
+void CoSyncPlayerManager::HostSendNpcUpdates(double now)
+{
+    // host-only safeguard (callers can also gate)
+    if (!CoSyncNet::IsHost())
+        return;
+
+    static double s_lastSend = 0.0;
+    if (now - s_lastSend < 0.05) // 20 Hz
+        return;
+    s_lastSend = now;
+
+    for (auto& kv : m_playersByEntityID)
+    {
+        CoSyncPlayer& pl = *kv.second;
+        if (!pl.hasSpawned || !pl.actorRef)
+            continue;
+
+        // Determine entity type from state (authoritative)
+        auto it = m_statesByEntityID.find(pl.entityID);
+        if (it == m_statesByEntityID.end() || !it->second.hasCreate)
+            continue;
+
+        const CoSyncEntityState& st = it->second;
+        if (st.lastCreate.type != CoSyncEntityType::NPC)
+            continue;
+
+        // Only send for NPCs the host is simulating.
+        // Your test NPC uses RemoteControlled as "network-controlled on clients".
+        if (!EntityCreatePacket::HasFlag(st.lastCreate.spawnFlags, EntityCreatePacket::RemoteControlled))
+            continue;
+
+        EntityUpdatePacket u{};
+        u.entityID = pl.entityID;
+        u.pos = pl.actorRef->pos;
+        u.rot = pl.actorRef->rot;
+        u.vel = NiPoint3{ 0.f, 0.f, 0.f }; // optional; can compute later
+        u.timestamp = now;
+
+        CoSyncTransport::Send(SerializeEntityUpdate(u));
+
+        // Refresh local liveness so host doesn’t timeout its own NPC state
+        EnqueueEntityUpdate(u);
+    }
+}
+
+
+
+
+
+
+
+
 // -----------------------------------------------------------------------------
 // Per-frame tick (GAME THREAD)
 // -----------------------------------------------------------------------------
@@ -337,8 +406,17 @@ void CoSyncPlayerManager::HandleTimeouts(double now)
     for (const auto& kv : m_statesByEntityID)
     {
         const CoSyncEntityState& st = kv.second;
+
         if (st.entityID == 0 || st.entityID == m_localEntityID)
             continue;
+
+        // CRITICAL FIX:
+        if (!st.isLocallyOwned)
+            continue; // never timeout remote-owned entities
+
+        if (st.isNPC && CoSyncNet::IsHost())
+            continue; // host owns NPC lifetime
+
 
         if (st.lastUpdateLocalTime <= 0.0)
             continue;
@@ -346,6 +424,7 @@ void CoSyncPlayerManager::HandleTimeouts(double now)
         if ((now - st.lastUpdateLocalTime) > kEntityTimeoutSec)
             expired.push_back(st.entityID);
     }
+
 
     for (uint32_t entityID : expired)
         DespawnEntity(entityID, "timeout");

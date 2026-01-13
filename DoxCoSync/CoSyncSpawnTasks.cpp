@@ -7,6 +7,7 @@
 #include "CoSyncPlayerManager.h"
 #include "CoSyncPlayer.h"
 #include "CoSyncGameAPI.h"
+#include "CoSyncNet.h"
 
 #include "GameReferences.h"
 #include "GameForms.h"
@@ -68,18 +69,34 @@ public:
 
     void Run() override
     {
-        LOG_DEBUG("[SpawnTask] Run entity=%u base=0x%08X", m_entityID, m_baseFormID);
+        LOG_DEBUG(
+            "[SpawnTask] Run entity=%u base=0x%08X type=%u flags=0x%08X",
+            m_entityID,
+            m_baseFormID,
+            static_cast<uint32_t>(m_createType),
+            m_spawnFlags
+        );
 
-        CoSyncPlayer& pl = g_CoSyncPlayerManager.GetOrCreateByEntityID(m_entityID);
+        CoSyncPlayer& pl =
+            g_CoSyncPlayerManager.GetOrCreateByEntityID(m_entityID);
 
-        // Never double-spawn
+        // -----------------------------------------------------------------
+        // Safety: never double-spawn
+        // -----------------------------------------------------------------
         if (pl.hasSpawned && pl.actorRef)
             return;
 
+        // -----------------------------------------------------------------
+        // Resolve NPC base (players still use NPC base internally)
+        // -----------------------------------------------------------------
         TESNPC* npcBase = ResolveNPC(m_baseFormID);
         if (!npcBase)
         {
-            LOG_ERROR("[SpawnTask] BaseForm 0x%08X is not TESNPC", m_baseFormID);
+            LOG_ERROR(
+                "[SpawnTask] BaseForm 0x%08X is not TESNPC (entity=%u)",
+                m_baseFormID,
+                m_entityID
+            );
             return;
         }
 
@@ -90,29 +107,67 @@ public:
             return;
         }
 
+        // -----------------------------------------------------------------
         // Spawn actor
+        // -----------------------------------------------------------------
         if (!pl.SpawnInWorld(anchor, npcBase))
         {
-            LOG_ERROR("[SpawnTask] SpawnInWorld FAILED entity=%u", m_entityID);
+            LOG_ERROR(
+                "[SpawnTask] SpawnInWorld FAILED entity=%u",
+                m_entityID
+            );
             return;
         }
 
-        // Apply CREATE placement immediately (snap once)
-        // This ensures the proxy exists in-world at a deterministic transform
-        CoSyncGameAPI::PositionRemoteActor(pl.actorRef, m_spawnPos, m_spawnRot);
+        // -----------------------------------------------------------------
+        // Initial CREATE placement (single snap)
+        // -----------------------------------------------------------------
+        CoSyncGameAPI::PositionRemoteActor(
+            pl.actorRef,
+            m_spawnPos,
+            m_spawnRot
+        );
 
-        if (m_createType == CoSyncEntityType::NPC
-            && (m_spawnFlags & EntityCreatePacket::RemoteControlled))
+        // -----------------------------------------------------------------
+        // AI CONTROL RULES (FINAL / LOCKED)
+        //
+        //  ✔ NPC ONLY
+        //  ✔ HOST ONLY
+        //  ✔ CREATE-TIME ONLY
+        //  ✔ Controlled solely by spawnFlags
+        // -----------------------------------------------------------------
+
+        // Players NEVER have AI disabled
+        if (m_createType == CoSyncEntityType::Player)
         {
+            LOG_DEBUG(
+                "[SpawnTask] Entity=%u is Player — AI untouched",
+                m_entityID
+            );
+        }
+        else if (
+            !CoSyncNet::IsHost() &&                  // ✅ clients only
+            m_createType == CoSyncEntityType::NPC &&
+            EntityCreatePacket::HasFlag(
+                m_spawnFlags,
+                EntityCreatePacket::RemoteControlled))
+        {
+            LOG_INFO("[SpawnTask] Disabling AI for remote-controlled NPC entity=%u (client)", m_entityID);
             CoSyncGameAPI::DisableActorAI(pl.actorRef);
         }
+        else if (
+            CoSyncNet::IsHost() &&
+            m_createType == CoSyncEntityType::NPC)
+        {
+            LOG_INFO("[SpawnTask] Host NPC entity=%u (AI remains enabled)", m_entityID);
+        }
 
-        // IMPORTANT:
-        // Do NOT try to manage smoothing state here beyond seeding the
-        // player’s transform buffer via ApplyPendingTransformIfAny() / ApplyUpdate().
-        // If your CoSyncPlayer uses a transform buffer, the snap above is enough;
-        // subsequent UPDATEs will drive interpolation.
-        LOG_INFO("[SpawnTask] Spawn DONE entity=%u actor=%p", m_entityID, pl.actorRef);
+
+        LOG_INFO(
+            "[SpawnTask] Spawn DONE entity=%u actor=%p",
+            m_entityID,
+            pl.actorRef
+        );
     }
 
 private:
@@ -122,8 +177,6 @@ private:
     uint32_t m_spawnFlags;
     NiPoint3 m_spawnPos;
     NiPoint3 m_spawnRot;
-
-
 };
 
 // -----------------------------------------------------------------------------
@@ -132,7 +185,10 @@ private:
 void CoSyncSpawnTasks::Init(const F4SETaskInterface* taskInterface)
 {
     s_taskIFace = taskInterface;
-    LOG_INFO("[CoSyncSpawnTasks] Init taskIFace=%p", taskInterface);
+    LOG_INFO(
+        "[CoSyncSpawnTasks] Init taskIFace=%p",
+        taskInterface
+    );
 }
 
 void CoSyncSpawnTasks::EnqueueSpawn(
@@ -145,11 +201,20 @@ void CoSyncSpawnTasks::EnqueueSpawn(
 {
     if (!s_taskIFace || !s_taskIFace->AddTask)
     {
-        LOG_ERROR("[CoSyncSpawnTasks] Task interface unavailable");
+        LOG_ERROR(
+            "[CoSyncSpawnTasks] Task interface unavailable"
+        );
         return;
     }
 
     s_taskIFace->AddTask(
-        new SpawnRemotePlayerTask(entityID, baseFormID, createType, spawnFlags, spawnPos, spawnRot)
+        new SpawnRemotePlayerTask(
+            entityID,
+            baseFormID,
+            createType,
+            spawnFlags,
+            spawnPos,
+            spawnRot
+        )
     );
 }

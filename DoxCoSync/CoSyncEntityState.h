@@ -1,31 +1,37 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
 
 #include "Packets_EntityCreate.h"
 #include "Packets_EntityUpdate.h"
 
 // -----------------------------------------------------------------------------
 // CoSyncEntityState
-// F4MP-aligned: authoritative network state for an entity.
-// This is NOT a world object and must never touch the engine.
+//
+// Network-authoritative state for a remote entity.
+// Lives independently of whether a world proxy (Actor) exists yet.
+//
+// F4MP rules:
+//  - CREATE establishes existence
+//  - UPDATE refreshes lifetime + motion
+//  - Spawning happens ONLY via CREATE
 // -----------------------------------------------------------------------------
 struct CoSyncEntityState
 {
     uint32_t entityID = 0;
 
-    // Identity / debug
-    std::string username;
+    // Lifecycle
+    bool hasCreate = false;      // CREATE packet received
+    bool spawnQueued = false;    // CREATE queued into spawn system (CRITICAL)
+    bool isLocallyOwned = false;
 
-    // Last known CREATE data (if ever received)
-    bool hasCreate = false;
+    bool isNPC = false;         
+    bool hostAuthoritative = false;
+
+    // Last known packets
     EntityCreatePacket lastCreate{};
-
-    // Last known UPDATE data (may exist before CREATE)
-    bool hasUpdate = false;
     EntityUpdatePacket lastUpdate{};
 
-    // Simple timing/telemetry
-    double lastUpdateLocalTime = 0.0; // local clock (game thread)
+    // Liveness tracking (local time, seconds)
+    double lastUpdateLocalTime = 0.0;
 };

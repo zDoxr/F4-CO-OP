@@ -7,6 +7,7 @@
 #include "NiTypes.h"
 #include "LocalPlayerState.h"
 #include "steam/SteamNetworkingSockets.h"
+#include <Windows.h>
 
 // -----------------------------------------------------------------------------
 // CoSyncNet
@@ -128,4 +129,21 @@ public:
     // -------------------------------------------------------------------------
     static void OnGNSConnected();
     static void OnGNSDisconnected();
+
+
+
+
+
+    static double NowSeconds()
+    {
+        static double freq = [] {
+            LARGE_INTEGER f;
+            QueryPerformanceFrequency(&f);
+            return double(f.QuadPart);
+            }();
+
+        LARGE_INTEGER c;
+        QueryPerformanceCounter(&c);
+        return double(c.QuadPart) / freq;
+    }
 };

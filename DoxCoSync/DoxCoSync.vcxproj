@@ -188,6 +188,7 @@
     <ClInclude Include="CoSyncPlayer.h" />
     <ClInclude Include="CoSyncPlayerManager.h" />
     <ClInclude Include="CoSyncPlayerSpawner.h" />
+    <ClInclude Include="CoSyncRuntime.h" />
     <ClInclude Include="CoSyncSpawnTasks.h" />
     <ClInclude Include="CoSyncSteam.h" />
     <ClInclude Include="CoSyncSteamManager.h" />
@@ -276,6 +277,7 @@
     <ClCompile Include="CoSyncPlayer.cpp" />
     <ClCompile Include="CoSyncPlayerManager.cpp" />
     <ClCompile Include="CoSyncPlayerSpawner.cpp" />
+    <ClCompile Include="CoSyncRuntime.cpp" />
     <ClCompile Include="CoSyncSpawnTasks.cpp" />
     <ClCompile Include="CoSyncSteam.cpp" />
     <ClCompile Include="CoSyncSteamManager.cpp" />

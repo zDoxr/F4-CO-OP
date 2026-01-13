@@ -22,9 +22,15 @@ namespace CoSyncWorld
         if (cell->formID == 0)
             return false;
 
-        // Exterior cells must have a worldspace
-        if (!CALL_MEMBER_FN(pc, GetWorldspace)())
-            return false;
+        // IMPORTANT:
+        // Interiors often have no worldspace, so do NOT fail readiness just because GetWorldspace() is null.
+        // We only require worldspace if the cell is exterior.
+        //if (cell->IsInterior() == false)
+        //{
+            // Exterior: must have a worldspace
+          //  if (!CALL_MEMBER_FN(pc, GetWorldspace)())
+            //    return false;
+        //}
 
         return true;
     }

@@ -57,6 +57,9 @@ public:
     void EnqueueEntityUpdate(const EntityUpdatePacket& p);
     void EnqueueEntityDestroy(const EntityDestroyPacket& p);
 
+    void HostSendNpcUpdates(double now);
+
+
     // Game-thread processing
     void ProcessInbox();
     void Tick();

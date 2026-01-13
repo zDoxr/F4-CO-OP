@@ -10,6 +10,7 @@
 #include "imgui.h"
 #include "imgui_impl_dx11.h"
 #include "imgui_impl_win32.h"
+#include "CoSyncRuntime.h"
 
 #include "GNS_Session.h"  // <<< NEW: so we can tick networking every frame
 
@@ -184,6 +185,8 @@ static HRESULT __stdcall HookedPresent(IDXGISwapChain* pSwapChain, UINT SyncInte
 
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
     }
+
+    CoSyncRuntime_TickGameThread();
 
     GNS_Session::Get().Tick();
     

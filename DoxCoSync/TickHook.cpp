@@ -38,15 +38,15 @@ static NiPoint3 g_prevPos{ 0.f, 0.f, 0.f };
 // -----------------------------------------------------------------------------
 static double GetNowSeconds()
 {
-    LARGE_INTEGER f{}, c{};
-    QueryPerformanceFrequency(&f);
-    QueryPerformanceCounter(&c);
-    return double(c.QuadPart) / double(f.QuadPart);
-}
+    static double s_freq = [] {
+        LARGE_INTEGER f{};
+        QueryPerformanceFrequency(&f);
+        return double(f.QuadPart);
+        }();
 
-static float LengthSq(const NiPoint3& v)
-{
-    return v.x * v.x + v.y * v.y + v.z * v.z;
+    LARGE_INTEGER c{};
+    QueryPerformanceCounter(&c);
+    return double(c.QuadPart) / s_freq;
 }
 
 // -----------------------------------------------------------------------------
@@ -57,6 +57,7 @@ static __int64 __fastcall ActorUpdate_Hook(
     void* arg2,
     void* arg3)
 {
+    // Call original FIRST (engine safety)
     __int64 result =
         g_ActorUpdate_Original
         ? g_ActorUpdate_Original(actor, arg2, arg3)
@@ -71,16 +72,18 @@ static __int64 __fastcall ActorUpdate_Hook(
 
     const double now = GetNowSeconds();
 
-    // Deferred init (safe)
+    // ---------------------------------------------------------
+    // CRITICAL: Networking ticks MUST ALWAYS RUN
+    // ---------------------------------------------------------
     if (!CoSyncNet::IsInitialized())
         CoSyncNet::PerformPendingInit();
-    if (!CoSyncNet::IsConnected())
-		return result;
-    else 
-		CoSyncNet::Tick(now);
 
-    // Bind local entity ID ONCE
-    if (!g_localEntityBound)
+    CoSyncNet::Tick(now);
+
+    // ---------------------------------------------------------
+    // Bind local entity ONCE (DO NOT gate Tick)
+    // ---------------------------------------------------------
+    if (!g_localEntityBound && CoSyncNet::IsConnected())
     {
         g_localEntityID = CoSyncNet::GetMyEntityID();
         g_localEntityBound = true;
@@ -91,7 +94,9 @@ static __int64 __fastcall ActorUpdate_Hook(
         );
     }
 
-    // World validity checks
+    // ---------------------------------------------------------
+    // World validity checks (movement only)
+    // ---------------------------------------------------------
     if (!actor->parentCell || actor->parentCell->formID == 0)
         return result;
 
@@ -104,7 +109,9 @@ static __int64 __fastcall ActorUpdate_Hook(
     if (pos.x == 0.f && pos.y == 0.f && pos.z == 0.f)
         return result;
 
+    // ---------------------------------------------------------
     // Velocity
+    // ---------------------------------------------------------
     NiPoint3 vel{ 0.f, 0.f, 0.f };
     if (g_hasPrevPos)
     {
@@ -121,7 +128,9 @@ static __int64 __fastcall ActorUpdate_Hook(
     g_prevTime = now;
     g_hasPrevPos = true;
 
-    // Populate local state (diagnostic + future use)
+    // ---------------------------------------------------------
+    // Populate local state
+    // ---------------------------------------------------------
     g_localPlayerState.timestamp = now;
     g_localPlayerState.position = pos;
     g_localPlayerState.rotation = rot;
@@ -130,7 +139,9 @@ static __int64 __fastcall ActorUpdate_Hook(
     g_localPlayerState.formID = actor->formID;
     g_localPlayerState.cellFormID = actor->parentCell->formID;
 
+    // ---------------------------------------------------------
     // Network send (CLIENT → HOST)
+    // ---------------------------------------------------------
     if (CoSyncNet::IsConnected())
     {
         if (now - g_lastNetSendTime >= 0.05) // ~20 Hz

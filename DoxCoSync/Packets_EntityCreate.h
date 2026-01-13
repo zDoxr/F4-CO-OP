@@ -11,17 +11,22 @@
 // Sent HOST → ALL
 // Defines the existence of an entity.
 // This is the ONLY packet that may cause spawning.
+//
+// IMPORTANT:
+//  - Host is authoritative for ALL fields in this packet
+//  - Clients MUST NOT reinterpret or mutate CREATE semantics
 // -----------------------------------------------------------------------------
 struct EntityCreatePacket
 {
     // -----------------------------------------------------------------
-    // Identity
+    // Identity (HOST-AUTHORITATIVE)
     // -----------------------------------------------------------------
 
-    // Unique authoritative ID (assigned by host)
+    // Unique authoritative entity ID (assigned by host)
     uint32_t entityID = 0;
 
-    // What kind of entity this is (Player / NPC / etc.)
+    // Entity classification (Player / NPC / etc.)
+    // MUST be trusted exactly as sent by host
     CoSyncEntityType type = CoSyncEntityType::Player;
 
     // ActorBase / NPC_ form ID used for spawning
@@ -32,9 +37,8 @@ struct EntityCreatePacket
     uint32_t ownerEntityID = 0;
 
     // -----------------------------------------------------------------
-    // Spawn behavior flags (F4MP-aligned)
+    // Spawn behavior flags (bitmask, HOST-AUTHORITATIVE)
     // -----------------------------------------------------------------
-
     enum SpawnFlags : uint32_t
     {
         None = 0,
@@ -43,13 +47,22 @@ struct EntityCreatePacket
         Persistent = 1 << 2, // do not auto-despawn
     };
 
+    // Default semantics:
+    //  - Remote-controlled proxy
+    //  - Hidden until first authoritative UPDATE
     uint32_t spawnFlags = HiddenOnSpawn | RemoteControlled;
+
+    // Helper (optional but recommended)
+    static bool HasFlag(uint32_t flags, SpawnFlags f)
+    {
+        return (flags & static_cast<uint32_t>(f)) != 0;
+    }
 
     // -----------------------------------------------------------------
     // Initial spawn transform (ENGINE NATIVE)
-    // NOTE:
-    //  - Used only for initial placement
-    //  - UPDATE packets take over after spawn
+    //
+    // Used ONLY for initial placement.
+    // UPDATE packets take over movement after spawn.
     // -----------------------------------------------------------------
 
     // Position in world space
@@ -59,7 +72,7 @@ struct EntityCreatePacket
     NiPoint3 spawnRot{ 0.f, 0.f, 0.f };
 
     // -----------------------------------------------------------------
-    // Reserved (future-proofing)
+    // Reserved (future-proofing; must be preserved if serialized)
     // -----------------------------------------------------------------
     uint32_t reserved0 = 0;
     uint32_t reserved1 = 0;
