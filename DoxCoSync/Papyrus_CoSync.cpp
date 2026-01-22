@@ -16,6 +16,7 @@
 #include "Logger.h"
 #include "CoSyncNet.h"            // CoSyncNet()
 #include "GNS_Session.h"
+#include "CoSyncLocalPlayer.h"
 
 #include <cmath>                  // atan2f
 
@@ -37,10 +38,10 @@ using PapyrusActionType = TESForm*;
 static SInt32 CoSync_GetClientInstanceID(StaticFunctionTag*)
 {
     // For now: use lower 32 bits of our ID as a “client instance id”
-    
-    
-	return 0;
-    
+
+
+    return 0;
+
 }
 
 
@@ -55,7 +56,7 @@ static bool CoSync_IsConnected(StaticFunctionTag*)
 {
     const bool connected = CoSyncNet::IsConnected();
     Console_Print("[CoSync] IsConnected() -> %s", connected ? "true" : "false");
-	LOG_DEBUG("[Papy-CoSync] IsConnected() -> %s", connected ? "true" : "false");
+    LOG_DEBUG("[Papy-CoSync] IsConnected() -> %s", connected ? "true" : "false");
     return connected;
 }
 
@@ -73,13 +74,13 @@ static bool CoSync_Connect(
         player, playerActorBase, address.c_str(), port);
 
     LOG_DEBUG("[Papy-CoSync] Connect(player=%p base=%p addr=%s port=%d) -> false (stub)",
-		player, playerActorBase, address.c_str(), port);
+        player, playerActorBase, address.c_str(), port);
     return false;
 }
 
 static bool CoSync_Disconnect(StaticFunctionTag*)
 {
-	
+
     Console_Print("[CoSync] Disconnect() -> true (stub)");
     return true;
 }
@@ -97,8 +98,9 @@ static void CoSync_SyncWorld(StaticFunctionTag*)
 
 static SInt32 CoSync_GetPlayerEntityID(StaticFunctionTag*)
 {
-    Console_Print("[CoSync] GetPlayerEntityID() -> -1 (stub)");
-    return -1;
+    const SInt32 entityID = static_cast<SInt32>(CoSyncNet::GetMyEntityID());
+    LOG_DEBUG("[Papy-CoSync] GetPlayerEntityID() -> %d", entityID);
+    return entityID;
 }
 
 static SInt32 CoSync_GetEntityID(StaticFunctionTag*, TESObjectREFR* ref)

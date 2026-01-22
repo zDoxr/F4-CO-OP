@@ -23,7 +23,7 @@ static double NowSeconds()
     return static_cast<double>(c.QuadPart) / static_cast<double>(f.QuadPart);
 }
 
-// Render slightly in the past to absorb jitter
+// Render slightly in the past to absorb jitter (players only)
 static constexpr double kInterpDelay = 0.10;
 
 // -----------------------------------------------------------------------------
@@ -64,6 +64,7 @@ bool CoSyncPlayer::SpawnInWorld(TESObjectREFR* anchor, TESNPC* npcBase)
     actorRef = actor;
     g_CoSyncEntities.Register(entityID, actorRef);
 
+    // Reset smoothing state
     m_tfBuffer.clear();
     m_lastHostTime = 0.0;
     m_lastRecvLocalTime = NowSeconds();
@@ -71,6 +72,7 @@ bool CoSyncPlayer::SpawnInWorld(TESObjectREFR* anchor, TESNPC* npcBase)
 
     hasSpawned = true;
 
+    // First snap if a transform arrived before spawn
     if (hasPendingTransform)
         ApplyPendingTransformIfAny();
 
@@ -94,6 +96,20 @@ void CoSyncPlayer::ApplyUpdate(const EntityUpdatePacket& u)
     if (!hasSpawned || !actorRef)
         return;
 
+    // -----------------------------------------------------------------
+    // F4MP-aligned NPC rule:
+    //   - NO smoothing
+    //   - NO interpolation
+    //   - Apply immediately via engine-safe move
+    // -----------------------------------------------------------------
+    if (createType == CoSyncEntityType::NPC)
+    {
+        CoSyncGameAPI::PositionRemoteActor(actorRef, u.pos, u.rot);
+        hasPendingTransform = false;
+        return;
+    }
+
+    // Ignore out-of-order timestamps once we have a stream
     if (m_hasAny && u.timestamp < m_lastHostTime)
         return;
 
@@ -112,15 +128,24 @@ void CoSyncPlayer::ApplyUpdate(const EntityUpdatePacket& u)
 }
 
 // -----------------------------------------------------------------------------
-// First snap
+// First snap (and update-before-spawn)
 // -----------------------------------------------------------------------------
 void CoSyncPlayer::ApplyPendingTransformIfAny()
 {
     if (!hasSpawned || !actorRef || !hasPendingTransform)
         return;
 
+    // Engine-safe movement only (no actor->pos writes)
     CoSyncGameAPI::PositionRemoteActor(actorRef, pendingPos, pendingRot);
 
+    // NPCs never maintain an interpolation buffer
+    if (createType == CoSyncEntityType::NPC)
+    {
+        hasPendingTransform = false;
+        return;
+    }
+
+    // Seed interpolation buffer with the snapped transform for players
     m_tfBuffer.clear();
 
     NetTransform tf{};
@@ -137,11 +162,20 @@ void CoSyncPlayer::ApplyPendingTransformIfAny()
 }
 
 // -----------------------------------------------------------------------------
-// Per-frame smoothing
+// Per-frame smoothing (players only)
 // -----------------------------------------------------------------------------
 void CoSyncPlayer::TickSmoothing(double now)
 {
-    if (!hasSpawned || !actorRef || m_tfBuffer.size() < 2)
+    (void)now;
+
+    if (!hasSpawned || !actorRef)
+        return;
+
+    // NPCs must NEVER be smoothed or interpolated (F4MP-aligned)
+    if (createType == CoSyncEntityType::NPC)
+        return;
+
+    if (m_tfBuffer.size() < 2)
         return;
 
     const double renderTime = m_lastHostTime - kInterpDelay;
@@ -166,16 +200,9 @@ void CoSyncPlayer::TickSmoothing(double now)
     if (t < 0.0) t = 0.0;
     if (t > 1.0) t = 1.0;
 
-    NiPoint3 pos = Lerp(a.pos, b.pos, t);
-    NiPoint3 rot = Lerp(a.rot, b.rot, t);
+    const NiPoint3 pos = Lerp(a.pos, b.pos, t);
+    const NiPoint3 rot = Lerp(a.rot, b.rot, t);
 
-    UInt32 dummy = 0;
-    MoveRefrToPosition(
-        actorRef,
-        &dummy,
-        actorRef->parentCell,
-        nullptr,
-        &pos,
-        &rot
-    );
+    // Always route through engine-safe wrapper
+    CoSyncGameAPI::PositionRemoteActor(actorRef, pos, rot);
 }

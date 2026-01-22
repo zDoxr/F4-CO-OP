@@ -2,20 +2,20 @@
 
 #include <cstdint>
 #include "NiTypes.h"
-#include "PluginAPI.h"
-#include "Packets_EntityCreate.h"
+#include "CoSyncEntityTypes.h"
+
+// Provided by F4SE (Tasks.h)
+struct F4SETaskInterface;
 
 namespace CoSyncSpawnTasks
 {
-    // Must be called once during plugin init
     void Init(const F4SETaskInterface* taskInterface);
 
-    // Safe to call from ANY thread
     void EnqueueSpawn(
         uint32_t entityID,
         uint32_t baseFormID,
         CoSyncEntityType createType,
-        uint32_t spawnFlags,
+        uint32_t spawnFlags,          // kept for signature compatibility
         const NiPoint3& spawnPos,
         const NiPoint3& spawnRot
     );

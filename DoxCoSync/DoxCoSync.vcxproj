@@ -155,7 +155,7 @@
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <AdditionalIncludeDirectories>C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include;C:\Users\hotto\Desktop\CoSync\Testing\f4se\f4se;C:\Users\hotto\Desktop\CoSync\Testing\f4se\f4se_common;C:\Users\hotto\Desktop\CoSync\Testing\common\common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\ImGui;$(ProjectDir)ThirdParty\MinHook\Include;C:\Users\hotto\Desktop\CoSync\Testing\f4se\xbyak;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp14</LanguageStandard>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <DisableSpecificWarnings>4996;4244;4100;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
@@ -169,10 +169,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameInput.h" />
+    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameRTTI.h" />
     <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameUtilities.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\Hooks_Threads.h" />
+    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\NiTypes.h" />
     <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusArgs.h" />
     <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se_common\Utilities.h" />
     <ClInclude Include="ConsoleLogger.h" />
@@ -181,10 +184,12 @@
     <ClInclude Include="CoSyncEntityState.h" />
     <ClInclude Include="CoSyncEntityTypes.h" />
     <ClInclude Include="CoSyncGameAPI.h" />
+    <ClInclude Include="CoSynclocalplayer.h" />
     <ClInclude Include="CoSyncMessageHelpers.h" />
     <ClInclude Include="CoSyncMessageTypes.h" />
     <ClInclude Include="CoSyncNet.h" />
     <ClInclude Include="CoSyncOverlay.h" />
+    <ClInclude Include="CoSyncPapyrushelper.h" />
     <ClInclude Include="CoSyncPlayer.h" />
     <ClInclude Include="CoSyncPlayerManager.h" />
     <ClInclude Include="CoSyncPlayerSpawner.h" />
@@ -251,11 +256,13 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameObjects.cpp" />
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameRTTI.cpp" />
     <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameTypes.cpp" />
     <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameUtilities.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\Hooks_Threads.cpp" />
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\NiTypes.cpp" />
     <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusArgs.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
@@ -272,8 +279,10 @@
     <ClCompile Include="CoSyncEntityState.cpp" />
     <ClCompile Include="CoSyncGame.cpp" />
     <ClCompile Include="CoSyncGameAPI.cpp" />
+    <ClCompile Include="CoSynclocalplayer.cpp" />
     <ClCompile Include="CoSyncNet.cpp" />
     <ClCompile Include="CoSyncOverlay.cpp" />
+    <ClCompile Include="CoSyncPapyrushelper.cpp" />
     <ClCompile Include="CoSyncPlayer.cpp" />
     <ClCompile Include="CoSyncPlayerManager.cpp" />
     <ClCompile Include="CoSyncPlayerSpawner.cpp" />
@@ -295,6 +304,7 @@
     <ClCompile Include="IniReader.cpp" />
     <ClCompile Include="LocalPlayerState.cpp" />
     <ClCompile Include="LocalPlayerStateGlobals.cpp" />
+    <ClCompile Include="PapyrusNoWaitReloc.cpp" />
     <ClCompile Include="Papyrus_CoSync.cpp" />
     <ClCompile Include="PlayerStatePacket.cpp" />
     <ClCompile Include="SteamDiagnostics.cpp" />
@@ -313,6 +323,7 @@
     <ClCompile Include="TickHook.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameRTTI.inl" />
     <None Include="ThirdParty\GNS\Bin\abseil_dll.dll" />
     <None Include="ThirdParty\GNS\Bin\GameNetworkingSockets.dll" />
     <None Include="ThirdParty\GNS\Bin\libcrypto-3-x64.dll" />

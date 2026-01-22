@@ -12,7 +12,7 @@ namespace
     bool s_isHost = false;
 
     CoSyncTransport::ReceiveCallback   s_receiveCallback;
-    CoSyncTransport::ConnectedCallback s_connectedCallback; // NEW
+    CoSyncTransport::ConnectedCallback s_connectedCallback;
 
     // Thread-safe inbound queue (network thread -> game thread)
     std::mutex s_inboxMutex;
@@ -24,7 +24,8 @@ namespace
     // Hard safety cap to prevent runaway memory usage if something floods.
     constexpr size_t kInboxHardCap = 4096;
 
-    bool s_connectionNotified = false; // NEW (fire once)
+    // Connection edge tracking (rising edge)
+    bool s_wasConnected = false;
 }
 
 // -----------------------------------------------------------------------------
@@ -40,7 +41,7 @@ bool CoSyncTransport::InitAsHost()
 
     s_initialized = true;
     s_isHost = true;
-    s_connectionNotified = false;
+    s_wasConnected = false;
 
     {
         std::lock_guard<std::mutex> lk(s_inboxMutex);
@@ -61,7 +62,7 @@ bool CoSyncTransport::InitAsClient(const std::string& connectStr)
 
     s_initialized = true;
     s_isHost = false;
-    s_connectionNotified = false;
+    s_wasConnected = false;
 
     {
         std::lock_guard<std::mutex> lk(s_inboxMutex);
@@ -82,8 +83,8 @@ void CoSyncTransport::Shutdown()
     s_initialized = false;
     s_isHost = false;
     s_receiveCallback = nullptr;
-    s_connectedCallback = nullptr; // NEW
-    s_connectionNotified = false;
+    s_connectedCallback = nullptr;
+    s_wasConnected = false;
 
     {
         std::lock_guard<std::mutex> lk(s_inboxMutex);
@@ -152,7 +153,7 @@ void CoSyncTransport::SetReceiveCallback(ReceiveCallback fn)
     LOG_INFO("[Transport] Receive callback set");
 }
 
-void CoSyncTransport::SetConnectedCallback(ConnectedCallback fn) // NEW
+void CoSyncTransport::SetConnectedCallback(ConnectedCallback fn)
 {
     s_connectedCallback = std::move(fn);
     LOG_INFO("[Transport] Connected callback set");
@@ -168,14 +169,23 @@ void CoSyncTransport::Tick(double now)
 
     GNS_Session::Get().Tick();
 
-    // Detect connection once
-    if (!s_connectionNotified && GNS_Session::Get().IsConnected()) // NEW
+    // Edge-triggered connection notification:
+    // fire when IsConnected transitions false -> true.
+    const bool connectedNow = GNS_Session::Get().IsConnected();
+
+    if (connectedNow && !s_wasConnected)
     {
-        s_connectionNotified = true;
-        LOG_INFO("[Transport] Connection established");
+        s_wasConnected = true;
+        LOG_INFO("[Transport] Connection established (edge)");
 
         if (s_connectedCallback)
             s_connectedCallback();
+    }
+    else if (!connectedNow && s_wasConnected)
+    {
+        // Reset so we can notify again after a reconnect.
+        s_wasConnected = false;
+        LOG_INFO("[Transport] Connection lost (edge)");
     }
 
     std::deque<InboxMessage> drained;
@@ -199,7 +209,7 @@ void CoSyncTransport::Tick(double now)
     if (now - s_lastTickLog > 1.0)
     {
         s_lastTickLog = now;
-        LOG_DEBUG("[CoSyncTransport] Tick (inbox=%zu)", count);
+        LOG_DEBUG("[CoSyncTransport] Tick (drained=%zu connected=%d)", count, connectedNow ? 1 : 0);
     }
 }
 

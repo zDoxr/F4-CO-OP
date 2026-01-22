@@ -152,8 +152,10 @@ static __int64 __fastcall ActorUpdate_Hook(
                 g_localEntityID,
                 pos,
                 rot,
-                vel
+                vel,
+                now // Add any additional required arguments here
             );
+
         }
     }
 

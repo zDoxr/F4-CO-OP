@@ -4,8 +4,8 @@
 #include "Relocation.h"
 
 #include "GameForms.h"
-#include "GameObjects.h"
 #include "GameReferences.h"
+#include "GameObjects.h"
 #include "GameUtilities.h"
 #include "PapyrusEvents.h"
 #include "PapyrusVM.h"
@@ -13,22 +13,17 @@
 extern RelocPtr<PlayerCharacter*> g_player;
 extern RelocPtr<GameVM*>          g_gameVM;
 extern RelocAddr<_PlaceAtMe_Native> PlaceAtMe_Native;
-RelocAddr<_CallFunctionNoWait> CallFunctionNoWait_Internal(0x01132340);
 
 // -----------------------------------------------------------------------------
 // Helpers
 // -----------------------------------------------------------------------------
-static TESObjectREFR* GetPlayerRef()
+static Actor* GetPlayerActor()
 {
-    PlayerCharacter* pc = *g_player;
-    return pc ? static_cast<TESObjectREFR*>(pc) : nullptr;
+    return *g_player;
 }
 
 // -----------------------------------------------------------------------------
 // SpawnRemoteActor — F4MP-aligned
-//   - Uses PlaceAtMe native (Papyrus)
-//   - Does NOT move/position beyond engine defaults
-//   - Caller is responsible for first placement
 // -----------------------------------------------------------------------------
 Actor* CoSyncGameAPI::SpawnRemoteActor(TESNPC* npcBase)
 {
@@ -38,50 +33,40 @@ Actor* CoSyncGameAPI::SpawnRemoteActor(TESNPC* npcBase)
         return nullptr;
     }
 
-    TESObjectREFR* anchor = GetPlayerRef();
-    if (!anchor)
+    Actor* player = GetPlayerActor();
+    if (!player)
     {
-        LOG_WARN("[CoSyncGameAPI] SpawnRemoteActor: anchor missing");
+        LOG_WARN("[CoSyncGameAPI] SpawnRemoteActor: player missing");
         return nullptr;
     }
 
     GameVM* gameVM = *g_gameVM;
-    if (!gameVM)
+    if (!gameVM || !gameVM->m_virtualMachine)
     {
         LOG_ERROR("[CoSyncGameAPI] SpawnRemoteActor: GameVM missing");
         return nullptr;
     }
 
     VirtualMachine* vm = gameVM->m_virtualMachine;
-    if (!vm)
-    {
-        LOG_ERROR("[CoSyncGameAPI] SpawnRemoteActor: VirtualMachine missing");
-        return nullptr;
-    }
-
     TESForm* form = static_cast<TESForm*>(npcBase);
 
     TESObjectREFR* spawned = (*PlaceAtMe_Native)(
         vm,
-        0,          // stackId (unused here)
-        &anchor,    // target
-        form,       // base form
-        1,          // count
-        true,       // bForcePersist
-        false,      // bInitiallyDisabled
-        false       // bDeleteWhenAble
+        0,
+        reinterpret_cast<TESObjectREFR**>(&player),
+        form,
+        1,
+        true,   // force persist
+        false,  // not disabled
+        false
         );
 
-    if (!spawned)
+    if (!spawned || spawned->formType != Actor::kTypeID)
     {
-        LOG_ERROR("[CoSyncGameAPI] SpawnRemoteActor: PlaceAtMe failed (base=0x%08X)", npcBase->formID);
-        return nullptr;
-    }
-
-    if (spawned->formType != Actor::kTypeID)
-    {
-        LOG_ERROR("[CoSyncGameAPI] SpawnRemoteActor: spawned formType=%u is not Actor (base=0x%08X)",
-            (uint32_t)spawned->formType, npcBase->formID);
+        LOG_ERROR(
+            "[CoSyncGameAPI] PlaceAtMe failed (base=0x%08X)",
+            npcBase->formID
+        );
         return nullptr;
     }
 
@@ -89,10 +74,7 @@ Actor* CoSyncGameAPI::SpawnRemoteActor(TESNPC* npcBase)
 }
 
 // -----------------------------------------------------------------------------
-// PositionRemoteActor — F4MP-aligned
-//   IMPORTANT:
-//     Do NOT write actor->pos/rot directly.
-//     Use engine move to keep internal state coherent.
+// PositionRemoteActor
 // -----------------------------------------------------------------------------
 void CoSyncGameAPI::PositionRemoteActor(
     Actor* actor,
@@ -104,7 +86,6 @@ void CoSyncGameAPI::PositionRemoteActor(
 
     UInt32 dummyHandle = 0;
 
-    // F4SE signature is not const-correct; cast is intentional and safe
     MoveRefrToPosition(
         actor,
         &dummyHandle,
@@ -115,9 +96,24 @@ void CoSyncGameAPI::PositionRemoteActor(
     );
 }
 
+// -----------------------------------------------------------------------------
+// GetActorWorldTransform
+// -----------------------------------------------------------------------------
+bool CoSyncGameAPI::GetActorWorldTransform(
+    Actor* actor,
+    NiPoint3& outPos,
+    NiPoint3& outRot)
+{
+    if (!actor)
+        return false;
+
+    outPos = NiPoint3(actor->pos.x, actor->pos.y, actor->pos.z);
+    outRot = NiPoint3(actor->rot.x, actor->rot.y, actor->rot.z);
+    return true;
+}
 
 // -----------------------------------------------------------------------------
-// AI control (Papyrus - no wait)
+// AI control (Papyrus no-wait)
 // -----------------------------------------------------------------------------
 void CoSyncGameAPI::DisableActorAI(Actor* actor)
 {
@@ -136,7 +132,3 @@ void CoSyncGameAPI::EnableActorAI(Actor* actor)
     VMArray<VMVariable> args;
     CallFunctionNoWait(actor, BSFixedString("EnableAI"), args);
 }
-
-
-
-

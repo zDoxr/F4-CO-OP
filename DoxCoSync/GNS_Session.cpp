@@ -356,22 +356,28 @@ void GNS_Session::ProcessMessagesOnPollGroup()
 
     for (int i = 0; i < count; i++)
     {
+        ISteamNetworkingMessage* m = msgs[i];
+        if (!m)
+            continue;
+
+        const HSteamNetConnection conn = m->m_conn;
+
         std::string text(
-            reinterpret_cast<char*>(msgs[i]->m_pData),
-            static_cast<size_t>(msgs[i]->m_cbSize)
+            reinterpret_cast<const char*>(m->m_pData),
+            static_cast<size_t>(m->m_cbSize)
         );
 
-
-        const HSteamNetConnection conn = msgs[i]->m_conn;
-        msgs[i]->Release();
-
+        m->Release();
 
         uint64_t sid = 0;
         if (ParseHelloSteamID(text, sid) && conn != k_HSteamNetConnection_Invalid)
             m_peerSteamIDs[conn] = sid;
-        CoSyncTransport::ForwardMessage(text, msgs[i]->m_conn);
+
+        CoSyncTransport::ForwardMessage(text, conn);
     }
 }
+
+
 
 // -----------------------------
 // Connection status callback
@@ -411,23 +417,24 @@ void GNS_Session::HandleConnectionStatusChanged(const SteamNetConnectionStatusCh
             {
                 m_connected = true;
                 LOG_INFO("[GNS] Client connected!");
-                CoSyncNet::OnGNSConnected();
+                // IMPORTANT: do NOT call CoSyncNet::OnGNSConnected() here.
+                // Transport detects IsConnected() edge and notifies once.
             }
         }
         else if (m_role == GNSRole::Host)
         {
-            // Promote this conn to the connected set
             Host_PromoteToConnected(info->m_hConn);
 
-            // Host session becomes "connected" when first client reaches Connected state
             if (!m_connected)
             {
                 m_connected = true;
                 LOG_INFO("[GNS] Host has at least one CONNECTED client!");
-                CoSyncNet::OnGNSConnected();
+                // IMPORTANT: do NOT call CoSyncNet::OnGNSConnected() here.
             }
         }
         break;
+
+
 
     case k_ESteamNetworkingConnectionState_ClosedByPeer:
     case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:

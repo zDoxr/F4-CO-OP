@@ -2,6 +2,7 @@
 #include "ConsoleLogger.h"
 #include "GNS_Session.h"
 #include "CoSyncNet.h"
+#include "CoSyncPapyrusHelper.h"
 
 #include "CoSyncTransport.h"
 #include "GNS_Core.h"
@@ -40,6 +41,10 @@ namespace f4mp
 
         initialized.store(true);
         LOG_INFO("[MAIN] CoSync Init OK");
+
+        // Initialize Papyrus helper
+        CoSyncPapyrusHelper::Init();
+		LOG_DEBUG("[MAIN] Papyrus Helper initialized");
     }
 
     // ------------------------------------------------------------

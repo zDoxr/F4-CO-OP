@@ -285,6 +285,21 @@
     <ClInclude Include="CoSyncRuntime.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\NiTypes.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CoSynclocalplayer.h">
+      <Filter>Header Files\Game</Filter>
+    </ClInclude>
+    <ClInclude Include="CoSyncPapyrushelper.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameInput.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameRTTI.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="F4MP_Main.cpp">
@@ -455,6 +470,21 @@
     <ClCompile Include="CoSyncRuntime.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\NiTypes.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PapyrusNoWaitReloc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoSynclocalplayer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoSyncPapyrushelper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameRTTI.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="ThirdParty\GNS\Bin\abseil_dll.dll">
@@ -468,6 +498,9 @@
     </None>
     <None Include="ThirdParty\GNS\Bin\libprotobuf.dll">
       <Filter>ThirdParty\GNS\Bin</Filter>
+    </None>
+    <None Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameRTTI.inl">
+      <Filter>Header Files\Game\Main</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

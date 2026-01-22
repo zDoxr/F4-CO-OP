@@ -5,6 +5,7 @@
 #include "CoSyncTransport.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncNet.h"
+#include "CoSyncLocalPlayer.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -40,4 +41,7 @@ void CoSyncRuntime_TickGameThread()
     // Host-side publish + NPC scheduler etc.
     if (CoSyncNet::IsInitialized())
         CoSyncNet::Tick(now);
+
+    // Send local player position updates (clients and host)
+    CoSyncLocalPlayer::Tick(now);
 }

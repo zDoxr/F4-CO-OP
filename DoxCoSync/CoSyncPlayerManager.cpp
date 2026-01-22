@@ -9,6 +9,7 @@
 #include "CoSyncEntityRegistry.h"
 #include "CoSyncEntityTypes.h"
 #include "CoSyncNet.h"
+#include "CoSyncGameAPI.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -19,6 +20,16 @@
 // Globals
 // -----------------------------------------------------------------------------
 CoSyncPlayerManager g_CoSyncPlayerManager;
+
+
+static constexpr uint32_t kLocalRemotePlayerBaseFormID = 0x01001ECC;
+
+// -----------------------------------------------------------------------------
+// Host-only debug NPC (authority validation scaffold)
+// -----------------------------------------------------------------------------
+static constexpr uint32_t kDebugNpcEntityID = 36865;
+//static constexpr uint32_t kDebugNpcBaseFormID = 0x01001ECC; // your new CK form
+
 
 // -----------------------------------------------------------------------------
 // Time helper (QPC)
@@ -36,6 +47,55 @@ static double NowSeconds()
     return double(c.QuadPart) / s_freq;
 }
 
+// -----------------------------------------------------------------------------
+// Host-only debug NPC helpers
+// -----------------------------------------------------------------------------
+static EntityCreatePacket MakeHostDebugNpcCreate(uint32_t localEntityID)
+{
+    EntityCreatePacket p{};
+
+    p.entityID = kDebugNpcEntityID;
+    p.ownerEntityID = localEntityID; // host-owned
+   // p.baseFormID = //kDebugNpcBaseFormID; //Kinda Broken ATM
+    p.type = CoSyncEntityType::NPC;
+
+    // Must be RemoteControlled per debug NPC rules
+    p.spawnFlags = EntityCreatePacket::RemoteControlled;
+
+    // NiPoint3 has NO default constructor — explicit init
+    p.spawnPos = NiPoint3(0.f, 0.f, 0.f);
+    p.spawnRot = NiPoint3(0.f, 0.f, 0.f);
+
+    return p;
+}
+
+// Finds a single client player proxy to snap to (first remote Player proxy found).
+static CoSyncPlayer* FindAnyRemoteClientPlayerProxy(
+    std::unordered_map<uint32_t, std::unique_ptr<CoSyncPlayer>>& playersByEntityID,
+    std::unordered_map<uint32_t, CoSyncEntityState>& statesByEntityID,
+    uint32_t localEntityID)
+{
+    for (auto& kv : playersByEntityID)
+    {
+        CoSyncPlayer& pl = *kv.second;
+        if (!pl.hasSpawned || !pl.actorRef)
+            continue;
+
+        if (pl.entityID == 0 || pl.entityID == localEntityID)
+            continue;
+
+        auto it = statesByEntityID.find(pl.entityID);
+        if (it == statesByEntityID.end() || !it->second.hasCreate)
+            continue;
+
+        if (it->second.lastCreate.type != CoSyncEntityType::Player)
+            continue;
+
+        return &pl;
+    }
+
+    return nullptr;
+}
 
 // -----------------------------------------------------------------------------
 // Network entry points
@@ -49,6 +109,10 @@ void CoSyncPlayerManager::EnqueueEntityCreate(const EntityCreatePacket& p)
         return;
     }
 
+    // Debug NPC is host-only and must never exist on clients
+    if (p.entityID == kDebugNpcEntityID && !CoSyncNet::IsHost())
+        return;
+
     std::lock_guard<std::mutex> lk(m_inboxMutex);
 
     InboxItem item{};
@@ -61,7 +125,11 @@ void CoSyncPlayerManager::EnqueueEntityCreate(const EntityCreatePacket& p)
 
 void CoSyncPlayerManager::EnqueueEntityUpdate(const EntityUpdatePacket& p)
 {
-	LOG_DEBUG("[PlayerMgr] Enqueued UPDATE entity=%u", p.entityID);
+    // Debug NPC is host-only and must never exist on clients
+    if (p.entityID == kDebugNpcEntityID && !CoSyncNet::IsHost())
+        return;
+
+    LOG_DEBUG("[PlayerMgr] Enqueued UPDATE entity=%u", p.entityID);
 
     std::lock_guard<std::mutex> lk(m_inboxMutex);
 
@@ -77,6 +145,10 @@ void CoSyncPlayerManager::EnqueueEntityDestroy(const EntityDestroyPacket& p)
     if (p.entityID == 0 || p.entityID == m_localEntityID)
         return;
 
+    // Debug NPC is host-only and must never exist on clients
+    if (p.entityID == kDebugNpcEntityID && !CoSyncNet::IsHost())
+        return;
+
     std::lock_guard<std::mutex> lk(m_inboxMutex);
 
     InboxItem item{};
@@ -86,10 +158,6 @@ void CoSyncPlayerManager::EnqueueEntityDestroy(const EntityDestroyPacket& p)
     m_inbox.push_back(item);
     LOG_INFO("[PlayerMgr] Enqueued DESTROY entity=%u", p.entityID);
 }
-
-
-
-
 
 // -----------------------------------------------------------------------------
 // Inbox processing (GAME THREAD ONLY)
@@ -117,6 +185,7 @@ void CoSyncPlayerManager::ProcessInbox()
         case InboxItem::Type::Update:
             ProcessEntityUpdate(item.update);
             break;
+
         case InboxItem::Type::Destroy:
             ProcessEntityDestroy(item.destroy);
             break;
@@ -139,8 +208,9 @@ CoSyncEntityState& CoSyncPlayerManager::GetOrCreateState(uint32_t entityID)
     CoSyncEntityState st{};
     st.entityID = entityID;
 
-    auto [insIt, _] = m_statesByEntityID.emplace(entityID, std::move(st));
-    return insIt->second;
+    // C++14-safe (no structured bindings)
+    auto result = m_statesByEntityID.emplace(entityID, std::move(st));
+    return result.first->second;
 }
 
 // -----------------------------------------------------------------------------
@@ -170,9 +240,14 @@ void CoSyncPlayerManager::ProcessEntityCreate(const EntityCreatePacket& p)
     if (p.entityID == 0 || p.entityID == m_localEntityID)
         return;
 
+    // Debug NPC is host-only and must never exist on clients
+    if (p.entityID == kDebugNpcEntityID && !CoSyncNet::IsHost())
+        return;
+
     CoSyncEntityState& st = GetOrCreateState(p.entityID);
 
-    st.isLocallyOwned = (p.ownerEntityID == m_localEntityID);
+    // Local ownership means: "this entity is controlled by me"
+    st.isLocallyOwned = (p.ownerEntityID != 0 && p.ownerEntityID == m_localEntityID);
 
     // Always remember last CREATE
     st.lastCreate = p;
@@ -182,9 +257,22 @@ void CoSyncPlayerManager::ProcessEntityCreate(const EntityCreatePacket& p)
     // NPC detection
     st.isNPC = (p.type == CoSyncEntityType::NPC);
 
-
     // Authority rule
     st.hostAuthoritative = st.isNPC && CoSyncNet::IsHost();
+
+    // Seed proxy metadata + authoritative transform immediately
+    CoSyncPlayer& player = GetOrCreateByEntityID(p.entityID);
+    player.ownerEntityID = p.ownerEntityID;
+    player.createType = p.type;
+    player.isRemoteControlled =
+        EntityCreatePacket::HasFlag(p.spawnFlags, EntityCreatePacket::RemoteControlled);
+
+    player.authoritativePos = p.spawnPos;
+    player.authoritativeRot = p.spawnRot;
+
+    player.pendingPos = p.spawnPos;
+    player.pendingRot = p.spawnRot;
+    player.hasPendingTransform = true;
 
     // Queue spawn only once (avoid duplicates)
     if (!st.spawnQueued)
@@ -198,19 +286,16 @@ void CoSyncPlayerManager::ProcessEntityCreate(const EntityCreatePacket& p)
     }
 }
 
-
-
-
-
-
-
-
 // -----------------------------------------------------------------------------
 // UPDATE handling (NO SPAWN EVER)
 // -----------------------------------------------------------------------------
 void CoSyncPlayerManager::ProcessEntityUpdate(const EntityUpdatePacket& u)
 {
     if (u.entityID == 0 || u.entityID == m_localEntityID)
+        return;
+
+    // Debug NPC is host-only and must never exist on clients
+    if (u.entityID == kDebugNpcEntityID && !CoSyncNet::IsHost())
         return;
 
     CoSyncEntityState& st = GetOrCreateState(u.entityID);
@@ -222,10 +307,13 @@ void CoSyncPlayerManager::ProcessEntityUpdate(const EntityUpdatePacket& u)
     if (!st.hasCreate)
         return; // keep state only until CREATE arrives
 
+    // Strict authority: host never accepts incoming UPDATEs for NPCs
+    if (st.isNPC && CoSyncNet::IsHost())
+        return;
+
     CoSyncPlayer& player = GetOrCreateByEntityID(u.entityID);
     player.ApplyUpdate(u);
 }
-
 
 // -----------------------------------------------------------------------------
 // DESTROY handling (NO SPAWN EVER)
@@ -233,6 +321,10 @@ void CoSyncPlayerManager::ProcessEntityUpdate(const EntityUpdatePacket& u)
 void CoSyncPlayerManager::ProcessEntityDestroy(const EntityDestroyPacket& d)
 {
     if (d.entityID == 0 || d.entityID == m_localEntityID)
+        return;
+
+    // Debug NPC is host-only and must never exist on clients
+    if (d.entityID == kDebugNpcEntityID && !CoSyncNet::IsHost())
         return;
 
     DespawnEntity(d.entityID, "network destroy");
@@ -282,13 +374,10 @@ void CoSyncPlayerManager::PumpDeferredSpawns()
     {
         if (!s_warned)
         {
-			s_warned = true;
+            s_warned = true;
             LOG_WARN("[PlayerMgr] World not ready; deferring spawns");
-            
         }
-
         return;
-
     }
 
     EntityCreatePacket p{};
@@ -313,86 +402,166 @@ void CoSyncPlayerManager::PumpDeferredSpawns()
         p.spawnRot
     );
 
+    // Maintain ownership on proxy immediately (metadata; spawn occurs in task)
     CoSyncPlayer& player = GetOrCreateByEntityID(p.entityID);
     player.ownerEntityID = p.ownerEntityID;
-
 }
 
-
-
+// -----------------------------------------------------------------------------
+// Host NPC replication sender (F4MP-aligned)
+// -----------------------------------------------------------------------------
 void CoSyncPlayerManager::HostSendNpcUpdates(double now)
 {
-    // host-only safeguard (callers can also gate)
-    if (!CoSyncNet::IsHost())
+    if (!CoSyncNet::IsHost() || !CoSyncNet::IsConnected())
         return;
 
     static double s_lastSend = 0.0;
-    if (now - s_lastSend < 0.05) // 20 Hz
+    if ((now - s_lastSend) < 0.05) // 20 Hz
         return;
     s_lastSend = now;
 
     for (auto& kv : m_playersByEntityID)
     {
-        CoSyncPlayer& pl = *kv.second;
-        if (!pl.hasSpawned || !pl.actorRef)
+        CoSyncPlayer& npc = *kv.second;
+
+        if (npc.entityID == kDebugNpcEntityID)
             continue;
 
-        // Determine entity type from state (authoritative)
-        auto it = m_statesByEntityID.find(pl.entityID);
+        if (!npc.hasSpawned || !npc.actorRef)
+            continue;
+
+        auto it = m_statesByEntityID.find(npc.entityID);
         if (it == m_statesByEntityID.end() || !it->second.hasCreate)
             continue;
 
         const CoSyncEntityState& st = it->second;
+
         if (st.lastCreate.type != CoSyncEntityType::NPC)
             continue;
 
-        // Only send for NPCs the host is simulating.
-        // Your test NPC uses RemoteControlled as "network-controlled on clients".
+        if (!st.hostAuthoritative)
+            continue;
+
         if (!EntityCreatePacket::HasFlag(st.lastCreate.spawnFlags, EntityCreatePacket::RemoteControlled))
             continue;
 
+        NiPoint3 pos(0.f, 0.f, 0.f);
+        NiPoint3 rot(0.f, 0.f, 0.f);
+
+        if (!CoSyncGameAPI::GetActorWorldTransform(npc.actorRef, pos, rot))
+            continue;
+
         EntityUpdatePacket u{};
-        u.entityID = pl.entityID;
-        u.pos = pl.actorRef->pos;
-        u.rot = pl.actorRef->rot;
-        u.vel = NiPoint3{ 0.f, 0.f, 0.f }; // optional; can compute later
+        u.entityID = npc.entityID;
+        u.pos = pos;
+        u.rot = rot;
+        u.vel = NiPoint3(0.f, 0.f, 0.f);
         u.timestamp = now;
 
         CoSyncTransport::Send(SerializeEntityUpdate(u));
-
-        // Refresh local liveness so host doesn’t timeout its own NPC state
-        EnqueueEntityUpdate(u);
     }
 }
 
+// -----------------------------------------------------------------------------
+// Host-only debug NPC hard snap (NO SMOOTHING, NO INTERP, NO VELOCITY)
+// -----------------------------------------------------------------------------
+static void HostDebugNpcHardSnap(
+    std::unordered_map<uint32_t, std::unique_ptr<CoSyncPlayer>>& playersByEntityID,
+    std::unordered_map<uint32_t, CoSyncEntityState>& statesByEntityID,
+    uint32_t localEntityID)
+{
+    // Find a remote client player proxy to follow
+    CoSyncPlayer* remotePlayer = FindAnyRemoteClientPlayerProxy(
+        playersByEntityID,
+        statesByEntityID,
+        localEntityID);
 
+    if (!remotePlayer || !remotePlayer->actorRef)
+        return;
 
+    auto itNpc = playersByEntityID.find(kDebugNpcEntityID);
+    if (itNpc == playersByEntityID.end())
+        return;
 
+    CoSyncPlayer& npc = *itNpc->second;
 
+    // Absolute guards: debug NPC only, must be spawned, must have actor
+    if (npc.entityID != kDebugNpcEntityID)
+        return;
+    if (!npc.hasSpawned || !npc.actorRef)
+        return;
 
+    NiPoint3 clientPos(0.f, 0.f, 0.f);
+    NiPoint3 clientRot(0.f, 0.f, 0.f);
 
+    if (!CoSyncGameAPI::GetActorWorldTransform(remotePlayer->actorRef, clientPos, clientRot))
+        return;
+
+    npc.authoritativePos = clientPos;
+    npc.authoritativeRot = clientRot;
+
+    CoSyncGameAPI::PositionRemoteActor(npc.actorRef, clientPos, clientRot);
+}
 
 // -----------------------------------------------------------------------------
 // Per-frame tick (GAME THREAD)
 // -----------------------------------------------------------------------------
 void CoSyncPlayerManager::Tick()
 {
-	ProcessInbox();
+    ProcessInbox();
+
+    // Host-only: seed/queue the debug NPC CREATE so it spawns locally via normal queue rules
+    if (CoSyncNet::IsHost() &&
+        CoSyncNet::IsConnected() &&
+        CoSyncWorld::IsWorldReady())
+    {
+        CoSyncEntityState& dbgSt = GetOrCreateState(kDebugNpcEntityID);
+
+        if (!dbgSt.hasCreate)
+        {
+            const EntityCreatePacket dbgCreate =
+                MakeHostDebugNpcCreate(m_localEntityID);
+
+            ProcessEntityCreate(dbgCreate); // queues spawn only
+        }
+    }
+
     PumpDeferredSpawns();
 
-    // Apply transforms + smoothing
     const double now = NowSeconds();
     HandleTimeouts(now);
 
+    // Host-only: replicate real NPC transforms
+    HostSendNpcUpdates(now);
+
+    // Host-only: once debug NPC is spawned, DISABLE AI on host 
+    if (CoSyncNet::IsHost() && CoSyncNet::IsConnected())
+    {
+       
+
+        
+
+        
+    }
+
     for (auto& kv : m_playersByEntityID)
     {
-        CoSyncPlayer& player = *kv.second;
+        CoSyncPlayer& ent = *kv.second;
 
-        if (!player.hasSpawned)
+        if (!ent.hasSpawned)
             continue;
 
-        player.ApplyPendingTransformIfAny();
-        player.TickSmoothing(now);
+        ent.ApplyPendingTransformIfAny();
+
+        // NPCs must NEVER be smoothed/interpolated
+        auto it = m_statesByEntityID.find(ent.entityID);
+        if (it != m_statesByEntityID.end() && it->second.hasCreate)
+        {
+            if (it->second.lastCreate.type == CoSyncEntityType::NPC)
+                continue;
+        }
+
+        ent.TickSmoothing(now);
     }
 }
 
@@ -410,13 +579,14 @@ void CoSyncPlayerManager::HandleTimeouts(double now)
         if (st.entityID == 0 || st.entityID == m_localEntityID)
             continue;
 
-        // CRITICAL FIX:
+        if (st.entityID == kDebugNpcEntityID)
+            continue;
+
         if (!st.isLocallyOwned)
-            continue; // never timeout remote-owned entities
+            continue;
 
         if (st.isNPC && CoSyncNet::IsHost())
-            continue; // host owns NPC lifetime
-
+            continue;
 
         if (st.lastUpdateLocalTime <= 0.0)
             continue;
@@ -424,7 +594,6 @@ void CoSyncPlayerManager::HandleTimeouts(double now)
         if ((now - st.lastUpdateLocalTime) > kEntityTimeoutSec)
             expired.push_back(st.entityID);
     }
-
 
     for (uint32_t entityID : expired)
         DespawnEntity(entityID, "timeout");
