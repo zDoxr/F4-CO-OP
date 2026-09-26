@@ -263,7 +263,26 @@ namespace
     double             g_ifacesTime = -1000.0;
 
     std::mutex  g_lifeMx;          // thread start/join
-    std::thread g_thread;
+
+    // The worker exits on its own once advertising and searching both stop,
+    // and nothing joins it until the next Start*() (EnsureWorker) or
+    // CoSyncDiscovery::Shutdown() -- neither runs when the player just quits
+    // the game. A still-joinable std::thread destroyed during the CRT's
+    // static teardown calls std::terminate: confirmed 2026-09-26 by a WER
+    // crash dump of a normal quit (DllMain detach -> ~thread -> terminate ->
+    // abort, 0xC0000409). Release it without blocking instead: at process
+    // exit Windows has already ended every other thread, and detach() can
+    // never wait on the loader lock the way join() could.
+    struct WorkerThread
+    {
+        std::thread t;
+        ~WorkerThread()
+        {
+            if (t.joinable())
+                t.detach();
+        }
+    };
+    WorkerThread g_thread;
 
     uint64_t NewNonce()
     {
@@ -630,13 +649,13 @@ namespace
             if (g_run)
                 return;
         }
-        if (g_thread.joinable())
-            g_thread.join();   // previous worker already exited
+        if (g_thread.t.joinable())
+            g_thread.t.join();   // previous worker already exited
         {
             std::lock_guard<std::mutex> lk(g_mx);
             g_run = true;
         }
-        g_thread = std::thread(Worker);
+        g_thread.t = std::thread(Worker);
     }
 }
 
@@ -769,7 +788,7 @@ namespace CoSyncDiscovery
             g_sessions.clear();
         }
         std::lock_guard<std::mutex> life(g_lifeMx);
-        if (g_thread.joinable())
-            g_thread.join();
+        if (g_thread.t.joinable())
+            g_thread.t.join();
     }
 }
