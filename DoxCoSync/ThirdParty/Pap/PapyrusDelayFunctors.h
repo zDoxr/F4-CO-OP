@@ -1,9 +1,9 @@
 #pragma once
 
-#include "ICriticalSection.h"
+#include "common/ICriticalSection.h"
 
-#include "GameTypes.h"
-#include "PapyrusObjects.h"
+#include "f4se/GameTypes.h"
+#include "f4se/PapyrusObjects.h"
 
 #include <deque>
 #include <new>
@@ -160,8 +160,8 @@ private:
 
 F4SEDelayFunctorManager&  F4SEDelayFunctorManagerInstance();
 
-#include "PapyrusSerialization.h"
-#include "PapyrusArgs.h"
+#include "f4se/PapyrusSerialization.h"
+#include "f4se/PapyrusArgs.h"
 
 #define DECLARE_DELAY_FUNCTOR_TYPE(functorName, ...) <Name_##functorName##, __VA_ARGS__> ##functorName##;
 #define DECLARE_DELAY_FUNCTOR_STRING(functorName) #functorName

@@ -1,7 +1,7 @@
-#include "ScaleformSerialization.h"
+#include "f4se/ScaleformSerialization.h"
 
-#include "ScaleformCallbacks.h"
-#include "ScaleformValue.h"
+#include "f4se/ScaleformCallbacks.h"
+#include "f4se/ScaleformValue.h"
 
 namespace Serialization
 {

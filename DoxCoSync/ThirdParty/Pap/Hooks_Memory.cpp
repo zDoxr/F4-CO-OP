@@ -1,7 +1,7 @@
 #include "Hooks_Memory.h"
-#include "Relocation.h"
-#include "BranchTrampoline.h"
-#include "xbyak.h"
+#include "f4se_common/Relocation.h"
+#include "f4se_common/BranchTrampoline.h"
+#include "xbyak/xbyak.h"
 #include "GameMemory.h"
 #include "GameAPI.h"
 #include <set>

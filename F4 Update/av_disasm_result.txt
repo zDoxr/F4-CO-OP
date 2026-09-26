@@ -1,0 +1,393 @@
+GetActorValueInfoByName Search — IDA Disassembly
+Fallout 4 v1.11.191
+
+Auto-analysis complete. Starting disassembly...
+
+============================================================
+DISASM: Script::GetActorValueInfoFunction  (RVA 0x00521410)
+============================================================
+  Name:  sub_140521340
+  Range: RVA 0x00521340 - 0x00521446  size=262
+
+  00521340: push    rbx
+  00521342: push    r14
+  00521344: sub     rsp, 28h
+  00521348: xor     ebx, ebx
+  0052134A: mov     r14, rdx
+  0052134D: test    rcx, rcx
+  00521350: jz      loc_14052143C
+  00521356: mov     rax, [rcx]
+  00521359: mov     [rsp+38h+arg_10], rsi
+* 0052135E: call    qword ptr [rax+20h]
+  00521361: mov     rsi, rax
+  00521364: test    rax, rax
+  00521367: jz      short loc_1405213BC
+  00521369: mov     rcx, rax
+* 0052136C: call    sub_14187FA20  ; -> [sub_14187FA20]
+  00521371: test    rax, rax
+  00521374: jz      short loc_140521386
+  00521376: mov     rcx, rax
+* 00521379: call    sub_141881400  ; -> [sub_141881400]
+  0052137E: test    al, al
+  00521380: jnz     short loc_140521386
+  00521382: mov     cl, 1
+  00521384: jmp     short loc_140521388
+  00521386: xor     cl, cl
+  00521388: mov     rax, [r14]
+  0052138B: mov     [rax], cl
+  0052138D: mov     rax, [r14]
+  00521390: movzx   edx, byte ptr [rax]
+  00521393: test    dl, dl
+  00521395: jz      short loc_1405213AE
+  00521397: lea     rdx, [rsp+38h+arg_0]
+  0052139C: mov     [rsp+38h+arg_0], bl
+  005213A0: mov     rcx, rsi
+* 005213A3: call    sub_140520C80  ; -> [sub_140520C80]
+  005213A8: mov     rax, [r14]
+  005213AB: movzx   edx, byte ptr [rax]
+  005213AE: movzx   eax, dl
+  005213B1: neg     al
+  005213B3: sbb     ecx, ecx
+  005213B5: and     ecx, 2
+  005213B8: test    dl, dl
+  005213BA: jz      short loc_1405213CB
+  005213BC: mov     rsi, [rsp+38h+arg_10]
+  005213C1: mov     eax, ebx
+  005213C3: add     rsp, 28h
+  005213C7: pop     r14
+  005213C9: pop     rbx
+  005213CA: retn
+  005213CB: mov     [rsp+38h+arg_8], rbp
+  005213D0: movzx   ebp, word ptr [rsi+132h]
+  005213D7: test    ebp, ebp
+  005213D9: jz      short loc_140521428
+  005213DB: mov     [rsp+38h+var_18], rdi
+  005213E0: mov     rdi, rbx
+  005213E3: cmp     ecx, 1
+  005213E6: jz      short near ptr byte_14052140F
+  005213E8: mov     rax, [rsi+128h]
+  005213EF: mov     r8, [rdi+rax]
+  005213F3: test    r8, r8
+  005213F6: jz      short loc_140521405
+  005213F8: mov     rdx, r14
+  005213FB: mov     rcx, r8
+* 005213FE: call    sub_140521340  ; -> [sub_140521340]
+  00521403: mov     ecx, eax
+  00521405: inc     ebx
+  00521407: add     rdi, 8
+  0052140B: cmp     ebx, ebp
+  0052140D: jb      short loc_1405213E3
+  0052140F: db 48h
+  00521410: mov     edi, dword ptr [rsp+38h+var_18]
+  00521414: mov     eax, ecx
+  00521416: mov     rbp, [rsp+38h+arg_8]
+  0052141B: mov     rsi, [rsp+38h+arg_10]
+  00521420: add     rsp, 28h
+  00521424: pop     r14
+  00521426: pop     rbx
+  00521427: retn
+  00521428: mov     rbp, [rsp+38h+arg_8]
+  0052142D: mov     eax, ecx
+  0052142F: mov     rsi, [rsp+38h+arg_10]
+  00521434: add     rsp, 28h
+  00521438: pop     r14
+  0052143A: pop     rbx
+  0052143B: retn
+  0052143C: mov     eax, ebx
+  0052143E: add     rsp, 28h
+  00521442: pop     r14
+  00521444: pop     rbx
+  00521445: retn
+
+============================================================
+DISASM: sub_140C6F350 (called before Actor_SetActorValue)  (RVA 0x00C6F350)
+============================================================
+  Name:  sub_140C6F350
+  Range: RVA 0x00C6F350 - 0x00C6F69A  size=842
+
+  00C6F350: push    rbx
+  00C6F352: push    rbp
+  00C6F353: push    r12
+  00C6F355: push    r15
+  00C6F357: sub     rsp, 78h
+  00C6F35B: mov     [rsp+98h+arg_10], rsi
+  00C6F363: xor     ebp, ebp
+  00C6F365: mov     rsi, rdx
+  00C6F368: mov     [rsp+98h+var_30], r13
+  00C6F36D: mov     rbx, rcx
+  00C6F370: cmp     [rdx+8], rbp
+  00C6F374: jz      short loc_140C6F379
+  00C6F376: mov     [rdx+18h], ebp
+  00C6F379: mov     r8d, [rdx+10h]
+  00C6F37D: db 4Ch, 8Dh, 62h
+  00C6F380: sbb     [rax-73h], cl
+  00C6F383: add     eax, 17F0408h
+  00C6F388: mov     [rsp+arg_40], rsi
+  00C6F38D: mov     rcx, r12
+  00C6F390: mov     [rsp+arg_38], rax
+  00C6F395: mov     r9d, 8
+  00C6F39B: lea     rdx, [rsp+arg_38]
+* 00C6F3A0: call    hkVector4UtilImpl_float___calculatePerpendicularNormalizedVectors_0__hkVector4f__hkVector4f__hkVector4f__  ; -> [hkVector4UtilImpl_float_::calculatePerpendicularNormalizedVe]
+  00C6F3A5: mov     ecx, eax
+  00C6F3A7: mov     r13d, ebp
+  00C6F3AA: mov     rax, [rsi+8]
+  00C6F3AE: mov     [rsp+arg_98], ebp
+  00C6F3B5: mov     [rax+rcx*8], rbx
+  00C6F3B9: mov     ebx, 0FFFFFFFFh
+  00C6F3BE: mov     r15d, [r12]
+  00C6F3C2: mov     eax, r15d
+  00C6F3C5: test    r15d, r15d
+  00C6F3C8: jz      loc_140C6F630
+  00C6F3CE: mov     [rsp+arg_68], rdi
+  00C6F3D3: mov     [rsp+arg_58], r14
+  00C6F3D8: movaps  [rsp+arg_48], xmm6
+  00C6F3DD: movss   xmm6, dword ptr cs:xmmword_14291FCA0
+  00C6F3E5: mov     rax, [rsi+8]
+  00C6F3E9: mov     ecx, r13d
+  00C6F3EC: mov     rdi, [rax+rcx*8]
+  00C6F3F0: mov     rbx, [rdi+100h]
+  00C6F3F7: add     rbx, 20h ; ' '
+  00C6F3FB: mov     rcx, rbx
+  00C6F3FE: mov     [rsp+arg_A0], rbx
+* 00C6F406: call    sub_141658FE0  ; -> [sub_141658FE0]
+  00C6F40B: db 48h, 8Bh, 8Fh, 0, 1
+  00C6F410: dq 4CFF60E379E80000h, 0D1840FC08548F08Bh, 0FF5F3CF8E8000001h
+  00C6F460: mov     rax, [r14+18h]
+  00C6F464: mov     rdi, rbx
+  00C6F467: mov     ecx, ebp
+  00C6F469: mov     edx, [rax+rcx*8]
+  00C6F46C: test    edx, edx
+  00C6F46E: jz      loc_140C6F5D6
+  00C6F474: mov     r9d, edx
+  00C6F477: and     edx, 3E00000h
+  00C6F47D: and     r9d, 1FFFFFh
+  00C6F484: mov     r8d, r9d
+  00C6F487: shl     r8, 4
+  00C6F48B: add     r8, cs:qword_1430DA390
+  00C6F492: mov     rax, [r8+8]
+  00C6F496: test    rax, rax
+  00C6F499: lea     rcx, [rax-20h]
+  00C6F49D: cmovz   rcx, rbx
+  00C6F4A1: test    rcx, rcx
+  00C6F4A4: jz      short loc_140C6F4AD
+  00C6F4A6: lock inc dword ptr [rcx+28h]
+  00C6F4AA: mov     rdi, rcx
+  00C6F4AD: mov     eax, [r8]
+  00C6F4B0: bt      eax, 1Ah
+  00C6F4B4: jnb     loc_140C6F5B4
+  00C6F4BA: and     eax, 3E00000h
+  00C6F4BF: cmp     eax, edx
+  00C6F4C1: jnz     loc_140C6F5B4
+  00C6F4C7: mov     eax, [rdi+28h]
+  00C6F4CA: shr     eax, 0Bh
+  00C6F4CD: cmp     eax, r9d
+  00C6F4D0: jnz     loc_140C6F5B4
+  00C6F4D6: cmp     [rdi+300h], rbx
+  00C6F4DD: db 0Fh, 84h, 0D6h
+  00C6F4E0: dq 4124148B45000000h, 0C38B41FFFFFFFFBBh, 4C3A74D28545D38Bh
+  00C6F500: mov     r9d, edx
+  00C6F503: cmp     eax, r11d
+  00C6F506: jnz     loc_140C6F5B9
+  00C6F50C: mov     rcx, [rsi+8]
+  00C6F510: inc     edx
+  00C6F512: add     rcx, r8
+  00C6F515: mov     eax, r9d
+  00C6F518: add     r8, 8
+  00C6F51C: cmp     [rcx], rdi
+  00C6F51F: cmovnz  eax, r11d
+  00C6F523: cmp     edx, r10d
+  00C6F526: jb      short _lambda_001df3ca2d1029c40a70fdf50835d5a4____helper_func_cdecl_
+  00C6F528: cmp     eax, r11d
+  00C6F52B: jnz     loc_140C6F5B9
+  00C6F531: lock inc dword ptr [rdi+28h]
+  00C6F535: mov     r8d, [rsi+10h]
+  00C6F539: lea     rdx, [rsp+arg_28]
+  00C6F53E: mov     r9d, 8
+  00C6F544: mov     [rsp+arg_28], r13
+  00C6F549: mov     rcx, r12
+  00C6F54C: mov     [rsp+arg_30], rsi
+* 00C6F551: call    hkVector4UtilImpl_float___calculatePerpendicularNormalizedVectors_0__hkVector4f__hkVector4f__hkVector4f__  ; -> [hkVector4UtilImpl_float_::calculatePerpendicularNormalizedVe]
+  00C6F556: lea     rcx, ??_7IAllocatorFunctor@BSTArrayBase@@6B@; const BSTArrayBase::IAllocatorFunctor::`vftable'
+  00C6F55D: mov     [rsp+arg_28], rcx
+  00C6F562: cmp     eax, 0FFFFFFFFh
+  00C6F565: jz      short loc_140C6F592
+  00C6F567: lock inc dword ptr [rdi+28h]
+  00C6F56B: mov     ecx, eax
+  00C6F56D: db 48h, 8Bh, 46h
+  00C6F570: or      [rax-77h], cl
+  00C6F573: cmp     al, 0C8h
+  00C6F575: lea     rcx, [rdi+20h]
+  00C6F579: mov     eax, 0FFFFFFFFh
+  00C6F57E: lock xadd [rcx+8], eax
+  00C6F583: dec     eax
+  00C6F585: test    eax, 3FFh
+  00C6F58A: jnz     short loc_140C6F592
+  00C6F58C: mov     rax, [rcx]
+* 00C6F58F: call    qword ptr [rax+8]
+  00C6F592: lea     rcx, [rdi+20h]
+  00C6F596: mov     eax, 0FFFFFFFFh
+  00C6F59B: lock xadd [rcx+8], eax
+  00C6F5A0: dec     eax
+  00C6F5A2: test    eax, 3FFh
+  00C6F5A7: jnz     short loc_140C6F5AF
+  00C6F5A9: mov     rax, [rcx]
+* 00C6F5AC: call    qword ptr [rax+8]
+  00C6F5AF: inc     r15d
+  00C6F5B2: jmp     short loc_140C6F5B9
+  00C6F5B4: test    rdi, rdi
+  00C6F5B7: jz      short loc_140C6F5D6
+  00C6F5B9: lea     rcx, [rdi+20h]
+  00C6F5BD: db 0B8h, 2 dup(0FFh)
+  00C6F5C0: dq 0FF0841C10FF0FFFFh, 675000003FFA9C8h
+  00C6F5D0: mov     rax, [rcx]
+* 00C6F5D3: call    qword ptr [rax+8]
+  00C6F5D6: inc     ebp
+  00C6F5D8: cmp     ebp, [r14+28h]
+  00C6F5DC: jb      _lambda_eaa23241c6f71b063a661ca08402107e____helper_func_cdecl_
+  00C6F5E2: mov     rbx, [rsp+arg_A0]
+  00C6F5EA: mov     r13d, [rsp+arg_98]
+  00C6F5F2: xor     ebp, ebp
+  00C6F5F4: inc     r13d
+  00C6F5F7: mov     [rsp+arg_98], r13d
+  00C6F5FF: test    rbx, rbx
+  00C6F602: jz      short loc_140C6F60C
+  00C6F604: mov     rcx, rbx
+* 00C6F607: call    sub_1416592B0  ; -> [sub_1416592B0]
+  00C6F60C: cmp     r13d, r15d
+  00C6F60F: jb      loc_140C6F3E5
+  00C6F615: mov     r15d, [r12]
+  00C6F619: mov     ebx, 0FFFFFFFFh
+  00C6F61E: movaps  xmm6, [rsp+arg_48]
+  00C6F623: mov     eax, r15d
+  00C6F626: mov     r14, [rsp+arg_58]
+  00C6F62B: mov     rdi, [rsp+arg_68]
+  00C6F630: mov     rdx, [rsi+8]
+  00C6F634: mov     rsi, [rsp+arg_A8]
+  00C6F63C: mov     r13, [rsp+arg_60]
+  00C6F641: cmp     eax, 1
+  00C6F644: jnz     short loc_140C6F661
+  00C6F646: test    rdx, rdx
+  00C6F649: jz      short loc_140C6F68A
+  00C6F64B: mov     eax, ebp
+  00C6F64D: mov     [r12], ebp
+  00C6F651: test    eax, eax
+  00C6F653: setnz   al
+  00C6F656: add     rsp, 78h
+  00C6F65A: pop     r15
+  00C6F65C: pop     r12
+  00C6F65E: pop     rbp
+  00C6F65F: pop     rbx
+  00C6F660: retn
+  00C6F661: lea     eax, [r15-1]
+  00C6F665: mov     [rsp+arg_20], 8
+  00C6F66D: mov     r9d, 1
+  00C6F673: mov     [rsp+arg_18], eax
+  00C6F677: xor     r8d, r8d
+  00C6F67A: mov     rcx, r12
+* 00C6F67D: call    sub_141659480  ; -> [sub_141659480]
+  00C6F682: add     [r12], ebx
+  00C6F686: mov     eax, [r12]
+  00C6F68A: test    eax, eax
+  00C6F68C: setnz   al
+  00C6F68F: add     rsp, 78h
+  00C6F693: pop     r15
+  00C6F695: pop     r12
+  00C6F697: pop     rbp
+  00C6F698: pop     rbx
+  00C6F699: retn
+
+============================================================
+CALLERS of Script::GetActorValueInfoFunction (RVA 0x00521410):
+============================================================
+
+============================================================
+DECOMPILE sub_140C6F350 (RVA 0x00C6F350):
+============================================================
+    0: void __fastcall sub_140C6F350(
+    1:         __int64 a1,
+    2:         __int64 a2,
+    3:         __int64 a3,
+    4:         __int64 a4,
+    5:         int a5,
+    6:         __int64 a6,
+    7:         __int64 a7,
+    8:         __int64 a8,
+    9:         __int64 a9,
+   10:         __int128 *a10,
+   11:         __int64 a11,
+   12:         __int64 a12,
+   13:         __int64 a13,
+   14:         int a14,
+   15:         int a15,
+   16:         int a16,
+   17:         int a17,
+   18:         int a18,
+   19:         int a19,
+   20:         __int64 a20,
+   21:         __int64 a21)
+   22: {
+   23:   if ( *(_QWORD *)(a2 + 8) )
+   24:     *(_DWORD *)(a2 + 24) = 0;
+   25:   JUMPOUT(0x140C6F37DLL);
+   26: }
+   27: 
+
+============================================================
+DECOMPILE Script::GetActorValueInfoFunction (RVA 0x00521410):
+============================================================
+    0: __int64 __fastcall sub_140521340(__int64 a1, bool **a2)
+    1: {
+    2:   unsigned int v2; // ebx
+    3:   __int64 v4; // rax
+    4:   __int64 v5; // rsi
+    5:   __int64 v6; // rax
+    6:   bool v7; // cl
+    7:   bool v8; // dl
+    8:   unsigned int v9; // ecx
+    9:   unsigned int v11; // ebp
+   10:   __int64 v12; // rdi
+   11:   __int64 v13; // rax
+   12:   char v14; // [rsp+40h] [rbp+8h] BYREF
+   13: 
+   14:   v2 = 0;
+   15:   if ( !a1 )
+   16:     return 0;
+   17:   v4 = (*(__int64 (**)(void))(*(_QWORD *)a1 + 32LL))();
+   18:   v5 = v4;
+   19:   if ( !v4 )
+   20:     return 0;
+   21:   v6 = sub_14187FA20(v4);
+   22:   v7 = v6 && !(unsigned __int8)sub_141881400(v6);
+   23:   **a2 = v7;
+   24:   v8 = **a2;
+   25:   if ( v8 )
+   26:   {
+   27:     v14 = 0;
+   28:     sub_140520C80(v5, &v14);
+   29:     v8 = **a2;
+   30:   }
+   31:   v9 = v8 ? 2 : 0;
+   32:   if ( v8 )
+   33:     return 0;
+   34:   v11 = *(unsigned __int16 *)(v5 + 306);
+   35:   if ( *(_WORD *)(v5 + 306) )
+   36:   {
+   37:     v12 = 0;
+   38:     do
+   39:     {
+   40:       if ( v9 == 1 )
+   41:         break;
+   42:       v13 = *(_QWORD *)(v5 + 296);
+   43:       if ( *(_QWORD *)(v12 + v13) )
+   44:         v9 = sub_140521340(*(_QWORD *)(v12 + v13), a2);
+   45:       ++v2;
+   46:       v12 += 8;
+   47:     }
+   48:     while ( v2 < v11 );
+   49:     JUMPOUT(0x14052140FLL);
+   50:   }
+   51:   return v9;
+   52: }
+   53: 
+
+Done.

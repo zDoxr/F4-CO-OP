@@ -1,8 +1,8 @@
-#include "PapyrusPerk.h"
+#include "f4se/PapyrusPerk.h"
 
-#include "GameForms.h"
-#include "GameFormComponents.h"
-#include "GameReferences.h"
+#include "f4se/GameForms.h"
+#include "f4se/GameFormComponents.h"
+#include "f4se/GameReferences.h"
 
 namespace papyrusPerk
 {

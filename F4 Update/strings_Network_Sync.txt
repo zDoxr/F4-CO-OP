@@ -1,0 +1,400 @@
+﻿0x02460DC8|bBIClientPerformanceContextLogging:BIEvents
+0x02460DF8|iBIClientPerformanceContextSendRateMinMS:BIEvents
+0x02460E30|iBIClientNextPrebuildHTTPSPostTimeMS:BIEvents
+0x02461008|fClientPerformanceFrametimeFirstThreshold:BIEvents
+0x02461040|fClientPerformanceFrametimeSecondThreshold:BIEvents
+0x02461078|fClientPerformanceFrametimeThirdThreshold:BIEvents
+0x024610B0|fClientPerformanceFrametimeFourthThreshold:BIEvents
+0x02473888|iSyncIdleLocomotion
+0x024738A0|iSyncTurnState
+0x02473900|iSyncSprintState
+0x02473BF8|iSyncForwardState
+0x02473C10|iSyncSightedState
+0x02473C28|iSyncStrafeState
+0x02473E10|SyncLeft
+0x02473E20|SyncRight
+0x02473E30|SyncLeft2
+0x02473E40|SyncRight2
+0x02473F28|iSyncWeaponDrawState
+0x02473F88|iSyncGunDown
+0x024740A8|iSyncJumpState
+0x024740B8|iSyncSwimState
+0x024788A0|fWireConnectEffectColorR:Workshop
+0x024788C8|fWireConnectEffectColorG:Workshop
+0x024788F0|fWireConnectEffectColorB:Workshop
+0x02478E00|Keyword to signify a wire from the workshop can be connect to the item.
+0x02478E48|PowerConnection
+0x02479000|Default sound played when a power line is connected
+0x02479A00|fWorkshopItemConnectPointQueryRadius:Workshop
+0x02479BF0|Keyword used to link Workshop Power Connectors together in the editor.
+0x0247AA68|Art used to display Connect Points in Workshop.
+0x0247AA98|WorkshopConnectPointArt
+0x0247B6A8|WorkshopConnectPoints
+0x0247BA50|Exported Connection: %08x to %08x with connector %08x
+0x0247BA88|Exported Wireless Connection: %08x to %08x
+0x0247D030|NVFlex::Simulation::updateHostSideSolverData
+0x0247DF08|SyncOnUpdate 
+0x02495150|bnonhostile
+0x0249E090|REFRSyncController
+0x024A0C30|Action Left Sync Attack
+0x024A0C48|Action Right Sync Attack
+0x024A8138|IsHostileToActor >> %i
+0x024A8B50|GetGhost >> %0.2f
+0x024AE860|Make sure that the navmeshes on the way are finalized and connected
+0x024AEE58|SetGhost >> %d
+0x024AF8E0|IsLastHostileActor >> %0.2f
+0x024B10E8|async
+0x024B10F0|SSAO is now async.
+0x024B3730|Reference %s (%08x) does not think event %s leads to a sync anim.  Does the event name match the sync clip generator?
+0x024B37B0|Target Reference %s (%08x) does not think event %s leads to a sync anim.  Does the target respond to this event correctly?
+0x024B3830|Sync scene failed.  Perhaps turning on bDisplayMarkWarning:Animation custom INISetting will provide further insight?
+0x024B7AF0|IsLastHostileActor
+0x024B7ED8|IsHostileToActor
+0x024B8400|KillAllHostile
+0x024BCCD0|Copy save games from the host machine or a memory stick (ms).
+0x024BEA58|PlaySyncAnim
+0x024BEA68|syncanim
+0x024BEA78|Play Sync Anim
+0x024C31F0|SetGhost
+0x024C3200|A value of 1 will make the NPC act as a 'ghost'.
+0x024C3238|GetIsGhost
+0x024C3248|Returns 1 if the actor is acting as a 'ghost'.
+0x024DDCC8|fCombatStealthPointRegenHostileMult
+0x024E7CC0|fVATSSafetyMaxSyncAttackTime
+0x024E7FF8|fVATSMeleeChanceToSyncKill
+0x024E8820|fCombatMeleeStrikeAngleNonHostilePenalty
+0x024EE648|fHostileActorInteriorDistance
+0x024EE668|fHostileActorExteriorDistance
+0x024EE688|fHostileFlyingActorExteriorDistance
+0x024F2FB0|The controller has been disconnected. Click OK to use the Keyboard/Mouse, or reconnect the controller and press the A Button.
+0x024F30C0|Please connect a controller to continue.
+0x024F5028|sNoFastTravelHostileActorsNear
+0x024F5B08|You've been caught stealing. The owner is now hostile.
+0x024F5B50|You're currently trespassing. Owner will become hostile if you stay.
+0x024F5BA8|You've been caught lockpicking. The owner is now hostile.
+0x024F5D00|The Kinect Sensor has failed to initialize. Voice commands have been disabled. Ensure that your Kinect Sensor is connected and updated.
+0x024FADE8|sTeammateOverencumbered
+0x024FAE30|sTeammateCantTakeOutfit
+0x024FAE70|sTeammateCantGiveOutfit
+0x024FD2F0|sNoRepairHostileActorsNear
+0x024FD3F0|sNoWaitHostileActorsNear
+0x024FD640|sNoSleepHostileActorsNear
+0x025016C8|WorkshopPowerConnection
+0x02501A88|syncAttack
+0x025180D0|bApplyFootSyncVelocityChange:Animation
+0x02518430|bIsSynced
+0x025187B0|Meshes\AnimTextData\SyncAnimData\
+0x025187D8|ResolvedSyncAnimData
+0x02518828|Sync Actor Info:
+0x025188B0|No Synchronized Animations currently active!
+0x025297A8|uNotificationSyncedXPStartDelayMS:Interface
+0x0252FF90|fSteamPollInterval:Bethesda.net
+0x0252FFB0|fSteamPollDuration:Bethesda.net
+0x02530268|BNET_CANNOT_CONNECT
+0x02530320|_STEAM
+0x02531800|ModsMenu.AsyncRequestHandler: Did not handle: %s [ART: %u]
+0x02531C00|subscribeSyncing
+0x02531C18|followSyncing
+0x02531C98|reportSyncing
+0x02537E28|$CreationsUnableToConnectChangeLoadOrder
+0x025385D0|bInstallMenuLoadVideoAsync:General
+0x02546650|iClientCrashFrequencyMS:BIEvents
+0x02546678|iClientCrashLevel:BIEvents
+0x02546698|iClientHardwareSpecificationFrequencyMS:BIEvents
+0x025466D0|iClientHardwareSpecificationLevel:BIEvents
+0x02546700|iClientHeartBeatFrequencyMS:BIEvents
+0x02546728|iClientHeartBeatLevel:BIEvents
+0x02546748|iClientLoadedEsmFrequencyMS:BIEvents
+0x02546770|iClientLoadedEsmLevel:BIEvents
+0x02546790|iClientShutdownFrequencyMS:BIEvents
+0x025467B8|iClientShutdownLevel:BIEvents
+0x025467D8|iClientStartupFrequencyMS:BIEvents
+0x02546800|iClientStartupLevel:BIEvents
+0x02546820|ClientCrashv1
+0x02546830|ClientHardwareSpecificationv1
+0x02546850|ClientHeartBeatv1
+0x02546868|ClientLoadedEsmv1
+0x02546880|ClientShutdownv1
+0x02546898|ClientStartupv1
+0x02555E40|MemCleanup:LipSynch
+0x02555EA0|TextureCleanupSync
+0x02555FF8|VMUpdateSync
+0x02556194|IOSync
+0x02556250|DismemberSync
+0x025567A0|SteamFriends017
+0x025567B0|SteamUtils010
+0x025567C0|steam://store/%s
+0x02558178|Synchronized Animations
+0x02558A30|bCopySaveGameToHostOrMemStick:SaveGame
+0x02558A58|bCopyLoadGameToHostOrMemStick:SaveGame
+0x02558BB8|bUseAsyncDownload:SaveGame
+0x02559640|BGSSaveLoadManager::CopySaveGamesFromHost failed to read the save game file buffer %s.
+0x025596A0|BGSSaveLoadManager::CopySaveGamesFromHost failed to open the save game file %s.
+0x0255C9D8|bEnableAsyncLoads:Audio
+0x0255CAC8|hAsyncReadPriorityThreshold:Audio
+0x0255F6F8|fMaxSpeedPercentageDifferenceToAttemptFootSync:Pathfinding
+0x02561588|iSyncFreezeDirection
+0x025615A0|iSyncBlendDirection
+0x02570F60|SyncDeferDeathHandler
+0x02570F78|SyncEarlyExitHandler
+0x02570FD0|DesyncInteractionHandler
+0x02571330|bSpeedSynced
+0x025713D8|iSyncReadyAlertRelaxed
+0x025A3BA0|sConsoleNetworkPath:Menu
+0x025AB9D8|BNET_CLIENT_ERROR
+0x025B6408|IsGhost
+0x025B68F0|IsHostile
+0x025C6790|is an Actor, and should not be passed to PlaySyncedAnimationSS.
+0x025C67D0|is an Actor, and PlaySyncedAnimationSS should not be called on it.
+0x025CE170|PlaySyncedAnimationSS
+0x025CE188|PlaySyncedAnimationAndWaitSS
+0x0260CD38|SteamClient020
+0x0260CD48|SteamUser021
+0x0260CD58|STEAMAPPS_INTERFACE_VERSION008
+0x0260CD78|SteamInput006
+0x0260CD88|STEAMUGC_INTERFACE_VERSION016
+0x0260CF30|Steam Deck found!
+0x0260CF48|steam_input_manifest.vdf
+0x0260CF90|STEAMUSERSTATS_INTERFACE_VERSION012
+0x0260F6B0|uHttpDefaultConnectionTimeout:Platform
+0x02612548|client_platform
+0x02612FF8|bClientLatencyEnabled:Platform
+0x02613018|uClientLatencyMin:Platform
+0x02613038|uClientLantencyMax:Platform
+0x02613EF0|stl::async worker
+0x02613F48|CONNECT_ONLY is required!
+0x02613FB0|CURLOPT_SSL_VERIFYHOST no longer supports 1 as value!
+0x02614098|Connection #%ld to host %s left intact
+0x026140C8|Re-used connection seems dead, get a new one
+0x02614180|Connection timed out after %ld milliseconds
+0x02614258|Hostname '%s' was found in DNS cache
+0x02614388|localhost
+0x026145A8|Hostname in DNS cache was stale, zapped
+0x026145F0|Hostname %s was found in DNS cache
+0x02614F58|Closing connection %ld
+0x02614F70|Connection %ld seems to be dead!
+0x02614FC8|Found bundle for host %s: %p [%s]
+0x02615098|Connection #%ld is still name resolving, can't reuse
+0x026150D0|Connection #%ld isn't open enough, can't reuse
+0x02615138|Multiplexed connection found!
+0x026151B8|Connected to %s (%s) port %ld (#%ld)
+0x02615218|Host name '%s' contains bad letter
+0x026152F8|localhost/
+0x02615320|Invalid file://hostname/, expected localhost or 127.0.0.1 or none
+0x02615730|Couldn't find host %s in the _netrc file; using defaults
+0x02615790|No valid port number in connect to host string (%s)
+0x026157C8|Connecting to hostname: %s
+0x026157E8|Connecting to port: %d
+0x02615800|Couldn't resolve host '%s'
+0x02615848|Found connection %ld, with requests in the pipe (%zu)
+0x02615880|We can reuse, but we want a new connection anyway
+0x026158B8|Re-using existing connection! (#%ld) with %s %s
+0x026158F0|No more connections allowed to host: %d
+0x02615920|No connections available in cache
+0x02615948|No connections available.
+0x02615AD0|host!
+0x02615C60|getpeername() failed with errno %d: %s
+0x02615CE8|Connection time-out
+0x02615D00|After %ldms connect time, move on!
+0x02615D28|Connection failed
+0x02615D40|connect to %s port %ld failed: %s
+0x02615D68|Failed to connect to %s port %ld: %s
+0x02615E08|Immediate connect fail for %s: %s
+0x026163D8|Host:
+0x02616400|Connection:
+0x026165A0|Host:%s
+0x026165B0|Host: %s%s%s
+0x026165C0|Host: %s%s%s:%d
+0x02616710|Proxy-Connection
+0x02616728|Proxy-Connection: Keep-Alive
+0x026169A8|Connection closure while negotiating auth (HTTP 1.0?)
+0x02616BB0|Proxy-Connection:
+0x02616BC8|HTTP/1.0 proxy connection set to keep alive!
+0x02616C00|HTTP/1.1 proxy connection set close!
+0x02616C28|HTTP/1.0 connection set to keep alive!
+0x02616CD0|Connection cache is full, closing the oldest one.
+0x02617368|REFUSED_STREAM, retrying a fresh connect
+0x02617398|Connection died, retrying a fresh connect
+0x02617668|allocate connect buffer!
+0x02617688|CONNECT phase completed!
+0x026176D0|CONNECT
+0x026176E8|Host: %s
+0x026176F8|CONNECT %s HTTP/%s
+0x02617718|Failed sending CONNECT to proxy
+0x02617738|Proxy CONNECT aborted due to timeout
+0x02617760|CONNECT response too large!
+0x02617780|Proxy CONNECT connection closed
+0x026177A8|Proxy CONNECT aborted
+0x02617820|Ignoring Content-Length in CONNECT %03d response
+0x02617858|Ignoring Transfer-Encoding in CONNECT %03d response
+0x02617890|CONNECT responded chunked
+0x026178C0|Connect me again please
+0x026178E0|Received HTTP code %d from proxy after CONNECT
+0x02617910|Proxy replied %d to CONNECT request
+0x026180A8|schannel: SSL/TLS connection with %s port %hu (step 1/3)
+0x026180F0|schannel: WinSSL version is old and may not be able to connect to some servers due to lack of SNI, algorithms, etc.
+0x026182E0|schannel: verifyhost setting prevents Schannel from comparing the supplied target name with the subject names in server certificates.
+0x026185C0|schannel: SSL/TLS connection with %s port %hu (step 2/3)
+0x02618660|schannel: failed to receive handshake, SSL/TLS connection failed
+0x02618740|schannel: a client certificate has been requested
+0x026188C8|schannel: SSL/TLS connection with %s port %hu (step 3/3)
+0x02618B60|SSL/TLS connection timeout
+0x02618C10|schannel: client wants to read %zu bytes
+0x02618DB0|schannel: server closed the connection
+0x02618F38|schannel: renegotiating SSL/TLS connection
+0x02618F88|schannel: SSL/TLS connection renegotiated
+0x026190E8|schannel: shutting down SSL/TLS connection with %s port %hu
+0x02619418|CLIENT libcurl 7.60.0-DEV
+0x02619490|CLIENT libcurl 7.60.0-DEV
+0x026194C0|CLIENT libcurl 7.60.0-DEV
+0x02619D08|WSAEnumNetworkEvents
+0x02619D20|failed to find WSAEnumNetworkEvents function (%u)
+0x02619D78|WSAEnumNetworkEvents failed (%d)
+0x02619EC0|Malformed ACK packet, rejecting
+0x02619F08|invalid blocksize value in OACK packet
+0x0261A040|invalid tsize -:%s:- value in OACK packet
+0x0261A070|Connected for transmit
+0x0261A088|Connected for receive
+0x0261A118|Received last DATA packet block %d again.
+0x0261A148|Received unexpected DATA packet block %d, expecting block %d
+0x0261A2A8|Received too short packet
+0x0261A2C8|Internal error: Unexpected packet
+0x0261A428|LDAP local: trying to establish %s connection
+0x0261A458|LDAP local: Cannot connect to %s:%ld
+0x0261A990|PREAUTH connection, already authenticated!
+0x0261B098|Error accept()ing server connect
+0x0261B0C0|Connection accepted from server
+0x0261B0E8|Checking for server connect
+0x0261B108|Accept timeout occurred while waiting server connect
+0x0261B140|There is negative response in cache while serv connect
+0x0261B178|Error while waiting for server connect
+0x0261B1A0|Ready to accept data connection from server
+0x0261B508|Connect data stream passively
+0x0261B6B0|Skip %u.%u.%u.%u for data connection, re-use %s instead
+0x0261B720|Can't resolve proxy host %s:%hu
+0x0261B740|Can't resolve new host %s:%hu
+0x0261B790|Connect data stream actively
+0x0261BCC0|control connection looks dead
+0x0261BCE0|partial download completed, closing connection
+0x0261BDD8|Connecting to %s (%s) port %d
+0x0261C3C0|Got an error writing an RTP packet
+0x0261C3E8|Cannot write a 0 size RTP packet.
+0x0261C6A0|SOCKS4%s: connecting to HTTP proxy %s port %d
+0x0261C6F0|SOCKS4 connect to IPv4 %s (locally resolved)
+0x0261C720|SOCKS4 connection to %s not supported
+0x0261C748|Failed to resolve "%s" for SOCKS4 connect.
+0x0261C7A0|Failed to send SOCKS4 connect request.
+0x0261C7C8|Failed to receive SOCKS4 connect request ack.
+0x0261C850|Can't complete SOCKS4 connection to %d.%d.%d.%d:%d. (%d), request rejected or failed.
+0x0261C8B0|Can't complete SOCKS4 connection to %d.%d.%d.%d:%d. (%d), request rejected because SOCKS server cannot connect to identd on the client.
+0x0261C940|Can't complete SOCKS4 connection to %d.%d.%d.%d:%d. (%d), request rejected because the client program and identd report different user-ids.
+0x0261C9D0|Can't complete SOCKS4 connection to %d.%d.%d.%d:%d. (%d), Unknown.
+0x0261CA18|SOCKS5: connecting to HTTP proxy %s port %d
+0x0261CA50|SOCKS5: server resolving disabled for hostnames of length > 255 [actual len=%zu]
+0x0261CAA8|SOCKS5: no connection here
+0x0261CAC8|SOCKS5: connection timeout
+0x0261CAE8|SOCKS5: error occurred during connection
+0x0261CD60|No authentication method was acceptable. (It is quite likely that the SOCKS5 server wanted a username/password, since none was supplied to the server on this connection.)
+0x0261CE80|SOCKS5 connect to IPv4 %s (locally resolved)
+0x0261CEB0|SOCKS5 connect to IPv6 %s (locally resolved)
+0x0261CEE0|SOCKS5 connection to %s not supported
+0x0261CF08|Failed to resolve "%s" for SOCKS5 connect.
+0x0261CF68|Failed to send SOCKS5 connect request.
+0x0261CF90|Failed to receive SOCKS5 connect request ack.
+0x0261CFF8|Can't complete SOCKS5 connection to %d.%d.%d.%d:%d. (%d)
+0x0261D038|Can't complete SOCKS5 connection to %s:%d. (%d)
+0x0261D070|Can't complete SOCKS5 connection to %02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%d. (%d)
+0x0261D220|Couldn't resolve host name
+0x0261D240|Couldn't connect to server
+0x0261D2A0|FTP: The server failed to connect to data port
+0x0261D2D0|FTP: Accepting server connect has timed out
+0x0261D390|FTP: can't figure out the host in the PASV response
+0x0261D608|SSL connect error
+0x0261D730|Failed binding local connection end
+0x0261D7C8|SSL peer certificate or SSH remote key was not OK
+0x0261D8A8|Failed sending data to the peer
+0x0261D8C8|Failure when receiving data from the peer
+0x0261D950|Peer certificate cannot be authenticated with given CA certificates
+0x0261DA40|Failed to shut down the SSL connection
+0x0261DAA0|Issuer check against peer certificate failed
+0x0261DCF8|The max connection limit is reached
+0x0261E138|Network down
+0x0261E148|Network unreachable
+0x0261E160|Network has been reset
+0x0261E178|Connection was aborted
+0x0261E190|Connection was reset
+0x0261E1B8|Socket is already connected
+0x0261E1D8|Socket is not connected
+0x0261E238|Connection refused
+0x0261E268|Host down
+0x0261E278|Host unreachable
+0x0261E300|Disconnected
+0x0261E370|Host not found
+0x0261E380|Host not found, try again
+0x0261E900|SEC_E_PKINIT_CLIENT_FAILURE
+0x0261F310|schannel: connection hostname (%s) validated against certificate name (%s)
+0x0261F360|schannel: connection hostname (%s) did not match against certificate name (%s)
+0x0261F3B0|schannel: CertGetNameString() failed to match connection hostname (%s) against server certificate names
+0x026209D0|host=%s
+0x026209F8|host=%s
+0x02633638|TtupdateSyncOnActiveNodes
+0x026336B0|StupdateSyncOnActiveNodes
+0x026337E0|StupdateSyncOnActiveNodes2
+0x02635E10|%s's %s: Animation control exists but binding (%s) was not created.  Was the animation loaded and connected to the control?
+0x026400C0|connectivity
+0x02640128|hkpConvexVerticesConnectivity
+0x02641A68|syncVariableIndex
+0x02643518|connectToType
+0x02643890|fixedConnectivity
+0x02643CF0|hkdBreakableShapeConnection
+0x02643D98|connections
+0x02643F48|maxDistanceForConnection
+0x02644148|connectivityType
+0x02644850|hkdRemoveWeakConnectionsAction
+0x02645460|initSync
+0x02645BD0|indexOfSyncMasterChild
+0x02646160|syncNextFrame
+0x02647F58|syncInfo
+0x02648460|FLAG_SYNC_HALF_CYCLE_IN_PING_PONG_MODE
+0x0264D330|mirroredSyncPointSubstringsA
+0x0264D350|mirroredSyncPointSubstringsB
+0x02650D88|FLAG_SYNC
+0x02650E50|FLAG_USE_VELOCITY_SYNCHRONIZATION
+0x02651B38|Client deleted.
+0x02651B60|Server created and will poll for new client(s) on port 
+0x02651D90|A new network client has been received (host name not available at present)
+0x02651DE0|Client Dies
+0x02651DF0|Client has died, cleaning up (host name not available at present)
+0x026573B8|HKB_NODE_TYPE_BS_SYNCHRONIZED_CLIP_GENERATOR
+0x02666180|Listening on host [
+0x026661A0|Socket got connection from [%s:%d]
+0x02666EB8|FLAG_SYNC_POINT
+0x0266A4C0|Could not load object from network for unknown reason
+0x0267C110|>>>>>>>- Begin AsyncCopy: '%s'
+0x0269BA68|strShaderIDNetworkPath:Display
+0x0269C7EB|;(knNbAsyncResourceCopies:Display
+0x026A3FC0|BSConnectPoint::Children
+0x026A3FE0|BSConnectPoint::Parents
+0x026A4000|BSConnectPoint::ChildOrigin
+0x026A4310|BSConnectPoints
+0x026A4320|BSConnectParents
+0x026BF7D0|isConnectedToHandbrake
+0x026C8B80|The controls data can be used to provide a soft connection between the world from model and the character controller.
+0x026CF230|fromGeneratorSyncInfo
+0x026D1760|syncToGeneratorStartTime
+0x026D7DA8|hkbGeneratorSyncInfoSyncPoint
+0x026D7DC8|!hkbGeneratorSyncInfo::SyncPoint
+0x026D7DF0|syncPoints
+0x026D7E10|hkbGeneratorSyncInfoActiveInterval
+0x026D7E38|!hkbGeneratorSyncInfo::ActiveInterval
+0x026D7E60|numSyncPoints
+0x026D7EA8|hkbGeneratorSyncInfo
+0x026D7EC0|!hkbGeneratorSyncInfo
+0x026D7ED8|hkbReferencedGeneratorSyncInfo
+0x026D7EF8|!hkbReferencedGeneratorSyncInfo
+0x026DA810|START_STATE_MODE_SYNC
+0x026DC720|syncVariableSetup
+0x026E1240|hkbClientCharacterState
+0x026E1258|!hkbClientCharacterState
+0x026F5128|HCL_SHAPE_TYPE_CONNECTED_MESH
+0x0270B988|Character already exists in client.

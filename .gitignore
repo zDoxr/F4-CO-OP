@@ -361,3 +361,38 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# ---- CoSync repo hygiene (2026-09-26) ----
+# Local copy of the game's Data folder: Bethesda content, never committed.
+# Only CoSync's own plugin/config/scripts from it are kept.
+/F4se-Data/**
+!/F4se-Data/Data/
+!/F4se-Data/Data/CoSync.esp
+!/F4se-Data/Data/F4SE/
+!/F4se-Data/Data/F4SE/Plugins/
+!/F4se-Data/Data/F4SE/Plugins/CoSync.ini
+!/F4se-Data/Data/Scripts/
+!/F4se-Data/Data/Scripts/CoSync*.pex
+!/F4se-Data/Data/Scripts/Scripts/
+!/F4se-Data/Data/Scripts/Scripts/CoSync*.psc
+!/F4se-Data/Data/Scripts/Source/
+!/F4se-Data/Data/Scripts/Source/User/
+!/F4se-Data/Data/Scripts/Source/User/CoSync*.psc
+# Game executables / extracted game assets / archives / external tools
+*.exe
+*.rar
+/GameFiles/
+/swf_extract/
+/swf_patch_only/
+/swf_patch_tmp/
+/ffdec/
+/_AnimSwapBackup_*/
+__pycache__/
+*.i64
+*.id0
+*.id1
+*.nam
+*.til
+*.dmp
+# Local tool settings
+/.claude/
+/.claire/

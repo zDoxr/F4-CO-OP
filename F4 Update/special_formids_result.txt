@@ -1,0 +1,98 @@
+SPECIAL Stat FormID & ActorValueInfo* Access — IDA Pro 9.3
+
+============================================================
+[1] ActorValue::QSTRENGTH  (RVA 0x0065EC60 — verified prologue)
+============================================================
+  Size: 158 bytes
+    0: __int64 __fastcall ActorValue::QSTRENGTH_void_(__int64 a1)
+    1: {
+    2:   if ( a1 )
+    3:     JUMPOUT(0x14065EC7FLL);
+    4:   return 0;
+    5: }
+    6: 
+
+============================================================
+[2] Disassembly of ActorValue::QSTRENGTH (RVA 0x0065EC60):
+============================================================
+  0065EC60: mov     [rsp+arg_8], rbx
+  0065EC65: push    rdi
+  0065EC66: sub     rsp, 20h
+  0065EC6A: xor     edi, edi
+  0065EC6C: mov     rbx, rcx
+  0065EC6F: test    rcx, rcx
+  0065EC72: jz      short loc_14065ECF1
+  0065EC74: mov     rdx, rcx
+  0065EC77: xor     r8d, r8d
+  0065EC7A: lea     rcx, [rsp+28h+arg_0]
+  0065EC7F: db 0E8h
+  0065EC80: pop     rsp
+  0065EC81: mov     ds:89F59D158B4800FFh, al
+  0065EC8A: add     cl, [rax-7Bh]
+  0065EC8D: sal     byte ptr [rcx-75h], cl
+  0065EC91: or      eax, 289F576h
+  0065EC96: mov     eax, dword ptr [rsp+28h+arg_0]
+  0065EC9A: dec     ecx
+  0065EC9C: and     rcx, rax
+  0065EC9F: lea     rax, [rcx+rcx*2]
+  0065ECA3: lea     rax, [rdx+rax*8]
+  0065ECA7: test    rax, rax
+  0065ECAA: jz      short loc_14065ECF1
+  0065ECAC: cmp     [rax+10h], rdi
+  0065ECB0: jz      short loc_14065ECF1
+  0065ECB2: mov     rcx, cs:off_142EFE218
+  0065ECB9: nop     dword ptr [rax+00000000h]
+  0065ECC0: cmp     [rax], rbx
+  0065ECC3: jz      short loc_14065ECE0
+  0065ECC5: mov     rax, [rax+10h]
+  0065ECC9: test    rax, rax
+  0065ECCC: jz      short loc_14065ECF1
+  0065ECCE: cmp     rax, rcx
+  0065ECD1: jnz     short loc_14065ECC0
+  0065ECD3: mov     eax, edi
+  0065ECD5: mov     rbx, [rsp+28h+arg_8]
+  0065ECDA: add     rsp, 20h
+  0065ECDE: pop     rdi
+  0065ECDF: retn
+  0065ECE0: test    rax, rax
+  0065ECE3: jz      short loc_14065ECF1
+  0065ECE5: mov     rcx, [rax+8]
+  0065ECE9: test    rcx, rcx
+  0065ECEC: jz      short loc_14065ECF1
+  0065ECEE: mov     edi, [rcx+10h]
+  0065ECF1: mov     rbx, [rsp+28h+arg_8]
+  0065ECF6: mov     eax, edi
+  0065ECF8: add     rsp, 20h
+  0065ECFC: pop     rdi
+  0065ECFD: retn
+
+============================================================
+[3] ActorValue::InitializeActorValues  (RVA 0x0069B1B0)
+============================================================
+  Size: 636 bytes
+  [First 120 lines]
+        0: void __fastcall sub_14069B160(
+        1:         __int64 a1,
+        2:         __int64 a2,
+        3:         __int64 a3,
+        4:         __int64 a4,
+        5:         __int64 a5,
+        6:         int a6,
+        7:         int a7,
+        8:         int a8,
+        9:         int a9,
+       10:         int a10,
+       11:         int a11,
+       12:         int a12,
+       13:         int a13,
+       14:         __int64 a14)
+       15: {
+       16:   if ( (_DWORD)qword_143E5F2D0 != 2 )
+       17:     sub_141657F90(&unk_143E5E0F0, &qword_143E5F2D0);
+       18:   JUMPOUT(0x14069B1AELL);
+       19: }
+       20: 
+
+============================================================
+[4] String references to SPECIAL names in .text (LEA to string literals):
+============================================================

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "NiTypes.h"
-#include "NiObjects.h"
+#include "f4se/NiTypes.h"
+#include "f4se/NiObjects.h"
 
 class BSParticleShaderProperty;
 

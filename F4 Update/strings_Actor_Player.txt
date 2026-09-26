@@ -1,0 +1,400 @@
+﻿0x0245F960|uRangingCompanionFailsBeforeWarpAttempt
+0x0245F988|fRangingCompanionFailsAtDistanceRatio
+0x02464168|Spawn Hazard
+0x02464190|Spawn Scripted Ref
+0x02466738|Target Actor
+0x02466748|sMagicDeliveryTargetActor
+0x02466A30|fMagicDefaultCEBarterFactor
+0x02469350|fLeveledActorMultEasy
+0x02469368|fLeveledActorMultMedium
+0x02469380|fLeveledActorMultHard
+0x02469398|fLeveledActorMultVeryHard
+0x0246B710|fLODFadeOutMultActors:LOD
+0x0246CCC0|TemplateActorBC
+0x0246D150|CommandingActorPersistenceForm
+0x0246D23C|Player
+0x0246E300|If a leveled actor fails to calculate a base object in game, use this instead.
+0x0246E350|FallBackLeveledActorBase_DO
+0x0246F5B0|fEpicLootMinPCLevelBase
+0x0246F5C8|fEpicLootMinPCLevelMult
+0x02470630|uMaxSkinDecalPerActor:Decals
+0x02471790|Keyword that should match the attach point on a PassengerMount actor where the passenger goes
+0x02471810|Keyword used when a linked ref is the vehicle an actor should get onto/into if they desire to ride one
+0x02471A30|Keyword used to indicate that a flying actor should cut the navmesh when landed on the ground (not in perches)
+0x02471AC0|Keyword used on an actor to indicate that they shouldn't be forced out of their furniture when they die
+0x02472F30|This ammo is worn on the actors body.
+0x024734C0|NPC Spine [Spn0]
+0x024734D8|NPC Spine2 [Spn2]
+0x02473728|NPC L MagicNode [LMag]
+0x02473740|NPC R MagicNode [RMag]
+0x02473820|IsPlayer
+0x0247382C|IsNPC
+0x02473838|iIsPlayer
+0x024739B0|ActorResponse
+0x024739C0|PlayerCharacterResponse
+0x02473EC0|bActorMobilityNotFullyCrippled
+0x024748F0|The action to get called when an actor starts using a jetpack.
+0x02474950|The action to get called after the actor's jumpjets cut out but they are still rising upwards
+0x02475070|uiCompanionLocalMapMaxCells:MapMenu
+0x02475490|Keyword that marks the link from an actor to the power armor furniture they are using or will use
+0x02475600|Keyword that if present on an actor specifies the actor uses the pipboy override light
+0x02475750|If this keyword is present on an actor's armor the player will be unable to steal their fusion core
+0x024757E0|If this keyword is present on an actor, power armor they wear will never take damage
+0x02475DB8|Race used for visuals for actors when they are in power armor
+0x02475F90|Combat style used by all actors while they are inside power armor
+0x024760D0|Perk that allows the player to fire the fusion core out the back of his power armor like a weapon
+0x024764D8|Disables all companion-based menu use.
+0x02476500|CompanionDisableMenuAll_DO
+0x02476520|Disables the ability to command a companion.
+0x02476550|CompanionDisableMenuCommand_DO
+0x02476570|Disables the ability to enter dialogue with a companion.
+0x024765B0|CompanionDisableMenuDialogue_DO
+0x024765D0|Disables the ability to dismiss a companion.
+0x02476600|CompanionDisableMenuDismiss_DO
+0x02476620|Disables the ability to trade with a companion.
+0x02476650|CompanionDisableMenuTrade_DO
+0x02478500|Keyword to indicate that player interaction with the item in Workshop is blocked.
+0x02478628|Workshop actors with this keyword are Armor Racks/Mannequins.
+0x024786E0|Actor Value used to indicate a workshop piece should create an Acoustic Space ref when placed.
+0x02478A58|fWorkshopDropProxyMaxZDelta:Workshop
+0x02478CD0|Actor Value to signify an object should receive power on/off events if nonzero.
+0x02479390|Actor Value used to override BOTH the XY bound of an item being snapped, for use in the intersection test.
+0x02479420|Actor Value used to override ONLY the minimum X bound of an item being snapped, for use in the intersection test.
+0x024794C0|Actor Value used to override ONLY the maximum X bound of an item being snapped, for use in the intersection test.
+0x02479560|Actor Value used to override ONLY the minimum Y bound of an item being snapped, for use in the intersection test.
+0x02479600|Actor Value used to override ONLY the maximum Y bound of an item being snapped, for use in the intersection test.
+0x024796A0|Actor Value used to override ONLY the minimum Z bound of an item being snapped, for use in the intersection test.
+0x02479740|Actor Value used to override ONLY the maximum Z bound of an item being snapped, for use in the intersection test.
+0x024798F0|If nonzero, a workshop item with this actor value stacks onto the reference it snaps to.
+0x02479970|Workshop items with this actor value nonzero cannot be placed in the world unless they are validly snapped.
+0x02479D68|bUseDropProxy:Workshop
+0x0247A0D0|Actor Value used to indicate an item is a Workshop Resource Object.
+0x0247A140|Actor Value to indicate a workshop item can only be placed in water.
+0x0247A1B0|Actor Value to indicate a workshop item may be placed in water. Absence of this or WorkshopPlacementWaterOnly means it may not be placed in water.
+0x0247A270|Actor Value to indicate a workshop item can only be placed on terrain.
+0x0247AB00|Actor Value used to indicate a Workshop has missing food resources.
+0x0247AB70|Actor Value used to indicate a Workshop has missing water resources.
+0x0247ABE0|Actor Value used to indicate a Workshop has missing safety resources.
+0x0247AC50|Actor Value used on Workshop references to hide the Happiness bar if nonzero.
+0x0247ACC8|Actor Value used for a provisioner in Workshop.
+0x0247AD20|Actor Value used for a scavenger in Workshop.
+0x0247AD78|Actor Value used for a general vendor in Workshop.
+0x0247ADD8|Actor Value used for a clinic vendor in Workshop.
+0x0247AE38|Actor Value used for a clothing vendor in Workshop.
+0x0247AE98|Actor Value used for an armor vendor in Workshop.
+0x0247AEF8|Actor Value used for a weapons vendor in Workshop.
+0x0247AF58|Actor Value used for a bar vendor in Workshop.
+0x0247B190|fPlayerOutsideBuildAreaTimerDuration
+0x0247BA20|ActorNode
+0x0247CD30|NVFlex::SpawnDebrisFromImpact
+0x0247D6A0|id %u, player dist %f m, shape %s, 
+0x0247D748|Actor, 
+0x0247DC20|L_UNIDENTIL_ACTORZONEFIED 
+0x0247E380|IMovementPlayerControls
+0x0247E398|IMovementPlayerControlsFilter
+0x0247E3B8|bDoPlayerControlsPickIdle:Controls
+0x0247E4F8|Set Player Controls
+0x0247E710|Player Controls
+0x024853B8|fHazardMinimumSpawnInterval
+0x0248B1E0|Keyword to indicate sleep furniture in which an actor should still do detection.
+0x0248B260|Keyword to indicate furniture in which an actor can't pass time.
+0x0248B600|Action sent when a piece of furniture, with the play anim when full flag set, was full but one actor is exiting.
+0x0248B700|The keyword to add to furniture to have the player path to it rather than pop instantly.
+0x0248B760|PlayerShouldPathToFurniture_DO
+0x0248E480|Actors
+0x024902B8|vaActorValues
+0x02491CC0|The reference to this in a transition cell indicates its bound. This is used to make sure the player is inside it before teleporting.
+0x02493738|bForceNPCsUseAmmo:Combat
+0x02494B88|pNPCAddAmmoList
+0x02494B98|sPropModNameWeappNPCAddAmmoList
+0x02494BB8|fPropModScaleWeappNPCAddAmmoList
+0x024950D8|bplayeronly
+0x024950E8|bnpcsuseammo
+0x02495340|pnNPCammoList
+0x02497AF0|LocRefTypes that indicate actor is a boss.
+0x0249AFC8|This is the keyword used to link EMS actors to their turf.
+0x0249B020|Global multiplier for the iHoursToRespawnCell GameSetting
+0x0249B060|HoursToRespawnCellMult_DO
+0x0249B080|Global multiplier for the iHoursToRespawnCellCleared GameSetting
+0x0249B0C8|HoursToRespawnCellClearedMult_DO
+0x0249B148|iHoursToRespawnCell
+0x0249B160|iHoursToRespawnCellCleared
+0x0249C148|This NPC is Legendary.
+0x0249C160|LegendaryNPCKeyword_DO
+0x0249C180|All actors tagged to persist in this location will be flagged as persistent and thus persist in all locations. Should be used only for actors that travle from one location to another.
+0x0249C250|Actors tagged to this location do not need to actually be inside it in the editor. Should be used for actors we need to be able to find for radiant story but which do not otherwise have a specific location.
+0x0249C338|This actor is Dogmeat.
+0x0249C460|This actor cannot be dismembered while alive regardless of race setting.
+0x0249C4D0|Keyword used to flag a ref that an actor can use in workshop command mode
+0x0249C538|This actor is may be commanded during workshop mode.
+0x0249C570|WNPC_Command_DO
+0x0249C580|This actor is may be told to lead a caravan during workshop mode.
+0x0249C5C8|WNPC_Caravan_KW
+0x0249C5E0|This actor is may be told to move between settlements during workshop mode.
+0x0249C630|WNPC_Move_KW
+0x0249C6C0|Keyword passed to script to signify that we want to set a new home for a WNPC to a location.
+0x0249C7A0|Keyword to indicate a reference is a featured item, triggering the inspect menu the first time the player activates it.
+0x0249D540|Behavior ragdoll save/load state mismatch. Actor %s %08X pose may be incorrect.
+0x0249FA78|fCameraShotActorRadiusStrength
+0x0249FA98|fCameraShotBaseActorRadiusSpring
+0x0249FBF8|Lead Actor
+0x024A0710|Allow Player Shout
+0x024A0750|Player Faction
+0x024A07A8|Player Voice (Male)
+0x024A07C0|Player Voice (Male Child)
+0x024A07E0|Player Voice (Female)
+0x024A07F8|Player Voice (Female Child)
+0x024A0858|Every Actor Ability
+0x024A0870|Commanded Actor Ability
+0x024A0980|Pathing Test NPC
+0x024A18D8|Player's Output Model (1st Person)
+0x024A1900|Player's Output Model (3rd Person)
+0x024A19A8|Keyword - NPC
+0x024A1C50|Keyword - Activator Furniture No Player
+0x024A2100|Player Is Vampire Variable
+0x024A2140|Keyword: Scale Actor To 1.0
+0x024A2C60|Furniture Test NPC
+0x024A2D28|Workshop player ownership
+0x024A7B70|GetActorValue: %s >> %0.2f
+0x024A7BA8|GetActorValuePercent >> %0.2f
+0x024A7BE0|GetBaseActorValue: %s >> %0.2f
+0x024A8138|IsHostileToActor >> %i
+0x024A83F0|GetPlayerControlsDisabled: %0.2f
+0x024A8830|IsPlayerSleeping >> %0.2f
+0x024A8850|IsPlayerAMurderer >> %0.2f
+0x024A8888|Amount stolen the player sold >> %0.2f
+0x024A8A90|Player is in Vampire Feed action >> %0.2f
+0x024A8AC0|Player is in Cannibal action >> %0.2f
+0x024A8AF8|Actor %s in stage %s.
+0x024A8B10|Actor has been eaten >> %0.2f
+0x024A8D28|Player misc stat value %.02f
+0x024A8F00|Player teammate  >> %d
+0x024A8F18|Player teammate count  >> %d
+0x024A8F38|This actor is an enemy of player because of crime
+0x024A8F70|This actor is not an enemy of player because of crime
+0x024A90F0|IsGreeting the player >> %.2f
+0x024A9318|GetActorsInHigh >> %0.2f
+0x024A9338|GetFullyEnabledActorsInHigh >> %0.2f
+0x024A9360|GetActorStaggerDirection >> %0.2f
+0x024A9388|GetActorStaggerMagnitude >> %0.2f
+0x024A9970|Actor %s is in scene %s.
+0x024A99B0|Actor %s is in dialogue state with player.
+0x024A99E0|Actor %s is not in dialogue state with player.
+0x024A9A10|Reference %s is in dialogue state with player.
+0x024A9A40|Reference %s is not in dialogue state with player.
+0x024A9A90|Player in the current conversation (is the %s) with %s
+0x024A9AD0|Player NOT in the current conversation (neither speaker or listener) with %s
+0x024A9C70|GetFlyingState: Reference is not an actor
+0x024A9E90|Actor Crime Gold is %.02f 
+0x024A9EB0|Actor violent Crime Gold is %.02f 
+0x024A9ED8|Actor non violent Crime Gold is %.02f 
+0x024A9F60|IsPlayerRadioOn >> %0.2f
+0x024A9F80|GetPlayerRadioFrequency >> %0.2f
+0x024A9FC8|GetMovementSpeed: Reference is not an actor
+0x024AA070|GetPathingOffset: actor is not in High Process
+0x024AA0A0|GetPathingOffset: Reference is not an actor
+0x024AA160|GetPathingTargetAngleOffset: actor is not in High Process
+0x024AA1A0|GetPathingTargetAngleOffset: Reference is not an actor
+0x024AA230|GetPathingTargetSpeed: actor is not in High Process
+0x024AA268|GetPathingTargetSpeed: Reference is not an actor
+0x024AA328|GetPathingTargetSpeedAngle: actor is not in High Process
+0x024AA368|GetPathingTargetSpeedAngle: Reference is not an actor
+0x024AA3F8|GetPathingCurrentSpeed: actor is not in High Process
+0x024AA430|GetPathingCurrentSpeed: Reference is not an actor
+0x024AA4F8|GetPathingCurrentSpeedAngle: actor is not in High Process
+0x024AA538|GetPathingCurrentSpeedAngle: Reference is not an actor
+0x024AA5A8|GetPlayerAction: actor has no process
+0x024AA5D0|GetPlayerAction: Reference is not an actor
+0x024AA600|GetPlayerAction: No reference passed in
+0x024AA650|Player will serve %0.2f days in jail
+0x024AA6F0|GetLastBumpDirection: actor does not have a process
+0x024AA728|GetLastBumpDirection: Reference is not an actor
+0x024AA788|Total  Infamy Crime Gold of %.02f to the player
+0x024AA7B8|Total Violent Infamy Crime Gold of %.02f to the player
+0x024AA7F0|Total Non Violent Infamy Crime Gold of %.02f to the player
+0x024AA8A8|%s player bribe try: %s
+0x024AA8C0|%s player intimidate try: %s
+0x024AA908|%s arresting an actor: %s
+0x024AAA20|Player %s %s
+0x024AAAB0|IsCommandedActor >> %0.2f
+0x024AAC60|Player is%s in region.
+0x024AAD20|The reference does not exist or is not an actor.
+0x024AADD8|Player walkawayed away from scene  %0.f
+0x024AAE50| %s is last crippled actor value 
+0x024AAE78| %s is not last crippled actor value 
+0x024AAEA0|GetAngryWithPlayer: %0.f
+0x024AB0D8|LocationHasPlayerOwnedWorkshop >> %0.0f
+0x024AB118|Is Current Target player: %0.f
+0x024AB138|Is Current Target actor: %0.f
+0x024AB198|IsPlayerRiding>> %0.2f
+0x024AB370|IsPlayerListening(%0.1f): %s
+0x024AB3B8|UseFastTurnInPlaceFunction: Reference is not an actor
+0x024ACD00|Invalid actor '%s' for parameter %s.
+0x024AD410|Invalid actor base '%s' for parameter %s.
+0x024AD5E8|Invalid NPC '%s' for parameter %s.
+0x024ADAE0|Invalid ActorValue '%s' for parameter %s.
+0x024AE508|Actor Value '%s' cannot be modified in scripts or the console.
+0x024AEC70|Player %s Spell set to %s
+0x024AECB8|Actor %s dual casting.
+0x024AEE70| Actor's fall timer is %.02f 
+0x024AEE90|Player Level advanced from %u to %u
+0x024AF020|Is actor riding mount >> %0.2f
+0x024AF040|Is actor being ridden >> %0.2f
+0x024AF060|Actor players last ridden horse >> %0.2f
+0x024AF090|Actor is in lava >> %0.2f
+0x024AF0B0|Actor ignores friendly hits
+0x024AF0D0|Actor counts friendly hits
+0x024AF178|IsActor >> %0.2f
+0x024AF190|Player is moving to new area >> %0.2f
+0x024AF430|GetPlayerGrabbedRef >> (%08x)
+0x024AF678|Actor Crime Gold for faction %s has been modified to %u 
+0x024AF6B8|Actor Crime Gold for faction %s has been set to %u 
+0x024AF6F0|Actor %s casting.
+0x024AF748|Actor is allowed to fly 
+0x024AF7F8|Actor is not allowed to fly 
+0x024AF848|The actor is rotating: %s
+0x024AF868|The actor's combat state: %0.2f
+0x024AF8E0|IsLastHostileActor >> %0.2f
+0x024AFCA0|Two actors are required.
+0x024AFCC0|The actor mount failed.
+0x024AFCD8|The actor is not mounted.
+0x024AFCF8|The reference must be an actor.
+0x024AFD38|The actor dismount failed.
+0x024AFFC0|Actor
+0x024B0AD0| cl [fpon|fpoff] - enable/disable on player first person geometry
+0x024B0C80|Character light ENABLED on player first person.
+0x024B0CB8|Character light DISABLED on player first person.
+0x024B14E8|Setting SSR Edge Fade Factor to %0.4f
+0x024B1970|AI Processing for actors in high is  %s
+0x024B1998|AI Processing for actors in Low is  %s
+0x024B19C0|AI Processing for actors in Middle Low is  %s
+0x024B19F0|AI Processing for actors in Middle High is  %s
+0x024B1A20|AI Processing of Actor's Editor Schedules is  %s
+0x024B1A58|The NPC will speak the sound now.
+0x024B1D88|Selected Actor: %s (%08X)
+0x024B2338|\actors\
+0x024B2388|ACTOR
+0x024B27A0|NPC Facial Emotions %s
+0x024B29E0|%u spells added to Player Character
+0x024B2F10|SetFaceTarget - Actor doesn't have a movement controller.
+0x024B2F80|SetFaceTarget - Must be called on an actor
+0x024B2FB0|SetPathSprinting - Actor has no movement controller
+0x024B3018|SetPathSprinting - Must be called on an actor
+0x024B3048|ToggleMotionDriven - actor movement is now Motion-driven
+0x024B3088|ToggleMotionDriven - actor movement is now Animation-driven
+0x024B3120|ToggleMotionDriven - Must be called on an actor
+0x024B3150|ToggleControlsDriven - actor movement is now controls-driven
+0x024B3190|ToggleControlsDriven - actor movement is now AI-driven
+0x024B31F8|ToggleControlsDriven - Actor has no movement controller
+0x024B3268|ToggleControlsDriven - Must be called on an actor
+0x024B3368|Distance between Ref %s (%08x) and Actor %s (%08x):
+0x024B3460|GetDistanceFromActorsPath - Actor %s does not have valid path data
+0x024B34A8|GetDistanceFromActorsPath must have an actor as the target
+0x024B3950|SetRace requires an actor to function.
+0x024B3BD0|The NPC %s (%08x) was created as a ref %s (%08x) that was not an actor.
+0x024B3C18|The NPC %s (%08x) failed to instantiate.
+0x024B3CD0|PlaceFurnitureTest: the parameter %s (%08x) should either have been an NPC, or left blank (to use the default NPC).
+0x024B3D50|PlaceFurnitureTest: the default 'Furniture Test NPC' is unset.  Please specify an NPC.
+0x024B3F20|ChangeAnimArchetype: FAILED.  %s is not a valid anim archetype, or actor is already that type.
+0x024B3F80|ChangeAnimArchetype: FAILED.  No or invalid actor selected.
+0x024B4000|ChangeAnimFlavor: FAILED.  %s is not a valid anim flavor, or actor is already that type.
+0x024B4060|ChangeAnimFlavor: FAILED.  No or invalid actor selected.
+0x024B40B8|%s (%08X) is now %s at the player
+0x024B45D8|The resolution only increase when the player is moving: %s.
+0x024B47F0|%s (%08X) has hello/greeting (%08x) for this actor  %s (%08X)
+0x024B4830|%s (%08X) has no hello/greeting for this actor  %s (%08X)
+0x024B5238|  gr intensity <factor>
+0x024B52D0|  gr fogcolor <factor>
+0x024B5338|  gr multiscatter <factor>
+0x024B5398|  gr scale <factor>
+0x024B53B0|    Set the world scale factor
+0x024B5F30|The nearest Workshop %s(%08x) is currently not available to the player.
+0x024B5FA0|The player is currently not within the buildable area of any Workshop.
+0x024B6068|All Player IDs / Names:
+0x024B6080|SaveGame list filtered for player ID %08X ('%s')
+0x024B6160|Commanded actor %s (%08x) cannot use %s (%08x) because they do not own it. Use ClearOwnership on it first
+0x024B62C8|nActors:
+0x024B6348|actors
+0x024B6350|player
+0x024B63C8|pbgen [actors|player]
+0x024B63E0|pbgen award 1 - Award Trophy 1 (Unbound) to the player
+0x024B6F00|GetActorsInHigh
+0x024B74A0|IsPlayerRadioOn
+0x024B74B0|GetPlayerRadioFrequency
+0x024B7710|IsInFriendStatewithPlayer
+0x024B78B8|GetArrestingActor
+0x024B7960|SetHorseActor
+0x024B7AF0|IsLastHostileActor
+0x024B7CF8|IsCommandedActor
+0x024B7DC0|Update the player's level based on current skill usage amounts.
+0x024B7ED8|IsHostileToActor
+0x024B8010|GetPlayerWalkAwayFromDialogueScene
+0x024B8038|GetActorStance
+0x024B8068|MountActor
+0x024B8078|DismountActor
+0x024B80D0|GetActorGunState
+0x024B81F8|GetAngryWithPlayer
+0x024B8260|IsActorRefOwner
+0x024B8270|get the Actor ref ownership of the ref
+0x024B8298|check whether the ref ever had Actor ownership assigned
+0x024B8430|Is the actor overencumbered?
+0x024B84E0|GetActorStaggerDirection
+0x024B8500|GetActorStaggerMagnitude
+0x024B8550|IsPlayerInConversation
+0x024B8568|True if Player is in the current conversation
+0x024B85D8|IsMyDialogueTargetPlayer
+0x024B85F8|IsMyDialogueTargetActor
+0x024B8660|IsPlayerRiding
+0x024B8670|True if the player is riding the subject
+0x024B8738|LocationHasPlayerOwnedWorkshop
+0x024B87E8|True if the player is in workshop mode
+0x024B8880|IsEncounterAbovePlayerLevel
+0x024B88A0|True if the ref this is called on is in a zone which is higher than player level.
+0x024B8A30|Returns if an actor is in water or not.
+0x024B8A88|Returns if an actor is under water or not.
+0x024B8BD8|IsPlayerListening
+0x024B8C98|Set an override voice type on an actor
+0x024B8CD8|Is an actor using the robot workbench
+0x024B9198|Actor Value
+0x024B92F8|Actor Base
+0x024B9328|Actor (optional)
+0x024B9740|Actor 
+0x024B9A70|OnActorEquip
+0x024B9A80|OnActorUnequip
+0x024B9B20|Show variables on object. You can optionally specified a papyrus variable or script to filter with [player->sv]
+0x024BA1D0|Show Animation and Actor status.
+0x024BA3C8|PickNextActor
+0x024BA3E0|Select the the next actor in the center of the screen outside the console
+0x024BA430|PickClosestActor
+0x024BA448|Select the the closest actor to the player
+0x024BACA0|Toggle 3D for a Cell child node: 0-Actor, 1-Marker, 2-Land, 3-Water, 4-Static, 5-Active
+0x024BB0F0|Toggle NPC facial emotions.
+0x024BB130|PlayerSpellBook
+0x024BB148|Add all spells to player.
+0x024BB238|DisplayPlayerIDs
+0x024BB258|SetDisplayPlayerID
+0x024BB278|SetDisplayPlayerID <filename>
+0x024BB310|runs Render Test on player's current parent cell
+0x024BB360|runs Render Test on player's current position
+0x024BB500|Move player to current quest target.
+0x024BB528|PrintNPCDialog
+0x024BB540|Prints NPC dialog
+0x024BBF88|ShowWhoDetectsPlayer
+0x024BBFA8| Show who detects the player
+0x024BCC78|ToggleActorMover
+0x024BCC90|Toggles actor movement through pathing system
+0x024BD1D8|EvalActorTextures
+0x024BD368|Sets the input-to-player movement graph
+0x024BD510|Force actor to path to reference.
+0x024BD560|Starts player pathing memory test.
+0x024BD610|Force actor to face a reference.
+0x024BD6B8|Force actor to sprint.
+0x024BDCB8|Sets all active actions on actor in scene complete
+0x024BDD68|GetDistanceFromActorsPath
+0x024BDD90|Prints out the distance from a reference to an actor's path.
+0x024BDF28|Toggle Actor Info
+0x024BE1D0|Saves a Havok snapshot of the hkpWorld the player is currently in
+0x024BE218|SetNPCWeight
+0x024BE228|SNPCW
+0x024BE230|[0-100]: Sets the weight of an NPC and reloads his 3D to visualize the weight change
+0x024BE478|Toggles all actor movement

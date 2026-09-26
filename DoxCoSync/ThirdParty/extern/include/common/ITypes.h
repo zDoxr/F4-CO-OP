@@ -5,16 +5,16 @@
 #pragma warning(disable: 4221)
 #include <cmath>
 
-typedef unsigned char		UInt8;		//!< An unsigned 8-bit integer value
-typedef unsigned short		UInt16;		//!< An unsigned 16-bit integer value
-typedef unsigned long		UInt32;		//!< An unsigned 32-bit integer value
-typedef unsigned long long	UInt64;		//!< An unsigned 64-bit integer value
-typedef signed char			SInt8;		//!< A signed 8-bit integer value
-typedef signed short		SInt16;		//!< A signed 16-bit integer value
-typedef signed long			SInt32;		//!< A signed 32-bit integer value
-typedef signed long long	SInt64;		//!< A signed 64-bit integer value
-typedef float				Float32;	//!< A 32-bit floating point value
-typedef double				Float64;	//!< A 64-bit floating point value
+typedef unsigned char		UInt8;
+typedef unsigned short		UInt16;
+typedef unsigned long		UInt32;
+typedef unsigned long long	UInt64;
+typedef signed char			SInt8;
+typedef signed short		SInt16;
+typedef signed long			SInt32;
+typedef signed long long	SInt64;
+typedef float				Float32;
+typedef double				Float64;
 
 inline UInt32 Extend16(UInt32 in)
 {
@@ -74,7 +74,7 @@ inline bool IsBigEndian(void)
 	} temp;
 
 	temp.u16 = 0x1234;
-	
+
 	return temp.u8[0] == 0x12;
 }
 
@@ -98,11 +98,7 @@ inline bool IsLittleEndian(void)
 #define COLOR_GREEN(in)			((in >> 8) & 0xFF)
 #define COLOR_BLUE(in)			((in >> 0) & 0xFF)
 
-/**
- *	A 64-bit variable combiner
- *	
- *	Useful for endian-independent value extraction.
- */
+
 union VarCombiner
 {
 	UInt64	u64;
@@ -119,54 +115,48 @@ union VarCombiner
 			 SInt8  d; SInt8  c; SInt8  b; SInt8  a; } s8;
 };
 
-/**
- *	A bitfield.
- */
+
 template <typename T>
 class Bitfield
 {
 	public:
 				Bitfield()					{ }
 				~Bitfield()					{ }
-		
-		void	Clear(void)					{ field = 0; }						//!< Clears all bits
-		void	RawSet(UInt32 data)			{ field = data; }					//!< Modifies all bits
-		
-		void	Set(UInt32 data)			{ field |= data; }					//!< Sets individual bits
-		void	Clear(UInt32 data)			{ field &= ~data; }					//!< Clears individual bits
-		void	UnSet(UInt32 data)			{ Clear(data); }					//!< Clears individual bits
-		void	Mask(UInt32 data)			{ field &= data; }					//!< Masks individual bits
-		void	Toggle(UInt32 data)			{ field ^= data; }					//!< Toggles individual bits
+
+		void	Clear(void)					{ field = 0; }
+		void	RawSet(UInt32 data)			{ field = data; }
+
+		void	Set(UInt32 data)			{ field |= data; }
+		void	Clear(UInt32 data)			{ field &= ~data; }
+		void	UnSet(UInt32 data)			{ Clear(data); }
+		void	Mask(UInt32 data)			{ field &= data; }
+		void	Toggle(UInt32 data)			{ field ^= data; }
 		void	Write(UInt32 data, bool state)
 											{ if(state) Set(data); else Clear(data); }
-		
-		T		Get(void) const				{ return field; }					//!< Gets all bits
-		T		Get(UInt32 data) const		{ return field & data; }			//!< Gets individual bits
-		T		Extract(UInt32 bit) const	{ return (field >> bit) & 1; }		//!< Extracts a bit
-		T		ExtractField(UInt32 shift, UInt32 length)					//!< Extracts a series of bits
+
+		T		Get(void) const				{ return field; }
+		T		Get(UInt32 data) const		{ return field & data; }
+		T		Extract(UInt32 bit) const	{ return (field >> bit) & 1; }
+		T		ExtractField(UInt32 shift, UInt32 length)
 											{ return (field >> shift) & (0xFFFFFFFF >> (32 - length)); }
-		
-		bool	IsSet(UInt32 data) const	{ return ((field & data) == data) ? true : false; }	//!< Are all these bits set?
-		bool	IsUnSet(UInt32 data) const	{ return (field & data) ? false : true; }			//!< Are all these bits clear?
-		bool	IsClear(UInt32 data) const	{ return IsUnSet(data); }							//!< Are all these bits clear?
-	
+
+		bool	IsSet(UInt32 data) const	{ return ((field & data) == data) ? true : false; }
+		bool	IsUnSet(UInt32 data) const	{ return (field & data) ? false : true; }
+		bool	IsClear(UInt32 data) const	{ return IsUnSet(data); }
+
 	private:
-		T		field;	//!< bitfield data
+		T		field;
 };
 
-typedef Bitfield <UInt8>	Bitfield8;		//!< An 8-bit bitfield
-typedef Bitfield <UInt16>	Bitfield16;		//!< A 16-bit bitfield
-typedef Bitfield <UInt32>	Bitfield32;		//!< A 32-bit bitfield
+typedef Bitfield <UInt8>	Bitfield8;
+typedef Bitfield <UInt16>	Bitfield16;
+typedef Bitfield <UInt32>	Bitfield32;
 
 STATIC_ASSERT(sizeof(Bitfield8) == 1);
 STATIC_ASSERT(sizeof(Bitfield16) == 2);
 STATIC_ASSERT(sizeof(Bitfield32) == 4);
 
-/**
- *	A bitstring
- *	
- *	Essentially a long bitvector.
- */
+
 class Bitstring
 {
 	public:
@@ -186,35 +176,33 @@ class Bitstring
 
 	private:
 		UInt8	* data;
-		UInt32	length;	//!< length in bytes
+		UInt32	length;
 };
 
-/**
- *	Time storage
- */
+
 class Time
 {
 	public:
 				Time()				{ Clear(); }
 				~Time()				{ }
-		
-		//! Deinitialize the class
+
+
 		void	Clear(void)			{ seconds = minutes = hours = 0; hasData = false; }
-		//! Sets the class to the current time
-		//! @todo implement this
+
+
 		void	SetToNow(void)		{ Set(1, 2, 3); }
-		
-		//! Sets the class to the specified time
+
+
 		void	Set(UInt8 inS, UInt8 inM, UInt8 inH)
 									{ seconds = inS; minutes = inM; hours = inH; hasData = true; }
-		
-		//! Gets whether the class has been initialized or not
+
+
 		bool	IsSet(void)			{ return hasData; }
-		
-		UInt8	GetSeconds(void)	{ return seconds; }	//!< return the seconds portion of the time
-		UInt8	GetMinutes(void)	{ return minutes; }	//!< return the minutes portion of the time
-		UInt8	GetHours(void)		{ return hours; }	//!< return the hours portion of the time
-	
+
+		UInt8	GetSeconds(void)	{ return seconds; }
+		UInt8	GetMinutes(void)	{ return minutes; }
+		UInt8	GetHours(void)		{ return hours; }
+
 	private:
 		UInt8	seconds, minutes, hours;
 		bool	hasData;

@@ -1,0 +1,394 @@
+[
+  {
+    "name": "g_setMarkerVisible",
+    "kind": "func",
+    "type": "SetMarkerFlagFn",
+    "rva": 2887568,
+    "file": "Character\\CoSyncPlayerMarker.cpp",
+    "line": 124
+  },
+  {
+    "name": "g_setMarkerTravel",
+    "kind": "func",
+    "type": "SetMarkerFlagFn",
+    "rva": 2887632,
+    "file": "Character\\CoSyncPlayerMarker.cpp",
+    "line": 125
+  },
+  {
+    "name": "g_CreateReferenceAtLocation",
+    "kind": "func",
+    "type": "_CreateReferenceAtLocation",
+    "rva": 3034608,
+    "file": "CoSync\\CoSyncGameAPI.cpp",
+    "line": 99
+  },
+  {
+    "name": "GetSkyManagerSingleton",
+    "kind": "func",
+    "type": "_GetSkyManagerSingleton",
+    "rva": 3089424,
+    "file": "World\\CoSyncTimeSync.cpp",
+    "line": 35
+  },
+  {
+    "name": "CopyCharacterTints",
+    "kind": "func",
+    "type": "_CopyCharacterTints",
+    "rva": 4187296,
+    "file": "ThirdParty\\Pap\\GameCustomization.cpp",
+    "line": 19
+  },
+  {
+    "name": "CreateCharacterTintEntry",
+    "kind": "func",
+    "type": "_CreateCharacterTintEntry",
+    "rva": 4192240,
+    "file": "ThirdParty\\Pap\\GameCustomization.cpp",
+    "line": 18
+  },
+  {
+    "name": "ClearCharacterTints",
+    "kind": "func",
+    "type": "_ClearCharacterTints",
+    "rva": 4206016,
+    "file": "ThirdParty\\Pap\\GameCustomization.cpp",
+    "line": 20
+  },
+  {
+    "name": "g_getExtraMapMarker",
+    "kind": "func",
+    "type": "GetExtraMapMarkerFn",
+    "rva": 5648080,
+    "file": "Character\\CoSyncPlayerMarker.cpp",
+    "line": 123
+  },
+  {
+    "name": "GetLinkedRef_Native",
+    "kind": "func",
+    "type": "_GetLinkedRef_Native",
+    "rva": 5653888,
+    "file": "Core\\GameGlobals.cpp",
+    "line": 121
+  },
+  {
+    "name": "SetLinkedRef_Native",
+    "kind": "func",
+    "type": "_SetLinkedRef_Native",
+    "rva": 5653920,
+    "file": "Core\\GameGlobals.cpp",
+    "line": 122
+  },
+  {
+    "name": "g_EngineDisableRefr",
+    "kind": "func",
+    "type": "_EngineDisableRefr",
+    "rva": 5979888,
+    "file": "CoSync\\CoSyncGameAPI.cpp",
+    "line": 110
+  },
+  {
+    "name": "g_EngineEnableRefrMain",
+    "kind": "func",
+    "type": "_EngineEnableRefr",
+    "rva": 5980496,
+    "file": "CoSync\\CoSyncGameAPI.cpp",
+    "line": 112
+  },
+  {
+    "name": "g_EngineEnableRefrPre",
+    "kind": "func",
+    "type": "_EngineEnableRefr",
+    "rva": 5981248,
+    "file": "CoSync\\CoSyncGameAPI.cpp",
+    "line": 111
+  },
+  {
+    "name": "UI_RegisterMenuOpenCloseSink",
+    "kind": "func",
+    "type": "_RegisterMenuOpenCloseSink_t",
+    "rva": 6708976,
+    "file": "Core\\CoSyncMenuInject.cpp",
+    "line": 897
+  },
+  {
+    "name": "g_setQuestActive",
+    "kind": "func",
+    "type": "SetQuestActiveFn",
+    "rva": 6728416,
+    "file": "World\\CoSyncQuestSync.cpp",
+    "line": 685
+  },
+  {
+    "name": "g_setStageInternal",
+    "kind": "func",
+    "type": "SetStageInternalFn",
+    "rva": 6730288,
+    "file": "Hooks\\CoSyncQuestHook.cpp",
+    "line": 168
+  },
+  {
+    "name": "g_realSetAnimVarBool",
+    "kind": "func",
+    "type": "_RealSetAnimVarBool",
+    "rva": 8490336,
+    "file": "Animations\\CoSyncAnimationUtils.cpp",
+    "line": 48
+  },
+  {
+    "name": "g_realSetAnimVarInt",
+    "kind": "func",
+    "type": "_RealSetAnimVarInt",
+    "rva": 8490368,
+    "file": "Animations\\CoSyncAnimationUtils.cpp",
+    "line": 47
+  },
+  {
+    "name": "g_realSetAnimVarFloat",
+    "kind": "func",
+    "type": "_RealSetAnimVarFloat",
+    "rva": 8490400,
+    "file": "Animations\\CoSyncAnimationUtils.cpp",
+    "line": 46
+  },
+  {
+    "name": "g_EngineSwitchToPowerArmor",
+    "kind": "func",
+    "type": "_EngineSwitchToPowerArmor",
+    "rva": 10001024,
+    "file": "CoSync\\CoSyncGameAPI.cpp",
+    "line": 155
+  },
+  {
+    "name": "g_switchFromPowerArmor",
+    "kind": "func",
+    "type": "SwitchFromPowerArmorFn",
+    "rva": 10009392,
+    "file": "Armor\\CoSyncPowerArmorSync.cpp",
+    "line": 172
+  },
+  {
+    "name": "g_ShowHUDMessage",
+    "kind": "func",
+    "type": "_ShowHUDMessage",
+    "rva": 10710880,
+    "file": "CoSync\\CoSyncGameAPI.cpp",
+    "line": 1578
+  },
+  {
+    "name": "Actor_SetActorValue",
+    "kind": "func",
+    "type": "_Actor_SetActorValue",
+    "rva": 13039456,
+    "file": "Character\\CoSyncActorValues.cpp",
+    "line": 3
+  },
+  {
+    "name": "HasDetectionLOS",
+    "kind": "func",
+    "type": "_HasDetectionLOS",
+    "rva": 17686384,
+    "file": "Core\\GameGlobals.cpp",
+    "line": 120
+  },
+  {
+    "name": "CallFunctionNoWait_Internal",
+    "kind": "func",
+    "type": "_CallFunctionNoWait",
+    "rva": 18031840,
+    "file": "Core\\PapyrusNoWaitReloc.cpp",
+    "line": 77
+  },
+  {
+    "name": "SendCustomEvent_Internal",
+    "kind": "func",
+    "type": "_SendCustomEvent",
+    "rva": 18042240,
+    "file": "Core\\PapyrusNoWaitReloc.cpp",
+    "line": 91
+  },
+  {
+    "name": "MoveRefrToPosition",
+    "kind": "func",
+    "type": "_MoveRefrToPosition",
+    "rva": 18353360,
+    "file": "Core\\GameGlobals.cpp",
+    "line": 132
+  },
+  {
+    "name": "g_sayInternal",
+    "kind": "func",
+    "type": "SayInternalFn",
+    "rva": 18362880,
+    "file": "Dialog\\CoSyncDialogSync.cpp",
+    "line": 77
+  },
+  {
+    "name": "g_UI_IsMenuOpen_Fn",
+    "kind": "func",
+    "type": "_UI_IsMenuOpen_Fn",
+    "rva": 27786704,
+    "file": "CoSync\\CoSyncRuntime.cpp",
+    "line": 80
+  },
+  {
+    "name": "s_IsMenuOpen",
+    "kind": "func",
+    "type": "IsMenuOpen_t",
+    "rva": 27786704,
+    "file": "Dialog\\CoSyncDialogSync.cpp",
+    "line": 122
+  },
+  {
+    "name": "UI_IsMenuOpen",
+    "kind": "func",
+    "type": "IsMenuOpenFn",
+    "rva": 27786848,
+    "file": "GUI\\CoSyncMapOverlay.cpp",
+    "line": 98
+  },
+  {
+    "name": "GetChildElement",
+    "kind": "func",
+    "type": "_GetChildElement",
+    "rva": 28324480,
+    "file": "ThirdParty\\Pap\\GameMenus.cpp",
+    "line": 8
+  },
+  {
+    "name": "s_BSFaceGenBaseMorphExtraDataVtbl",
+    "kind": "ptr",
+    "type": "uintptr_t",
+    "rva": 38793400,
+    "file": "ThirdParty\\Pap\\NiExtraData.cpp",
+    "line": 7
+  },
+  {
+    "name": "s_NiStringExtraDataVtbl",
+    "kind": "ptr",
+    "type": "uintptr_t",
+    "rva": 40360504,
+    "file": "ThirdParty\\Pap\\NiExtraData.cpp",
+    "line": 5
+  },
+  {
+    "name": "s_BSDynPosDataVtbl",
+    "kind": "ptr",
+    "type": "uintptr_t",
+    "rva": 40364912,
+    "file": "ThirdParty\\Pap\\NiExtraData.cpp",
+    "line": 9
+  },
+  {
+    "name": "s_NiBinaryExtraDataVtbl",
+    "kind": "ptr",
+    "type": "uintptr_t",
+    "rva": 40375216,
+    "file": "ThirdParty\\Pap\\NiExtraData.cpp",
+    "line": 11
+  },
+  {
+    "name": "g_playerCamera",
+    "kind": "ptr",
+    "type": "PlayerCamera*",
+    "rva": 51232216,
+    "file": "Weapons\\CoSyncVatsSync.cpp",
+    "line": 223
+  },
+  {
+    "name": "g_engineDataHandler",
+    "kind": "ptr",
+    "type": "void*",
+    "rva": 51232768,
+    "file": "CoSync\\CoSyncGameAPI.cpp",
+    "line": 219
+  },
+  {
+    "name": "g_processListsPtr",
+    "kind": "ptr",
+    "type": "uintptr_t",
+    "rva": 51233088,
+    "file": "World\\CoSyncNpcWorldSync.cpp",
+    "line": 267
+  },
+  {
+    "name": "g_ui_fixed",
+    "kind": "ptr",
+    "type": "UI*",
+    "rva": 51238960,
+    "file": "Core\\CoSyncMenuInject.cpp",
+    "line": 29
+  },
+  {
+    "name": "g_ui",
+    "kind": "ptr",
+    "type": "UI*",
+    "rva": 51238960,
+    "file": "Core\\GameGlobals.cpp",
+    "line": 104
+  },
+  {
+    "name": "g_menuControls",
+    "kind": "ptr",
+    "type": "MenuControls*",
+    "rva": 51239568,
+    "file": "ThirdParty\\Pap\\GameInput.cpp",
+    "line": 11
+  },
+  {
+    "name": "g_playerControls",
+    "kind": "ptr",
+    "type": "PlayerControls*",
+    "rva": 52321024,
+    "file": "ThirdParty\\Pap\\GameInput.cpp",
+    "line": 14
+  },
+  {
+    "name": "g_player",
+    "kind": "ptr",
+    "type": "PlayerCharacter*",
+    "rva": 53289568,
+    "file": "Core\\GameGlobals.cpp",
+    "line": 12
+  },
+  {
+    "name": "NiRTTI_NiExtraData",
+    "kind": "ptr",
+    "type": "NiRTTI",
+    "rva": 54755392,
+    "file": "ThirdParty\\Pap\\NiRTTI.cpp",
+    "line": 17
+  },
+  {
+    "name": "g_menuTableLock",
+    "kind": "ptr",
+    "type": "BSReadWriteLock",
+    "rva": 64645744,
+    "file": "Core\\CoSyncMenuInject.cpp",
+    "line": 35
+  },
+  {
+    "name": "NiRTTI_BSShaderProperty",
+    "kind": "ptr",
+    "type": "NiRTTI",
+    "rva": 65303192,
+    "file": "ThirdParty\\Pap\\NiRTTI.cpp",
+    "line": 16
+  },
+  {
+    "name": "NiRTTI_BSEffectShaderProperty",
+    "kind": "ptr",
+    "type": "NiRTTI",
+    "rva": 65303296,
+    "file": "ThirdParty\\Pap\\NiRTTI.cpp",
+    "line": 15
+  },
+  {
+    "name": "NiRTTI_BSLightingShaderProperty",
+    "kind": "ptr",
+    "type": "NiRTTI",
+    "rva": 65303312,
+    "file": "ThirdParty\\Pap\\NiRTTI.cpp",
+    "line": 14
+  }
+]

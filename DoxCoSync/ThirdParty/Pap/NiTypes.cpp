@@ -1,4 +1,4 @@
-#include "NiTypes.h"
+#include "f4se/NiTypes.h"
 
 NiPoint3::NiPoint3()
 {

@@ -10,7 +10,7 @@ public:
 
 	bool	Open(const char * name);
 	void	Close(void);
-	
+
 	bool	ReadMessage(UInt8 * buf, UInt32 length);
 	bool	WriteMessage(IPipeServer::MessageHeader * msg);
 

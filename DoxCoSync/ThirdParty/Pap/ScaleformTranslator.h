@@ -1,8 +1,8 @@
 #pragma once
 
-#include "ScaleformState.h"
-#include "GameTypes.h"
-#include "GameUtilities.h"
+#include "f4se/ScaleformState.h"
+#include "f4se/GameTypes.h"
+#include "f4se/GameUtilities.h"
 
 class GFxTranslator : public GFxState
 {

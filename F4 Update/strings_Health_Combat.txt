@@ -1,0 +1,400 @@
+﻿0x02464030|Bound Weapon
+0x02464158|Enhance Weapon
+0x024641B4|Damage
+0x02464428|sMagicEffectItemDamage
+0x02467330|Default Equip Slot for spells
+0x02467350|Spell Equip Slot
+0x02468DF8|fDestructionMassHealthMult
+0x02468E78|BluntWeapon
+0x02469140|fHealthDataValue1
+0x02469160|sHealthDataPrefixWeap1
+0x02469178|sHealthDataPrefixArmo1
+0x02469190|fHealthDataValue2
+0x024691B8|sHealthDataPrefixWeap2
+0x024691D0|sHealthDataPrefixArmo2
+0x024691E8|fHealthDataValue3
+0x02469210|sHealthDataPrefixWeap3
+0x02469228|sHealthDataPrefixArmo3
+0x02469240|fHealthDataValue4
+0x02469268|sHealthDataPrefixWeap4
+0x02469280|sHealthDataPrefixArmo4
+0x02469298|fHealthDataValue5
+0x024692C8|sHealthDataPrefixWeap5
+0x024692E0|sHealthDataPrefixArmo5
+0x024692F8|fHealthDataValue6
+0x02469320|sHealthDataPrefixWeap6
+0x02469338|sHealthDataPrefixArmo6
+0x0246D0E8|DefaultUnarmedWeapon
+0x02472D80|fBodyMorphWeaponAdjustMult
+0x02472DA0|Icons\Weapons\HandToHand.dds
+0x02473220|Weapon %s (%08X)
+0x0247357C|Weapon
+0x02473588|WeaponLeft
+0x02473598|WeaponSword
+0x024735A8|WeaponDagger
+0x024735B8|WeaponAxe
+0x024735C8|WeaponMace
+0x024735D8|WeaponBack
+0x024735E8|WeaponBow
+0x02473660|Unequip
+0x02473920|weaponSpeedMult
+0x02473930|leftWeaponSpeedMult
+0x02473AF8|weaponSwing
+0x02473B08|weaponLeftSwing
+0x02473E60|iWeaponCharge
+0x02473E70|fWeaponPower
+0x02473F28|iSyncWeaponDrawState
+0x02473F78|WeaponFire
+0x02474898|Sound played when the power armor jetpack is being fired
+0x02475490|Keyword that marks the link from an actor to the power armor furniture they are using or will use
+0x024754F8|PowerArmorLinkedFurnitureKeyword_DO
+0x02475520|Keyword used to identify power armor battery misc objects
+0x02475560|PowerArmorBatteryKeyword_DO
+0x024755E8|PowerArmorKeyword_DO
+0x02475680|Keyword found on armor made to be worn over the power armor frame
+0x024756C8|PowerArmorArmorKeyword_DO
+0x024756E8|Keyword necessary on base power armor frame armor objects
+0x02475728|PowerArmorFrameKeyword_DO
+0x02475750|If this keyword is present on an actor's armor the player will be unable to steal their fusion core
+0x024757B8|PowerArmorPreventCoreStealingKeyword_DO
+0x024757E0|If this keyword is present on an actor, power armor they wear will never take damage
+0x02475838|PowerArmorPreventArmorDamageKeyword_DO
+0x02475860|If this keyword is present on a trigger, nobody will be able to exit power armor inside the trigger
+0x024758C8|PowerArmorPreventExitTriggerKeyword_DO
+0x024758F0|Sound played when battery health has reached zero and the core ejection sequence has started
+0x02475950|PowerArmorCoreEjectCountdownStartSound_DO
+0x024759D0|PowerArmorCoreCountdownSound_DO
+0x02475A28|PowerArmorCoreEjectSound_DO
+0x02475A50|Sound played after the core has ejected as the armor begins to grind to a halt
+0x02475AA0|PowerArmorPowerDownSound_DO
+0x02475AC0|Sound played when the battery health becomes critically low
+0x02475B00|PowerArmorBatteryCriticalSound_DO
+0x02475B60|PowerArmorBatteryRechargeSound_DO
+0x02475BC0|PowerArmorBatteryDrainSound_DO
+0x02475C20|PowerArmorBatteryLevelMaximumSound_DO
+0x02475C88|PowerArmorBatteryLevelDepleted_DO
+0x02475CB0|Looping sound played while in 1st person in power armor
+0x02475CE8|PowerArmorInteriorHumSound_DO
+0x02475D10|Sound that plays when a fusion core is automatically inserted after one is completely drained while the user is in power armor
+0x02475D90|PowerArmorBatteryAutoLoadSound_DO
+0x02475DB8|Race used for visuals for actors when they are in power armor
+0x02475DF8|PowerArmorRace_DO
+0x02475E10|Default power armor frame armor object
+0x02475E38|PowerArmorDefaultFrameArmor_DO
+0x02475E78|PowerArmorDefaultFrameFurniture_DO
+0x02475EA0|Rate at which the power armor battery takes damage
+0x02475ED8|PowerArmorBatteryDamageRateValue_DO
+0x02475F00|Light used instead of the pipboy light if the PipboyLightOverrideKeyword is present. Used for power armor helmet light
+0x02475F90|Combat style used by all actors while they are inside power armor
+0x02475FD8|PowerArmorCombatStyle_DO
+0x02475FF8|Default power armor battery object
+0x02476020|PowerArmorDefaultBatteryObject_DO
+0x02476050|Sound category snapshot applied when in 1st person in power armor
+0x02476098|PowerArmorInteriorSoundCategorySnapshot_DO
+0x024760D0|Perk that allows the player to fire the fusion core out the back of his power armor like a weapon
+0x02476138|PowerArmorFusionCoreLaunchPerk_DO
+0x02476160|Weapon used to fire the fusion core out of the back of the power armor
+0x024761A8|PowerArmorFusionCoreLaunchWeapon_DO
+0x024761D0|fPowerArmorWorkbenchMaxPowerArmorDistance:General
+0x02477448|Weapons Disarmed
+0x024774F0|Weapons Improved
+0x02477508|Armor Improved
+0x02477DB0|sMiscStatWeaponsDisarmed
+0x02477E70|Weapon Mods Created
+0x02477E88|sMiscStatWeaponsImproved
+0x02477EA8|Armor Mods Created
+0x02477EC0|sMiscStatArmorImproved
+0x024781E8|$Combat
+0x02478628|Workshop actors with this keyword are Armor Racks/Mannequins.
+0x02478668|WorkshopArmorRackKeyword_DO
+0x0247AE98|Actor Value used for an armor vendor in Workshop.
+0x0247AED0|WorkshopResourceVendorArmorAVObject
+0x0247AEF8|Actor Value used for a weapons vendor in Workshop.
+0x0247AF30|WorkshopResourceVendorWeaponsAVObject
+0x0247CD50|Power Armor
+0x0247CD60|Non Weapon
+0x0247D580|P_WEAPON
+0x0247DB08|L_WEAPON 
+0x024811E0|BGSAutoWeaponSoundDef
+0x024818B0|Physical damage type form
+0x024818D0|DamageTypePhysical_DO
+0x02481978|Damage Type
+0x02486140|Indicates that a mod is standard with a weapon and should not be listed in a list of mods in the inspect menu.
+0x02489DA0|CombatStyle
+0x0248A3C0|COMBAT STYLE: %s
+0x0248B780|The keyword to add to furniture to allow people to use it while in combat.
+0x0248B7D0|CanUseThisFurnitureForCombat_DO
+0x0248DAB0|Default Equip Slot for lights
+0x0248DAD0|Light Equip Slot
+0x0248FB30|bCalculateArmorMeshAndTextureFileCounts:General
+0x0248FBF0|ArmorAddon
+0x024900E8|uiHealth
+0x024900F8|sPropModNameArmouiHealth
+0x02490118|fPropModScaleArmouiHealth
+0x024902A0|vdDamageTypeValues
+0x024902C8|ihealth
+0x024903B8|Armor
+0x02493708|bLaserSights:Combat
+0x02493720|bAimSights:Combat
+0x02493738|bForceNPCsUseAmmo:Combat
+0x02493758|f1PArrowTiltUpAngle:Combat
+0x02493778|f3PArrowTiltUpAngle:Combat
+0x02493798|Default Equip Slot for weapons
+0x024937B8|Weapon Equip Slot
+0x024937D0|Indicates the weapon requires mods to be functional
+0x02493808|Weapon Requires Mods Keyword
+0x024939E0|fDamageToWeaponMult
+0x024939F8|sPropModNameWeapfDamageToWeaponMult
+0x02493A20|fPropModScaleWeapfDamageToWeaponMult
+0x02493A48|fOutOfRangeDamageMult
+0x02493A60|sPropModNameWeapfOutOfRangeDamageMult
+0x02493A88|fPropModScaleWeapfOutOfRangeDamageMult
+0x02493AB0|fSecondaryDamage
+0x02493AC8|sPropModNameWeapfSecondaryDamage
+0x02493AF0|fPropModScaleWeapfSecondaryDamage
+0x02493C58|fCriticalDamageMult
+0x02493C70|sPropModNameWeapfCriticalDamageMult
+0x02493C98|fPropModScaleWeapfCriticalDamageMult
+0x02493CF8|usAttackDamage
+0x02493D08|sPropModNameWeapusAttackDamage
+0x02493D28|fPropModScaleWeapusAttackDamage
+0x02494A08|pEquipSound
+0x02494A18|sPropModNameWeappEquipSound
+0x02494A38|fPropModScaleWeappEquipSound
+0x02494A58|pUnEquipSound
+0x02494A68|sPropModNameWeappUnEquipSound
+0x02494A88|fPropModScaleWeappUnEquipSound
+0x02494AA8|pFastEquipSound
+0x02494AB8|sPropModNameWeappFastEquipSound
+0x02494AD8|fPropModScaleWeappFastEquipSound
+0x02494BE0|pEquipSlot
+0x02494BF0|sPropModNameWeappEquipSlot
+0x02494C10|fPropModScaleWeappEquipSlot
+0x02495060|foutofrangedamagemult
+0x02495078|fsecondarydamage
+0x024951A0|iattackdamage
+0x02495250|psEquipSound
+0x02495260|psUnEquipSound
+0x02495330|ptEquipSlot
+0x024953B8|fcriticaldamagemult
+0x024953D0|psFastEquipSound
+0x02495598|fCombatSneakHandMult
+0x024955B0|fCombatSneak1HSwordMult
+0x024955C8|fCombatSneak1HDaggerMult
+0x024955E8|fCombatSneak1HAxeMult
+0x02495600|fCombatSneak1HMaceMult
+0x02495618|fCombatSneak2HSwordMult
+0x02495630|fCombatSneak2HAxeMult
+0x02495648|fCombatSneakBowMult
+0x02495660|fCombatSneakStaffMult
+0x02495678|fCombatSneakGunMult
+0x02495690|fCombatSneakGrenadeMult
+0x024956A8|fCombatSneakMineMult
+0x024956C0|COMBAT_WEAPON_MELEE
+0x024956D8|COMBAT_WEAPON_BOW
+0x024956F0|COMBAT_WEAPON_GUN
+0x02495708|COMBAT_WEAPON_GRENADE
+0x02495720|COMBAT_WEAPON_THROWN
+0x02495738|COMBAT_WEAPON_STAFF
+0x02495750|COMBAT_WEAPON_MINE
+0x02495768|COMBAT_WEAPON_NONE
+0x02495780|COMBAT_WEAPON_INVALID
+0x02499C98|Holds vignette blur data for the power armor HUD when in rain.
+0x02499CD8|IMod_PowerArmorHudRain_DO
+0x02499D38|Imagespace to use for the inspect menu in power armor mode.
+0x02499D78|InspectImageSpacePowerArmor_DO
+0x024A0838|Voice Equip
+0x024A0848|Potion Equip
+0x024A0908|Combat Style
+0x024A0D30|Action Force Equip
+0x024A1480|Action Enter Combat
+0x024A1498|Action Exit Combat
+0x024A1570|Pickup Sound Weapon
+0x024A1588|Putdown Sound Weapon
+0x024A15A0|Pickup Sound Armor
+0x024A15B8|Putdown Sound Armor
+0x024A1708|Imagespace: Low Health
+0x024A1B00|ImageSpaceModifier for Pipboy menu in Power armor.
+0x024A1D18|Keyword - Type Armor
+0x024A1DB0|Keyword - Type Weapon
+0x024A1DE0|Base Weapon Enchantment
+0x024A1DF8|Base Armor Enchantment
+0x024A1E80|Weapon Material List
+0x024A1E98|Armor Material List
+0x024A1EF0|Teammate Ready Weapon
+0x024A22B0|Help - Basic Smithing Weapon
+0x024A22D0|Help - Basic Smithing Armor
+0x024A2368|Help - Low Health
+0x024A23D8|Help - Weapon Charge
+0x024A2438|Keyword - Weapon Material Daedric
+0x024A2460|Keyword - Weapon Material Draugr
+0x024A2488|Keyword - Weapon Material DraugrHoned
+0x024A24B0|Keyword - Weapon Material Dwarven
+0x024A24D8|Keyword - Weapon Material Ebony
+0x024A24F8|Keyword - Weapon Material Elven
+0x024A2518|Keyword - Weapon Material Falmer
+0x024A2540|Keyword - Weapon Material FalmerHoned
+0x024A2568|Keyword - Weapon Material Glass
+0x024A2588|Keyword - Weapon Material Imperial
+0x024A25B0|Keyword - Weapon Material Iron
+0x024A25D0|Keyword - Weapon Material Orcish
+0x024A25F8|Keyword - Weapon Material Steel
+0x024A2618|Keyword - Weapon Material Wood
+0x024A2638|Keyword - WeaponTypeBoundArrow
+0x024A2658|Keyword - Armor Material Daedric
+0x024A2680|Keyword - Armor Material Dragonplate
+0x024A26A8|Keyword - Armor Material Dragonscale
+0x024A26D0|Keyword - Armor Material Dragonbone
+0x024A26F8|Keyword - Armor Material Dwarven
+0x024A2720|Keyword - Armor Material Ebony
+0x024A2740|Keyword - Armor Material Elven
+0x024A2760|Keyword - Armor Material ElvenSplinted
+0x024A2788|Keyword - Armor Material FullLeather
+0x024A27B0|Keyword - Armor Material Glass
+0x024A27D0|Keyword - Armor Material Hide
+0x024A27F0|Keyword - Armor Material Imperial
+0x024A2818|Keyword - Armor Material ImperialHeavy
+0x024A2840|Keyword - Armor Material ImperialReinforced
+0x024A2870|Keyword - Armor Material Iron
+0x024A2890|Keyword - Armor Material IronBanded
+0x024A28B8|Keyword - Armor Material Orcish
+0x024A28D8|Keyword - Armor Material Scaled
+0x024A28F8|Keyword - Armor Material Steel
+0x024A2918|Keyword - Armor Material SteelPlate
+0x024A2940|Keyword - Armor Material Stormcloak
+0x024A2968|Keyword - Armor Material Studded
+0x024A2DF0|Heavy Weapon item keyword
+0x024A3188|JumpDown,JumpFall,JumpUp,PowerArmorHardLanding
+0x024A7C20|GetHealthPercentage >> %0.2f
+0x024A7EA0|GetEquipped >> %0.2f
+0x024A8538|Is Weapon/Magic Out >> %0.2f
+0x024A8558|IsWeaponInList >> %0.2f
+0x024A8630|Get Weapon Anim >> %0.2f
+0x024A8650|Is Weapon Skill Type >> %0.2f
+0x024A8CD0|%s is in combat
+0x024A8CE0|%s is not in combat
+0x024A9010|GetIsUsedItemEquipType '%s' >> %s
+0x024A90D0|GetWeaponHealthPerc >> %0.2f
+0x024A9110|IsCombatTarget >> %.2f
+0x024A97C0|HasEquippedSpell>> %0.2f
+0x024AA6A8|Has Two-Handed Weapon Equipped >> %0.2f
+0x024AA950|GetItemHealthPercent >> %0.2f
+0x024AA9D8|Is Weapon Out >> %0.2f
+0x024AAB40|Bound weapon %sequipped in %s hand.
+0x024AAB68|Equipped weapon does %shave a scope.
+0x024AABB8|GetCombatTargetHasKeyword >> %0.2f
+0x024AABE0|GetCombatGroupMemberCount >> %0.2f
+0x024AAC78|Is Ignoring Combat >> %0.2f
+0x024AB050|GetWeaponEquipIndex: %0.f
+0x024AB260|GetWorkshopResourceDamage: %s >> %0.2f
+0x024AB290|GetWorkshopResourceDamage: %s(%08x) is not a Workshop activator.
+0x024AD4B0|Invalid combat style '%s' for parameter %s.
+0x024AD860|Invalid Damage Type '%s' for parameter %s.
+0x024AD8B0|Invalid EquipSlot '%s' for parameter %s.
+0x024AED00|GetCombatTarget >> (%08x)
+0x024AF2F0| [CANNOT EQUIP]
+0x024AF868|The actor's combat state: %0.2f
+0x024B0570|Command removed. Use TDT and switch to COMBAT INFO page.
+0x024B18E8|All Combat AI processing is %s
+0x024B1EA8|...Modifiers: Temp: %.2f Perm: %.2f Damage: %.2f
+0x024B2330|\armor\
+0x024B2358|\weapons\
+0x024B62D8|nWeapons:
+0x024B7040|HasEquippedSpell
+0x024B70B8|EquipSpell
+0x024B72E0|GetEquippedItemType
+0x024B7640|GetCombatAudioDetection
+0x024B7658|adcombat
+0x024B7668|GetCombatVisualDetection
+0x024B7688|vdcombat
+0x024B76D8|HasTwoHandedWeaponEquipped
+0x024B7910|GetWorkshopResourceDamage
+0x024B7D30|HasScopeWeaponEquipped
+0x024B7D68|HasBoundWeaponEquipped
+0x024B7D80|GetCombatTargetHasKeyword
+0x024B7E00|GetCombatGroupMemberCount
+0x024B7E28|IsIgnoringCombat
+0x024B7EB8|UnequipAll
+0x024B7F80|GetItemHealthPercent
+0x024B8058|UnequipItemSlot
+0x024B80B0|EPIsDamageType
+0x024B83E8|GetWeaponEquipIndex
+0x024B8780|IsWeaponChargeAttack
+0x024B8798|True if currently equipped weapon has a charging attack
+0x024B8810|IsWeaponChargingHoldAttack
+0x024B8830|True if currently equipped weapon has an attack charged by holding an input
+0x024B8C10|EPIsCalculatingBaseDamage
+0x024B9140|Health Percent
+0x024B9290|EquipType
+0x024B93E0|Combat Style (optional)
+0x024B9660|DoNoDamage
+0x024B9798|Lev. Damage
+0x024B9908|OnEquip
+0x024B9910|OnUnequip
+0x024B9968|OnCombatEnd
+0x024B9A40|OnStartCombat
+0x024B9A70|OnActorEquip
+0x024B9A80|OnActorUnequip
+0x024B9DE0|ToggleCombatStats
+0x024BA6B0|ToggleCombinedWeapon
+0x024BA710|ToggleWeaponCombination
+0x024BA730|ToggleWeaponCombinationBounds
+0x024BBFC8|ToggleCombatAI
+0x024BBFE0|Toggles ALL Combat AI
+0x024BC598|DebugCombat
+0x024BC5A8|Debugs combat systems
+0x024BC5C0|ToggleCombatDebug
+0x024BC5D8|Toggles combat debug info
+0x024BC650|Shows reference inventory [1 = Show Armor Addons]
+0x024BF510|ToggleWeaponOverlay
+0x024BF528|Toggle the weapon overlay.
+0x024C1ED8|StartCombat
+0x024C1EE8|StopCombat
+0x024C2580|IsWeaponMagicOut
+0x024C2600|GetWeaponAnimType
+0x024C2618|IsWeaponSkillType
+0x024C2B90|SetCombatStyle
+0x024C2C18|GetEquipped
+0x024C31A0|GetCombatTarget
+0x024C3278|EquipItem
+0x024C3288|EquipObject
+0x024C3298|UnequipItem
+0x024C32A8|UnEquipObject
+0x024C3528|StopCombatAlarmOnActor
+0x024C3600|IsWeaponOut
+0x024C3908|IsInCombat
+0x024C3B20|ResetFallDamageTimer
+0x024C3CB0|GetCombatState
+0x024C3DC0|ResetHealth
+0x024C40A8|DamageObject
+0x024C4298|DamageValue
+0x024C42A8|DamageAV
+0x024C42B8|Damage the value of the given property.
+0x024C4568|IsWeaponInList
+0x024C4578|Is the current weapon in the form list
+0x024C4720|GetFactionCombatReaction
+0x024C4740|UseWeapon
+0x024C4A10|GetHealthPercentage
+0x024C4EB8|GetIsUsedItemEquipType
+0x024C4EE0|FireWeapon
+0x024C52F8|IsCombatTarget
+0x024C6F08|Attacker Weapon
+0x024C6F80|Mod My Critical Hit Damage Mult
+0x024C6FB8|Mod Incoming Limb Damage
+0x024C6FF8|Mod Recovered Health
+0x024C71A0|Mod Telekinesis Damage Mult
+0x024C71C0|Mod Telekinesis Damage
+0x024C71D8|Mod Bashing Damage
+0x024C7210|Mod Power Attack Damage
+0x024C7278|Mod Armor Weight
+0x024C72C0|Mod Weapon Attack Damage
+0x024C72E0|Mod Incoming Weapon Damage
+0x024C7300|Mod Target Damage Resistance
+0x024C73D8|Mod Ricochet Damage
+0x024C7468|Apply Combat Hit Spell
+0x024C7528|Mod Falling Damage
+0x024C7568|Set Pickpocket Equipped Item
+0x024C7620|Apply Weapon Swing Spell
+0x024C7728|Mod Outgoing Explosion Limb Damage
+0x024C7768|Mod Soul Pct Captured to Weapon
+0x024C77A8|Mod Reflect Damage Chance

@@ -1,7 +1,6 @@
 #pragma once
 
-#include "Relocation.h"
-#include "ITypes.h"
+#include "f4se_common/Relocation.h"
 
 typedef void (* _CalculateCRC32_64)(UInt32 * out, UInt64 data, UInt32 previous);
 extern RelocAddr <_CalculateCRC32_64> CalculateCRC32_64;

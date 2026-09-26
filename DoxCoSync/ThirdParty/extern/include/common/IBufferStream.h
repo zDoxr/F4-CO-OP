@@ -18,10 +18,10 @@ class IBufferStream : public IDataStream
 		void	OwnBuffer(void)		{ flags |= kFlag_OwnedBuf; }
 		void	DisownBuffer(void)	{ flags &= ~kFlag_OwnedBuf; }
 
-		// read
+
 		virtual void	ReadBuf(void * buf, UInt32 inLength);
 
-		// write
+
 		virtual void	WriteBuf(const void * buf, UInt32 inLength);
 
 	protected:

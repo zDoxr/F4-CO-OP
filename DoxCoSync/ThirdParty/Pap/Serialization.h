@@ -1,7 +1,7 @@
 #pragma once
 
-#include "PluginAPI.h"
-#include "GameTypes.h"
+#include "f4se/PluginAPI.h"
+#include "f4se/GameTypes.h"
 
 #include <string>
 

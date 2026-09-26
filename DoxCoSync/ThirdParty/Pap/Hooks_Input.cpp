@@ -1,26 +1,26 @@
-#include "Utilities.h"
-#include "SafeWrite.h"
+#include "f4se_common/Utilities.h"
+#include "f4se_common/SafeWrite.h"
 
-#include "Relocation.h"
-#include "BranchTrampoline.h"
-#include "xbyak.h"
+#include "f4se_common/Relocation.h"
+#include "f4se_common/BranchTrampoline.h"
+#include "xbyak/xbyak.h"
 
-#include "InputMap.h"
-#include "GameInput.h"
-#include "GameMenus.h"
+#include "f4se/InputMap.h"
+#include "f4se/GameInput.h"
+#include "f4se/GameMenus.h"
 
-#include "PapyrusEvents.h"
-#include "PapyrusUtilities.h"
+#include "f4se/PapyrusEvents.h"
+#include "f4se/PapyrusUtilities.h"
 
 #define HOOK_RAW_INPUT 0
 #define LOG_INPUT_HOOK 0
 
 typedef void (* _CreateMenuControlHandlers)(MenuControls * mem);
-RelocAddr <_CreateMenuControlHandlers> CreateMenuControlHandlers(0x01074990);
+RelocAddr <_CreateMenuControlHandlers> CreateMenuControlHandlers(0x01074B30);
 _CreateMenuControlHandlers CreateMenuControlHandlers_Original = nullptr;
 
 typedef void (* _CreatePlayerControlHandlers)(PlayerControls * mem);
-RelocAddr <_CreatePlayerControlHandlers> CreatePlayerControlHandlers(0x00DDC780);
+RelocAddr <_CreatePlayerControlHandlers> CreatePlayerControlHandlers(0x00DDC920);
 _CreatePlayerControlHandlers CreatePlayerControlHandlers_Original = nullptr;
 
 #if HOOK_RAW_INPUT

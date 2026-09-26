@@ -3,7 +3,7 @@
 class VirtualMachine;
 struct StaticFunctionTag;
 
-#include "GameTypes.h"
+#include "f4se/GameTypes.h"
 
 namespace papyrusF4SE
 {

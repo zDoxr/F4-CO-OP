@@ -1,6 +1,6 @@
 #pragma once
 
-#include "GameAPI.h"
+#include "f4se/GameAPI.h"
 
 // 8
 template <typename T>

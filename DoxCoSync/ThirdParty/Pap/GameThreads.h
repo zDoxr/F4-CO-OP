@@ -1,9 +1,5 @@
 #pragma once
 
-#include <Windows.h>
-#include "ITypes.h"
-
-
 class ITaskDelegate
 {
 public:

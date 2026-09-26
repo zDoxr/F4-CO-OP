@@ -1,0 +1,400 @@
+﻿0x02461A80|constexpr const T& value() const &: Invalid access; optional must contain a value.
+0x02461B80|constexpr const T& operator*() const &: Invalid access; optional must contain a value.
+0x02461F80|constexpr T& operator*() &: Invalid access; optional must contain a value.
+0x02462150|bWarnOnRemoveInvalidMod:General
+0x0246B2D0|bQueueWarnings:General
+0x0246B430|sSysUtil_AutoSaveWarning:LANGUAGE
+0x0246B508|sSysUtil_SaveDataOwnershipWarning:LANGUAGE
+0x0246BF80|sMasterMismatchWarning:GeneralWarnings
+0x0246BFB0|One or more plugins could not find the correct versions of the master files they depend on. Errors may occur during load or game play. Check the "Warnings.txt" file for more information.
+0x0246C070|sGeneralMasterMismatchWarning:GeneralWarnings
+0x0246D740|Meshes\Marker_Error.NIF
+0x024725D0|LOOKUP FAILED!
+0x02472F70|This keyword is added to a race to suppress the missing segment data warnings.
+0x02473990|bCrashLand
+0x0247B718|Error
+0x0247BB30|Invalid filename provided.
+0x0247C1D8|Invalid mesh reference in shape geometries %p
+0x0247C688|EC_INVALID_PATH
+0x0247C6A0|EC_FILE_ERROR
+0x0247C6B0|EC_INVALID_TYPE
+0x0247C6C8|EC_MEMORY_ERROR
+0x0247C6E0|EC_INVALID_PARAM
+0x0247C708|POOP ERROR
+0x0247CC78|Error (%d), could not initialize flex
+0x0247E040|INVALID
+0x024861B0|InspectMenu_NullMod_DO
+0x02489610|Marks a misc item as being invalid junk jet ammo
+0x02495780|COMBAT_WEAPON_INVALID
+0x02499478|(nullptr)
+0x0249B850|'%s' (%08X) Invalid WorldSpace
+0x024A08E8|Dragon Crash Zone Marker
+0x024A1648|Harvest Failed Sound
+0x024A2B20|Keyword - nullptr MOD
+0x024A7658|NullTextureSet
+0x024A7668|Expression Error: NOERROR
+0x024A7688|Expression Error: OUTOFMEMORY
+0x024A76A8|Expression Error: STACKOVERFLOW
+0x024A76C8|Expression Error: STACKUNDERFLOW
+0x024A76F0|Expression Error: DIVIDEBYZERO
+0x024A7710|Expression Error: SYNTAX
+0x024A7730|Expression Error: BADOBJECTPOINTER
+0x024A8FF0|GetThreatRatio >> FAILED
+0x024A9CF0|%s is acting on a crash land request
+0x024A9D18|%s is not acting on a crash land request
+0x024A9F20|IsNullPackageData >> %0.2f
+0x024AB010|<null>
+0x024AC210|Syntax Error
+0x024AC290|Syntax Error.  Missing script name.
+0x024AC2B8|Syntax Error.  No condition specified for 'if' or 'elseif'.
+0x024AC330|Syntax Error.  Mismatched quotes.
+0x024AC358|Syntax Error.  Reference not allowed in this context.
+0x024AC390|Syntax Error.  Invalid reference syntax.
+0x024AC400|Syntax error.  Invalid reference '%s' (only quests and object references are allowed in this context).
+0x024AC468|Syntax error.  Functions may not be called on quests.
+0x024AC4E0|Invalid block type for quest script.
+0x024AC508|Syntax Error.  Invalid block type in 'begin' command.
+0x024AC540|Syntax Error.  Missing block type in 'begin' command.
+0x024AC578|Syntax Error.  Failed to store the 'begin' 'end' jump block.
+0x024AC5B8|Invalid variable name '%s'.
+0x024AC660|Syntax Error.  Missing "to" in set command.
+0x024AC690|Syntax Error.  Mismatched parentheses in set command.
+0x024AC6C8|Syntax Error.  Missing expression in set command.
+0x024AC700|InfixToPostfix Error.
+0x024AC7B0|Syntax error.  Invalid reference '%s' (only object references and reference variables are allowed in this context).
+0x024AC9C0|Syntax Error.  Undefined function '%s'.
+0x024ACA38|Syntax Error.  Unknown command '%s'.
+0x024ACB10|nullptr
+0x024ACB70|Invalid inventory object '%s' for parameter %s.
+0x024ACBC0|Invalid object '%s' for parameter %s.
+0x024ACC10|Invalid object reference '%s' for parameter %s.
+0x024ACC60|Invalid container reference '%s' for parameter %s.
+0x024ACCB0|Invalid map marker '%s' for parameter %s.
+0x024ACD00|Invalid actor '%s' for parameter %s.
+0x024ACD50|Invalid spell item '%s' for parameter %s.
+0x024ACDA0|Invalid interior cell '%s' for parameter %s.
+0x024ACDF0|Invalid encounter zone '%s' for parameter %s.
+0x024ACE40|Invalid keyword '%s' for parameter %s.
+0x024ACE90|Invalid location ref type '%s' for parameter %s.
+0x024ACEE0|Invalid Idle form'%s' for parameter %s.
+0x024ACF30|Invalid form list '%s' for parameter %s.
+0x024ACF80|Invalid menu icon '%s' for parameter %s.
+0x024ACFD0|Invalid perk '%s' for parameter %s.
+0x024AD010|Invalid note '%s' for parameter %s.
+0x024AD050|Invalid worldspace or formlist '%s' for parameter %s.
+0x024AD0B0|Invalid magic item '%s' for parameter %s.
+0x024AD100|Invalid effect setting '%s' for parameter %s.
+0x024AD150|Invalid sound '%s' for parameter %s.
+0x024AD1A0|Invalid music type '%s' for parameter %s.
+0x024AD1F0|Invalid topic '%s' for parameter %s.
+0x024AD240|Invalid info '%s' for parameter %s.
+0x024AD280|Invalid race '%s' for parameter %s.
+0x024AD2C0|Invalid class '%s' for parameter %s.
+0x024AD310|Invalid faction '%s' for parameter %s.
+0x024AD360|Invalid global '%s' for parameter %s.
+0x024AD3B0|Invalid furniture object/list '%s' for parameter %s.
+0x024AD410|Invalid actor base '%s' for parameter %s.
+0x024AD460|Invalid package '%s' for parameter %s.
+0x024AD4B0|Invalid combat style '%s' for parameter %s.
+0x024AD500|Invalid weather '%s' for parameter %s.
+0x024AD550|Invalid Imagespace Modifier '%s' for parameter %s.
+0x024AD5A0|Invalid Imagespace '%s' for parameter %s.
+0x024AD5E8|Invalid NPC '%s' for parameter %s.
+0x024AD630|Invalid owner '%s' for parameter %s.
+0x024AD680|Invalid Effect Shader '%s' for parameter %s.
+0x024AD6D0|Invalid message '%s' for parameter %s.
+0x024AD720|Invalid location '%s' for parameter %s.
+0x024AD770|Invalid form '%s' for parameter %s.
+0x024AD810|Invalid Region '%s' for parameter %s.
+0x024AD860|Invalid Damage Type '%s' for parameter %s.
+0x024AD8B0|Invalid EquipSlot '%s' for parameter %s.
+0x024AD900|Invalid BGSScene '%s' for parameter %s.
+0x024AD950|Invalid BGSAssociationType '%s' for parameter %s.
+0x024AD9A0|Invalid VoiceType/FormList '%s' for parameter %s.
+0x024AD9F0|Invalid BGSReferenceEffect '%s' for parameter %s.
+0x024ADA40|Invalid sound category type '%s' for parameter %s.
+0x024ADA90|Invalid BGSAction '%s' for parameter %s.
+0x024ADAE0|Invalid ActorValue '%s' for parameter %s.
+0x024ADB30|Invalid Keyword/FormList '%s' for parameter %s.
+0x024ADC30|Invalid alignment '%s' for parameter %s.
+0x024ADC80|Invalid CriticalStage '%s' for parameter %s.
+0x024ADCD0|Invalid Casting Source '%s' for parameter %s.
+0x024ADD20|Invalid Ward State '%s' for parameter %s.
+0x024ADD70|Invalid Furniture Entry Type '%s' for parameter %s.
+0x024ADDC0|Invalid Relationship Rank '%s' for parameter %s.
+0x024ADE10|Invalid Alias '%s' for parameter %s in owner quest '%s'.
+0x024ADEC0|Invalid misc stat '%s' for parameter %s.
+0x024ADF10|Invalid crime type '%s' for parameter %s.  Crime type must be a numeric value from 0-%d.
+0x024AE2D0|Unknown compiler error in MessageBoxCompile.  Failed to parse variable '%s'.
+0x024AE6D0|INISetting %s >> Invalid Value
+0x024AEB28|PlaceThereFunction: Failed to hit anything
+0x024AEE30|Failed to extract the parameters.
+0x024AF3B8|GetObjectiveFailed >> %0.2f
+0x024AF720|UpdateQuestInstanceGlobal >> FAILED
+0x024AF770|SetAllowFlying failed to initiate a landing request because no landing markers were found and a procedural search was not specified.
+0x024AFCC0|The actor mount failed.
+0x024AFD38|The actor dismount failed.
+0x024B0088|<Null quest>
+0x024B0298|Function %s parameter %u failed conversion - %s
+0x024B0348|Failed calling function %s for unknown reasons
+0x024B054C|failed
+0x024B06D8|Invalid value in pair %u.  Values must be between 0 and 1.
+0x024B08F0|Invalid parameter.  Please specify land, objects, trees, water, inst[anced], or all.
+0x024B20C8|Invalid node index. (0-6).
+0x024B2700|RenderTestCell complete. Check warnings file for more info.
+0x024B2740|RenderTestCell failed: no cell
+0x024B30C8|ToggleMotionDriven - invalid parameters
+0x024B31C8|ToggleControlsDriven - invalid parameters
+0x024B32A0|Invalid command
+0x024B3510|Failed to initialize terrain effect (Incorrect model name? Use <model>.nif)
+0x024B3830|Sync scene failed.  Perhaps turning on bDisplayMarkWarning:Animation custom INISetting will provide further insight?
+0x024B39C0|Can't profile a nullptr object
+0x024B3A60|%u scripts successfully reloaded, %u failed. Check Papyrus log for more information
+0x024B3B08|Action '%s' failed with event '%s'
+0x024B3B30|Action '%s' failed to find an event
+0x024B3C18|The NPC %s (%08x) failed to instantiate.
+0x024B3F20|ChangeAnimArchetype: FAILED.  %s is not a valid anim archetype, or actor is already that type.
+0x024B3F80|ChangeAnimArchetype: FAILED.  No or invalid actor selected.
+0x024B4000|ChangeAnimFlavor: FAILED.  %s is not a valid anim flavor, or actor is already that type.
+0x024B4060|ChangeAnimFlavor: FAILED.  No or invalid actor selected.
+0x024B4280|Layer ID %d is invalid or not in use
+0x024B42A8|Invalid attach index, defaulting to 1
+0x024B7470|IsNullPackageData
+0x024B77B8|GetIsCrashLandRequest
+0x024B8D28|Script Error: NOERROR
+0x024B8D40|Script Error: SCRIPT_NAME_MISSING
+0x024B8D68|Script Error: SYNTAX
+0x024B8D80|Script Error: BADVARIABLENAME
+0x024B8DA0|Script Error: UNKNOWN_VARIABLE
+0x024B8DC0|Script Error: NOCOMMANDS
+0x024B8DE0|Script Error: EXPRESSION
+0x024B8E00|Script Error: MISSING_SETVARALIAS
+0x024B8E28|Script Error: WSTACKOVERFLOW
+0x024B8E48|Script Error: WSTACKUNDERFLOW
+0x024B8E68|Script Error: IFSTACKOVERFLOW
+0x024B8E88|Script Error: IFSTACKUNDERFLOW
+0x024B8EA8|Script Error: OUTOFMEMORY
+0x024B8EC8|Script Error: UNHANDLEDCOMMAND
+0x024B8EE8|Script Error: FILE_TYPE
+0x024B8F00|Script Error: FILE_CORRUPT
+0x024B8F20|Script Error: LINE_TOO_LONG
+0x024B8F40|Script Error: UNKNOWN_OBJECT
+0x024B97E8|PackageData (Possibly Null)
+0x024BD010|ForceRSXCrash
+0x024BD028|Forces an RSX crash
+0x024BE4D8|SetWarning
+0x024BF598|Warnings
+0x024BF5A8|Toggle Warnings Overlay
+0x024C0238|FireAssert
+0x024C0248|Fire an assert
+0x024C28B0|GetTrespassWarningLevel
+0x024C35F0|IsWarningAbout
+0x024C4390|GetObjectiveFailed
+0x024C43A8|SetObjectiveFailed
+0x024C4B08|ShowWarning
+0x024C8270|Null Function
+0x024CD5B0|bWarnWhenReplacingInvalidHeadParts:General
+0x024CF238|sInvalidTagString
+0x024D2400|bDisableHavokAsserts:HAVOK
+0x024D28B0|Warning
+0x024D28B8|Assert
+0x024D6080|fAITrespassWarningTimer
+0x024D6800|iStealWarnings
+0x024D6810|iPickPocketWarnings
+0x024D6828|iGuardWarnings
+0x024D6838|iTrespassWarnings
+0x024D6850|fWarningWarnTimer
+0x024D6868|fWarningTimer
+0x024D9238|fCombatCoverWaitTimeAttackFailed
+0x024D93B8|fCombatCoverAttackFailedMaxWaitTime
+0x024D97E0|fCombatCoverSearchFailedDelayMin
+0x024D9808|fCombatCoverSearchFailedDelayMax
+0x024D99D0|fCombatCoverChangeStanceThreatenedInvalidBonus
+0x024D9A78|fCombatCoverChangePositionInvalidAttackFailedBonus
+0x024D9D78|fCombatCoverAdvanceInvalidAttackFailedBonus
+0x024DA038|fCombatCoverFlankInvalidAttackFailedBonus
+0x024DA1C0|fCombatCoverChangeCoverInvalidAttackFailedBonus
+0x024DA3E8|fCombatCoverAttackLocationInvalidAngleOffset
+0x024DC380|fCombatFindAttackLocationFailedDelayTime
+0x024DCEA0|fCombatHideFailedTargetDistance
+0x024DCEC0|fCombatHideFailedTargetLOSDistance
+0x024E1AB8|fCombatAcquireObjectSearchFailedDelay
+0x024E1B10|fCombatAcquireObjectSearchDisarmedFailedDelay
+0x024E2450|fCombatAreaHoldPreferredPositionInvalidateHealthPercent
+0x024E24B0|fCombatAreaHoldPreferredPositionInvalidateHealthPercentTime
+0x024E2518|fCombatAreaHoldPreferredPositionInvalidateUnobstructedTime
+0x024E2580|fCombatAreaHoldPreferredPositionInvalidateSuspectedThreshold
+0x024E25E8|fCombatAreaHoldPreferredPositionInvalidateSuspectedTime
+0x024E2648|fCombatAreaHoldPreferredPositionInvalidateAttackRangeMin
+0x024E26B0|fCombatAreaHoldPreferredPositionInvalidateAttackRangeMax
+0x024E2718|fCombatAreaHoldPreferredPositionInvalidateTime
+0x024E2778|fCombatAreaHoldPreferredPositionInvalidateBufferTime
+0x024E3990|fCombatTargetSelectorScoreTargetSpaceInvalid
+0x024E6588|fCombatChargingResolveContactMaxXYErrorPerSecond
+0x024F24D0|Invalid Target.
+0x024F2A40|sDropQuestItemWarning
+0x024F2AB0|sDropEquippedItemWarning
+0x024F2B08|sNotEnoughRoomWarning
+0x024F2B50|sNoJumpWarning
+0x024F2B78|sNoKeyDropWarning
+0x024F35A8|sHackingError
+0x024F4148|Save failed.
+0x024F4158|sSaveFailed
+0x024F4DB8|sInvalidPickpocket
+0x024F5D00|The Kinect Sensor has failed to initialize. Voice commands have been disabled. Ensure that your Kinect Sensor is connected and updated.
+0x024F7368|Potion creation failed
+0x024F7380|sPotionCreationFailed
+0x024FA690|Quest FAILED
+0x024FA6A0|sQuestFailed
+0x024FA860|sFailedActivation
+0x024FB1D0|Persuasion Attempt Failed
+0x024FB1F0|sSpeechChallengeFailed
+0x024FB5A0|Failed
+0x024FB5A8|sHUDFailed
+0x024FB5B4|FAILED
+0x024FB5C0|sHUDFailed_UpperCase
+0x024FB8E0|sFatigueWarningString
+0x024FC760|sRSMNameWarning
+0x024FE438|bFaceGenWarnings:MESSAGES
+0x024FE928|Invalid QueuedHead
+0x0250B698|bSandboxPathFailedDebug:AI
+0x0250D8E0|Attack animation failed
+0x0250EA50| Steal Warning 
+0x0250EA60| PickPocket Warning 
+0x0250F7CF|?Package is null.
+0x0250F7E8|Template package '%s' (%08X) is invalid
+0x0250F810|Combat override package '%s' (%08X) is invalid
+0x0250F840|Quest owned package '%s' (%08X) is invalid
+0x0250FB60|<error! non-quest pkg>
+0x02511B78|bGlobalNavMeshCheckDeleteWarningTriangles:NavMeshGeneration
+0x025147E8|LOD toggle parent %x is invalid. Regenerate object LOD.
+0x02516808|%sNode '%s' failed conditions
+0x02516A68|%sQuest '%s' failed conditions
+0x02516A90|%sQuest '%s' failed to fill aliases
+0x025185F0|bDisplayMarkWarning:Animation
+0x02526D50|HDT_QUEST_FAILED
+0x02526D98|HDT_OBJECTIVE_FAILED
+0x02527B28|uFatigueWarningDisplayDurationMS:Interface
+0x02527BF0|FatigueWarning_tf
+0x02528FD0|Invalid
+0x02529640|uDelayBetweenLastObjectiveAndQuestCompleteOrFailed:Interface
+0x0252AF90|uRadWarningDisplayTimeMS:Interface
+0x0252C858|InvalidateLists
+0x0252DB20|InvalidateData
+0x0252DCA8|InvalidateMenu
+0x0252E7D0|HasNullMod
+0x0252E8D8|OnBuildFailed
+0x0252EC18|nullMod
+0x0252FD48|InvalidateGrid
+0x02530010|$LoginError_
+0x02531578|$ReportModCat_InvalidAbuse
+0x02531610|$ReportModCat_Terrorism
+0x02531D88|$DetailsPageError_ExtractInvalidMod
+0x02531DB0|$DetailsPageError_Generic
+0x02531DE0|$DetailsPageError_ModDeleted
+0x02531E00|$DetailsPageError_ModDownloadFail
+0x02531F98|ShowDetailsPageError
+0x02532210|$CantInstallMod_Invalid
+0x025327C8|$Terrorism
+0x0253B908|showSafetyWarning
+0x0253B9C8|Failed to load 3D for workshop object %08X
+0x025465E0|ASSERT
+0x025465E8|ERROR
+0x02546650|iClientCrashFrequencyMS:BIEvents
+0x02546678|iClientCrashLevel:BIEvents
+0x02546820|ClientCrashv1
+0x025579A0|Cannot find file %s referenced in the save game.  Errors may result.
+0x02557B50|(Load Error) Form '%s' (%08X) was saved with form type %s, but currently has form type %s.  Its loading will be skipped.
+0x02558900|Invalid created reference type %u for form %08X with bound object %08X in location %08X
+0x025592C8|$CreationDownloadFailed
+0x02559520|BGSSaveLoadManager::ExecuteSystemUtilitySave failed to create the save game data file.
+0x02559590|BGSSaveLoadManager::SysUtilLoadCompleteCallback failed to load the game data.
+0x02559640|BGSSaveLoadManager::CopySaveGamesFromHost failed to read the save game file buffer %s.
+0x025596A0|BGSSaveLoadManager::CopySaveGamesFromHost failed to open the save game file %s.
+0x0255D050|ArchiveInvalidation.txt
+0x0255D068|sInvalidationFile:Archive
+0x0255D088|bInvalidateOlderFiles:Archive
+0x0255D840|bDisableAssertQueuing:MESSAGES
+0x0255F7F0|bShowMissingLipWarnings:MESSAGES
+0x0255FE10|bAssertOnBadMovementAngle:Animation
+0x02561100|MovementMessagePathFailed
+0x02562700|fActivateDoorFailedTimer:Pathing
+0x02565A00|Fixing Experience/Level Mismatch.  Please see warnings.txt logfile for information.
+0x0256BBD8|effects/dragoncrash/fxdragoncrashfurrow01.nif
+0x0256BC08|sDragonCrashEffectModel
+0x02570560|FlightCrashLandStartHandler
+0x02571010|VoiceSpellFireHandler::executeHandler - MagicEventHelper::ReleaseCastForActor failed.
+0x02571AB8|m_errorOutTranslation
+0x02579750|CombatAreaInvalidatedAreaSet
+0x02589AF0|FindAttackLocationFailedTimeStamp
+0x0258A5B8|Set Failed Timestamp
+0x0258EA60|Crash Land Sequence
+0x025960A0|CoverSearchFailedTimer
+0x025A3DC0|Failed to read console INI file: %s
+0x025A3FE8|Invalid ForEach command
+0x025A5988|iHUDColorWarningR:Interface
+0x025A59A8|iHUDColorWarningG:Interface
+0x025A59C8|iHUDColorWarningB:Interface
+0x025A59E8|iHUDColorAltWarningR:Interface
+0x025A5A08|iHUDColorAltWarningG:Interface
+0x025A5A28|iHUDColorAltWarningB:Interface
+0x025A6AD0|RightMeters_mc.PowerArmorLowBatteryWarning_mc
+0x025A6B00|RightMeters_mc.FatigueWarning_mc
+0x025A6D20|WarningTextHolder_mc
+0x025A6D38|warningText
+0x025A95D0|$SaveGameDeviceError
+0x025AB9D8|BNET_CLIENT_ERROR
+0x025AB9F0|BNET_DNS_ERROR
+0x025ABA10|BNET_INVALID_CREDENTIALS
+0x025ABA50|BNET_UGC_INVALID_TOKEN
+0x025ABAE0|BNET_BEAM_INVALID_EMAIL_ADDRESS
+0x025ABB00|BNET_UNKNOWN_ERROR
+0x025AC118|<null form>
+0x025AC4B0|topic info %08X on <nullptr quest>
+0x025AC4F8|alias %s on <nullptr quest> (%08X)
+0x025AC528|<nullptr alias> (%hu) on %squest %s (%08X)
+0x025AC558|<nullptr alias> (%hu) on <nullptr quest> (%08X)
+0x025AC588|<nullptr form> (%08X)
+0x025AC5C0|Item %hu in <nullptr container> (%08X)
+0x025AC608|Active effect %hu on <nullptr actor> (%08X)
+0x025AC680|Invalid input enable layer (%08X)
+0x025AD5A8|Failed to load event target list for event relay
+0x025ADB30|warning: %s %s on script %s attached to %s has a value for variable %s on struct %s, but the struct no longer contains that variable. Skipping.
+0x025AE5A0|<nullptr>
+0x025AF360|Failed to load script order file - initial load time may be slow
+0x025B0258|bAssertOnOverflow:Papyrus
+0x025B0B40|This is a script log only and does not contain information on any other part of the game, including crashes.
+0x025B0BB0|Warning: Aborting shutdown freeze - timer expired
+0x025B0C38|error: VM timed out while waiting to freeze!
+0x025B0C68|Errors occurred while saving the Papyrus save game data
+0x025B0CA0|Someone tried to save without freezing the Papyrus VM first. Script save will be flagged as invalid!
+0x025B0D08|Errors occurred while loading the Papyrus save game data
+0x025B0D60|error: VM timed out while waiting to freeze! Stacks will not be dumped.
+0x025B0DD0|error: VM timed out while waiting to freeze! Persistence information will not be dumped.
+0x025B0EF0|Failed to reload %s
+0x025B0F08|Script reload FAILED
+0x025B0F40|Failed to call global function %s.%s - script or function name likely invalid
+0x025B0F90|Failed to call member function %s on %s - function name likely invalid, or object incorrect type
+0x025B1000|Failed to set property %s on %s - the name may be invalid or the property may be read only or const
+0x025B1070|Failed to get property %s on %s - the name may be invalid or the property may be write only
+0x025B1190|Papyrus attempted to load a save flagged as invalid. Load ignored.
+0x025B11E0|Forcing return for this stack due to failed savegame load for latent function call
+0x025B1238|Failed to load delayed functor - call will be aborted
+0x025B1270|Count of %s stacks is over our warning threshold, dumping stacks:
+0x025B1C00|Attempted to add invalid perk to the actor
+0x025B1C30|HasPerk called with invalid Perk
+0x025B1C58|RemovePerk called with invalid Perk
+0x025B1C80|HasMagicEffect called with invalid Magic Effect
+0x025B1CB0|HasMagicEffectWithKeyword called with invalid Keyword
+0x025B1D10|Invalid parameter passed to HasSpell
+0x025B2088|Invalid Favorite Target
+0x025B20A0|Invalid Favorite Slot: %d.  (Valid values are %d, 1-%d.)
+0x025B20E0|Casting source is invalid
+0x025B2140|Invalid casting source specified
+0x025B2168|Invalid slot index specified
+0x025B2508|Failed to send event %s for unspecified reasons
+0x025B2610|Actor critical stage of %u is invalid
+0x025B2740|nullptr TextureSet passed to SetEyeTexture
+0x025B7FC0|contains an invalid message format string and so will not have numbers inserted
+0x025B9D50|Trace error severity is out of range: %u
+0x025BAB38|Invalid skill advancement amount, must be positive.

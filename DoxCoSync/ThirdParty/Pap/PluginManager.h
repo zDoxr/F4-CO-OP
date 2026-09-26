@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "PluginAPI.h"
+#include "f4se/PluginAPI.h"
 
 class PluginManager
 {

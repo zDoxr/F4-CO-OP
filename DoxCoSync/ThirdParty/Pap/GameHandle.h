@@ -2,9 +2,8 @@
 
 class TESObjectREFR;
 
-#include "Relocation.h"
-#include "NiTypes.h"
-#include "ITypes.h"
+#include "f4se_common/Relocation.h"
+#include "f4se/NiTypes.h"
 
 typedef bool(*_CreateHandleByREFR)(UInt32 & handleOut, const TESObjectREFR * ref);
 extern RelocAddr <_CreateHandleByREFR> CreateHandleByREFR;

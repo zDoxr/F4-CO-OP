@@ -1,8 +1,8 @@
-#include "PapyrusCell.h"
+#include "f4se/PapyrusCell.h"
 
-#include "GameExtraData.h"
-#include "GameForms.h"
-#include "GameRTTI.h"
+#include "f4se/GameExtraData.h"
+#include "f4se/GameForms.h"
+#include "f4se/GameRTTI.h"
 
 namespace papyrusCell
 {
@@ -29,8 +29,8 @@ namespace papyrusCell
 	}
 }
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
 void papyrusCell::RegisterFuncs(VirtualMachine* vm)
 {

@@ -1,12 +1,12 @@
-#include "PapyrusScriptObject.h"
+#include "f4se/PapyrusScriptObject.h"
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
-#include "PapyrusEvents.h"
+#include "f4se/PapyrusEvents.h"
 
-#include "GameReferences.h"
-#include "GameRTTI.h"
+#include "f4se/GameReferences.h"
+#include "f4se/GameRTTI.h"
 
 namespace papyrusScriptObject
 {

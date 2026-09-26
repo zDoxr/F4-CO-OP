@@ -1,7 +1,7 @@
-#include "PapyrusEncounterZone.h"
+#include "f4se/PapyrusEncounterZone.h"
  
-#include "GameForms.h"
-#include "PapyrusArgs.h"
+#include "f4se/GameForms.h"
+#include "f4se/PapyrusArgs.h"
 
 namespace papyrusEncounterZone
 {
@@ -84,8 +84,8 @@ namespace papyrusEncounterZone
 	}
 }
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
 void papyrusEncounterZone::RegisterFuncs(VirtualMachine* vm)
 {

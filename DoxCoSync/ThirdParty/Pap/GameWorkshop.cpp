@@ -1,17 +1,25 @@
-#include "GameWorkshop.h"
-#include "GameAPI.h"
+#include "f4se/GameWorkshop.h"
+#include "f4se/GameAPI.h"
 
-RelocAddr <PowerUtils::_UpdateMovingWirelessItem> PowerUtils::UpdateMovingWirelessItem(0x0038E980); // Usually paired with LinkPower
+RelocAddr <PowerUtils::_UpdateMovingWirelessItem> PowerUtils::UpdateMovingWirelessItem(0x0038E990); // Usually paired with LinkPower
 // this was inlined everywhere
 //RelocAddr <_GetObjectAtConnectPoint> GetObjectAtConnectPoint(0x001FF360); // Acquires objects that are touching attach points
-RelocAddr <TerminalUtils::_EstablishTerminalLinks> TerminalUtils::EstablishTerminalLinks(0x0038F810);
-RelocAddr <SplineUtils::_ConnectSpline> SplineUtils::ConnectSpline(0x0038DCB0);
-RelocAddr <SplineUtils::_UpdateSpline> SplineUtils::UpdateSpline(0x0038D820);
+RelocAddr <TerminalUtils::_EstablishTerminalLinks> TerminalUtils::EstablishTerminalLinks(0x0038F820);
+RelocAddr <SplineUtils::_ConnectSpline> SplineUtils::ConnectSpline(0x0038DCC0);
+RelocAddr <SplineUtils::_UpdateSpline> SplineUtils::UpdateSpline(0x0038D830);
 
 // 
-RelocAddr <Workshop::_ScrapReference> Workshop::ScrapReference(0x00393C00);
+RelocAddr <Workshop::_ScrapReference> Workshop::ScrapReference(0x00393C10);
 
-RelocPtr<BSPointerHandle<TESObjectREFR>> Workshop::hCurrentWorkshop(0x030EC598);
+RelocPtr<BSPointerHandle<TESObjectREFR>> Workshop::hCurrentWorkshop(0x030EC618);
+
+// UPDATE 2026-06-17: re-verified via IDA on 1.11.221 -- 0x00385400 skips the
+// function's real prologue (mov r11,rsp; push rsi; push rdi; sub rsp,0x68;
+// mov rsi,[rcx+0xB8]), landing 0x10 bytes into the body at a clean
+// instruction boundary ("xor edi,edi") that nonetheless depends on all of
+// that setup already having happened -- entering here would read garbage
+// where rsi should hold the loaded member, and corrupt the stack on return
+// (push/pop count mismatch). Real function start confirmed at 0x3853F0.
 RelocAddr<Workshop::_FindNearestValidWorkshop> Workshop::FindNearestValidWorkshop(0x003853F0);
 
 namespace BSConnectPoint
@@ -68,7 +76,7 @@ STATIC_ASSERT(sizeof(SnappedReferencePointStatus) == 0x10);
 TESObjectREFR * GetSnappedReferenceImpl(const TESObjectREFR & a_refr, const NiPoint3 & a_connectPointWS, const bhkWorld & a_physicsWorld, SnappedReferencePointStatus & a_status, float a_radius)
 {
 	using func_t = decltype(&GetSnappedReferenceImpl);
-	RelocAddr <func_t> func(0x003BE0D0);
+	RelocAddr <func_t> func(0x003BE0E0);
 	return func(a_refr, a_connectPointWS, a_physicsWorld, a_status, a_radius);
 }
 

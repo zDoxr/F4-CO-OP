@@ -1,5 +1,5 @@
-#include "PapyrusValue.h"
-#include "PapyrusInterfaces.h"
+#include "f4se/PapyrusValue.h"
+#include "f4se/PapyrusInterfaces.h"
 
 VMValue::VMValue(const VMValue & other)
 {

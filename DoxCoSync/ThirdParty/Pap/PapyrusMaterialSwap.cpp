@@ -1,9 +1,9 @@
-#include "PapyrusMaterialSwap.h"
+#include "f4se/PapyrusMaterialSwap.h"
 
-#include "GameObjects.h"
-#include "GameData.h"
+#include "f4se/GameObjects.h"
+#include "f4se/GameData.h"
 
-#include "PapyrusStruct.h"
+#include "f4se/PapyrusStruct.h"
 
 DECLARE_STRUCT(RemapData, "MatSwap");
 
@@ -49,8 +49,8 @@ namespace papyrusMaterialSwap
 	}
 }
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
 void papyrusMaterialSwap::RegisterFuncs(VirtualMachine* vm)
 {

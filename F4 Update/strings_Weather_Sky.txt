@@ -1,0 +1,126 @@
+﻿0x0246B0A0|sEnvReduceColor:Weather
+0x0246B0B8|sLerpCloseColor:Weather
+0x0246B0D0|sBumpFadeColor:Weather
+0x0246B0E8|fAlphaReduce:Weather
+0x0246B770|fLODFadeOutMultSkyCell:LOD
+0x0246D210|GameHour
+0x0246D248|DefaultWeather
+0x0246D258|DefaultClimate
+0x024995E0|Climate
+0x02499840|Sky\Sun.dds
+0x02499850|Sky\SunGlare.dds
+0x02499868|Sky\Stars.nif
+0x0249B180|fSkyCellRefProcessDistanceMult
+0x0249E828|Weather
+0x0249EB00|Sky\WastelandCloudCloudyUpper01.dds
+0x0249EB28|Sky\WastelandCloudHorizon01.dds
+0x0249EB48|Sky\WastelandCloudCloudyLower01.dds
+0x024A1CA8|World Map Weather
+0x024A8090|GetCurrentWeatherPercent >> %0.2f
+0x024A80B8|GetIsCurrentWeather >> %0.2f
+0x024AD500|Invalid weather '%s' for parameter %s.
+0x024B05C0|Sky -> %s
+0x024B2210|lighting, effect, utility, water, bloodsplatter, grass, distanttree, particle, sky, imagespace, shcompute, dfp, dfl, dfc, shc, dftl
+0x024B23D0|\sky\
+0x024B2AB0|     Sunlight Scale: %f    Sky Scale: %f
+0x024B9490|Weather ID
+0x024B9F88|ToggleSky
+0x024BB3B8|ReloadCurrentClimate
+0x024BB3D8|Reloads values from the current climate
+0x024BB400|ReloadCurrentWeather
+0x024BB420|Reloads values from the current weather
+0x024C28F8|GetCurrentWeatherPercent
+0x024C2918|getweatherpct
+0x024C2928|GetIsCurrentWeather
+0x024C2940|getweather
+0x024C3588|SetWeather
+0x024C3598|Sets the active weather to the specified type
+0x024C3A28|ForceWeather
+0x024C3A40|Forces the active weather to the specified type, without transition.
+0x024C3EF8|ReleaseWeatherOverride
+0x024D3190|Meshes\Sky\Atmosphere.nif
+0x024D31B0|fWeatherCloudSpeedMax
+0x024D31E8|Meshes\Sky\Clouds.nif
+0x024D3448|Data/Textures/Sky/%s_%s.dds
+0x024D34C0|Textures\Sky\MoonShadow.dds
+0x024D3710|fWeatherTransMax
+0x024D3728|fWeatherTransMin
+0x024D3740|fWeatherTransAccel
+0x024D3758|fWeatherFlashDuration
+0x024D3770|fWeatherFlashDirectional
+0x024D3790|fWeatherFlashAmbient
+0x024D3868|bPrecipitation:Weather
+0x024D3880|bFogEnabled:Weather
+0x024D3898|fSkyStaticFadeStart:Weather
+0x024D38B8|fSkyStaticFadeLength:Weather
+0x024D38F8|fWindLowestFrequency:Weather
+0x024D3918|fWindHighestFrequency:Weather
+0x024D3938|fWindSpeedHighestHighMultiplier:Weather
+0x024D3960|fWindSpeedLowestLowMultiplier:Weather
+0x024D3988|fWindInteriorCellSpeed:Weather
+0x024D39A8|fWindInteriorCellTurbulence:Weather
+0x024D39D0|Weather override for when the player is riding a Vertibird.
+0x024D3A10|VertibirdWeather_DO
+0x024D3B50|fWeatherDurationMin
+0x024D3B68|fWeatherDurationMax
+0x024D3F08|fSunBaseSize:Weather
+0x024D3F20|fSunGlareSize:Weather
+0x02515A20|bReflectSky:Water
+0x02515E18|Data\Textures\Cubemaps\QuickSky_e.dds
+0x02519600|The SoundCategory for weather sounds. Acoustic Spaces can attenuate this category if desired.
+0x02519660|WeatherSoundCategory_DO
+0x0251AEB0|Meshes\Sky\SkyrimWorldMapCloudBank.nif
+0x02528410|SkyscraperMarker
+0x02545D28|fASWeatherFadeOutSecs:Audio
+0x02545D48|fASWeatherFadeInSecs:Audio
+0x0254B97C|Husky
+0x0254C538|ccTOSFO4001-NeoSky
+0x02557FC8|SkyCells
+0x0255F628|DATA\SKYRIM - TEXTURES.BSA
+0x025D0418|FindWeather
+0x025D0450|GetCurrentWeather
+0x025D0468|GetCurrentWeatherTransition
+0x025D0488|GetOutgoingWeather
+0x025D04A0|GetSkyMode
+0x026439E0|skyBoxName
+0x026946A0|textures\sky
+0x028FA390|fSkyCellRefFadeDistance
+0x028FAD90|BSSkyShaderProperty
+0x0290CBE8|BSSkySunOcclude
+0x0290CBF8|BSSkySunGlare
+0x0290CC08|BSSkyMoonAndStarsMask
+0x0290CC20|BSSkyStars
+0x0290CC30|BSSkyClouds
+0x0290CC40|BSSkyCloudsLerp
+0x0290CC50|BSSkyCloudsFade
+0x0290CC60|BSSkyTexture
+0x0290CC70|BSSky
+0x02912C40|BasicSky
+0x02912C50|Add-your-constant-to-BSSkyShaderTechniques::GetString()
+0x02912CA8|Add-your-constant-to-BSSkyShaderVertexConstants::GetString()
+0x02912CF0|Add-your-constant-to-BSSkyShaderPixelConstants::GetString()
+0x02912D58|Add-your-constant-to-BSSkyShaderSamplers::GetString()
+0x029133F8|SKY_OBJECT
+0x02913680|HorizonSkyColor
+0x02913690|LowerSkyColor
+0x029136A0|UpperSkyColor
+0x02F94FC8|.?AVExtraCellSkyRegion@@
+0x02F9CA98|.?AVTESRegionDataWeather@@
+0x02FA2350|.?AV?$ConcreteObjectFormFactory@VTESClimate@@$0DK@$0DI@$06@@
+0x02FA23A0|.?AV?$ConcreteFormFactory@VTESClimate@@$0DK@@@
+0x02FA23E0|.?AVTESWeather@@
+0x02FA2408|.?AVTESClimate@@
+0x02FA35D0|.?AV?$ConcreteObjectFormFactory@VTESWeather@@$0DJ@$0DH@$06@@
+0x02FA3620|.?AV?$ConcreteFormFactory@VTESWeather@@$0DJ@@@
+0x02FA9728|.?AVSkyObject@@
+0x02FA97D8|.?AVSky@@
+0x02FA97F8|.?AUSkyStaticFunctor@TESWeather@@
+0x02FA9830|.?AVSkyEffectController@@
+0x02FA9860|.?AVSkyStaticFindFunctor@@
+0x030814B0|.?AV?$NativeFunction1@UStaticFunctionTag@BSScript@@PEAVTESWeather@@I@BSScript@@
+0x03081510|.?AV?$NativeFunction1@VTESWeather@@X_N@BSScript@@
+0x03081560|.?AV?$NativeFunction0@VTESWeather@@H@BSScript@@
+0x030815A0|.?AV?$NativeFunction0@UStaticFunctionTag@BSScript@@PEAVTESWeather@@@BSScript@@
+0x03081650|.?AV?$NativeFunction2@VTESWeather@@X_N_N@BSScript@@
+0x030D4DF0|.?AVBSSkyShader@@
+0x030D4E18|.?AVBSSkyShaderProperty@@

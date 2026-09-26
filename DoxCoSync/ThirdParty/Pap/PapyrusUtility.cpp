@@ -1,7 +1,7 @@
-#include "PapyrusUtility.h"
+#include "f4se/PapyrusUtility.h"
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
 namespace papyrusUtility
 {

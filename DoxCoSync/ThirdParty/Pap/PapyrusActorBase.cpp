@@ -1,10 +1,10 @@
-#include "PapyrusActorBase.h"
+#include "f4se/PapyrusActorBase.h"
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
-#include "GameObjects.h"
-#include "GameData.h"
+#include "f4se/GameObjects.h"
+#include "f4se/GameData.h"
 
 DECLARE_STRUCT(BodyWeight, "ActorBase")
 

@@ -1,0 +1,397 @@
+Fallout4.esm AVIF (ActorValueInfo) Record Scanner
+============================================================
+
+File size: 330,776,410 bytes
+
+Header: sig=b'TES4', size=17926, formID=0x00000000
+
+Loaded 330,776,410 bytes into memory
+
+Scanning for AVIF records...
+
+Found 359 AVIF records
+
+FormID       EditorID                                 FullName
+--------------------------------------------------------------------------------
+0x000002C2   Strength                                 <×
+  *** SPECIAL/CORE STAT ***
+0x000002C3   Perception                               DF
+  *** SPECIAL/CORE STAT ***
+0x000002C4   Endurance                                Ô
+  *** SPECIAL/CORE STAT ***
+0x000002C5   Charisma                                 o
+  *** SPECIAL/CORE STAT ***
+0x000002C6   Intelligence                             c
+  *** SPECIAL/CORE STAT ***
+0x000002C7   Agility                                  [¹
+  *** SPECIAL/CORE STAT ***
+0x000002C8   Luck                                     T×
+  *** SPECIAL/CORE STAT ***
+0x000002C9   Experience                               
+0x000002CC   IdleChatterTimeMin                       
+0x000002CD   IdleChatterTimeMax                       
+0x000002D4   Health                                   @
+  *** SPECIAL/CORE STAT ***
+0x000002D5   ActionPoints                             
+  *** SPECIAL/CORE STAT ***
+0x000002D7   HealRate                                 ME
+0x000002DA   SpeedMult                                
+  *** SPECIAL/CORE STAT ***
+0x000002DC   CarryWeight                              
+  *** SPECIAL/CORE STAT ***
+0x000002DF   UnarmedDamage                            
+0x000002E1   Rads                                     a×
+  *** SPECIAL/CORE STAT ***
+0x000002E3   DamageResist                             b×
+0x000002E4   PoisonResist                             d×
+0x000002E5   FireResist                               #Ç
+0x000002E6   ElectricResist                           	¤
+0x000002E7   FrostResist                              Ç
+0x000002E9   RadResistIngestion                       l×
+0x000002EA   RadResistExposure                        
+0x000002EB   EnergyResist                             p×
+0x000002F3   Invisibility                             
+0x000002F6   WaterBreathing                           z×
+0x000002F8   IgnoreCrippledLimbs                      |×
+0x00000333   Safety                                   eE
+0x00000344   FollowerState                            
+0x00000358   HealRateMult                             
+0x0000035B   AimStability                             
+0x0000036C   PerceptionCondition                      ¾t
+  *** SPECIAL/CORE STAT ***
+0x0000036D   EnduranceCondition                       #{
+  *** SPECIAL/CORE STAT ***
+0x0000036E   LeftAttackCondition                      V×
+0x0000036F   RightAttackCondition                     
+0x00000370   LeftMobilityCondition                    +(
+0x00000371   RightMobilityCondition                   ]×
+0x00000372   BrainCondition                           ½V
+0x00000375   AvailableCondition3                      
+0x0000080F   HC_Adrenaline                            Pe
+0x00000828   HC_SleepEffect                           
+0x00000849   HC_OutgoingDamageMult                    
+0x0000084A   HC_IncomingDamageMult                    
+0x00000855   HC_HungerEffect                          
+0x00000868   HC_ThirstEffect                          
+0x000008C1   HC_CannibalEffect                        
+0x0001A7F5   MS04SilverShroudTarget                   
+0x0002DA12   TemporaryAngerLevel                      
+0x00043C2B   BoughtHaircutAV                          
+0x00043C95   BoughtSurgeryAV                          
+0x00047FD5   DN084_DescentHasTeleported               
+0x00049647   DN084_ControlRoomOverride                
+0x00066514   EMSystemSleeping                         
+0x000668D7   DN131_CommonsTriggerTimestamp            
+0x0007C61C   MS17CloseWork                            
+0x00084283   PowerArmorVent                           ¿
+0x00084287   CompStrongBerserkAV                      
+0x00086748   WorkshopRatingScavengeGeneral            
+0x00086749   WorkshopRatingScavengeBuilding           
+0x0008674A   WorkshopRatingScavengeParts              
+0x0008674B   WorkshopRatingScavengeRare               
+0x000971F3   CA_LastDialogueBump                      
+0x00097341   ArmorPenetration                         ÈÁ
+0x000A1B1C   CA_Trait_Generous                        ×
+0x000A1B1D   CA_Trait_Selfish                         ×
+0x000A1B1E   CA_Trait_Nice                            Sò
+0x000A1B1F   CA_Trait_Mean                            ×
+0x000A1B20   CA_Trait_Peaceful                        F
+0x000A1B21   CA_Trait_Violent                         d
+0x000A1B80   CA_Affinity                              ù
+0x000A1B81   CA_CurrentThreshold                      
+0x000A1B82   CA_LastChangePositive                    
+0x000A1B83   CA_HighestReached                        
+0x000A1B84   CA_LowestReached                         
+0x000A1B86   CA_HighestThreshold                      
+0x000A1B87   CA_LowestThreshold                       
+0x000A2C4D   CA_MurderSessionCount                    
+0x000A2C4E   CA_MurderSessionDay                      
+0x000A2C4F   CA_MurderSessionVictimCount              
+0x000A46FD   WorkshopRatingCaravan                    
+0x000A46FF   WorkshopRatingFoodTypeCarrot             
+0x000A4700   WorkshopRatingFoodTypeCorn               
+0x000A4701   WorkshopRatingFoodTypeGourd              
+0x000A4702   WorkshopRatingFoodTypeMelon              
+0x000A4703   WorkshopRatingFoodTypeMutfruit           
+0x000A4704   WorkshopRatingFoodTypeRazorgrain         
+0x000A4705   WorkshopRatingFoodTypeTarberry           
+0x000A4706   WorkshopRatingFoodTypeTato               
+0x000A56F8   REOfferToJoinWorkshop                    
+0x000A56F9   WorkshopCaravanDestination               
+0x000A7981   MS19Infected                             ¥~
+0x000AB03C   MQ206Powered                             
+0x000AB03D   MQ206SharedGrid                          
+0x000ABEA0   REAssaultRole                            qÏ
+0x000ABEA2   RECampSC03DrethState                     £
+0x000AC504   RECheckpointRole                         Ê
+0x000AD3D4   GenericBrawlWinner                       
+0x000AD3D5   GenericBrawlLoser                        
+0x000AD3DA   ForceGreetOn                             
+0x000ADC87   MS16FahrenheitShield                     
+0x000ADC8C   MS16FahrenheitShieldDamage               
+0x000B287B   SentryBotMaxHeatLevel                    ª×
+0x000B40D2   REChokepointSC02State                    r
+0x000B9635   FWIsAttacker                             
+0x000BA43C   DetectionMovementMod                     
+0x000BA43D   FallingDamageMod                         
+0x000BA43E   ReduceLimbDamageMod                      
+0x000BA43F   MineTriggerRangeMod                      
+0x000BA447   ChemDurationMod                          
+0x000C2E4F   MinDefendCastleAttackerPhase             
+0x000C4441   WorkshopBellDistance                     
+0x000C9B0E   Dogmeat_clickedPreMolerat                
+0x000CFF76   WorkshopRatingPopulationSynths           
+0x000D97F3   DMP_ReleaseHoldPosition                  
+0x000DCE0F   TerminalVariable01                       
+0x000E1D04   FollowerForceGreetOn                     
+0x000E2B07   MQ203HideMe                              
+0x000E5259   DN049_InRelevantStore                    
+0x000E7726   HoldupAV                                 
+0x000E9415   DN049_Bake_Counter                       
+0x000EC855   elevatorDestinationFloor                 
+0x000F3629   HoldupCapsAV                             
+0x000F362A   HoldupCommandAV                          
+0x000F362B   HoldupFleeAV                             
+0x000F39E2   ProtectronPodStatus                      
+0x000F59D6   DN084_DescentStartFloor                  
+0x000F59D7   DN084_DescentEndFloor                    
+0x000F75E0   CA_Custom                                
+0x000FA86B   CA_WantsToTalk                           
+0x000FA875   CA_AffinitySceneToPlay                   
+0x00101CB8   FastTravelOverEncumbered                 
+0x00101DD9   DN160_GhoulChargeToggle                  
+0x0010214A   MS09LorenzoStunned                       
+0x00109868   REVertibirdLandAirport                   
+0x0010C847   vendorIncome                             EI
+0x0010C92E   RentRoomAV                               
+0x00110304   VertibirdLand                            
+0x00113342   WorkshopGuardPreference                  
+0x0012722C   WorkshopRatingBonusHappiness             Í×
+0x0012722D   WorkshopRatingBrahmin                    
+0x0012722E   WorkshopRatingDamageArtillery            
+0x0012722F   WorkshopRatingDamageCurrent              
+0x00127230   WorkshopRatingDamageFood                 
+0x00127231   WorkshopRatingDamageMax                  
+0x00127232   WorkshopRatingDamagePopulation           
+0x00127233   WorkshopRatingDamagePower                
+0x00127234   WorkshopRatingDamageSafety               
+0x00127235   WorkshopRatingDamageWater                
+0x00127236   WorkshopRatingFoodActual                 
+0x00127237   WorkshopRatingHappinessModifier          
+0x00127238   WorkshopRatingHappinessTarget            
+0x00127239   WorkshopRatingLastAttackDaysSince        
+0x0012723A   WorkshopRatingLastAttackFaction          
+0x0012723B   WorkshopRatingMissingBeds                
+0x0012723C   WorkshopRatingMissingFood                
+0x0012723D   WorkshopRatingMissingWater               
+0x0012723E   WorkshopRatingPopulation                 
+0x0012723F   WorkshopRatingPopulationRobots           
+0x00127240   WorkshopRatingPopulationUnassigned       
+0x00127241   WorkshopRatingRadio                      
+0x00127242   WorkshopRatingTotalBonusHappiness        
+0x00127243   WorkshopRatingTotalFood                  
+0x00127244   WorkshopRatingTotalPower                 
+0x00127245   WorkshopRatingTotalSafety                
+0x00127246   WorkshopRatingTotalWater                 
+0x00127247   WorkshopRatingVendorIncome               
+0x00129157   WorkshopRatingHappiness                  e*
+0x00129A8C   WorkshopResourceObject                   
+0x0012A935   overheating                              RO
+0x0013CB4E   DN035_ReserveRacersReleased              
+0x00148DF6   CA_IsRomantic                            
+0x00148F8D   CA_IsRomanceableNow                      
+0x001504FB   crRangedDmg                              %E
+0x0015A8B2   PABatteryDamageRate                      
+0x001642A4   TeleportRefCollOptionalRequired          
+0x001642A5   TeleportRefCollOnLoad                    
+0x001694E6   ValentineFailedToHack                    
+0x0016961B   MinDefendCastleAttackFromSouth           
+0x0016FBC6   HasItemForPlayer                         
+0x00176339   WorkshopAttackSAEFaction                 
+0x0017846B   Inst307Fight_InPerimeterZone             
+0x0018330E   ArmorBlockPercent                        ÝE
+0x00183312   ArmorShadowHide                          Ó×
+0x00183316   ArmorQuietMod                             A
+0x001868BB   Inst307Fight_AllowTowerCombat            
+0x0018AFB3   MirelurkQueenActiveSpawn                 
+0x0018BCC2   WorkshopPlayerLostControl                
+0x0018BCC3   MinPrestonChat                           
+0x0018C355   Freeze                                   î
+0x0019D073   RR101_TourbotState                       ßþ
+0x001A7343   MS09LorenzoSerumUse                      
+0x001AEE94   REFactionShared_IsAttacker               
+0x001B3BF8   MirelurkQueenClimbOverride1              
+0x001B88D8   Incendiary                               Æ
+0x001BDDBA   WorkshopFastTravel                       
+0x001C5050   HoldupFrenzyAV                           
+0x001C5A31   ProtectronPersonalityValue               Ü
+0x001C87D2   PADamageMult                             \
+0x001CD0AA   SpawnedLegendaryItem                     
+0x001CF28A   RoboticsExpertTargetConscious            
+0x001E3272   WorkshopRatingMissingSafety              
+0x001E4504   MirelurkKingCanCloak                     
+0x001E5F9B   HoldupExplosionAV                        
+0x001E6851   LGND_PerkAV50                            
+0x001E6D6E   LGND_PerkAV300                           
+0x001EB998   AddictionCount                           
+0x001EF483   LGND_WeaponConsecutiveHits               
+0x001EF5D9   LGND_WeaponAV                            
+0x001F1A79   RoboticsExpertTargetCanSelfDestruct      
+0x001F1D63   LGND_APCostMult                          
+0x001F1DEC   LGND_LessDmgAnimals                      
+0x001F1DF0   LGND_LessDmgGhouls                       
+0x001F1DF2   LGND_LessDmgHumans                       
+0x001F1DF6   LGND_LessDmgSupermutants                 
+0x001F1DF8   LGND_LessFallDamage                      
+0x001F3A48   LGND_ArmorDisarm                         
+0x001F3CAB   LGND_LockPickSweetSpot                   
+0x001F579E   LGND_LessDmgBlockSprint                  
+0x001F57D2   WorkshopTerminalLightColor               
+0x001F57D5   WorkshopTerminalTimerIntervalType        
+0x001F57E5   LGND_LessDmgStandStill                   
+0x001F6AD7   LGND_Frenzied                            
+0x001F81E5   LGND_LessDmgBugs                         
+0x001F81E6   LGND_LessDmgRobots                       
+0x00203A3A   PARadResistMult                          l5
+0x002049B5   HoldupImmuneAV                           
+0x0020618D   POISC21_DogState                         
+0x0020A24E   IgnoreExplosionKnockdown                 ¯3
+0x0020D96E   PA_OptimizedServos_AV                    
+0x0020D96F   PA_RustyKnuckles_AV                      
+0x00210B6F   WorkshopLightboxCycling                  
+0x00210C75   WorkshopLightboxCyclingType              
+0x00210C77   WorkshopTerminalLightBrightness          
+0x00214027   WorkshopActorFlee                        
+0x002154BA   WorkshopTerminalSpeakerOctave            
+0x002154BB   WorkshopTerminalSpeakerPitch             
+0x00215DD3   CA_WantsToTalkRomanceRetry               
+0x00218F37   FollowerEndgameForceGreetOn              
+0x00218F39   MQ302Companion                           
+0x0021A175   MiscStatRobotHasBeenDisabled             
+0x0021BDFF   CA_WantsToTalkMurder                     
+0x0022333A   DestroyBOSCompanion                      
+0x002233CB   WorkshopPlacementRestrictToWaterAV       
+0x002233CC   WorkshopPlacementRestrictToDirtAV        
+0x002233CD   WorkshopPlacementAllowWaterAV            
+0x0022B645   PA_OptimizedBracers_AV                   
+0x0022B646   PA_KineticServos_AV                      
+0x0022BF7C   WorkshopSpotlightTarget                  
+0x00230599   PA_OverdriveServos_AV                    
+0x00231D9F   AO_Comp_Bar_Whitechapel                  ØJ
+0x00231DA0   AO_Comp_Bar_Cooke                        KL
+0x00231DA1   AO_Comp_Bar_Deezer                       uL
+0x00231DA2   AO_Comp_Bar_Savoldi                      L
+0x00231DA3   AO_Comp_Bar_Takahashi                    TJ
+0x00231DA4   AO_Comp_Bar_Vadim                        UM
+0x00231DA5   AO_Comp_Bar_Wellingham                   oJ
+0x0023830C   WorkshopActorAssigned                    
+0x0023830E   WorkshopFloraHarvestTime                 
+0x00239EBA   PA_ShockDmg_AV                           
+0x0023C9DF   PA_Charisma_AV                           
+  *** SPECIAL/CORE STAT ***
+0x0023C9E0   PA_Agility_AV                            
+  *** SPECIAL/CORE STAT ***
+0x0023C9E1   PA_Perception_AV                         
+  *** SPECIAL/CORE STAT ***
+0x0023C9E2   PA_Strength_AV                           
+  *** SPECIAL/CORE STAT ***
+0x0023C9E3   PA_Intelligence_AV                       
+  *** SPECIAL/CORE STAT ***
+0x0023C9E4   PA_Luck_AV                               
+  *** SPECIAL/CORE STAT ***
+0x0023C9E5   PA_Endurance_AV                          
+  *** SPECIAL/CORE STAT ***
+0x002458B9   AddictionMedX                            MU
+0x00245AC5   PA_Explosives_AV                         
+0x00245B87   Mod_ReducedSprint_AV                     
+0x00245B9C   Mod_Brawler_AV                           
+0x00245BA4   Mod_IgnoreArmor_AV                       
+0x00245BC6   Mod_Stabilized_AV                        
+0x00245BDB   Mod_ReducedPowerAttack_AV                
+0x00245BEB   Mod_StealthMove_AV                       
+0x00245EF1   AddictionAlcohol                         ½V
+0x00245EF3   AddictionMentats                         ¾V
+0x00245EF8   AddictionBuffout                         ÅV
+0x00245EFA   AddictionPsycho                          V
+0x00245EFC   AddictionXCell                           ÁV
+0x00245EFF   AddictionDaddyO                          ÀV
+0x00245F02   AddictionDaytripper                      ÆV
+0x00245F05   AddictionJet                             .W
+0x00245F09   AddictionOverdrive                       ¼V
+0x0024615B   AddictionBuzzBites                       ÈV
+0x0024615F   AddictionLorenzoSerum                    îV
+0x00246BF5   AddictionCalmex                          ÍW
+0x00246BFE   AddictionFury                            ÖW
+0x00248491   PA_Unarmed_AV                            
+0x002486EC   CCE_TestCompanionChatEvent               
+0x002488CA   COMQC_MQ104RescueNickAV                  
+0x002488CB   COMQC_MQ106KelloggHuntAV                 
+0x002488CC   COMQC_MQ106KelloggDeadAV                 
+0x002488CD   COMQC_MQ201PrydwenArrivedAV              
+0x002488CE   COMQC_MQ202AmariDenAV                    
+0x002488CF   COMQC_MQ204DenDoneAV                     
+0x002488D0   COMQC_MQ204VirgilAV                      
+0x002488D1   COMQC_MQ206HaveChipAV                    
+0x002488D2   COMQC_MQ206TeleporterBuildAV             
+0x002488D3   COMQC_MQ206BackFromInstituteAV           
+0x002488D4   COMQC_MQ302InstituteDestroyedAV          
+0x002488D5   COMQC_PrydwenDestroyedByRRAV             
+0x002488D6   COMQC_PrydwenDestroyedByInstituteAV      
+0x002488D7   COMQC_PrydwenDestroyedByMMAV             
+0x002488D8   COMQC_RR101StartTrailAV                  
+0x002488D9   COMQC_RR101MetDesdemonaNoJoinAV          
+0x002488DA   COMQC_RR102JoinedRRAV                    
+0x002488DB   COMQC_RR102AtSwitchboardAV               
+0x002488DC   COMQC_RR302RepelBoSAtHQAV                
+0x002488DD   COMQC_RR302PrepVbirdAV                   
+0x002488DE   COMQC_RRMQ302BoSDeadAttackInstituteAV    
+0x002488DF   COMQC_BoS100HelpAtPDAV                   
+0x002488E0   COMQC_BoS101ArcJetDoneAV                 
+0x002488E1   COMQC_BoS200JoinedBoSAV                  
+0x002488E2   COMQC_BoS202FortStrongClearedAV          
+0x002488E3   COMQC_BoS301BuildPrimeBeginsAV           
+0x002488E4   COMQC_BoS302DanseIsSynthAV               
+0x002488E5   COMQC_BoS302DanseDiedAV                  
+0x002488E6   COMQC_BoS302DanseLivedAV                 
+0x002488E7   COMQC_BoS302BRRDestroyedAV               
+0x002488E8   COMQC_BoS303GettingAgitatorAV            
+0x002488E9   COMQC_BoS304LibertyPrimeUnleashedAV      
+0x002488EA   COMQC_Inst301AssaultLibertaliaAV         
+0x002488EB   COMQC_Inst302AssaultedBunkerHillAV       
+0x002488EC   COMQC_InstMassFusionBoSEnemyAV           
+0x002488ED   COMQC_InstVsMinRecruitedCivilianAV       
+0x002488EE   COMQC_Inst305ReactorOnlineAV             
+0x002488EF   COMQC_Inst306RRDestroyedAV               
+0x002488F0   COMQC_Inst307InstituteWinsAV             
+0x002488F1   COMQC_Min00KilledDeathclawAV             
+0x002488F2   COMQC_Min02AttackCastleAV                
+0x002488F3   COMQC_Min02CourtyardClearedAV            
+0x002488F4   COMQC_Min02MirelurkQueenDeadAV           
+0x002488F5   COMQC_Min03ShawKnowsTheWayAV             
+0x002488F6   COMQC_Min03EnteredArmoryAV               
+0x002488F7   COMQC_Min03ArtilleryFiredAV              
+0x0024974A   WorkshopActorAlert                       
+0x00249D41   WorkshopOverrideXYBounds                 
+0x00249E5A   WorkshopRatingProvisioner                
+0x00249E5C   WorkshopRatingVendorTypeWeapon           
+0x00249E5D   WorkshopRatingVendorTypeBar              
+0x00249E5E   WorkshopRatingVendorTypeClothing         
+0x00249E5F   WorkshopRatingVendorTypeClinic           
+0x00249E60   WorkshopRatingVendorTypeArmor            
+0x00249E61   WorkshopRatingVendorTypeGeneral          
+0x00249E6A   WorkshopOverrideXBoundMax                
+0x00249E6B   WorkshopOverrideXBoundMin                
+0x00249E6C   WorkshopOverrideYBoundMin                
+0x00249E6D   WorkshopOverrideYBoundMax                
+0x00249E73   WorkshopIgnoreNonRefOccupiedSnap         
+0x00249E91   WorkshopHideHappinessBarAV               
+0x00249E95   JumpHeightMult                           5e
+0x00249F00   WorkshopOverrideZBoundMax                
+0x00249F01   WorkshopOverrideZBoundMin                
+0x00249F0B   WorkshopProhibitRename                   
+0x00249F6D   HC_IsCompanionInNeedOfHealing            
+0x0024A006   WorkshopSnapStacks                       
+0x0024A013   WorkshopMustBeSnappedAV                  
+0x0024A03A   WorkshopCanBePoweredAV                   
+
+Done. Total AVIF records: 359

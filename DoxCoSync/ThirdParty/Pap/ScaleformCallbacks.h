@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Utilities.h"
+#include "f4se_common/Utilities.h"
 
-#include "ScaleformTypes.h"
-#include "ScaleformMovie.h"
-#include "ScaleformValue.h"
+#include "f4se/ScaleformTypes.h"
+#include "f4se/ScaleformMovie.h"
+#include "f4se/ScaleformValue.h"
 
 #include <typeinfo>
 #include <map>
@@ -84,5 +84,5 @@ public:
 	virtual ~SWFToCodeFunctionHandler() { }
 	virtual void	RegisterFunctions() = 0;	// 02
 
-	DEFINE_MEMBER_FN_2(RegisterNativeFunction, void, 0x01B1A340, const char * name, UInt32 index);
+	DEFINE_MEMBER_FN_2(RegisterNativeFunction, void, 0x01B1A460, const char * name, UInt32 index);
 };

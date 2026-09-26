@@ -1,7 +1,7 @@
 #include "PapyrusArgs.h"
 
-#include "GameReferences.h"
-#include "GameExtraData.h"
+#include "f4se/GameReferences.h"
+#include "f4se/GameExtraData.h"
 
 template <> void PackValue <void>(VMValue * dst, void * src, VirtualMachine * vm)
 {
@@ -51,8 +51,6 @@ template <> void PackValue <VMRefOrInventoryObj>(VMValue * dst, VMRefOrInventory
 {
 	(*src)->PackObject(dst);
 }
-
-
 
 void BindID(VMIdentifier ** identifier, void * srcData, VirtualMachine * vm, IObjectHandlePolicy * handlePolicy, UInt32 typeID)
 {

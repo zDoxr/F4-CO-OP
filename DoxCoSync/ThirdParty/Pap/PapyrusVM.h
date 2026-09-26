@@ -1,11 +1,10 @@
 #pragma once
 
-#include "GameUtilities.h"
-#include "GameTypes.h"
+#include "f4se/GameUtilities.h"
+#include "f4se/GameTypes.h"
 
-
-#include "PapyrusInterfaces.h"
-#include "PapyrusValue.h"
+#include "f4se/PapyrusInterfaces.h"
+#include "f4se/PapyrusValue.h"
 
 // skipping the BSScript::Internal namespace stuff
 #include <functional>
@@ -297,7 +296,7 @@ public:
 	// ...
 
 	MEMBER_FN_PREFIX(GameVM);
-	DEFINE_MEMBER_FN(SendPapyrusEvent, void, 0x010ED150, UInt64 handle, const BSFixedString & eventName, std::function<bool(void*)> functor); // Signature not correct yet
+	DEFINE_MEMBER_FN(SendPapyrusEvent, void, 0x010ED2F0, UInt64 handle, const BSFixedString & eventName, std::function<bool(void*)> functor); // Signature not correct yet
 };
 
 extern RelocPtr <GameVM *> g_gameVM;

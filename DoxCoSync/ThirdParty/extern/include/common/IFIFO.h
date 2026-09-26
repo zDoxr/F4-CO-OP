@@ -21,7 +21,7 @@ class IFIFO
 		UInt32	GetWriteOffset(void)	{ return ToDataOffset(fifoDataLength); }
 
 		UInt8	* fifoBuf;
-		UInt32	fifoBufSize;		// size of the buffer (in bytes)
-		UInt32	fifoBase;			// pointer to the beginning of the data block
-		UInt32	fifoDataLength;		// size of the data block
+		UInt32	fifoBufSize;
+		UInt32	fifoBase;
+		UInt32	fifoDataLength;
 };

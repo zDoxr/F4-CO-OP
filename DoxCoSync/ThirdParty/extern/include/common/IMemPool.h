@@ -75,7 +75,7 @@ public:
 
 		if(m_alloc)
 			result = m_alloc->GetObj();
-		
+
 		return result;
 	}
 

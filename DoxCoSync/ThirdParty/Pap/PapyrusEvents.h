@@ -1,11 +1,11 @@
 #pragma once
 
-#include "PapyrusVM.h"
-#include "PapyrusValue.h"
-#include "PapyrusArgs.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusValue.h"
+#include "f4se/PapyrusArgs.h"
 
-#include "PluginAPI.h"
-#include "Serialization.h"
+#include "f4se/PluginAPI.h"
+#include "f4se/Serialization.h"
 
 #include <map>
 #include <set>
@@ -41,6 +41,9 @@ void SendCustomEvent(T * sender, const BSFixedString & eventName, VMArray<VMVari
 	}
 }
 
+// Fixed via IDA against Fallout4.exe 1.11.221 -- see PapyrusNoWaitReloc.cpp
+// for how the real internal RVA (0x01132200) was found. Mirrors
+// SendCustomEvent<T> above exactly.
 template<class T>
 void CallFunctionNoWait(T * sender, const BSFixedString & eventName, VMArray<VMVariable> & arguments)
 {

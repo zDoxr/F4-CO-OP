@@ -1,6 +1,6 @@
 #pragma once
 
-#include "PluginAPI.h"
+#include "f4se/PluginAPI.h"
 
 void Hooks_Scaleform_Init();
 void Hooks_Scaleform_Commit();

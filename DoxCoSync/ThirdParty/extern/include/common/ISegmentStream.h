@@ -3,9 +3,7 @@
 #include "common/IDataStream.h"
 #include <vector>
 
-/**
- *	An stream composed of many non-contiguous segments of a larger stream
- */
+
 class ISegmentStream : public IDataStream
 {
 	public:
@@ -13,7 +11,7 @@ class ISegmentStream : public IDataStream
 		~ISegmentStream();
 
 		void	AttachStream(IDataStream * inStream);
-		
+
 		void	AddSegment(UInt64 offset, UInt64 length, UInt64 parentOffset);
 
 		virtual void	ReadBuf(void * buf, UInt32 inLength);

@@ -1,10 +1,9 @@
 #pragma once
 
-#include "Utilities.h"
-#include "Relocation.h"
-#include "GameTypes.h"
-#include "GameEvents.h"
-
+#include "f4se_common/Utilities.h"
+#include "f4se_common/Relocation.h"
+#include "f4se/GameTypes.h"
+#include "f4se/GameEvents.h"
 
 // 28
 class InputEvent
@@ -246,7 +245,7 @@ public:
 private:
 	// GameMenuBase:BSInputEventUser override should be the only one calling this function
 	friend class GameMenuBase;
-	DEFINE_MEMBER_FN_1(Impl_OnGameMenuBaseButtonEvent, bool, 0x01B19720, ButtonEvent * button);
+	DEFINE_MEMBER_FN_1(Impl_OnGameMenuBaseButtonEvent, bool, 0x01B19840, ButtonEvent * button);
 };
 
 // 30

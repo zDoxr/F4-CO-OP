@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Utilities.h"
-#include "GameTypes.h"
-#include "GameForms.h"
-#include "GameObjects.h"
-#include "GameInput.h"
+#include "f4se_common/Utilities.h"
+#include "f4se/GameTypes.h"
+#include "f4se/GameForms.h"
+#include "f4se/GameObjects.h"
+#include "f4se/GameInput.h"
 
 class TESObjectWEAP;
 class TESNPC;

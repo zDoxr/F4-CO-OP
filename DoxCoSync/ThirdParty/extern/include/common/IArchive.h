@@ -5,11 +5,7 @@
 
 #if ENABLE_IDYNAMICCREATE
 
-/**
- *	An object archive
- *	
- *	This class implements reading and instantiating objects from an object archive.
- */
+
 class IArchive
 {
 	public:
@@ -32,8 +28,8 @@ class IArchive
 	private:
 		struct FileHeader
 		{
-			UInt32	fileID;		// IArchive::kFileID
-			UInt32	version;	// IArchive::kCurrentVersion
+			UInt32	fileID;
+			UInt32	version;
 			UInt32	numEntries;
 			UInt32	nameTableOffset;
 			UInt32	nameTableLength;

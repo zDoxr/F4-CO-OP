@@ -1,13 +1,13 @@
-#include "PapyrusScaleformAdapter.h"
+#include "f4se/PapyrusScaleformAdapter.h"
 
-#include "GameTypes.h"
+#include "f4se/GameTypes.h"
 
-#include "PapyrusValue.h"
-#include "PapyrusArgs.h"
-#include "ScaleformValue.h"
+#include "f4se/PapyrusValue.h"
+#include "f4se/PapyrusArgs.h"
+#include "f4se/ScaleformValue.h"
 
-#include "PapyrusVM.h"
-#include "ScaleformMovie.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/ScaleformMovie.h"
 
 namespace PlatformAdapter
 {

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "NiObjects.h"
-#include "bhkWorld.h"
+#include "f4se/NiObjects.h"
+#include "f4se/bhkWorld.h"
 
 class bhkPhysicsSystem;
 class bhkMigrationWorld;

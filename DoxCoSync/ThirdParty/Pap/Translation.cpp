@@ -1,14 +1,14 @@
 #include "Translation.h"
 
-#include "IFileStream.h"
+#include "common/IFileStream.h"
 #include <shlobj.h>
 #include <string>
-#include "f4se_version.h"
-#include "GameStreams.h"
-#include "GameSettings.h"
+#include "f4se_common/f4se_version.h"
+#include "f4se/GameStreams.h"
+#include "f4se/GameSettings.h"
 
-#include "ScaleformState.h"
-#include "ScaleformTranslator.h"
+#include "f4se/ScaleformState.h"
+#include "f4se/ScaleformTranslator.h"
 
 namespace Translation
 {

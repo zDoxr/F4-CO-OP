@@ -2,12 +2,7 @@
 
 #include <cstdarg>
 
-/**
- *	A simple debug log file
- *	
- *	This class supports prefix blocks describing the source of the log event.
- *	It also allows logical blocks and outlining.\n
- */
+
 class IDebugLog
 {
 	public:
@@ -33,7 +28,7 @@ class IDebugLog
 		};
 
 		static void			Log(LogLevel level, const char * fmt, va_list args);
-		static void			LogNNL(LogLevel level, const char * fmt, va_list args); // No new line
+		static void			LogNNL(LogLevel level, const char * fmt, va_list args);
 
 		static void			SetSource(const char * source);
 		static void			ClearSource(void);
@@ -59,21 +54,21 @@ class IDebugLog
 		static int			TabSize(void);
 		static int			RoundToTab(int spaces);
 
-		static FILE			* logFile;			//!< the output file
+		static FILE			* logFile;
 
-		static char			sourceBuf[16];		//!< name of current source, used in prefix
-		static char			headerText[16];		//!< current text to use as line prefix
-		static char			formatBuf[8192];	//!< temp buffer used for formatted messages
+		static char			sourceBuf[16];
+		static char			headerText[16];
+		static char			formatBuf[8192];
 
-		static int			indentLevel;		//!< the current indentation level (in tabs)
-		static int			rightMargin;		//!< the column at which text should be wrapped
-		static int			cursorPos;			//!< current cursor position
-		static int			inBlock;			//!< are we in a block?
+		static int			indentLevel;
+		static int			rightMargin;
+		static int			cursorPos;
+		static int			inBlock;
 
-		static bool			autoFlush;			//!< automatically flush the file after writing
+		static bool			autoFlush;
 
-		static LogLevel		logLevel;			//!< least important log level to write
-		static LogLevel		printLevel;			//!< least important log level to print
+		static LogLevel		logLevel;
+		static LogLevel		printLevel;
 };
 
 extern IDebugLog gLog;

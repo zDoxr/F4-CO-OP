@@ -1,5 +1,5 @@
-#include "NiRTTI.h"
-#include "NiObjects.h"
+#include "f4se/NiRTTI.h"
+#include "f4se/NiObjects.h"
 
 NiObject * DoNiRTTICast(NiObject * src, const NiRTTI * typeInfo)
 {

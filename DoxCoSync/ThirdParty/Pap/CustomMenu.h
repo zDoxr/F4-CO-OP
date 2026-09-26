@@ -1,6 +1,6 @@
 #pragma once
 
-#include "GameMenus.h"
+#include "f4se/GameMenus.h"
 #include <unordered_map>
 #include <string>
 

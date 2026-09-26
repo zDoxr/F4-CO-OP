@@ -1,14 +1,14 @@
-#include "PapyrusGame.h"
+#include "f4se/PapyrusGame.h"
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
-#include "GameAPI.h"
-#include "GameReferences.h"
-#include "GameData.h"
-#include "GameSettings.h"
-#include "GameCamera.h"
-#include "GameRTTI.h"
+#include "f4se/GameAPI.h"
+#include "f4se/GameReferences.h"
+#include "f4se/GameData.h"
+#include "f4se/GameSettings.h"
+#include "f4se/GameCamera.h"
+#include "f4se/GameRTTI.h"
 
 
 namespace papyrusGame

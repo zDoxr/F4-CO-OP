@@ -1,10 +1,10 @@
 #pragma once
 
-#include "GameForms.h"
-#include "GameTypes.h"
-#include "PapyrusVM.h"
-#include "Utilities.h"
-#include "PapyrusStruct.h"
+#include "f4se/GameForms.h"
+#include "f4se/GameTypes.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se_common/Utilities.h"
+#include "f4se/PapyrusStruct.h"
 
 #include <vector>
 
@@ -29,8 +29,8 @@ class VMArgList
 {
 public:
 	MEMBER_FN_PREFIX(VMArgList);
-	DEFINE_MEMBER_FN(GetOffset, UInt32, 0x020F3210, VMState * state);
-	DEFINE_MEMBER_FN(Get, VMValue *, 0x020F3280, VMState * state, UInt32 idx, UInt32 offset);
+	DEFINE_MEMBER_FN(GetOffset, UInt32, 0x020F32F0, VMState * state);
+	DEFINE_MEMBER_FN(Get, VMValue *, 0x020F3360, VMState * state, UInt32 idx, UInt32 offset);
 };
 
 template <typename T>

@@ -1,12 +1,12 @@
-#include "PapyrusInstanceData.h"
+#include "f4se/PapyrusInstanceData.h"
 
-#include "GameObjects.h"
-#include "GameReferences.h"
-#include "GameRTTI.h"
-#include "GameExtraData.h"
+#include "f4se/GameObjects.h"
+#include "f4se/GameReferences.h"
+#include "f4se/GameRTTI.h"
+#include "f4se/GameExtraData.h"
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
 namespace papyrusInstanceData
 {

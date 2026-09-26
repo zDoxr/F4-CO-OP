@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Serialization.h"
-#include "PluginAPI.h"
-#include "PapyrusArgs.h"
+#include "f4se/Serialization.h"
+#include "f4se/PluginAPI.h"
+#include "f4se/PapyrusArgs.h"
 
 class VMVariable;
 

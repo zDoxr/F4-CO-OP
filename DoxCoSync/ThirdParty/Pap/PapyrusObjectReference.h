@@ -2,7 +2,7 @@
 
 class VirtualMachine;
 
-#include "GameTypes.h"
+#include "f4se/GameTypes.h"
 
 namespace papyrusObjectReference
 {

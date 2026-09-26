@@ -1,8 +1,8 @@
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
-#include "GameObjects.h"
-#include "PapyrusArmor.h"
+#include "f4se/GameObjects.h"
+#include "f4se/PapyrusArmor.h"
 
 namespace papyrusArmor
 {

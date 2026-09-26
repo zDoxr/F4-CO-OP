@@ -1,0 +1,400 @@
+﻿0x0245FE10|e:\buildagent\work\4a2aa37ca4b2ffa3\scripts\_workspace\code\bsmain\setting.h
+0x02460AC0|Meshes/AnimTextData/AnimEventInfo/
+0x02460DC8|bBIClientPerformanceContextLogging:BIEvents
+0x02460DF8|iBIClientPerformanceContextSendRateMinMS:BIEvents
+0x02460E30|iBIClientNextPrebuildHTTPSPostTimeMS:BIEvents
+0x02460E60|bBIDebug:BIEvents
+0x02460E78|iBIEventBulkSendRateMS:BIEvents
+0x02460E98|uShutdownCallbackTimeout:BIEvents
+0x02460EC0|uiMaxNumberOfBulkBIEventsSentPerFrame:BIEvents
+0x02461008|fClientPerformanceFrametimeFirstThreshold:BIEvents
+0x02461040|fClientPerformanceFrametimeSecondThreshold:BIEvents
+0x02461078|fClientPerformanceFrametimeThirdThreshold:BIEvents
+0x024610B0|fClientPerformanceFrametimeFourthThreshold:BIEvents
+0x02461D38|CPUVirtualCores
+0x02461D98|HARDWARE\DESCRIPTION\System\CentralProcessor\0
+0x02461ED8|iIdentity:BIEvents
+0x02463F68|Script
+0x02464190|Spawn Scripted Ref
+0x0246A248|Quest: %s(Alias: %s) Package List 
+0x0246A9E0|e:\buildagent\work\4a2aa37ca4b2ffa3\scripts\_workspace\code\shared\fileio\modelloader.cpp
+0x0246BC78|ScriptObject
+0x0246BC90|TEXTURES\, MESHES\, FACEGEN\, INTERFACE\ , MUSIC\, SOUND\, SCRIPTS\, MAXHEIGHTS\, VIS\, GRASS\, STRINGS\, MATERIALS\, LODSETTINGS\, MISC\, SHADERSFX\, PROGRAMS\
+0x0246D100|PapyrusPersistenceForm
+0x024739F0|MLh_SpellFire_Event
+0x02473A08|MRh_SpellFire_Event
+0x02473A20|Voice_SpellFire_Event
+0x02474040|DialogueCameraEventRefNode
+0x024757B8|PowerArmorPreventCoreStealingKeyword_DO
+0x02475838|PowerArmorPreventArmorDamageKeyword_DO
+0x024758C8|PowerArmorPreventExitTriggerKeyword_DO
+0x02477268|Quests Completed
+0x024772A0|Main Quests Completed
+0x024772B8|Side Quests Completed
+0x024772D0|Brotherhood of Steel Quests Completed
+0x024772F8|Institute Quests Completed
+0x02477318|Minutemen Quests Completed
+0x02477338|Railroad Quests Completed
+0x02477358|DLC01 Quests Completed
+0x02477B60|sMiscStatQuestsCompleted
+0x02477BA8|sMiscStatMainQuestsCompleted
+0x02477BC8|sMiscStatSideQuestsCompleted
+0x02477BE8|sMiscStatBoSQuestsCompleted
+0x02477C08|sMiscStatInstQuestsCompleted
+0x02477C28|sMiscStatMMQuestsCompleted
+0x02477C48|sMiscStatRRQuestsCompleted
+0x02477C68|Automatron Quests Completed
+0x02477C88|sMiscStatDLC01QuestsCompleted
+0x024781DC|$Quest
+0x02478C70|Keyword to signify an object should receive power on/off events.
+0x02478CD0|Actor Value to signify an object should receive power on/off events if nonzero.
+0x0247CCA0|NVFlex::ProcessDebrisEvents
+0x0247CCC0|NVFlex::ProcessExplosionEvents
+0x0247CCE0|NVFlex::ProcessCreatureEvents
+0x0247D7E8|RAISE_TRIGGER_EVENTS 
+0x0247D800|RAISE_MANIFOLD_STATUS_EVENTS 
+0x0247D820|RAISE_MANIFOLD_PROCESSED_EVENTS 
+0x0247D848|RAISE_CONTACT_IMPULSE_EVENTS 
+0x0247EE30|QuestPathingRequest
+0x024827A8|fDefaultVATSDescriptorThreshold:Audio
+0x024937D0|Indicates the weapon requires mods to be functional
+0x02497E60|e:\buildagent\work\4a2aa37ca4b2ffa3\scripts\_workspace\code\shared\tesforms\world\bgslocation.cpp
+0x0249C068|bPreventHavokAddClutter:HAVOK
+0x0249C088|bPreventHavokAddAll:HAVOK
+0x0249C320|VirtualLocation_DO
+0x0249C640|Keyword passed to script to signify that we want to assign a caravan to a location.
+0x0249C6C0|Keyword passed to script to signify that we want to set a new home for a WNPC to a location.
+0x0249C738|Perk that enables/disables certain workshop functionalities.
+0x024A0950|Virtual Location
+0x024A0EA0|Action Dialogue Listen Question
+0x024A2BC8|DialogueFollower Quest
+0x024A2D48|Quest Marker Follower
+0x024A2D60|Quest Marker Location
+0x024A2D78|Quest Marker Enemy
+0x024A2D90|Quest Marker Enemy Above
+0x024A2DB0|Quest Marker Enemy Below
+0x024A6418|Sound Descriptor
+0x024A6450|e:\buildagent\work\4a2aa37ca4b2ffa3\scripts\_workspace\code\shared\tesforms\gameplay\bgssounddescriptorform.cpp
+0x024A7F80|GetQuestRunning >> %0.2f
+0x024A7FA0|GetQuestCompleted >> %0.2f
+0x024A9550|GetInCurrentLocAliasConditionFunction >> %0.2f
+0x024A9B60|Trying to find/play an event camera
+0x024A9B88|NOT trying to find/play an event camera
+0x024A9CF0|%s is acting on a crash land request
+0x024A9D18|%s is not acting on a crash land request
+0x024A9D48|%s is acting on a hasty land request
+0x024A9D70|%s is not acting on a hasty land request
+0x024AAAD0|IsCloserToAThanBFunction >> %0.2f
+0x024AB330|GetCameraPlaybackTimeConditionFunction: %f
+0x024AB390|UseFastTurnInPlaceFunction >> %0.2f
+0x024AB3B8|UseFastTurnInPlaceFunction: Reference is not an actor
+0x024AB3F0|UseFastTurnInPlaceFunction: No reference passed in
+0x024ABC08|fQuestScriptDelayTime:MAIN
+0x024AC040|Param type '%d' (referenced object) unimplemented in Script::ParseParameters.
+0x024AC1B0|SCRIPTS: Script '%s', line %u:
+0x024AC1D8|You need to start scripts with "scriptname ScriptName"
+0x024AC240|Script command "%s" is a console-only command.
+0x024AC270|Script command "%s" not found.
+0x024AC290|Syntax Error.  Missing script name.
+0x024AC2F8|Max script line length (%d characters) exceeded.
+0x024AC3D8|Unknown variable or function '%s'.
+0x024AC400|Syntax error.  Invalid reference '%s' (only quests and object references are allowed in this context).
+0x024AC468|Syntax error.  Functions may not be called on quests.
+0x024AC4E0|Invalid block type for quest script.
+0x024AC5D5|Compiled script not saved!
+0x024AC750|Unknown function code %d.
+0x024AC770|Reference function requires explicit reference in quest script.
+0x024AC828|MAX_SCRIPT_SIZE exceeded.
+0x024AC843|Compiled script not saved!
+0x024AC8B0|All script commands must be inside a begin/end block.
+0x024AC9C0|Syntax Error.  Undefined function '%s'.
+0x024AC9F0|Reference function '%s' requires explicit reference in quest script.
+0x024ACAAF|Compiled script not saved!
+0x024ACAF5|Compiled script not saved!
+0x024ACB47|Compiled script not saved!
+0x024ACBA1|Compiled script not saved!
+0x024ACBE7|Compiled script not saved!
+0x024ACC41|Compiled script not saved!
+0x024ACC94|Compiled script not saved!
+0x024ACCDB|Compiled script not saved!
+0x024ACD26|Compiled script not saved!
+0x024ACD7B|Compiled script not saved!
+0x024ACDCE|Compiled script not saved!
+0x024ACE1F|Compiled script not saved!
+0x024ACE68|Compiled script not saved!
+0x024ACEC2|Compiled script not saved!
+0x024ACF09|Compiled script not saved!
+0x024ACF5A|Compiled script not saved!
+0x024ACFAA|Compiled script not saved!
+0x024ACFF5|Compiled script not saved!
+0x024AD035|Compiled script not saved!
+0x024AD087|Compiled script not saved!
+0x024AD0DB|Compiled script not saved!
+0x024AD12F|Compiled script not saved!
+0x024AD176|Compiled script not saved!
+0x024AD1CB|Compiled script not saved!
+0x024AD216|Compiled script not saved!
+0x024AD265|Compiled script not saved!
+0x024AD2A5|Compiled script not saved!
+0x024AD2E6|Compiled script not saved!
+0x024AD338|Compiled script not saved!
+0x024AD387|Compiled script not saved!
+0x024AD3E6|Compiled script not saved!
+0x024AD43B|Compiled script not saved!
+0x024AD488|Compiled script not saved!
+0x024AD4DD|Compiled script not saved!
+0x024AD528|Compiled script not saved!
+0x024AD584|Compiled script not saved!
+0x024AD5CB|Compiled script not saved!
+0x024AD60C|Compiled script not saved!
+0x024AD656|Compiled script not saved!
+0x024AD6AE|Compiled script not saved!
+0x024AD6F8|Compiled script not saved!
+0x024AD749|Compiled script not saved!
+0x024AD795|Compiled script not saved!
+0x024AD7F1|Compiled script not saved!
+0x024AD837|Compiled script not saved!
+0x024AD88C|Compiled script not saved!
+0x024AD8DA|Compiled script not saved!
+0x024AD929|Compiled script not saved!
+0x024AD983|Compiled script not saved!
+0x024AD9D3|Compiled script not saved!
+0x024ADA23|Compiled script not saved!
+0x024ADA74|Compiled script not saved!
+0x024ADABA|Compiled script not saved!
+0x024ADB0B|Compiled script not saved!
+0x024ADB61|Compiled script not saved!
+0x024ADB80|Param type '%d' (referenced object) unimplemented in ScriptCompiler::StandardCompile.
+0x024ADC09|Compiled script not saved!
+0x024ADC5A|Compiled script not saved!
+0x024ADCAE|Compiled script not saved!
+0x024ADCFF|Compiled script not saved!
+0x024ADD4B|Compiled script not saved!
+0x024ADDA5|Compiled script not saved!
+0x024ADDF2|Compiled script not saved!
+0x024ADE10|Invalid Alias '%s' for parameter %s in owner quest '%s'.
+0x024ADE4A|Compiled script not saved!
+0x024ADE70|No owner quest on script for parameter %s.
+0x024ADE9C|Compiled script not saved!
+0x024ADEEA|Compiled script not saved!
+0x024ADF6A|Compiled script not saved!
+0x024ADFB9|Compiled script not saved!
+0x024AE00F|Compiled script not saved!
+0x024AE062|Compiled script not saved!
+0x024AE0AC|Compiled script not saved!
+0x024AE112|Compiled script not saved!
+0x024AE170|Compiled script not saved!
+0x024AE190|Param type '%d' unimplemented in ScriptCompiler::StandardCompile.
+0x024AE1EF|Compiled script not saved!
+0x024AE342|Compiled script not saved!
+0x024AE508|Actor Value '%s' cannot be modified in scripts or the console.
+0x024AEB28|PlaceThereFunction: Failed to hit anything
+0x024AEBC8|Console/old script system
+0x024AF478|Quest: %s - Running - Current Stage: %u
+0x024AF4A0|Quest: %s - Stopped
+0x024AF4F0|The event was not processed by the graph.
+0x024AF720|UpdateQuestInstanceGlobal >> FAILED
+0x024AF770|SetAllowFlying failed to initiate a landing request because no landing markers were found and a procedural search was not specified.
+0x024AFAE8|Formlist script changes removed.
+0x024AFB60|Leveld list script changes removed.
+0x024B0058|--- Papyrus - Alias %s on Quest %s (%08X)
+0x024B0088|<Null quest>
+0x024B0098|--- Papyrus - Active magic effect %hu
+0x024B00E0|Global function call must have a script name in front of it using "script.function" syntax
+0x024B0140|Script %s does not contain a global function %s 
+0x024B0178|Unknown script %s
+0x024B0190|Found multiple scripts containing function %s, please disambiguate using "script.function" syntax
+0x024B01F8|No script attached to object contains a function %s
+0x024B0230|No script named %s is attached to the object
+0x024B0260|Function %s not found on script %s attached to object
+0x024B0298|Function %s parameter %u failed conversion - %s
+0x024B02D0|e:\buildagent\work\4a2aa37ca4b2ffa3\scripts\_workspace\code\shared\tesforms\gameplay\tesscriptfunctions_console.cpp
+0x024B0348|Failed calling function %s for unknown reasons
+0x024B03C8|--- Papyrus ---------------------------------
+0x024B0498|--- Quest state -----------------------------
+0x024B0558|SetQuestAliases '%s' %s
+0x024B0670|This function is no longer supported
+0x024B0698|This function not supported
+0x024B1B30|----SCRIPT FUNCTIONS--------------------
+0x024B1C30|filters: 0-all 1-functions, 2-settings, 3-globals, 4-other forms
+0x024B2600|Current quest: %s
+0x024B26B0|Script processing %s
+0x024B29C0|This function deprecated
+0x024B2C00|All Quests Enabled.
+0x024B2C18|All Quest Stages Completed.
+0x024B3320|Console Scope Quest >> %s (%08X)
+0x024B3348|Console Scope Quest >> EMPTY
+0x024B3598|Could not make function call
+0x024B35B8|Could not create papyrus object
+0x024B35F0|No reference selected or no function given
+0x024B3620|No quest or function given
+0x024B3640|No function given
+0x024B36D8|Enabled script logging for events of type %s.
+0x024B3708|%s script logging for all event types.
+0x024B3730|Reference %s (%08x) does not think event %s leads to a sync anim.  Does the event name match the sync clip generator?
+0x024B37B0|Target Reference %s (%08x) does not think event %s leads to a sync anim.  Does the target respond to this event correctly?
+0x024B3950|SetRace requires an actor to function.
+0x024B3988|Papyrus profiling is disabled - profile request ignored
+0x024B39E0|Cannot profile an empty script name
+0x024B3A10|Papyrus global profiling >> %s
+0x024B3A30|Reloading %s and related scripts...
+0x024B3A60|%u scripts successfully reloaded, %u failed. Check Papyrus log for more information
+0x024B3AB8|%u scripts successfully reloaded
+0x024B3AE0|Action '%s' succeeded with event '%s'
+0x024B3B08|Action '%s' failed with event '%s'
+0x024B3B30|Action '%s' failed to find an event
+0x024B41C0|Tracing animation events for %s (%08X)
+0x024B4898|DialogueEvent in '%s' for '%s' and '%s'
+0x024B4A90|Unable to get user's PUUID:  Bethesda.net functionality is not enabled
+0x024B4B70|Unable to get user's BNet account name:  Bethesda.net functionality is not enabled
+0x024B4CA0|Unable to get user's BNet identifier:  Bethesda.net functionality is not enabled
+0x024B6430|No papyrus scripts attached
+0x024B64E1|Script state = "%s"
+0x024B6AE0|Unknown reference object for function '%s'.  Execution of script '%s' stopped.
+0x024B6B30|Unknown reference object.  Execution of script '%s' stopped.
+0x024B6B70|Unable to find function definition for command %d in script '%s'.
+0x024B6BB8|Script '%s', line %u: Function '%s' requires a reference.
+0x024B6E00|GetQuestCompleted
+0x024B6EB0|ShowQuestStages
+0x024B6F48|KillQuestUpdates
+0x024B6FC8|CreateEvent
+0x024B7148|GetEventData
+0x024B71E0|SendAnimEvent
+0x024B7200|Send an event to the animation graph and an optional animation.
+0x024B7628|GetVMQuestVariable
+0x024B77B8|GetIsCrashLandRequest
+0x024B77D0|GetIsHastyLandRequest
+0x024B77E8|UpdateQuestInstanceGlobal
+0x024B78E8|HasVMScript
+0x024B78F8|GetVMScriptVariable
+0x024B8450|IsPackageRequestingBlockedIdles
+0x024B8470|Is the package requesting no idles?
+0x024B86A0|IsTryingEventCamera
+0x024B86B8|True if trying to find/play an event camera
+0x024B8BF0|GetPathingRequestedQuickTurn
+0x024B8D00|ADD NEW FUNCTIONS BEFORE THIS ONE!!!
+0x024B8D28|Script Error: NOERROR
+0x024B8D40|Script Error: SCRIPT_NAME_MISSING
+0x024B8D68|Script Error: SYNTAX
+0x024B8D80|Script Error: BADVARIABLENAME
+0x024B8DA0|Script Error: UNKNOWN_VARIABLE
+0x024B8DC0|Script Error: NOCOMMANDS
+0x024B8DE0|Script Error: EXPRESSION
+0x024B8E00|Script Error: MISSING_SETVARALIAS
+0x024B8E28|Script Error: WSTACKOVERFLOW
+0x024B8E48|Script Error: WSTACKUNDERFLOW
+0x024B8E68|Script Error: IFSTACKOVERFLOW
+0x024B8E88|Script Error: IFSTACKUNDERFLOW
+0x024B8EA8|Script Error: OUTOFMEMORY
+0x024B8EC8|Script Error: UNHANDLEDCOMMAND
+0x024B8EE8|Script Error: FILE_TYPE
+0x024B8F00|Script Error: FILE_CORRUPT
+0x024B8F20|Script Error: LINE_TOO_LONG
+0x024B8F40|Script Error: UNKNOWN_OBJECT
+0x024B9010|ScriptName
+0x024B90A8|Quest
+0x024B9258|Papyrus Variable Name
+0x024B9270|Papyrus Script
+0x024B9600|Event Function
+0x024B9610|Event Member
+0x024B9710|QuestAlias
+0x024B99B0|ScriptEffectStart
+0x024B99C8|ScriptEffectFinish
+0x024B99E0|ScriptEffectUpdate
+0x024B9AE8|Show global scripts and variables.
+0x024B9B20|Show variables on object. You can optionally specified a papyrus variable or script to filter with [player->sv]
+0x024B9BC8|ShowQuestVars
+0x024B9BE0|Show quest variables. You can optionally specified a papyrus variable or script to filter with [svq QuestID]
+0x024B9C50|ShowQuests
+0x024B9C60|List quests.
+0x024B9C70|ShowQuestAliases
+0x024B9C88|Show quest aliases. [ShowQuestAliases QuestID]
+0x024B9CB8|SetPapyrusQuestVar
+0x024B9CD8|Set a Papyrus property on the specified quest.
+0x024B9D08|SetPapyrusVar
+0x024B9D20|Set a Papyrus property on the selected ref.
+0x024B9D50|SetQuestAliases
+0x024B9D60|Set quest aliases. [SetQuestAliases QuestID]
+0x024B9D90|ClearQuestAliases
+0x024B9DA8|Clears quest aliases. [ClearQuestAliases QuestID]
+0x024BAE08|ToggleScripts
+0x024BAE20|Turn Script processing on/off
+0x024BAEB0|ShowQuestLog
+0x024BAEC8|Show Quest Log
+0x024BAED8|ShowFullQuestLog
+0x024BAEF8|Show all log entries for a single quest
+0x024BB190|ShowQuestTargets
+0x024BB1A8|Show current quest targets
+0x024BB4D8|MoveToQuestTarget
+0x024BB500|Move player to current quest target.
+0x024BBB00|Show the head track target if set from look function
+0x024BC198|StartAllQuests
+0x024BC1B0|Starts all quests
+0x024BC1C8|CompleteAllQuestStages
+0x024BC1E8|Sets all quest stages
+0x024BC5F8|TogglePathingInfoFunction
+0x024BC6A0|Shows reference inventory script data
+0x024BC950|Toggle all Multibound check functionality
+0x024BCFF0|Modify FaceGen Functionality
+0x024BD2D0|RecvAnimEvent
+0x024BD2E8|Simulate recieving an animation event from an animation graph.
+0x024BD9E0|ToggleEventLog
+0x024BD9F8|Show a log of misc. events for the selected debug REFR.
+0x024BDCF0|SetConsoleScopeQuest
+0x024BDD10|Sets the scope quest for all console functions. No param clears current scope quest.
+0x024BDF40|Toggle Quest Event Info
+0x024BE170|AttachPapyrusScript
+0x024BE188|Attaches a papyrus script to a reference
+0x024BE3A8|TogglePapyrusLog
+0x024BE3C8|Toggle the Papyrus Log Overlay.
+0x024BE5B8|DumpPapyrusStacks
+0x024BE5D0|Dumps all Papyrus stack information to the log
+0x024BE600|DumpPapyrusTimers
+0x024BE618|Dumps all Papyrus timer registrations to the log
+0x024BE650|DumpPapyrusLOSEvents
+0x024BE670|Dumps all Papyrus LOS event registrations to the log
+0x024BE6A8|DumpPapyrusDistanceEvents
+0x024BE6D0|Dumps all Papyrus distance event registrations to the log
+0x024BE710|DumpPapyrusPersistenceInfo
+0x024BE740|Dumps everything in Papyrus persisting the reference called on, or passed in
+0x024BE790|DumpPapyrusEventRegistrations
+0x024BE7C0|Dumps all Papyrus event registrations for the specified object (and script)
+0x024BEAB8|SetDebugQuest
+0x024BEAD0|Sets the quest to be the only one startable for its event type.
+0x024BEB10|SetQuestAliasLogging
+0x024BEB30|Turns alias logging on/off for a quest.
+0x024BEBB0|StartPapyrusScriptProfile
+0x024BEBE0|Starts profiling a Papyrus script.
+0x024BEC08|StopPapyrusScriptProfile
+0x024BEC30|Stops profiling a Papyrus script.
+0x024BEC58|StartPapyrusFormProfile
+0x024BEC80|Starts profiling Papyrus scripts on a form.
+0x024BECB0|StopPapyrusFormProfile
+0x024BECD0|Stops profiling Papyrus scripts on a form.
+0x024BED00|StartPapyrusStackRootProfile
+0x024BED30|Starts profiling all Papyrus stacks starting at a script.
+0x024BED70|StopPapyrusStackRootProfile
+0x024BEDA0|Stops profiling all Papyrus stacks starting at a script.
+0x024BEDE0|TogglePapyrusGlobalProfiler
+0x024BEE10|Toggles Papyrus global profiling on and off (profiles *everything*).
+0x024BEE58|PrintQuestSceneInfo
+0x024BEE78|Prints to the Quest Inf file the current state of scenes.
+0x024BF180|Load or reload the named plugin.  Useful for getting changes without restarting. See also ForceCloseFiles. [Caution: Use at own risk! Modified running quests will be stopped (and restarted if possible). Gameplay and new savegames may be unstable.]
+0x024BF298|ReloadScript
+0x024BF2A8|Reloads the specified Papyrus script
+0x024BF448|DumpConditionFunctions
+0x024BF750|TraceAnimationEvents
+0x024BF770|Trace an actor's animation events
+0x024BF920|CallFunction
+0x024BF940|Calls a papyrus function on the targeted ref. First parameter is the function, the rest are parameters
+0x024BF9A8|CallQuestFunction
+0x024BF9C0|Calls a papyrus function on a quest. Second parameter is the function, the rest are parameters
+0x024BFA20|CallGlobalFunction
+0x024BFA40|Calls a global papyrus function. First parameter is the function, the rest are parameters
+0x024C0298|PlayEventCamera
+0x024C02B0|Play this event camera on the reference
+0x024C0310|AuditionSoundDescriptor
+0x024C0330|Set of commands for auditioning sound descriptors.
+0x024C0610|SendDialogueEvent
+0x024C0628|Sends a dialogue event for the selected and target actor
+0x024C07C0|Captures DebugString, USER1 and USER2 messages using a Message Event Listener and sends the outout to CaptureMessage.lua

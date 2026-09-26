@@ -1,12 +1,12 @@
-#include "PapyrusConstructibleObject.h"
+#include "f4se/PapyrusConstructibleObject.h"
 
-#include "PapyrusArgs.h"
-#include "PapyrusStruct.h"
+#include "f4se/PapyrusArgs.h"
+#include "f4se/PapyrusStruct.h"
 
-#include "GameExtraData.h"
-#include "GameForms.h"
-#include "GameObjects.h"
-#include "GameRTTI.h"
+#include "f4se/GameExtraData.h"
+#include "f4se/GameForms.h"
+#include "f4se/GameObjects.h"
+#include "f4se/GameRTTI.h"
 
 namespace papyrusConstructibleObject
 {
@@ -105,8 +105,8 @@ namespace papyrusConstructibleObject
 	}
 }
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
 void papyrusConstructibleObject::RegisterFuncs(VirtualMachine* vm)
 {

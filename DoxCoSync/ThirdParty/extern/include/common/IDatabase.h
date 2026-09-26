@@ -51,7 +51,7 @@ class IDatabase
 
 				DataMapType::iterator	iter = theDataMap.find(newKey);
 
-				// is 'newKey' unused?
+
 				if(iter == theDataMap.end())
 				{
 					*key = newKey;

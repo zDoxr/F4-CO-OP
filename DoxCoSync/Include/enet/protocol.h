@@ -1,7 +1,3 @@
-/** 
- @file  protocol.h
- @brief ENet protocol
-*/
 #ifndef __ENET_PROTOCOL_H__
 #define __ENET_PROTOCOL_H__
 
@@ -194,5 +190,4 @@ typedef union _ENetProtocol
 #pragma pack(pop)
 #endif
 
-#endif /* __ENET_PROTOCOL_H__ */
-
+#endif

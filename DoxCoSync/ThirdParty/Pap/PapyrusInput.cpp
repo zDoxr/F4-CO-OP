@@ -1,10 +1,10 @@
-#include "PapyrusInput.h"
+#include "f4se/PapyrusInput.h"
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
-#include "GameInput.h"
-#include "InputMap.h"
+#include "f4se/GameInput.h"
+#include "f4se/InputMap.h"
 
 namespace papyrusInput
 {

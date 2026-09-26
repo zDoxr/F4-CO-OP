@@ -1,5 +1,5 @@
-#include "CustomMenu.h"
-#include "ScaleformLoader.h"
+#include "f4se/CustomMenu.h"
+#include "f4se/ScaleformLoader.h"
 
 BSReadWriteLock									g_customMenuLock;
 std::unordered_map<std::string, CustomMenuData>	g_customMenuData;

@@ -1,26 +1,26 @@
-#include "PapyrusObjectReference.h"
+#include "f4se/PapyrusObjectReference.h"
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
-#include "PapyrusUtilities.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
+#include "f4se/PapyrusUtilities.h"
 
-#include "GameReferences.h"
-#include "GameObjects.h"
-#include "GameExtraData.h"
-#include "GameRTTI.h"
-#include "GameData.h"
-#include "GameWorkshop.h"
+#include "f4se/GameReferences.h"
+#include "f4se/GameObjects.h"
+#include "f4se/GameExtraData.h"
+#include "f4se/GameRTTI.h"
+#include "f4se/GameData.h"
+#include "f4se/GameWorkshop.h"
 
-#include "BSGeometry.h"
-#include "NiExtraData.h"
-#include "NiObjects.h"
-#include "NiNodes.h"
-#include "NiMaterials.h"
-#include "bhkWorld.h"
+#include "f4se/BSGeometry.h"
+#include "f4se/NiExtraData.h"
+#include "f4se/NiObjects.h"
+#include "f4se/NiNodes.h"
+#include "f4se/NiMaterials.h"
+#include "f4se/bhkWorld.h"
 
-#include "Serialization.h"
+#include "f4se/Serialization.h"
 
-#include "PapyrusDelayFunctors.h"
+#include "f4se/PapyrusDelayFunctors.h"
 
 #include <set>
 #include <regex>

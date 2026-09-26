@@ -2,10 +2,6 @@
 #define STEAM_API_COMMON
 #pragma once
 
-// When using the SteamWorks SDK, this header contains declarations
-// for callbacks, etc.  In the OpenSource version, it's a stub with
-// just a few things.
-
 #include "steamtypes.h"
 #include "steamclientpublic.h"
 
@@ -13,9 +9,9 @@ enum { k_iSteamNetworkingSocketsCallbacks = 1220 };
 enum { k_iSteamNetworkingMessagesCallbacks = 1250 };
 enum { k_iSteamNetworkingUtilsCallbacks = 1280 };
 
-// handle to a communication pipe to the Steam client
+
 typedef int32 HSteamPipe;
-// handle to single instance of a steam user
+
 typedef int32 HSteamUser;
 
 #ifdef API_GEN
@@ -39,4 +35,4 @@ typedef int32 HSteamUser;
 #define STEAM_CALL_RESULT(RESULT_TYPE) STEAM_CLANG_ATTR("callresult:" #RESULT_TYPE ";")
 #define STEAM_CALL_BACK(RESULT_TYPE) STEAM_CLANG_ATTR("callback:" #RESULT_TYPE ";")
 
-#endif // STEAM_API_COMMON
+#endif

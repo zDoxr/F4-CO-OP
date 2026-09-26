@@ -1,8 +1,8 @@
 #pragma once
 
-#include "GameTypes.h"
-#include "NiTypes.h"
-#include "NiObjects.h"
+#include "f4se/GameTypes.h"
+#include "f4se/NiTypes.h"
+#include "f4se/NiObjects.h"
 
 class BSLight;
 class NiLight;

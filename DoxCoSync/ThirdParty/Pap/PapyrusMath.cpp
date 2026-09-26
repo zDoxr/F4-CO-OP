@@ -1,7 +1,7 @@
-#include "PapyrusMath.h"
+#include "f4se/PapyrusMath.h"
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
 #include <math.h>
 

@@ -1,4 +1,4 @@
-#include "NiProperties.h"
+#include "f4se/NiProperties.h"
 
 BSEffectShaderProperty * BSEffectShaderProperty::Create()
 {

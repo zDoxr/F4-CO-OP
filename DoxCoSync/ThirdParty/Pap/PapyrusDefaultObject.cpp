@@ -1,10 +1,10 @@
-#include "PapyrusDefaultObject.h"
+#include "f4se/PapyrusDefaultObject.h"
 
-#include "GameData.h"
-#include "GameForms.h"
+#include "f4se/GameData.h"
+#include "f4se/GameForms.h"
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
 namespace papyrusDefaultObject
 {

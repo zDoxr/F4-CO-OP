@@ -1,9 +1,9 @@
-#include "papyrusComponent.h"
+#include "f4se/papyrusComponent.h"
 
-#include "GameExtraData.h"
-#include "GameForms.h"
-#include "GameObjects.h"
-#include "GameRTTI.h"
+#include "f4se/GameExtraData.h"
+#include "f4se/GameForms.h"
+#include "f4se/GameObjects.h"
+#include "f4se/GameRTTI.h"
 
 namespace papyrusComponent
 {
@@ -32,8 +32,8 @@ namespace papyrusComponent
 	}
 }
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
 void papyrusComponent::RegisterFuncs(VirtualMachine* vm)
 {

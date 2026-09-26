@@ -1,10 +1,10 @@
-#include "PapyrusObjectMod.h"
+#include "f4se/PapyrusObjectMod.h"
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
-#include "GameObjects.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
+#include "f4se/GameObjects.h"
 
-#include "PapyrusStruct.h"
+#include "f4se/PapyrusStruct.h"
 
 namespace papyrusObjectMod
 {

@@ -1,7 +1,7 @@
-#include "PapyrusLocation.h"
+#include "f4se/PapyrusLocation.h"
  
-#include "GameForms.h"
-#include "PapyrusArgs.h"
+#include "f4se/GameForms.h"
+#include "f4se/PapyrusArgs.h"
 
 namespace papyrusLocation
 {
@@ -38,8 +38,8 @@ namespace papyrusLocation
 	}
 }
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
 void papyrusLocation::RegisterFuncs(VirtualMachine* vm)
 {

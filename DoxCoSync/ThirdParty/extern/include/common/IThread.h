@@ -1,7 +1,5 @@
 #pragma once
 
-// TODO: I really don't like the interface for this
-
 class IThread
 {
 	public:

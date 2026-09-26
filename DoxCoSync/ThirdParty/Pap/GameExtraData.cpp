@@ -1,5 +1,5 @@
-#include "GameExtraData.h"
-#include "GameObjects.h"
+#include "f4se/GameExtraData.h"
+#include "f4se/GameObjects.h"
 
 // ??_7ExtraPowerLinks@@6B@
 RelocAddr <uintptr_t> s_ExtraPowerLinksVtbl(0x02468300);
@@ -97,7 +97,7 @@ BSExtraData* ExtraDataList::GetByType(UInt32 type)
 }
 
 #ifdef _DEBUG
-#include "Utilities.h"
+#include "f4se_common\Utilities.h"
 
 void ExtraDataList::Dump()
 {

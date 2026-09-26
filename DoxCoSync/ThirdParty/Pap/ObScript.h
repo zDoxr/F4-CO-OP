@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Utilities.h"
+#include "f4se_common/Utilities.h"
 
 class TESObjectREFR;
 

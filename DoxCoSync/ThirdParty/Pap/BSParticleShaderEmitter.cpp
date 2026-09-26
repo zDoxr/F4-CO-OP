@@ -1,1 +1,1 @@
-#include "BSParticleShaderEmitter.h"
+#include "f4se/BSParticleShaderEmitter.h"

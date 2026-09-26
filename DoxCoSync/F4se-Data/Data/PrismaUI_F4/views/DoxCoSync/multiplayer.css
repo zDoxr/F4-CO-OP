@@ -1,0 +1,272 @@
+/*
+ * CoSync Multiplayer menu -- Fallout 4 visual language.
+ *
+ * Colour: everything derives from --hud-r/g/b, which the plugin sets from the
+ * player's own vanilla HUD colour (Fallout4Prefs.ini iHUDColorR/G/B; game
+ * default 18,255,21 = Pip-Boy green), exactly like vanilla menus follow it.
+ *
+ * Type: Roboto Condensed is Fallout 4's $MAIN_Font / $MAIN_Font_Bold
+ * (Interface\FontConfig.txt); Share Tech Mono is its $Terminal_Font. Both are
+ * shipped here under the SIL OFL (see fonts/OFL-*.txt).
+ *
+ * Sizes are in vh so the menu keeps its proportions at any window size.
+ * Ultralight (CPU backend): no filters, no backdrop blur -- flat fills, lines
+ * and text-shadow only, which is also what the vanilla menus use.
+ */
+
+@font-face {
+  font-family: "FO Main";
+  src: url("fonts/RobotoCondensed-400.ttf") format("truetype");
+  font-weight: 400;
+}
+@font-face {
+  font-family: "FO Main";
+  src: url("fonts/RobotoCondensed-700.ttf") format("truetype");
+  font-weight: 700;
+}
+@font-face {
+  font-family: "FO Terminal";
+  src: url("fonts/ShareTechMono-400.ttf") format("truetype");
+  font-weight: 400;
+}
+
+:root {
+  --hud-r: 18; --hud-g: 255; --hud-b: 21;
+  --hud:        rgb(var(--hud-r), var(--hud-g), var(--hud-b));
+  --hud-80:     rgba(var(--hud-r), var(--hud-g), var(--hud-b), 0.80);
+  --hud-55:     rgba(var(--hud-r), var(--hud-g), var(--hud-b), 0.55);
+  --hud-35:     rgba(var(--hud-r), var(--hud-g), var(--hud-b), 0.35);
+  --hud-12:     rgba(var(--hud-r), var(--hud-g), var(--hud-b), 0.12);
+  --hud-glow:   rgba(var(--hud-r), var(--hud-g), var(--hud-b), 0.45);
+  --panel-bg:   rgba(4, 16, 6, 0.80);      /* stale green, translucent */
+  --ink:        rgba(2, 10, 3, 0.95);      /* text on a selected (filled) row */
+  --muted:      rgba(200, 214, 200, 0.62); /* secondary text */
+  --bad:        #ff6a4d;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font-family: "FO Main", "Roboto Condensed", "Arial Narrow", sans-serif;
+  font-weight: 700;
+  color: var(--hud);
+  text-transform: uppercase;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+/* ── Panel: sits where the vanilla main-menu list lives (left, centred) ── */
+.panel {
+  position: absolute;
+  left: 7vh;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 64vh;
+  padding: 2.6vh 3vh 2.2vh;
+  background: var(--panel-bg);
+  border: 0.15vh solid var(--hud-35);
+  text-shadow: 0 0 0.6vh var(--hud-glow);
+  opacity: 0;
+  transition: opacity 140ms ease-out;
+}
+.panel.shown { opacity: 1; }
+
+/* Fallout bracket corners (top-left / bottom-right), as on Pip-Boy panels. */
+.panel::before, .panel::after {
+  content: "";
+  position: absolute;
+  width: 3.2vh;
+  height: 3.2vh;
+  border-color: var(--hud);
+  border-style: solid;
+}
+.panel::before { left: -0.15vh; top: -0.15vh; border-width: 0.3vh 0 0 0.3vh; }
+.panel::after  { right: -0.15vh; bottom: -0.15vh; border-width: 0 0.3vh 0.3vh 0; }
+
+/* ── Header ── */
+.crumb {
+  min-height: 1.9vh;
+  font-size: 1.7vh;
+  letter-spacing: 0.08em;
+  color: var(--hud-55);
+}
+h1 {
+  margin: 0.2vh 0 0.9vh;
+  font-size: 4.4vh;
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+.rule {
+  position: relative;
+  height: 0.3vh;
+  background: var(--hud);
+  margin-bottom: 1.8vh;
+}
+.rule::after {                     /* tick at the right end of the rule */
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 0.3vh;
+  height: 1.2vh;
+  background: var(--hud);
+}
+
+/* ── Screen content (fades between screens) ── */
+.screen { transition: opacity 110ms ease-out, transform 110ms ease-out; }
+.screen.leaving { opacity: 0; transform: translateX(-1.2vh); }
+
+/* Info rows: label left, value right, like the Pip-Boy STAT/DATA lists. */
+.rows:empty { display: none; }
+.rows { margin-bottom: 1.8vh; }
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.7vh 1.2vh;
+  margin-bottom: 0.4vh;
+  background: var(--hud-12);
+  font-size: 2.3vh;
+}
+.row .label { color: var(--hud-80); font-weight: 400; letter-spacing: 0.05em; }
+.row .value { letter-spacing: 0.04em; text-align: right; }
+.row .value.bad { color: var(--bad); }
+.row .value.dim { color: var(--hud-55); }
+
+/* Notice box (e.g. empty game list), bordered like vanilla message boxes. */
+.notice:empty { display: none; }
+.notice {
+  margin-bottom: 1.8vh;
+  padding: 1.4vh 1.4vh;
+  border: 0.15vh solid var(--hud-35);
+  font-family: "FO Main", sans-serif;
+  font-weight: 400;
+  text-transform: none;
+  font-size: 2.1vh;
+  line-height: 1.35;
+  color: var(--hud-80);
+}
+.notice .head {
+  display: block;
+  margin-bottom: 0.6vh;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--hud);
+  letter-spacing: 0.05em;
+}
+
+/* ── Menu list: vanilla selection = solid HUD-colour bar, dark text ── */
+.list { display: flex; flex-direction: column; }
+.item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.55vh 1.2vh;
+  margin: 0.2vh 0;
+  font-size: 3vh;
+  letter-spacing: 0.05em;
+  color: var(--hud);
+  border: 0.15vh solid transparent;
+}
+.item .opt { font-size: 2.3vh; color: var(--hud-80); }
+.item .opt::before { content: "\2039  "; }   /* ‹ value › like vanilla option rows */
+.item .opt::after  { content: "  \203A"; }
+.item.disabled { color: var(--hud-35); text-shadow: none; }
+.item.selected {
+  background: var(--hud);
+  color: var(--ink);
+  text-shadow: none;
+}
+.item.selected .opt { color: var(--ink); }
+.item.selected.disabled {
+  background: transparent;
+  color: var(--hud-55);
+  border-color: var(--hud-55);
+}
+
+/* ── Description line under the list (vanilla settings-style help text) ── */
+.desc {
+  min-height: 5.6vh;
+  margin-top: 1.6vh;
+  padding-top: 1.2vh;
+  border-top: 0.15vh solid var(--hud-35);
+  font-weight: 400;
+  text-transform: none;
+  font-size: 2vh;
+  line-height: 1.35;
+  color: var(--muted);
+  text-shadow: none;
+}
+
+/* ── Button hint bar, bottom centre, like BSButtonHintBar ── */
+.hints {
+  position: absolute;
+  left: 50%;
+  bottom: 4vh;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 3vh;
+  padding: 0.8vh 2vh;
+  background: var(--panel-bg);
+  border-top: 0.2vh solid var(--hud);
+  font-size: 2.2vh;
+  letter-spacing: 0.05em;
+  color: var(--hud);
+  text-shadow: 0 0 0.6vh var(--hud-glow);
+  opacity: 0;
+  transition: opacity 140ms ease-out;
+}
+.hints.shown { opacity: 1; }
+.hint { display: flex; align-items: center; gap: 0.9vh; }
+.key {
+  display: inline-block;
+  min-width: 2.8vh;
+  padding: 0.1vh 0.7vh;
+  border: 0.18vh solid var(--hud);
+  font-size: 1.8vh;
+  text-align: center;
+  line-height: 2.4vh;
+}
+.hint .glyph { display: inline-flex; height: 2.6vh; align-items: center; }
+
+/* Right-hand detail on a row (e.g. "3 / 8" on a found game). */
+.item .meta { font-size: 2.3vh; color: var(--hud-80); letter-spacing: 0.04em; }
+.item.selected .meta { color: var(--ink); }
+
+/* Direct Connect text fields: underline only, like vanilla text entry. */
+.item input.field {
+  width: 55%;
+  padding: 0.2vh 0.6vh;
+  background: transparent;
+  border: 0;
+  border-bottom: 0.2vh solid var(--hud-55);
+  outline: none;
+  font-family: "FO Terminal", "FO Main", monospace;
+  font-size: 2.6vh;
+  letter-spacing: 0.06em;
+  color: var(--hud);
+  text-align: right;
+  text-transform: none;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.item.selected input.field { color: var(--ink); border-bottom-color: var(--ink); }
+.item input.field::placeholder { color: var(--hud-35); }
+.item.selected input.field::placeholder { color: rgba(2, 10, 3, 0.45); }
+
+/* Lobby list. A section header row, then one row per player. */
+.row.section {
+  margin-top: 1.4vh;
+  background: transparent;
+  border-bottom: 0.15vh solid var(--hud-55);
+  padding-left: 0;
+  padding-right: 0;
+}
+.row.section .label { color: var(--hud); font-weight: 700; }
+.row.player { background: transparent; padding-top: 0.45vh; padding-bottom: 0.45vh; }
+.row.player .label { color: var(--hud); font-weight: 700; letter-spacing: 0.03em; text-transform: none; }

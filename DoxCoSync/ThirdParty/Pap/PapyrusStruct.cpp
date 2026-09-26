@@ -1,4 +1,4 @@
-#include "PapyrusStruct.h"
+#include "f4se/PapyrusStruct.h"
 
 bool CreateStruct(VMValue * dst, BSFixedString * structName, VirtualMachine * vm, bool bNone)
 {

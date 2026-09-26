@@ -1,7 +1,7 @@
 #pragma once
 
-#include "NiObjects.h"
-#include "NiTypes.h"
+#include "f4se/NiObjects.h"
+#include "f4se/NiTypes.h"
 
 // 68
 class NiCloningProcess

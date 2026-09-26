@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Relocation.h"
+#include "f4se_common/Relocation.h"
 
 class NiObject;
 

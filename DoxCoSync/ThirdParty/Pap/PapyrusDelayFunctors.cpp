@@ -1,15 +1,11 @@
-#include "PapyrusDelayFunctors.h"
-#include "PapyrusObjects.h"
+#include "f4se/PapyrusDelayFunctors.h"
+#include "f4se/PapyrusObjects.h"
 
 #include <algorithm>
 
-#include "GameAPI.h"
-#include "PapyrusVM.h"
-#include "Serialization.h"
-
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-
+#include "f4se/GameAPI.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/Serialization.h"
 
 ///
 /// LatentF4SEDelayFunctor

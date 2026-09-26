@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Serialization.h"
-#include "PluginAPI.h"
+#include "f4se/Serialization.h"
+#include "f4se/PluginAPI.h"
 
 class GFxValue;
 

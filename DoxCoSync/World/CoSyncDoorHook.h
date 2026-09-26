@@ -1,0 +1,31 @@
+#pragma once
+
+#include <string>
+
+// Door activate sync. Hooks the engine's "Activate worker" function
+// (sub_140514180, RVA 0x00514180) which fires on every player E-key
+// activation. Filters to door-like form types and broadcasts
+// "DOOR|refFormID" to all peers.
+//
+// Receiver calls the same engine function via LookupFormByID so both
+// sides toggle state in sync. TLS guard prevents echo.
+
+void InstallDoorHook();
+void UninstallDoorHook();
+
+namespace CoSyncDoorHook
+{
+    bool IsDoork(const std::string& msg);
+    void OnReceiveDoor(const std::string& msg);
+    void FlushPendingDoorOps();
+
+    // True when `refr` is a currently-LOCKED reference. Reads the engine's
+    // lock data via the same entry point CoSyncLockHook already uses
+    // (kLockDataGet_RVA 0x00563170, locked = bit 0 of the flags byte at +0x10).
+    // Returns false for anything without lock data, and on any fault.
+    //
+    // Used to stop a refused door activation being replayed on peers: without
+    // it, walking into a locked door broadcast an open that succeeded remotely
+    // while failing locally, leaving the two sides permanently disagreeing.
+    bool IsRefLocked(void* refr);
+}

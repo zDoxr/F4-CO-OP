@@ -14,7 +14,7 @@ public:
 	bool	Done(void);
 
 private:
-	IDirectoryIterator();	// undefined, disallow
+	IDirectoryIterator();
 
 	HANDLE			m_searchHandle;
 	WIN32_FIND_DATA	m_result;

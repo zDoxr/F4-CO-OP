@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Source Files">
@@ -69,68 +69,80 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ConsoleLogger.h">
+    <ClInclude Include="GUI\ConsoleLogger.h">
       <Filter>Header Files\Logging</Filter>
     </ClInclude>
-    <ClInclude Include="CoSyncNet.h">
+    <ClInclude Include="Networking\CoSyncNet.h">
       <Filter>Header Files\NetWorking</Filter>
     </ClInclude>
-    <ClInclude Include="IniReader.h">
+    <ClInclude Include="Core\IniReader.h">
       <Filter>Header Files\Logging</Filter>
     </ClInclude>
-    <ClInclude Include="LocalPlayerState.h">
+    <ClInclude Include="Character\LocalPlayerState.h">
       <Filter>Header Files\Game\PlayerState</Filter>
     </ClInclude>
-    <ClInclude Include="PlayerStatePacket.h">
+    <ClInclude Include="Character\PlayerStatePacket.h">
       <Filter>Header Files\Game\PlayerState</Filter>
     </ClInclude>
-    <ClInclude Include="F4MP_Main.h">
+    <ClInclude Include="Core\CoSync_Main.h">
       <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
-    <ClInclude Include="Logger.h">
+    <ClInclude Include="Core\Logger.h">
       <Filter>Header Files\Logging</Filter>
     </ClInclude>
-    <ClInclude Include="PacketTypes.h">
+    <ClInclude Include="Networking\PacketTypes.h">
       <Filter>Header Files\NetWorking</Filter>
     </ClInclude>
-    <ClInclude Include="TickHook.h">
+    <ClInclude Include="Hooks\TickHook.h">
       <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
-    <ClInclude Include="Version.h">
+    <ClInclude Include="Hooks\CoSyncFirstPersonGraph.h">
       <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
-    <ClInclude Include="GNS_Core.h">
+    <ClInclude Include="Hooks\CoSyncAnimGraphHandleGuard.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="Hooks\CoSyncMovementHandleGuard.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="Hooks\CoSyncLocomotionCalcGuard.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="Hooks\CoSyncSharedHandleLeafGuard.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="Hooks\CoSyncActorLocomotionGuard.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="Hooks\CoSyncActorProcessGuard.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="Hooks\CoSyncMusicChangerCellTeardownGuard.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="Hooks\CoSyncActorAudioScaleGuard.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Version.h">
+      <Filter>Header Files\Game\Main</Filter>
+    </ClInclude>
+    <ClInclude Include="Networking\GNS_Core.h">
       <Filter>Header Files\NetWorking</Filter>
     </ClInclude>
-    <ClInclude Include="GNS_Session.h">
+    <ClInclude Include="Networking\GNS_Session.h">
       <Filter>Header Files\NetWorking</Filter>
     </ClInclude>
-    <ClInclude Include="CoSyncOverlay.h">
+    <ClInclude Include="GUI\CoSyncWindowHook.h">
       <Filter>Header Files\NetWorking</Filter>
     </ClInclude>
-    <ClInclude Include="ThirdParty\ImGui\imconfig.h">
-      <Filter>ThirdParty\ImGui</Filter>
+    <ClInclude Include="GUI\CoSyncPrismaUI.h">
+      <Filter>Header Files\NetWorking</Filter>
     </ClInclude>
-    <ClInclude Include="ThirdParty\ImGui\imgui.h">
-      <Filter>ThirdParty\ImGui</Filter>
+    <ClInclude Include="ThirdParty\PrismaUI\PrismaUI_F4_API.h">
+      <Filter>Header Files\NetWorking</Filter>
     </ClInclude>
-    <ClInclude Include="ThirdParty\ImGui\imgui_impl_dx11.h">
-      <Filter>ThirdParty\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="ThirdParty\ImGui\imgui_impl_win32.h">
-      <Filter>ThirdParty\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="ThirdParty\ImGui\imgui_internal.h">
-      <Filter>ThirdParty\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="ThirdParty\ImGui\imstb_rectpack.h">
-      <Filter>ThirdParty\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="ThirdParty\ImGui\imstb_textedit.h">
-      <Filter>ThirdParty\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="ThirdParty\ImGui\imstb_truetype.h">
-      <Filter>ThirdParty\ImGui</Filter>
+    <ClInclude Include="GUI\CoSyncOverlay.h">
+      <Filter>Header Files\NetWorking</Filter>
     </ClInclude>
     <ClInclude Include="ThirdParty\GNS\Include\steam\isteamnetworkingmessages.h">
       <Filter>ThirdParty\GNS\Include</Filter>
@@ -165,13 +177,15 @@
     <ClInclude Include="ThirdParty\GNS\Include\steam\steamuniverse.h">
       <Filter>ThirdParty\GNS\Include</Filter>
     </ClInclude>
-    <ClInclude Include="DX11Hook.h">
-      <Filter>Header Files\Hook</Filter>
-    </ClInclude>
-    <ClInclude Include="SteamDiagnostics.h">
+    <ClInclude Include="Animations\HkbVariableValueSet.h concept="Header Files">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CoSyncSteam.h">
+      <Filter>Header Files\Hook</Filter>
+    </ClInclude>
+    <ClInclude Include="Networking\SteamDiagnostics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Networking\CoSyncSteam.h">
       <Filter>Header Files\NetWorking\CoSyncSteam</Filter>
     </ClInclude>
     <ClInclude Include="ThirdParty\MinHook\src\hde\hde32.h">
@@ -195,49 +209,55 @@
     <ClInclude Include="ThirdParty\MinHook\src\trampoline.h">
       <Filter>ThirdParty\MinHook</Filter>
     </ClInclude>
-    <ClInclude Include="CoSyncTransport.h">
+    <ClInclude Include="Networking\CoSyncTransport.h">
       <Filter>Header Files\NetWorking</Filter>
     </ClInclude>
-    <ClInclude Include="CoSyncSteamManager.h">
+    <ClInclude Include="Networking\CoSyncSteamManager.h">
       <Filter>Header Files\NetWorking\CoSyncSteam</Filter>
     </ClInclude>
-    <ClInclude Include="HamachiUtil.h">
+    <ClInclude Include="Networking\CoSyncDiscovery.h">
       <Filter>Header Files\NetWorking</Filter>
     </ClInclude>
-    <ClInclude Include="IntellisenseFix.h">
+    <ClInclude Include="Core\IntellisenseFix.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CoSyncPlayer.h">
+    <ClInclude Include="Character\CoSyncPlayer.h">
       <Filter>Header Files\Game\PlayerState</Filter>
     </ClInclude>
-    <ClInclude Include="CoSyncPlayerManager.h">
+    <ClInclude Include="Character\CoSyncPlayerManager.h">
       <Filter>Header Files\Game\PlayerState</Filter>
     </ClInclude>
-    <ClInclude Include="PatternScan.h">
+    <ClInclude Include="Character\CoSyncPlayerMarker.h">
+      <Filter>Header Files\Game\PlayerState</Filter>
+    </ClInclude>
+    <ClInclude Include="Character\CoSyncTeleport.h">
+      <Filter>Header Files\Game\PlayerState</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\PatternScan.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CoSyncGameAPI.h">
+    <ClInclude Include="CoSync\CoSyncGameAPI.h">
       <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
-    <ClInclude Include="CoSyncActorValues.h">
+    <ClInclude Include="Character\CoSyncActorValues.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameUtilities.h">
+    <ClInclude Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\GameUtilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CoSyncWorld.h">
+    <ClInclude Include="World\CoSyncWorld.h">
       <Filter>Header Files\Game</Filter>
     </ClInclude>
-    <ClInclude Include="CoSyncEntityTypes.h">
+    <ClInclude Include="CoSync\CoSyncEntityTypes.h">
       <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
-    <ClInclude Include="Packets_EntityCreate.h">
+    <ClInclude Include="Networking\Packets_EntityCreate.h">
       <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
-    <ClInclude Include="Packets_EntityUpdate.h">
+    <ClInclude Include="Networking\Packets_EntityUpdate.h">
       <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
-    <ClInclude Include="CoSyncEntityRegistry.h">
+    <ClInclude Include="CoSync\CoSyncEntityRegistry.h">
       <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
     <ClInclude Include="CoSyncMessageTypes.h">
@@ -246,10 +266,10 @@
     <ClInclude Include="CoSyncMessageHelpers.h">
       <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
-    <ClInclude Include="EntitySerialization.h">
+    <ClInclude Include="Networking\EntitySerialization.h">
       <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
-    <ClInclude Include="CoSyncPlayerSpawner.h">
+    <ClInclude Include="Character\CoSyncPlayerSpawner.h">
       <Filter>Header Files\Game\PlayerState</Filter>
     </ClInclude>
     <ClInclude Include="GameTasks.h">
@@ -258,111 +278,120 @@
     <ClInclude Include="CoSyncSpawnTasks.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\Hooks_Threads.h">
+    <ClInclude Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\Hooks_Threads.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Tasks.h">
       <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
-    <ClInclude Include="LocalPlayerStateGlobals.h">
+    <ClInclude Include="Character\LocalPlayerStateGlobals.h">
       <Filter>Header Files\Game</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusArgs.h">
+    <ClInclude Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\PapyrusArgs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se_common\Utilities.h">
+    <ClInclude Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se_common\Utilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Papyrus_CoSync.h">
       <Filter>Header Files\Papy</Filter>
     </ClInclude>
-    <ClInclude Include="CoSyncEntityState.h">
+    <ClInclude Include="CoSync\CoSyncEntityState.h">
       <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
-    <ClInclude Include="Packets_EntityDestroy.h">
+    <ClInclude Include="Networking\Packets_EntityDestroy.h">
       <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
-    <ClInclude Include="CoSyncRuntime.h">
+    <ClInclude Include="World\CoSyncRuntime.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\NiTypes.h">
+    <ClInclude Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\NiTypes.h">
       <Filter>Resource Files</Filter>
     </ClInclude>
-    <ClInclude Include="CoSynclocalplayer.h">
+    <ClInclude Include="Character\CoSynclocalplayer.h">
       <Filter>Header Files\Game</Filter>
     </ClInclude>
     <ClInclude Include="CoSyncPapyrushelper.h">
       <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameInput.h">
+    <ClInclude Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\GameInput.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameRTTI.h">
+    <ClInclude Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\GameRTTI.h">
       <Filter>Header Files\Game\Main</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="F4MP_Main.cpp">
+    <ClCompile Include="Core\CoSync_Main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="F4MP_Plugin.cpp">
+    <ClCompile Include="Core\CoSync_Plugin.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TickHook.cpp">
+    <ClCompile Include="Hooks\TickHook.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Hooks\CoSyncFirstPersonGraph.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Hooks\CoSyncAnimGraphHandleGuard.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Hooks\CoSyncMovementHandleGuard.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Hooks\CoSyncLocomotionCalcGuard.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Hooks\CoSyncSharedHandleLeafGuard.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Hooks\CoSyncActorLocomotionGuard.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Hooks\CoSyncActorProcessGuard.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Hooks\CoSyncMusicChangerCellTeardownGuard.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Hooks\CoSyncActorAudioScaleGuard.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="GameGlobals.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="LocalPlayerState.cpp">
+    <ClCompile Include="Character\LocalPlayerState.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PlayerStatePacket.cpp">
+    <ClCompile Include="Character\PlayerStatePacket.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CoSyncNet.cpp">
+    <ClCompile Include="Networking\CoSyncNet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="IniReader.cpp">
+    <ClCompile Include="Core\IniReader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GNS_Core.cpp">
+    <ClCompile Include="Networking\GNS_Core.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GNS_Session.cpp">
+    <ClCompile Include="Networking\GNS_Session.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CoSyncOverlay.cpp">
+    <ClCompile Include="GUI\CoSyncWindowHook.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ThirdParty\ImGui\imgui.cpp">
-      <Filter>ThirdParty\ImGui</Filter>
-    </ClCompile>
-    <ClCompile Include="ThirdParty\ImGui\imgui_demo.cpp">
-      <Filter>ThirdParty\ImGui</Filter>
-    </ClCompile>
-    <ClCompile Include="ThirdParty\ImGui\imgui_draw.cpp">
-      <Filter>ThirdParty\ImGui</Filter>
-    </ClCompile>
-    <ClCompile Include="ThirdParty\ImGui\imgui_impl_dx11.cpp">
-      <Filter>ThirdParty\ImGui</Filter>
-    </ClCompile>
-    <ClCompile Include="ThirdParty\ImGui\imgui_impl_win32.cpp">
-      <Filter>ThirdParty\ImGui</Filter>
-    </ClCompile>
-    <ClCompile Include="ThirdParty\ImGui\imgui_tables.cpp">
-      <Filter>ThirdParty\ImGui</Filter>
-    </ClCompile>
-    <ClCompile Include="ThirdParty\ImGui\imgui_widgets.cpp">
-      <Filter>ThirdParty\ImGui</Filter>
-    </ClCompile>
-    <ClCompile Include="DX11Hook.cpp">
+    <ClCompile Include="GUI\CoSyncPrismaUI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SteamDiagnostics.cpp">
+    <ClCompile Include="GUI\CoSyncOverlay.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CoSyncSteam.cpp">
+    <ClCompile Include="Networking\SteamDiagnostics.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Networking\CoSyncSteam.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ThirdParty\MinHook\src\hde\hde32.c">
@@ -380,40 +409,46 @@
     <ClCompile Include="ThirdParty\MinHook\src\trampoline.c">
       <Filter>ThirdParty\MinHook</Filter>
     </ClCompile>
-    <ClCompile Include="CoSyncTransport.cpp">
+    <ClCompile Include="Networking\CoSyncTransport.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CoSyncSteamManager.cpp">
+    <ClCompile Include="Networking\CoSyncSteamManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="HamachiUtil.cpp">
+    <ClCompile Include="Networking\CoSyncDiscovery.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CoSyncPlayer.cpp">
+    <ClCompile Include="Character\CoSyncPlayer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CoSyncPlayerManager.cpp">
+    <ClCompile Include="Character\CoSyncPlayerManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CoSyncGame.cpp">
+    <ClCompile Include="CoSync\CoSyncGame.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CoSyncGameAPI.cpp">
+    <ClCompile Include="CoSync\CoSyncGameAPI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CoSyncActorValues.cpp">
+    <ClCompile Include="Character\CoSyncActorValues.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameForms.cpp">
+    <ClCompile Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\GameForms.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameUtilities.cpp">
+    <ClCompile Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\GameUtilities.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CoSyncEntityRegistry.cpp">
+    <ClCompile Include="CoSync\CoSyncEntityRegistry.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CoSyncPlayerSpawner.cpp">
+    <ClCompile Include="Character\CoSyncPlayerSpawner.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Character\CoSyncPlayerMarker.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Character\CoSyncTeleport.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="GameTasks.cpp">
@@ -422,67 +457,67 @@
     <ClCompile Include="CoSyncSpawnTasks.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\Hooks_Threads.cpp">
+    <ClCompile Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\Hooks_Threads.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se_common\Utilities.cpp">
+    <ClCompile Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se_common\Utilities.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="LocalPlayerStateGlobals.cpp">
+    <ClCompile Include="Character\LocalPlayerStateGlobals.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Papyrus_CoSync.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusArgs.cpp">
+    <ClCompile Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\PapyrusArgs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusValue.cpp">
+    <ClCompile Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\PapyrusValue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusVM.cpp">
+    <ClCompile Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\PapyrusVM.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameExtraData.cpp">
+    <ClCompile Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\GameExtraData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusInterfaces.cpp">
+    <ClCompile Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\PapyrusInterfaces.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Heap.cpp">
+    <ClCompile Include="Core\Heap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameAPI.cpp">
+    <ClCompile Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\GameAPI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameTypes.cpp">
+    <ClCompile Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\GameTypes.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameObjects.cpp">
+    <ClCompile Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\GameObjects.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CoSyncWorld.cpp">
+    <ClCompile Include="World\CoSyncWorld.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CoSyncEntityState.cpp">
+    <ClCompile Include="CoSync\CoSyncEntityState.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CoSyncRuntime.cpp">
+    <ClCompile Include="World\CoSyncRuntime.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\NiTypes.cpp">
+    <ClCompile Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\NiTypes.cpp">
       <Filter>Resource Files</Filter>
     </ClCompile>
     <ClCompile Include="PapyrusNoWaitReloc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CoSynclocalplayer.cpp">
+    <ClCompile Include="Character\CoSynclocalplayer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CoSyncPapyrushelper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameRTTI.cpp">
+    <ClCompile Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\GameRTTI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -499,7 +534,7 @@
     <None Include="ThirdParty\GNS\Bin\libprotobuf.dll">
       <Filter>ThirdParty\GNS\Bin</Filter>
     </None>
-    <None Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameRTTI.inl">
+    <None Include="..\..\..\..\$(SolutionDir)f4se-0.7.7\f4se\GameRTTI.inl">
       <Filter>Header Files\Game\Main</Filter>
     </None>
   </ItemGroup>

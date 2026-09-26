@@ -1,11 +1,11 @@
 #include "Hooks_Camera.h"
 
-#include "xbyak.h"
-#include "BranchTrampoline.h"
-#include "Relocation.h"
+#include "xbyak/xbyak.h"
+#include "f4se_common/BranchTrampoline.h"
+#include "f4se_common/Relocation.h"
 
-#include "PapyrusEvents.h"
-#include "GameCamera.h"
+#include "f4se/PapyrusEvents.h"
+#include "f4se/GameCamera.h"
 
 void Hooks_Camera_Init()
 {
@@ -13,7 +13,7 @@ void Hooks_Camera_Init()
 }
 
 typedef void (* _SetCameraState)(TESCamera * camera, TESCameraState * newState);
-RelocAddr <_SetCameraState> SetCameraState(0x00827A80);	// TESCamera::SetCameraState
+RelocAddr <_SetCameraState> SetCameraState(0x00827AC0);	// TESCamera::SetCameraState
 _SetCameraState SetCameraState_Original = nullptr;
 
 void SetCameraState_Hook(TESCamera * camera, TESCameraState * newCameraState)

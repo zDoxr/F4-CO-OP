@@ -1,7 +1,7 @@
 #pragma once
 
-#include "NiObjects.h"
-#include "BSSkin.h"
+#include "f4se/NiObjects.h"
+#include "f4se/BSSkin.h"
 
 class NiProperty;
 struct ID3D11Buffer;
@@ -219,7 +219,7 @@ public:
 
 	MEMBER_FN_PREFIX(BSGeometry);
 	// 
-	DEFINE_MEMBER_FN(UpdateShaderProperty, UInt32, 0x021C1190);
+	DEFINE_MEMBER_FN(UpdateShaderProperty, UInt32, 0x021C1270);
 };
 STATIC_ASSERT(sizeof(BSGeometry) == 0x160);
 
@@ -234,7 +234,7 @@ public:
 	float	unk16C;	// 16C
 
 	MEMBER_FN_PREFIX(BSTriShape);
-	DEFINE_MEMBER_FN(CreateDynamicTriShape, BSDynamicTriShape*, 0x01831770, NiAVObject * unk1);
+	DEFINE_MEMBER_FN(CreateDynamicTriShape, BSDynamicTriShape*, 0x01831890, NiAVObject * unk1);
 };
 STATIC_ASSERT(sizeof(BSTriShape) == 0x170);
 

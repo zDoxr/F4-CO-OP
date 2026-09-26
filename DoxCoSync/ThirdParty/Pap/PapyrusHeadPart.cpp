@@ -1,10 +1,10 @@
-#include "PapyrusHeadPart.h"
+#include "f4se/PapyrusHeadPart.h"
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
-#include "GameObjects.h"
-#include "GameData.h"
+#include "f4se/GameObjects.h"
+#include "f4se/GameData.h"
  
 namespace papyrusHeadPart
 {	

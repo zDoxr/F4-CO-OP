@@ -1,0 +1,400 @@
+﻿0x024693D0|Worldspace and Linked Interiors
+0x024693F0|Linked Interiors
+0x02469408|Current Cell Only
+0x0246A330|bAllowTransitionCells:General
+0x0246AFC8|bPreemptivelyUnloadCells:General
+0x0246AFF0|uInterior Cell Buffer:General
+0x0246B010|uExterior Cell Buffer:General
+0x0246B048|bMinimizeCachedExteriors:General
+0x0246B6C8|uiCellFrameCaptureMinTime:General
+0x0246B6F0|uiWaitCellReadyTime:General
+0x0246B770|fLODFadeOutMultSkyCell:LOD
+0x0246B7D8|bUseMenuLoadCellPreload:General
+0x0246B7F8|bAllowClearOldestBufferedExterior:General
+0x0246B828|bOnlyQueueCellsWhenRefsLoaded:General
+0x0246BB20|Loading cell...%s (%i, %i) (%08X)
+0x0246BBF8|AddCellGrass (CANCELED) [%i, %i]
+0x0246BC20|AddCellGrass (%i, %i) [%i, %i]
+0x0246C0A0|bFileSkipModelChecks:TestAllCells
+0x0246C0C8|bFileCheckModelCollision:TestAllCells
+0x0246C0F0|bFileGoneMessage:TestAllCells
+0x0246C110|bFileNeededMessage:TestAllCells
+0x0246C130|bFileTestLoad:TestAllCells
+0x0246C150|bFileUnusedObject:TestAllCells
+0x0246C170|bFileSkipIconChecks:TestAllCells
+0x0246C198|bFileShowIcons:TestAllCells
+0x0246C1B8|bFileShowTextures:TestAllCells
+0x0246D050|CellWaterCurrentMarker
+0x0246D3D0|DefaultImageSpaceInterior
+0x0246D3F0|DefaultImageSpaceExterior
+0x024713B0|iGrassCellRadius:Grass
+0x02471418|meshes\landscape\cellgrass\
+0x02474628|bQueueCellAttachDetach:General
+0x02474648|bProgressiveCellAttach:General
+0x02474668|bProgressiveCellDetach:General
+0x02475070|uiCompanionLocalMapMaxCells:MapMenu
+0x02475CE8|PowerArmorInteriorHumSound_DO
+0x02476098|PowerArmorInteriorSoundCategorySnapshot_DO
+0x02477550|Workshops Unlocked
+0x02477F28|sMiscStatWorkshopsUnlocked
+0x02478438|sWorkshopMenuBuildText
+0x02478460|sWorkshopMenuRepairText
+0x02478488|sWorkshopMenuComponentsText
+0x024784B8|sWorkshopMenuScrapText
+0x024784E0|sWorkshopMenuLogicText
+0x02478500|Keyword to indicate that player interaction with the item in Workshop is blocked.
+0x02478560|WorkshopBlockInteractionKeyword
+0x024785D0|uWorkshopLogicGateLoopFailsafe:Workshop
+0x024785F8|uWorkshopSnapTargetOnlyThreshold:Workshop
+0x02478628|Workshop actors with this keyword are Armor Racks/Mannequins.
+0x02478668|WorkshopArmorRackKeyword_DO
+0x024786B8|WorkshopAcousticSpaceKeyword_DO
+0x024786E0|Actor Value used to indicate a workshop piece should create an Acoustic Space ref when placed.
+0x02478740|WorkshopAcousticSpaceAV_DO
+0x02478760|Acoustic Space to place when workshop pieces indicate they should create one.
+0x024787B0|WorkshopAcousticSpace_DO
+0x024787D0|fWorkshopRepairComponentMult
+0x02478838|WorkshopStackedItemParentObject
+0x02478858|fWorkshopExperienceMult
+0x02478870|fWorkshopExperienceBase
+0x02478888|fWorkshopExperienceMax
+0x024788A0|fWireConnectEffectColorR:Workshop
+0x024788C8|fWireConnectEffectColorG:Workshop
+0x024788F0|fWireConnectEffectColorB:Workshop
+0x02478980|WorkshopAlwaysShowIcon
+0x02478998|bWorkshopForceGreenDefaultShader:Workshop
+0x024789C8|bWorkshopShaderOutlineByDefault:Workshop
+0x024789F8|fWorkshopShaderOutlineBurstAmount:Workshop
+0x02478A28|fWorkshopShaderSolidBurstAmount:Workshop
+0x02478A58|fWorkshopDropProxyMaxZDelta:Workshop
+0x02478A80|fWorkshopShelterCheckHeight:Workshop
+0x02478AB0|Formatted form list of keywords and other lists used to build the workshop menu keyword hierarchy.
+0x02478B18|WorkshopMenuRootFormList_DO
+0x02478B38|fWorkshopItemWouldBeSnappedDistance:Workshop
+0x02478B68|fWorkshopWireMaxLength
+0x02478B80|fWorkshopSplineMinSlack:Workshop
+0x02478BA8|fWorkshopSplineMaxSlack:Workshop
+0x02478BE0|sWorkshopScrapItemPrompt
+0x02478C08|sWorkshopScrapPrompt
+0x02478C20|Store %s in the Workshop?
+0x02478C40|sWorkshopStoreItemPrompt
+0x02478C60|sWorkshopWire
+0x02478D50|WorkshopIconWire
+0x02478D70|Workshop category keywords that we want to indicate are new in DLC05, even if they originate in Fallout4.esm
+0x02478DE0|WorkshopNewDLC05_DO
+0x02478E00|Keyword to signify a wire from the workshop can be connect to the item.
+0x02478F50|bWorkshopItemCastSphere:Workshop
+0x02478FD0|bWorkshopEnableGridBasedSnapping:Workshop
+0x024790A0|WorkshopStartPoweredOnObject
+0x02479110|WorkshopStartPoweredOffObject
+0x02479130|fWorkshopSnapIntersectAdjust:Workshop
+0x02479158|bWorkshopShowItemsUsedMessage:Workshop
+0x02479190|sWorkshopRepairItemPrompt
+0x024791E0|sWorkshopCannotRepairItemPrompt
+0x02479230|fWorkshopShapeCastMinNormal:Workshop
+0x024792A8|WorkshopScrappableKeyword
+0x02479308|WorkshopNoRepairKeyword_DO
+0x02479368|WorkshopNoScrapKeyword_DO
+0x02479400|WorkshopOverrideXYBoundAV
+0x02479498|WorkshopOverrideXBoundMinAV
+0x02479538|WorkshopOverrideXBoundMaxAV
+0x024795D8|WorkshopOverrideYBoundMinAV
+0x02479678|WorkshopOverrideYBoundMaxAV
+0x02479718|WorkshopOverrideZBoundMinAV
+0x024797B8|WorkshopOverrideZBoundMaxAV
+0x02479848|WorkshopIgnoreNonRefOccupiedSnapPoint
+0x02479870|Workshop items with this keyword cannot be placed in the world unless they are validly snapped.
+0x024798D0|WorkshopItemMustSnap_DO
+0x024798F0|If nonzero, a workshop item with this actor value stacks onto the reference it snaps to.
+0x02479950|WorkshopStacksWhenSnappedAV
+0x02479970|Workshop items with this actor value nonzero cannot be placed in the world unless they are validly snapped.
+0x024799E0|WorkshopItemMustSnapAV_DO
+0x02479A00|fWorkshopItemConnectPointQueryRadius:Workshop
+0x02479A30|fWorkshopSnapIntersectTolerance:Workshop
+0x02479BA0|fWorkshopSnapIntersectOffset:Workshop
+0x02479BC8|fMinIntersectToleranceMult:Workshop
+0x02479BF0|Keyword used to link Workshop Power Connectors together in the editor.
+0x02479C38|fPointInFrustumRadius:Workshop
+0x02479C58|WorkshopEditorPowerGridLink
+0x02479C90|fWorkshopBuildBaseTimer
+0x02479CA8|fWorkshopBuildResourceTimer
+0x02479CC8|fItemRotationSpeed:Workshop
+0x02479CE8|fItemHoldDistantSpeed:Workshop
+0x02479D08|fSnapVerticalUnits:Workshop
+0x02479D28|fSnapHorizontalUnits:Workshop
+0x02479D48|fSnapRotationDegrees:Workshop
+0x02479D68|bUseDropProxy:Workshop
+0x02479D80|fDropModeCastDist:Workshop
+0x02479DA0|bUseAutoDrop:Workshop
+0x02479DB8|fItemPlacementRadius:Workshop
+0x02479DD8|bInfiniteItems:Workshop
+0x02479DF0|Keyword to signify workshop activator.
+0x02479E18|fWorkshopForwardCastMaxXYBound:Workshop
+0x02479E40|Workshop
+0x02479E50|Keyword to signify a placed workshop item.
+0x02479E80|WorkshopItem
+0x02479E90|FormList of items whose refs can only be deleted in workshop edit mode.
+0x02479ED8|WorkshopItemDeleteOnlyList
+0x02479EF8|Keyword to link a location with a workshop.
+0x02479F28|WorkshopLocationLink
+0x02479F40|Keyword to link a workshop to its container of components.
+0x02479F80|WorkshopContainerLink
+0x02479F98|fWorkshopRestrictedBuildMaxFloraRadius
+0x02479FC0|fWorkshopRestrictedBuildMaxTurretRadius
+0x02479FE8|fWorkshopRestrictedBuildMaxKeywordRadius
+0x0247A018|fWorkshopRestrictedBuildSpacing
+0x0247A0A8|WorkshopUseMinimumBuildRadiusKW
+0x0247A0D0|Actor Value used to indicate an item is a Workshop Resource Object.
+0x0247A118|WorkshopResourceObjectAV
+0x0247A140|Actor Value to indicate a workshop item can only be placed in water.
+0x0247A188|WorkshopPlacementWaterOnlyAV
+0x0247A1B0|Actor Value to indicate a workshop item may be placed in water. Absence of this or WorkshopPlacementWaterOnly means it may not be placed in water.
+0x0247A248|WorkshopPlacementWaterAllowedAV
+0x0247A270|Actor Value to indicate a workshop item can only be placed on terrain.
+0x0247A2B8|WorkshopPlacementTerrainOnlyAV
+0x0247A320|List of material types that workshop items with a Sink Depth can sink into.
+0x0247A370|WorkshopPenetrationMaterialTypes
+0x0247A400|WorkshopWallMaterialTypes
+0x0247A420|Keyword to link a location to another one so that their workshop containers share resources.
+0x0247A480|WorkshopLocationShareResourcesKeyword
+0x0247A4B0|Link one or more Primitive references to a workshop reference using this keyword to define the extents of the workshop.
+0x0247A528|WorkshopLinkedPrimitiveKeyword
+0x0247A548|Keyword to link workshop food rating with a location.
+0x0247A580|WorkshopRatingFoodKey
+0x0247A598|sWorkshopRatingFood
+0x0247A5B0|Keyword to link workshop happiness rating with a location.
+0x0247A5F0|WorkshopRatingHappinessKey
+0x0247A610|sWorkshopRatingHappiness
+0x0247A630|Keyword to link workshop population rating with a location.
+0x0247A670|WorkshopRatingPopulationKey
+0x0247A6A0|sWorkshopRatingPopulation
+0x0247A6C0|Keyword to link workshop safety rating with a location.
+0x0247A6F8|WorkshopRatingSafetyKey
+0x0247A718|sWorkshopRatingSafety
+0x0247A730|Keyword to link workshop water rating with a location.
+0x0247A768|WorkshopRatingWaterKey
+0x0247A780|sWorkshopRatingWater
+0x0247A798|Keyword to link workshop power rating with a location.
+0x0247A7D0|WorkshopRatingPowerKey
+0x0247A7E8|sWorkshopRatingPower
+0x0247A800|Keyword to link workshop beds rating with a location.
+0x0247A838|WorkshopRatingBedsKey
+0x0247A858|sWorkshopRatingBeds
+0x0247A8F0|sWorkshopContainerContentsTransferred
+0x0247A938|sWorkshopItemStored
+0x0247A980|sWorkshopWallItemsStored
+0x0247A9A0|Workshop Items Used:
+0x0247A9B8|sWorkshopItemsUsed
+0x0247A9F0|sWorkshopRedundantWiresRemoved
+0x0247AA48|WorkshopItemPlaceFailSound
+0x0247AA68|Art used to display Connect Points in Workshop.
+0x0247AA98|WorkshopConnectPointArt
+0x0247AAB0|The Bendable Spline used as wire for Workshop.
+0x0247AAE0|WorkshopSplineObject
+0x0247AB00|Actor Value used to indicate a Workshop has missing food resources.
+0x0247AB48|WorkshopMissingFoodAVObject
+0x0247AB70|Actor Value used to indicate a Workshop has missing water resources.
+0x0247ABB8|WorkshopMissingWaterAVObject
+0x0247ABE0|Actor Value used to indicate a Workshop has missing safety resources.
+0x0247AC28|WorkshopMissingSafetyAVObject
+0x0247AC50|Actor Value used on Workshop references to hide the Happiness bar if nonzero.
+0x0247ACA0|WorkshopHideHappinessBarAVObject
+0x0247ACC8|Actor Value used for a provisioner in Workshop.
+0x0247ACF8|WorkshopResourceProvisionerAVObject
+0x0247AD20|Actor Value used for a scavenger in Workshop.
+0x0247AD50|WorkshopResourceScavengerAVObject
+0x0247AD78|Actor Value used for a general vendor in Workshop.
+0x0247ADB0|WorkshopResourceVendorGeneralAVObject
+0x0247ADD8|Actor Value used for a clinic vendor in Workshop.
+0x0247AE10|WorkshopResourceVendorClinicAVObject
+0x0247AE38|Actor Value used for a clothing vendor in Workshop.
+0x0247AE70|WorkshopResourceVendorClothingAVObject
+0x0247AE98|Actor Value used for an armor vendor in Workshop.
+0x0247AED0|WorkshopResourceVendorArmorAVObject
+0x0247AEF8|Actor Value used for a weapons vendor in Workshop.
+0x0247AF30|WorkshopResourceVendorWeaponsAVObject
+0x0247AF58|Actor Value used for a bar vendor in Workshop.
+0x0247AF88|WorkshopResourceVendorBarAVObject
+0x0247AFB0|uWorkshopBudgetTriangleCount:Workshop
+0x0247AFD8|uWorkshopBudgetDrawCount:Workshop
+0x0247B000|fEffectShaderDrawCountPerGeometry:Workshop
+0x0247B030|fWorkshopSupportedItemRayCastStart:Workshop
+0x0247B060|fWorkshopSupportedItemRayCastLength:Workshop
+0x0247B090|fWorkshopSupportedItemBoundsMult:Workshop
+0x0247B0C0|fWorkshopThinItemCeilingCheckHeight:Workshop
+0x0247B110|Keyword to indicate that the Workshop where this keyword is found allows for free building.
+0x0247B170|WorkshopAllowFreeBuild_DO
+0x0247B1B8|fRecalculateResourcesMaxTime:Workshop
+0x0247B1E0|Buildable area edge references are linked to a workshop using this keyword.
+0x0247B230|WorkshopLinkedBuildAreaEdgeKeyword
+0x0247B6A8|WorkshopConnectPoints
+0x0247B760|UIWorkshopModeItemStore
+0x0247B7E8|UIWorkshopModeItemScrapGeneric
+0x0247BA08|Workshop Input Layer
+0x0247BA30|UIWorkshopModeItemSnapSuccess
+0x0247BB08|Reference is not a Workshop Activator.
+0x0247BB50|The Workshop has no power grid items to export.
+0x0247EE90|Region
+0x0247F268|Default Region Name
+0x0248E4A8|Miscellaneous
+0x02491CC0|The reference to this in a transition cell indicates its bound. This is used to make sure the player is inside it before teleporting.
+0x02491D48|TransitionCellBoundObject_DO
+0x02491D70|This image space effect is played on entering an transition cell.
+0x02491DB8|TransitionCellEnterEffect_DO
+0x02491DE0|This image space effect is played on exiting an transition cell.
+0x02491E28|TransitionCellExitEffect_DO
+0x02492608|TransitionCell%08X
+0x02496910|bWarnFinishedCombinationNoCell:General
+0x02498C60|bBackgroundCellLoads:BackgroundLoad
+0x02498CE0|CellLoaderTask for interior cell '%s' (%08X)
+0x02498D10|CellLoaderTask for interior cell NONE (canceled)
+0x02498D48|CellLoaderTask for cell ( %i, %i )
+0x0249A410|bCurrentCellOnly:Landscape
+0x0249AE30|iNumCellWorldExtents:Havok
+0x0249B020|Global multiplier for the iHoursToRespawnCell GameSetting
+0x0249B060|HoursToRespawnCellMult_DO
+0x0249B080|Global multiplier for the iHoursToRespawnCellCleared GameSetting
+0x0249B0C8|HoursToRespawnCellClearedMult_DO
+0x0249B100|sDefaultCellName
+0x0249B148|iHoursToRespawnCell
+0x0249B160|iHoursToRespawnCellCleared
+0x0249B180|fSkyCellRefProcessDistanceMult
+0x0249B800|Persistent cell 
+0x0249B818|%s'%s' (%08X) (%i, %i) in WorldSpace '%s' (%08X)
+0x0249B850|'%s' (%08X) Invalid WorldSpace
+0x0249B8B0|cell ID
+0x0249C4D0|Keyword used to flag a ref that an actor can use in workshop command mode
+0x0249C520|WorkShopObject_DO
+0x0249C538|This actor is may be commanded during workshop mode.
+0x0249C580|This actor is may be told to lead a caravan during workshop mode.
+0x0249C5E0|This actor is may be told to move between settlements during workshop mode.
+0x0249C698|WorkshopAssignCaravan_DO
+0x0249C720|WorkshopAssignHome_DO
+0x0249C738|Perk that enables/disables certain workshop functionalities.
+0x0249C778|WorkshopLocalLeaderPerk_DO
+0x0249D4F8| in WorldSpace '%s' (%08X)
+0x0249D518|%s Form '%s' (%08X)%s in Cell %s
+0x0249D9FF|:bFileControllerOnRoot:TestAllCells
+0x0249EB70|iPrefetchCellBufferSize:General
+0x0249EBB0|WorldSpaceDLC03_DO
+0x0249EC10|WorldSpace
+0x0249EC80|bCheckCellOffsetsOnInit:General
+0x024A1B50|Main Menu Cell
+0x024A2D28|Workshop player ownership
+0x024A2DD0|Workshop misc item keyword
+0x024A8150|GetInSameCell >> %0.2f
+0x024A8168|GetInCell >> %0.2f
+0x024A8180|GetInWorldspace >> %0.2f
+0x024A8760|Is in owned cell value %0.2f
+0x024A8CF8|%s is in an Interior
+0x024A8D10|%s is not an Interior
+0x024AAC60|Player is%s in region.
+0x024AAD58|CanProduceForWorkshop >> %0.f
+0x024AAD78|GetObjectCount doesn't work outside of Workshop mode.
+0x024AB0D8|LocationHasPlayerOwnedWorkshop >> %0.0f
+0x024AB260|GetWorkshopResourceDamage: %s >> %0.2f
+0x024AB290|GetWorkshopResourceDamage: %s(%08x) is not a Workshop activator.
+0x024AB2D8|IsInWorkshopMode: >> %0.2f
+0x024ACDA0|Invalid interior cell '%s' for parameter %s.
+0x024AD050|Invalid worldspace or formlist '%s' for parameter %s.
+0x024AD810|Invalid Region '%s' for parameter %s.
+0x024AE798|Worldspace %s (%08x)
+0x024AE7B0|Interior cell %s (%08x)
+0x024AEB60|SetStage ignored - please start the game or go into a cell first
+0x024AFA20|Unable to find the reference or the reference parent cell.
+0x024B1A90|----EXTERIOR CELLS--------------------
+0x024B1AB8|%s CELL: %s'
+0x024B1AC8|CELL: %s'
+0x024B20B0|Cell %s nodes now %s.
+0x024B25B8|Same cell/exterior
+0x024B2700|RenderTestCell complete. Check warnings file for more info.
+0x024B2740|RenderTestCell failed: no cell
+0x024B4870|No Workshop or workshop item provided.
+0x024B5F30|The nearest Workshop %s(%08x) is currently not available to the player.
+0x024B5F78|You are already in Workshop mode.
+0x024B5FA0|The player is currently not within the buildable area of any Workshop.
+0x024B5FE8|Started Workshop mode on Workshop %s(%08x).
+0x024B61D0|StoreInWorkshop not provided a valid parameters.
+0x024B6238|%08x(%s) x %u stored in Workshop %08x(%s).
+0x024B7910|GetWorkshopResourceDamage
+0x024B7C48|GetWorkshopObjectCount
+0x024B8088|CanProduceForWorkshop
+0x024B8738|LocationHasPlayerOwnedWorkshop
+0x024B87D0|IsInWorkshopMode
+0x024B87E8|True if the player is in workshop mode
+0x024B93A0|Interior Cell
+0x024B93C8|Cell X
+0x024B93D0|Cell Y
+0x024B9450|Cell (optional)
+0x024B95B0|Miscellaneous Stat
+0x024B9F60|Show border lines for each cell.
+0x024BA858|CenterOnCell
+0x024BA8F0|CenterOnExterior
+0x024BAC88|ToggleCellNode
+0x024BACA0|Toggle 3D for a Cell child node: 0-Actor, 1-Marker, 2-Land, 3-Water, 4-Static, 5-Active
+0x024BB298|TestAllCells
+0x024BB2B0|Test All Cells (0 - stop, 1 - start, 2 - interiors, 3 - current world)
+0x024BB2F8|RenderTestCell
+0x024BB310|runs Render Test on player's current parent cell
+0x024BC170|RunCellTest
+0x024BC180|Runs a cell test
+0x024BDE98|CellInfo
+0x024BDEA8|Toggle Cell Info
+0x024BFCE8|PreloadExterior
+0x024C05B0|SetBoneTintRegion
+0x024C15D8|ExportWorkshopPowerGrid
+0x024C15F8|Exports the selected Workshop's power grid.
+0x024C1628|StartWorkshop
+0x024C1638|workshop
+0x024C1650|Enter Workshop mode if the player is within the buildable area of a Workshop.
+0x024C1860|Gets the counts of draws and triangles in the loaded area for Workshop budget definition.
+0x024C18C0|WorkshopBudget
+0x024C18D0|Gets numbers for establishing the budget for a workshop.
+0x024C1B80|StoreInWorkshop
+0x024C1B98|Store one or more of a base object in a Workshop reference
+0x024C1FB0|GetInSameCell
+0x024C2230|GetInCell
+0x024C2698|IsPlayerInRegion
+0x024C28D8|IsInMyOwnedCell
+0x024C2C70|SetCellPublicFlag
+0x024C2C98|Set public flag on cell. [setpublic MyCell 1]
+0x024C3178|GetInCellParam
+0x024C33B0|Forces a actor to flee if destination or cell is passed in uses them
+0x024C3868|IsCellOwner
+0x024C3878|SetCellOwnership
+0x024C38A0|SetCellFullName
+0x024C39B0|ResetInterior
+0x024C3A18|IsInInterior
+0x024C3B40|GetInWorldspace
+0x024C4480|PurgeCellBuffers
+0x024C4498|Forcibly unloads all unattached cells in cell buffers.
+0x024C46C0|SetCellImageSpace
+0x024D08D8|IsNeckRegion
+0x024D08F0|Meshes\Actors\Character\CharacterAssets\%sFacialBoneRegions%s.txt
+0x024D3988|fWindInteriorCellSpeed:Weather
+0x024D39A8|fWindInteriorCellTurbulence:Weather
+0x024D4120|iDetectEventLightLevelExterior
+0x024D4140|iDetectEventLightLevelInterior
+0x024D4338|fDetectionVisualDistanceMultExterior
+0x024D4360|fDetectionVisualDistanceMultInterior
+0x024D4490|fDetectionLOSDistanceMultExterior
+0x024D44B8|fDetectionLOSDistanceMultInterior
+0x024D5190|fAISocialRadiusToTriggerConversationInterior
+0x024D51E0|fAISocialchanceForConversationInterior
+0x024D5A18|fAIEscortWaitDistanceExterior
+0x024D5A38|fAIEscortWaitDistanceInterior
+0x024D5C30|fAIInteriorHeadTrackMult
+0x024D5F00|fAIExteriorSpectatorDetection
+0x024D5F20|fAIExteriorSpectatorDistance
+0x024D5F40|fAIInteriorSpectatorDetection
+0x024D5F60|fAIInteriorSpectatorDistance
+0x024D6428|fDistanceExteriorReactCombat
+0x024D6448|fDistanceInteriorReactCombat
+0x024D81A8|fSneakExteriorDistanceMult
+0x024D82C8|fSneakLightExteriorMult
+0x024D82F8|iLightLevelInteriorMod
+0x024D8310|iLightLevelExteriorMod
+0x024DCDA0|fCombatFleeDistanceInterior
+0x024DCDC0|fCombatFleeDistanceExterior
+0x024DE308|fCombatSearchExteriorRadiusMin
+0x024DE350|fCombatSearchExteriorRadiusMax

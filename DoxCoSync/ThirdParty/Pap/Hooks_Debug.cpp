@@ -1,9 +1,9 @@
 #include "Hooks_Debug.h"
-#include "IInterlockedLong.h"
-#include "IFileStream.h"
-#include "Utilities.h"
-#include "SafeWrite.h"
-#include "f4se_version.h"
+#include "common/IInterlockedLong.h"
+#include "common/IFileStream.h"
+#include "f4se_common/Utilities.h"
+#include "f4se_common/SafeWrite.h"
+#include "f4se_common/f4se_version.h"
 #include <dbghelp.h>
 #include <shlobj.h>
 

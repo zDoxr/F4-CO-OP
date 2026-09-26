@@ -1,7 +1,7 @@
 #pragma once
 
-#include "ScaleformAPI.h"
-#include "ScaleformTypes.h"
+#include "f4se/ScaleformAPI.h"
+#include "f4se/ScaleformTypes.h"
 
 // 18
 class GFxState : public GRefCountBase

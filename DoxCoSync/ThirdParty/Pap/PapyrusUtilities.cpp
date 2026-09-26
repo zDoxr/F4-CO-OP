@@ -1,5 +1,5 @@
-#include "PapyrusUtilities.h"
-#include "PapyrusVM.h"
+#include "f4se/PapyrusUtilities.h"
+#include "f4se/PapyrusVM.h"
 
 UInt64 PapyrusVM::GetHandleFromObject(void * src, UInt32 typeID)
 {

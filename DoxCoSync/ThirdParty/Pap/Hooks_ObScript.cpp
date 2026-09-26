@@ -2,8 +2,8 @@
 #include "ObScript.h"
 #include "GameAPI.h"
 #include "GameReferences.h"
-#include "SafeWrite.h"
-#include "f4se_version.h"
+#include "f4se_common/SafeWrite.h"
+#include "f4se_common/f4se_version.h"
 
 // currently ForceRSXCrash, could also use ToggleESRAM and several others
 static ObScriptCommand * s_hijackedCommand = nullptr;

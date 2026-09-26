@@ -29,7 +29,7 @@ public:
 	}
 
 private:
-	IScopedCriticalSection(); // undefined
+	IScopedCriticalSection();
 
 	ICriticalSection * m_cs;
 };

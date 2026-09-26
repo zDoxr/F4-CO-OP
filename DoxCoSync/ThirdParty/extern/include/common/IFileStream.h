@@ -2,9 +2,7 @@
 
 #include "common/IDataStream.h"
 
-/**
- *	An input file stream
- */
+
 class IFileStream : public IDataStream
 {
 	public:
@@ -26,7 +24,7 @@ class IFileStream : public IDataStream
 		virtual void	WriteBuf(const void * buf, UInt32 inLength);
 		virtual void	SetOffset(SInt64 inOffset);
 
-		// can truncate. implicitly seeks to the end of the file
+
 		void	SetLength(UInt64 length);
 
 		static void	MakeAllDirs(const char * path);

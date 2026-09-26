@@ -1,12 +1,5 @@
 #pragma once
 
-
-
-#include "ITypes.h"
-
-#include "IDebugLog.h"
-
-
 typedef UInt32	PluginHandle;	// treat this as an opaque type
 
 class GFxMovieView;

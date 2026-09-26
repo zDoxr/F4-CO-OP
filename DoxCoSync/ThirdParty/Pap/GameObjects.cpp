@@ -1,8 +1,8 @@
-#include "GameObjects.h"
-#include "GameReferences.h"
-#include "GameUtilities.h"
+#include "f4se/GameObjects.h"
+#include "f4se/GameReferences.h"
+#include "f4se/GameUtilities.h"
 
-RelocAddr <_PlaceAtMe_Native> PlaceAtMe_Native(0x01159990);
+RelocAddr <_PlaceAtMe_Native> PlaceAtMe_Native(0x01159990); // excluded from build; kept in sync with f4se-0.7.8\f4se\GameObjects.cpp
 
 bool TESObjectARMA::GetNodeName(char * dstBuff, TESNPC * npc, TESObjectARMO * armor)
 {

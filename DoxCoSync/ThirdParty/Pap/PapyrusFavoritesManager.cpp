@@ -1,10 +1,10 @@
-#include "PapyrusFavoritesManager.h"
+#include "f4se/PapyrusFavoritesManager.h"
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
-#include "PapyrusDelayFunctors.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
+#include "f4se/PapyrusDelayFunctors.h"
 
-#include "GameData.h"
+#include "f4se/GameData.h"
 
 namespace papyrusFavoritesManager {
 

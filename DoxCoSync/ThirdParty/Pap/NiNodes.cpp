@@ -1,4 +1,4 @@
-#include "NiNodes.h"
+#include "f4se/NiNodes.h"
 
 NiNode * NiNode::Create(UInt16 children)
 {

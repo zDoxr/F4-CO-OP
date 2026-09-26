@@ -1,10 +1,10 @@
-#include "PapyrusF4SE.h"
+#include "f4se/PapyrusF4SE.h"
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
-#include "f4se_version.h"
-#include "PluginManager.h"
+#include "f4se_common/f4se_version.h"
+#include "f4se/PluginManager.h"
 
 extern PluginManager	g_pluginManager;
 

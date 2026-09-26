@@ -1,12 +1,8 @@
-//========= Copyright 1996-2022, Valve LLC, All rights reserved. ============
-
 #ifndef STEAMTYPES_H
 #define STEAMTYPES_H
 
 #define S_CALLTYPE __cdecl
-// WARNING: __cdecl is potentially #defined away in steam_api_common.h
 
-// Steam-specific types. Defined here so this header file can be included in other code bases.
 #ifndef WCHARTYPES_H
 typedef unsigned char uint8;
 #endif
@@ -23,7 +19,7 @@ typedef unsigned char uint8;
 
 #if !defined(VALVE_BIG_ENDIAN)
 #if defined(_PS3)
-// Make sure VALVE_BIG_ENDIAN gets set on PS3, may already be set previously in Valve internal code.
+
 #define VALVE_BIG_ENDIAN 1
 #endif
 #if defined( __GNUC__ ) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
@@ -47,14 +43,14 @@ typedef int64 lint64;
 typedef uint64 ulint64;
 
 #ifdef X64BITS
-typedef __int64 intp;				// intp is an integer that can accomodate a pointer
-typedef unsigned __int64 uintp;		// (ie, sizeof(intp) >= sizeof(int) && sizeof(intp) >= sizeof(void *)
+typedef __int64 intp;
+typedef unsigned __int64 uintp;
 #else
 typedef __int32 intp;
 typedef unsigned __int32 uintp;
 #endif
 
-#else // _WIN32
+#else
 
 typedef short int16;
 typedef unsigned short uint16;
@@ -63,12 +59,6 @@ typedef unsigned int uint32;
 typedef long long int64;
 typedef unsigned long long uint64;
 
-// [u]int64 are actually defined as 'long long' and gcc 64-bit
-// doesn't automatically consider them the same as 'long int'.
-// Changing the types for [u]int64 is complicated by
-// there being many definitions, so we just
-// define a 'long int' here and use it in places that would
-// otherwise confuse the compiler.
 typedef long int lint64;
 typedef unsigned long int ulint64;
 
@@ -80,27 +70,25 @@ typedef int intp;
 typedef unsigned int uintp;
 #endif
 
-#endif // else _WIN32
+#endif
 
 typedef uint32 AppId_t;
 const AppId_t k_uAppIdInvalid = 0x0;
 
-// AppIds and DepotIDs also presently share the same namespace
+
 typedef uint32 DepotId_t;
 const DepotId_t k_uDepotIdInvalid = 0x0;
 
-// RTime32.  Seconds elapsed since Jan 1 1970, i.e. unix timestamp.
-// It's the same as time_t, but it is always 32-bit and unsigned.  
 typedef uint32 RTime32;
 
-// handle to a Steam API call
+
 typedef uint64 SteamAPICall_t;
 const SteamAPICall_t k_uAPICallInvalid = 0x0;
 
 typedef uint32 AccountID_t;
 const AccountID_t k_uAccountIdInvalid = 0;
 
-// Party Beacon ID
+
 typedef uint64 PartyBeaconID_t;
 const PartyBeaconID_t k_ulPartyBeaconIdInvalid = 0;
 
@@ -116,24 +104,24 @@ struct SteamIPAddress_t
 {
 	union {
 
-		uint32			m_unIPv4;		// Host order
-		uint8			m_rgubIPv6[16];		// Network order! Same as inaddr_in6.  (0011:2233:4455:6677:8899:aabb:ccdd:eeff)
+		uint32			m_unIPv4;
+		uint8			m_rgubIPv6[16];
 
-		// Internal use only
-		uint64			m_ipv6Qword[2];	// big endian
+
+		uint64			m_ipv6Qword[2];
 	};
 
 	ESteamIPType m_eType;
 
-	bool IsSet() const 
-	{ 
+	bool IsSet() const
+	{
 		if ( k_ESteamIPTypeIPv4 == m_eType )
 		{
 			return m_unIPv4 != 0;
 		}
-		else 
+		else
 		{
-			return m_ipv6Qword[0] !=0 || m_ipv6Qword[1] != 0; 
+			return m_ipv6Qword[0] !=0 || m_ipv6Qword[1] != 0;
 		}
 	}
 
@@ -179,4 +167,4 @@ struct SteamIPAddress_t
 
 #pragma pack( pop )
 
-#endif // STEAMTYPES_H
+#endif

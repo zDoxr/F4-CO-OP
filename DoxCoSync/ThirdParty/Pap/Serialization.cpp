@@ -1,16 +1,16 @@
-#include "Serialization.h"
-#include "IFileStream.h"
-#include "PluginManager.h"
-#include "GameAPI.h"
-#include "f4se_version.h"
+#include "f4se/Serialization.h"
+#include "common/IFileStream.h"
+#include "f4se/PluginManager.h"
+#include "f4se/GameAPI.h"
+#include "f4se_common/f4se_version.h"
 #include <vector>
 #include <shlobj.h>
 #include <io.h>
-#include "GameData.h"
-#include "InternalSerialization.h"
-#include "GameSettings.h"
-#include "ScaleformCallbacks.h"
-#include "ScaleformValue.h"
+#include "f4se/GameData.h"
+#include "f4se/InternalSerialization.h"
+#include "f4se/GameSettings.h"
+#include "f4se/ScaleformCallbacks.h"
+#include "f4se/ScaleformValue.h"
 
 namespace Serialization
 {

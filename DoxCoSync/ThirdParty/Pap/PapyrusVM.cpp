@@ -1,11 +1,6 @@
 #include "PapyrusVM.h"
-#include "GameObjects.h"
 
-RelocPtr <GameVM *> g_gameVM(0x030E0208);
-// Fallout 4 v1.11.191
-RelocAddr<_PlaceAtMe_Native>
-PlaceAtMe_Native(0x00A1FCA0);
-
+RelocPtr <GameVM *> g_gameVM(0x030E0288);
 
 bool VirtualMachine::HasStack(UInt32 stackId)
 {

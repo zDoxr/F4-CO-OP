@@ -1,0 +1,200 @@
+======================================================================
+GetActorValueInfoByName Runtime Search — IDA Pro
+======================================================================
+
+[1] Functions referencing runtime 'GetActorValue: %s >> %0.2f' string (RVA 0x024A7B70):
+    0x14059AA66 (RVA 0x0059AA66) in sub_14059A9F0  [func start RVA 0x0059A9F0]
+    0x14059ABE4 (RVA 0x0059ABE4) in sub_14059AB30  [func start RVA 0x0059AB30]
+
+[2] Functions referencing runtime 'GetBaseActorValue: %s >> %0.2f' string (RVA 0x024A7BE0):
+    0x14059AC9D (RVA 0x0059AC9D) in sub_14059AC20  [func start RVA 0x0059AC20]
+
+[3] All callers of Actor_SetActorValue (RVA 0x00C6F760):
+    0x140C6EE66 (RVA 0x00C6EE66) in sub_140C6EB60  [func RVA 0x00C6EB60]
+    0x140C6F71C (RVA 0x00C6F71C) in sub_140C6F6A0  [func RVA 0x00C6F6A0]
+    0x140C6F900 (RVA 0x00C6F900) in sub_140C6F850  [func RVA 0x00C6F850]
+
+[4] Calls made WITHIN each Actor_SetActorValue caller function:
+
+  Function sub_140C6EB60 (start RVA 0x00C6EB60):
+    CALL@RVA 0x00C6EBD6 -> 0x022B7640 [sub_1422B7640]
+    CALL@RVA 0x00C6EC08 -> 0x01659470 [sub_141659470]
+    CALL@RVA 0x00C6EC30 -> 0x016594F0 [sub_1416594F0]
+    CALL@RVA 0x00C6EC3C -> 0x00C6F350 [sub_140C6F350]
+    CALL@RVA 0x00C6ECEE -> 0x01E00630 [sub_141E00630]
+    CALL@RVA 0x00C6ED57 -> 0x007945D0 [sub_1407945D0]
+    CALL@RVA 0x00C6ED78 -> 0x-13FFFFFE8 [0x18]
+    CALL@RVA 0x00C6ED8F -> 0x-13FFFFFF0 [0x10]
+    CALL@RVA 0x00C6EDB4 -> 0x007945D0 [sub_1407945D0]
+    CALL@RVA 0x00C6EDC0 -> 0x01DEF9E0 [sub_141DEF9E0]
+    CALL@RVA 0x00C6EDDD -> 0x01E02820 [hclStandardLinkConstraintSetMx::operator_delete(vo...]
+    CALL@RVA 0x00C6EE08 -> 0x01E00790 [sub_141E00790]
+    CALL@RVA 0x00C6EE15 -> 0x022B6BC8 [sub_1422B6BC8]
+    CALL@RVA 0x00C6EE21 -> 0x01DEFE30 [sub_141DEFE30]
+    CALL@RVA 0x00C6EE2D -> 0x01DEFE30 [sub_141DEFE30]
+    CALL@RVA 0x00C6EE66 -> 0x00C6F760 [sub_140C6F760]
+    CALL@RVA 0x00C6EE9B -> 0x007A1920 [sub_1407A1920]
+    CALL@RVA 0x00C6EEBE -> 0x01DEFE60 [sub_141DEFE60]
+    CALL@RVA 0x00C6EEF2 -> 0x007945D0 [sub_1407945D0]
+    CALL@RVA 0x00C6EF17 -> 0x01DEFE30 [sub_141DEFE30]
+    CALL@RVA 0x00C6EF57 -> 0x01DF30D0 [sub_141DF30D0]
+    CALL@RVA 0x00C6EF78 -> 0x-13FFFFFF8 [0x8]
+    CALL@RVA 0x00C6EFB7 -> 0x01E00790 [sub_141E00790]
+    CALL@RVA 0x00C6EFC4 -> 0x022B6BC8 [sub_1422B6BC8]
+    CALL@RVA 0x00C6EFF6 -> 0x01E00790 [sub_141E00790]
+    CALL@RVA 0x00C6F003 -> 0x022B6BC8 [sub_1422B6BC8]
+    CALL@RVA 0x00C6F01F -> 0x-140000000 [0x0]
+    CALL@RVA 0x00C6F034 -> 0x007A1950 [sub_1407A1950]
+    CALL@RVA 0x00C6F079 -> 0x-13FFFFA00 [0x600]
+    CALL@RVA 0x00C6F0A0 -> 0x00CF1250 [sub_140CF1250]
+    CALL@RVA 0x00C6F0C7 -> 0x00CF1280 [sub_140CF1280]
+    CALL@RVA 0x00C6F162 -> 0x01DEF9E0 [sub_141DEF9E0]
+    CALL@RVA 0x00C6F18D -> 0x01E03570 [sub_141E03570]
+    CALL@RVA 0x00C6F19A -> 0x01DF0680 [sub_141DF0680]
+    CALL@RVA 0x00C6F1AC -> 0x01DF0680 [sub_141DF0680]
+    CALL@RVA 0x00C6F1B7 -> 0x-13FFFFFA8 [0x58]
+    CALL@RVA 0x00C6F1E3 -> 0x01DEFE30 [sub_141DEFE30]
+    CALL@RVA 0x00C6F21D -> 0x00C60BE0 [sub_140C60BE0]
+    CALL@RVA 0x00C6F243 -> 0x01DEFE30 [sub_141DEFE30]
+    CALL@RVA 0x00C6F2A1 -> 0x01E00790 [sub_141E00790]
+    CALL@RVA 0x00C6F2AE -> 0x022B6BC8 [sub_1422B6BC8]
+    CALL@RVA 0x00C6F2CF -> 0x01E00790 [sub_141E00790]
+    CALL@RVA 0x00C6F325 -> 0x01659CF0 [sub_141659CF0]
+    CALL@RVA 0x00C6F332 -> 0x016597A0 [nullsub_500]
+
+  Function sub_140C6F6A0 (start RVA 0x00C6F6A0):
+    CALL@RVA 0x00C6F6C7 -> 0x01659470 [sub_141659470]
+    CALL@RVA 0x00C6F6F6 -> 0x016594F0 [sub_1416594F0]
+    CALL@RVA 0x00C6F703 -> 0x00C6F350 [sub_140C6F350]
+    CALL@RVA 0x00C6F71C -> 0x00C6F760 [sub_140C6F760]
+    CALL@RVA 0x00C6F731 -> 0x01659CF0 [sub_141659CF0]
+    CALL@RVA 0x00C6F743 -> 0x016597A0 [nullsub_500]
+
+  Function sub_140C6F850 (start RVA 0x00C6F850):
+    CALL@RVA 0x00C6F8A5 -> 0x01659470 [sub_141659470]
+    CALL@RVA 0x00C6F8CF -> 0x016594F0 [sub_1416594F0]
+    CALL@RVA 0x00C6F8E7 -> 0x00C6F350 [sub_140C6F350]
+    CALL@RVA 0x00C6F900 -> 0x00C6F760 [sub_140C6F760]
+    CALL@RVA 0x00C6F914 -> 0x01659CF0 [sub_141659CF0]
+    CALL@RVA 0x00C6F922 -> 0x016597A0 [nullsub_500]
+    CALL@RVA 0x00C6F988 -> 0x-13FFFFFE8 [0x18]
+    CALL@RVA 0x00C6F9AF -> 0x-13FFFFFF0 [0x10]
+    CALL@RVA 0x00C6F9D7 -> 0x007945D0 [sub_1407945D0]
+    CALL@RVA 0x00C6F9E3 -> 0x01DEF9E0 [sub_141DEF9E0]
+    CALL@RVA 0x00C6FA77 -> 0x01DF0680 [sub_141DF0680]
+    CALL@RVA 0x00C6FA89 -> 0x01DF0680 [sub_141DF0680]
+    CALL@RVA 0x00C6FA94 -> 0x-13FFFFFA8 [0x58]
+    CALL@RVA 0x00C6FAC6 -> 0x01DEFE30 [sub_141DEFE30]
+    CALL@RVA 0x00C6FAD2 -> 0x01DEFE30 [sub_141DEFE30]
+    CALL@RVA 0x00C6FADE -> 0x01DEFE30 [sub_141DEFE30]
+    CALL@RVA 0x00C6FAFC -> 0x01E00790 [sub_141E00790]
+    CALL@RVA 0x00C6FB09 -> 0x022B6BC8 [sub_1422B6BC8]
+    CALL@RVA 0x00C6FB30 -> 0x-13FFFFFA8 [0x58]
+    CALL@RVA 0x00C6FB7A -> 0x01E417F0 [sub_141E417F0]
+    CALL@RVA 0x00C6FB95 -> 0x007945D0 [sub_1407945D0]
+    CALL@RVA 0x00C6FB9D -> 0x00C5A9C0 [sub_140C5A9C0]
+    CALL@RVA 0x00C6FBB4 -> 0x01DF2DD0 [sub_141DF2DD0]
+    CALL@RVA 0x00C6FBC1 -> 0x01DF06E0 [sub_141DF06E0]
+    CALL@RVA 0x00C6FBD2 -> 0x01DF0690 [sub_141DF0690]
+    CALL@RVA 0x00C6FC57 -> 0x01DEFA20 [sub_141DEFA20]
+    CALL@RVA 0x00C6FC60 -> 0x01DEF9E0 [sub_141DEF9E0]
+    CALL@RVA 0x00C6FC80 -> 0x01DF48C0 [sub_141DF48C0]
+    CALL@RVA 0x00C6FC91 -> 0x01DEFE60 [sub_141DEFE60]
+    CALL@RVA 0x00C6FCA0 -> 0x-6EF3760F [0xD10C89F1]
+    CALL@RVA 0x00C6FCAE -> 0x01DF48C0 [sub_141DF48C0]
+    CALL@RVA 0x00C6FD8B -> 0x18C79C79 [0x158C79C79]
+    CALL@RVA 0x00C6FDAA -> 0x01DEFE30 [sub_141DEFE30]
+    CALL@RVA 0x00C6FDD9 -> 0x-140000000 [0x0]
+
+[5] Decompile function containing 'GetActorValue: %%s >> %%0.2f':
+
+  Function: sub_14059A9F0  start=RVA 0x0059A9F0  size=159
+  [First 80 lines of decompiled code]
+     0: char __fastcall sub_14059A9F0(_QWORD *a1, __int64 a2, __int64 a3, __int64 a4)
+     1: {
+     2:   _RBX = a4;
+     3:   if ( *a1 )
+     4:   {
+     5:     if ( a2 )
+     6:       JUMPOUT(0x14059AA0DLL);
+     7:     __asm { xorps   xmm0, xmm0 }
+     8:     __asm { movss   dword ptr [rbx], xmm0 }
+     9:   }
+    10:   return 1;
+    11: }
+    12: 
+
+  Function: sub_14059AB30  start=RVA 0x0059AB30  size=226
+  [First 80 lines of decompiled code]
+     0: char __fastcall sub_14059AB30(__int64 *a1, __int64 a2, __int64 a3, _DWORD *a4)
+     1: {
+     2:   __int64 v6; // rax
+     3:   __int64 v10; // rcx
+     4:   __int64 v11; // rdx
+     5:   __int64 v12; // rcx
+     6:   int v13; // ebx
+     7:   int v16; // eax
+     8:   va_list ArgList[2]; // [rsp+20h] [rbp-18h]
+     9: 
+    10:   v6 = *a1;
+    11:   _RSI = a4;
+    12:   v10 = 0;
+    13:   if ( v6 && *(_BYTE *)(v6 + 26) == 65 )
+    14:     v10 = v6;
+    15:   *a4 = 0;
+    16:   v11 = *a1;
+    17:   if ( v11 && a2 )
+    18:   {
+    19:     if ( (*(_DWORD *)(v11 + 16) & 0x800) != 0 )
+    20:     {
+    21:       if ( !v10 )
+    22:         goto LABEL_11;
+    23:       v12 = sub_140C59100() + 304;
+    24:     }
+    25:     else
+    26:     {
+    27:       v12 = v11 + 88;
+    28:     }
+    29:     *(double *)&_XMM0 = (*(double (__fastcall **)(__int64, __int64))(*(_QWORD *)v12 + 16LL))(v12, a2);
+    30:     __asm { movss   dword ptr [rsi], xmm0 }
+    31: LABEL_11:
+    32:     if ( *(_BYTE *)(*((_QWORD *)NtCurrentTeb()->ThreadLocalStoragePointer + (unsigned int)TlsIndex) + 2096LL) )
+    33:     {
+    34:       v13 = qword_1430ED2B8;
+    35:       *(_OWORD *)ArgList = _XMM6;
+    36:       __asm
+    37:       {
+    38:         movss   xmm6, dword ptr [rsi]
+    39:         cvtps2pd xmm6, xmm6
+    40:       }
+    41:       v16 = (*(__int64 (__fastcall **)(__int64))(*(_QWORD *)a2 + 464LL))(a2);
+    42:       _XMM3 = _XMM6;
+    43:       __asm { movq    r9, xmm3; int }
+    44:       sub_14103BB90(v13, (int)"GetActorValue: %s >> %0.2f", v16, _R9, ArgList[0], (char)ArgList[1]);
+    45:     }
+    46:   }
+    47:   return 1;
+    48: }
+    49: 
+
+[6] RTTI / symbol search for ActorValueList or GetActorValueInfoByName:
+    0x1404005A0 (RVA 0x004005A0): TESObjectREFR::GetActorValue(ActorValueInfo&)
+    0x1404180E0 (RVA 0x004180E0): _anonymous_namespace_::GetActorValueStorage(TESObjectREFR&)
+    0x1404C7E20 (RVA 0x004C7E20): Script::GetActorValueConditionFunction(ConditionCheckParams&_void__void__float&)
+    0x1404C7ED0 (RVA 0x004C7ED0): Script::GetActorValuePercentConditionFunction(ConditionCheckParams&_void__void__float&)
+    0x140521410 (RVA 0x00521410): Script::GetActorValueInfoFunction(SCRIPT_PARAMETER__char__TESObjectREFR__TESObjectREFR__Script__ScriptLocals__float&_uint&)
+    0x1405A25D0 (RVA 0x005A25D0): TESActorBase::GetActorValue(ActorValueInfo&)
+    0x1405BB060 (RVA 0x005BB060): TESNPC::GetActorValue(ActorValueInfo&)
+    0x14069F620 (RVA 0x0069F620): ActorValueInfo::GetActorValueName(void)
+    0x140D7A100 (RVA 0x00D7A100): Actor::GetActorValuePercentage(ActorValueInfo&)
+    0x140D7A170 (RVA 0x00D7A170): Actor::GetActorValuePercentage(ActorValueInfo&_float)
+    0x140DF6C50 (RVA 0x00DF6C50): Actor::GetActorValue(ActorValueInfo&)
+    0x140DF8F90 (RVA 0x00DF8F90): Actor::GetActorValueUncached(ActorValueInfo&)
+    0x141045260 (RVA 0x01045260): CombatInventoryResourceManager::GetActorValueEntry(CombatInventoryItem__ActorValueInfo_)
+    0x1424A7B70 (RVA 0x024A7B70): aGetactorvalueS
+    0x1424A7BA8 (RVA 0x024A7BA8): aGetactorvaluep
+    0x1425A57E8 (RVA 0x025A57E8): aFavinfoarray
+
+[7] XREFs to ActorValueInfo RTTI (.?AVActorValueInfo@@) at RVA 0x02F94628:
+
+======================================================================

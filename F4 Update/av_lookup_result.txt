@@ -1,0 +1,1965 @@
+======================================================================
+GetActorValueInfoByName RVA Search — IDA Pro Analysis
+Fallout 4 v1.11.191  (TimeDateStamp 0x693A1A4C)
+======================================================================
+
+[1] XREFs to 'Invalid ActorValue' string at 0x1424ADAE0:
+    0x1405B7FB8  (RVA 0x005B7FB8)  in sub_1405B6150
+
+[2] Function containing LEA at RVA 0x005B7FB8:
+    Name:  sub_1405B6150
+    Start: 0x1405B6150  (RVA 0x005B6150)
+    End:   0x1405B9210  (RVA 0x005B9210)
+    Size:  12480 bytes
+
+[3] All CALL instructions in dispatcher (sorted by address):
+    CALL@0x005B6172 -> RVA 0x022B76B0  [_alloca_probe_0]  <<< BEFORE error LEA (-7750 bytes)
+    CALL@0x005B6218 -> RVA 0x022BCB98  [memset]  <<< BEFORE error LEA (-7584 bytes)
+    CALL@0x005B6237 -> RVA 0x005BBC50  [sub_1405BBC50]  <<< BEFORE error LEA (-7553 bytes)
+    CALL@0x005B6292 -> RVA 0x005B5A60  [sub_1405B5A60]  <<< BEFORE error LEA (-7462 bytes)
+    CALL@0x005B62BD -> RVA 0x024395E8  [0x1424395E8]  <<< BEFORE error LEA (-7419 bytes)
+    CALL@0x005B62D3 -> RVA 0x024395E8  [0x1424395E8]  <<< BEFORE error LEA (-7397 bytes)
+    CALL@0x005B635B -> RVA 0x0030E190  [sub_14030E190]  <<< BEFORE error LEA (-7261 bytes)
+    CALL@0x005B63CA -> RVA 0x005B9C60  [sub_1405B9C60]  <<< BEFORE error LEA (-7150 bytes)
+    CALL@0x005B63F3 -> RVA 0x0030E190  [sub_14030E190]  <<< BEFORE error LEA (-7109 bytes)
+    CALL@0x005B6486 -> RVA 0x-13FFFFE88  [0x178]  <<< BEFORE error LEA (-6962 bytes)
+    CALL@0x005B652E -> RVA 0x022BCB9E  [__RTDynamicCast]  <<< BEFORE error LEA (-6794 bytes)
+    CALL@0x005B655B -> RVA 0x005088C0  [sub_1405088C0]  <<< BEFORE error LEA (-6749 bytes)
+    CALL@0x005B66D3 -> RVA 0x022BCB9E  [__RTDynamicCast]  <<< BEFORE error LEA (-6373 bytes)
+    CALL@0x005B66FC -> RVA 0x022BCB9E  [__RTDynamicCast]  <<< BEFORE error LEA (-6332 bytes)
+    CALL@0x005B6791 -> RVA 0x022BCB9E  [__RTDynamicCast]  <<< BEFORE error LEA (-6183 bytes)
+    CALL@0x005B6831 -> RVA 0x022BCB9E  [__RTDynamicCast]  <<< BEFORE error LEA (-6023 bytes)
+    CALL@0x005B68D1 -> RVA 0x022BCB9E  [__RTDynamicCast]  <<< BEFORE error LEA (-5863 bytes)
+    CALL@0x005B6971 -> RVA 0x022BCB9E  [__RTDynamicCast]  <<< BEFORE error LEA (-5703 bytes)
+    CALL@0x005B6A11 -> RVA 0x022BCB9E  [__RTDynamicCast]  <<< BEFORE error LEA (-5543 bytes)
+    CALL@0x005B6AB1 -> RVA 0x022BCB9E  [__RTDynamicCast]  <<< BEFORE error LEA (-5383 bytes)
+    CALL@0x005B6B51 -> RVA 0x022BCB9E  [__RTDynamicCast]  <<< BEFORE error LEA (-5223 bytes)
+    CALL@0x005B6BF1 -> RVA 0x022BCB9E  [__RTDynamicCast]  <<< BEFORE error LEA (-5063 bytes)
+    CALL@0x005B6C91 -> RVA 0x022BCB9E  [__RTDynamicCast]  <<< BEFORE error LEA (-4903 bytes)
+    CALL@0x005B6DD3 -> RVA 0x022BCB9E  [__RTDynamicCast]  <<< BEFORE error LEA (-4581 bytes)
+    CALL@0x005B6E73 -> RVA 0x022BCB9E  [__RTDynamicCast]  <<< BEFORE error LEA (-4421 bytes)
+    CALL@0x005B73C3 -> RVA 0x022BCB9E  [__RTDynamicCast]  <<< BEFORE error LEA (-3061 bytes)
+    CALL@0x005B7463 -> RVA 0x022BCB9E  [__RTDynamicCast]  <<< BEFORE error LEA (-2901 bytes)
+    CALL@0x005B7503 -> RVA 0x022BCB9E  [__RTDynamicCast]  <<< BEFORE error LEA (-2741 bytes)
+    CALL@0x005B75A3 -> RVA 0x022BCB9E  [__RTDynamicCast]  <<< BEFORE error LEA (-2581 bytes)
+    CALL@0x005B7A44 -> RVA 0x-13FFFFE68  [0x198]  <<< BEFORE error LEA (-1396 bytes)
+    CALL@0x005B8083 -> RVA 0x022BCBA4  [memcpy]  --- AFTER error LEA (+203 bytes)
+    CALL@0x005B814C -> RVA 0x00599010  [sub_140599010]  --- AFTER error LEA (+404 bytes)
+    CALL@0x005B8172 -> RVA 0x02438FB0  [0x142438FB0]  --- AFTER error LEA (+442 bytes)
+    CALL@0x005B819F -> RVA 0x00598FB0  [sub_140598FB0]  --- AFTER error LEA (+487 bytes)
+    CALL@0x005B81C5 -> RVA 0x02438F60  [0x142438F60]  --- AFTER error LEA (+525 bytes)
+    CALL@0x005B8201 -> RVA 0x024395E8  [0x1424395E8]  --- AFTER error LEA (+585 bytes)
+    CALL@0x005B8261 -> RVA 0x024395E8  [0x1424395E8]  --- AFTER error LEA (+681 bytes)
+    CALL@0x005B82F7 -> RVA 0x0026F3B0  [sub_14026F3B0]  --- AFTER error LEA (+831 bytes)
+    CALL@0x005B8304 -> RVA 0x024395E8  [0x1424395E8]  --- AFTER error LEA (+844 bytes)
+    CALL@0x005B8397 -> RVA 0x0026F3E0  [sub_14026F3E0]  --- AFTER error LEA (+991 bytes)
+    CALL@0x005B83A4 -> RVA 0x024395E8  [0x1424395E8]  --- AFTER error LEA (+1004 bytes)
+    CALL@0x005B8430 -> RVA 0x0167BDC0  [sub_14167BDC0]  --- AFTER error LEA (+1144 bytes)
+    CALL@0x005B843C -> RVA 0x017D8E90  [sub_1417D8E90]  --- AFTER error LEA (+1156 bytes)
+    CALL@0x005B846A -> RVA 0x0167BEF0  [sub_14167BEF0]  --- AFTER error LEA (+1202 bytes)
+    CALL@0x005B8491 -> RVA 0x024395E8  [0x1424395E8]  --- AFTER error LEA (+1241 bytes)
+    CALL@0x005B853C -> RVA 0x0167BDC0  [sub_14167BDC0]  --- AFTER error LEA (+1412 bytes)
+    CALL@0x005B8547 -> RVA 0x0066DD50  [sub_14066DD50]  --- AFTER error LEA (+1423 bytes)
+    CALL@0x005B8556 -> RVA 0x0167BEF0  [sub_14167BEF0]  --- AFTER error LEA (+1438 bytes)
+    CALL@0x005B8593 -> RVA 0x0167BDC0  [sub_14167BDC0]  --- AFTER error LEA (+1499 bytes)
+    CALL@0x005B85AE -> RVA 0x00373BA0  [sub_140373BA0]  --- AFTER error LEA (+1526 bytes)
+    CALL@0x005B85C8 -> RVA 0x0167C070  [sub_14167C070]  --- AFTER error LEA (+1552 bytes)
+    CALL@0x005B85DD -> RVA 0x01658B40  [sub_141658B40]  --- AFTER error LEA (+1573 bytes)
+    CALL@0x005B8608 -> RVA 0x0167BEF0  [sub_14167BEF0]  --- AFTER error LEA (+1616 bytes)
+    CALL@0x005B865C -> RVA 0x02439548  [0x142439548]  --- AFTER error LEA (+1700 bytes)
+    CALL@0x005B8697 -> RVA 0x024395E8  [0x1424395E8]  --- AFTER error LEA (+1759 bytes)
+    CALL@0x005B86B4 -> RVA 0x024395E8  [0x1424395E8]  --- AFTER error LEA (+1788 bytes)
+    CALL@0x005B8708 -> RVA 0x024395E8  [0x1424395E8]  --- AFTER error LEA (+1872 bytes)
+    CALL@0x005B8778 -> RVA 0x00310540  [sub_140310540]  --- AFTER error LEA (+1984 bytes)
+    CALL@0x005B87AC -> RVA 0x00310390  [sub_140310390]  --- AFTER error LEA (+2036 bytes)
+    CALL@0x005B87DF -> RVA 0x01E48900  [sub_141E48900]
+    CALL@0x005B8870 -> RVA 0x01E488E0  [sub_141E488E0]
+    CALL@0x005B88B6 -> RVA 0x005B9C60  [sub_1405B9C60]
+    CALL@0x005B8929 -> RVA 0x005B9C60  [sub_1405B9C60]
+    CALL@0x005B8A62 -> RVA 0x0103BB90  [sub_14103BB90]
+    CALL@0x005B8BAA -> RVA 0x005B9C60  [sub_1405B9C60]
+    CALL@0x005B8BB6 -> RVA 0x0167BEF0  [sub_14167BEF0]
+    CALL@0x005B8C18 -> RVA 0x-13FFFFE30  [0x1D0]
+    CALL@0x005B8C3B -> RVA 0x005B9C60  [sub_1405B9C60]
+    CALL@0x005B8C58 -> RVA 0x005B9C60  [sub_1405B9C60]
+    CALL@0x005B8CC9 -> RVA 0x005B9C60  [sub_1405B9C60]
+    CALL@0x005B8CD5 -> RVA 0x0167BEF0  [sub_14167BEF0]
+    CALL@0x005B8D51 -> RVA 0x005B9C60  [sub_1405B9C60]
+    CALL@0x005B8DC2 -> RVA 0x005B9C60  [sub_1405B9C60]
+    CALL@0x005B8DDF -> RVA 0x005B9C60  [sub_1405B9C60]
+    CALL@0x005B8DF9 -> RVA 0x005B9C60  [sub_1405B9C60]
+    CALL@0x005B8EC9 -> RVA 0x005B9C60  [sub_1405B9C60]
+    CALL@0x005B8ED3 -> RVA 0x00310390  [sub_140310390]
+    CALL@0x005B8F49 -> RVA 0x005B9C60  [sub_1405B9C60]
+    CALL@0x005B8F53 -> RVA 0x01E488E0  [sub_141E488E0]
+    CALL@0x005B8FD2 -> RVA 0x0103BB90  [sub_14103BB90]
+    CALL@0x005B8FF4 -> RVA 0x005B9C60  [sub_1405B9C60]
+    CALL@0x005B9048 -> RVA 0x005B9C60  [sub_1405B9C60]
+    Total: 82 calls
+
+[4] Prime candidates (CALL within 8KB before error LEA):
+    RVA 0x005B6172 -> TARGET RVA 0x022B76B0  [_alloca_probe_0]  (-7750 from LEA)
+    RVA 0x005B6218 -> TARGET RVA 0x022BCB98  [memset]  (-7584 from LEA)
+    RVA 0x005B6237 -> TARGET RVA 0x005BBC50  [sub_1405BBC50]  (-7553 from LEA)
+    RVA 0x005B6292 -> TARGET RVA 0x005B5A60  [sub_1405B5A60]  (-7462 from LEA)
+    RVA 0x005B62BD -> TARGET RVA 0x024395E8  [0x1424395E8]  (-7419 from LEA)
+    RVA 0x005B62D3 -> TARGET RVA 0x024395E8  [0x1424395E8]  (-7397 from LEA)
+    RVA 0x005B635B -> TARGET RVA 0x0030E190  [sub_14030E190]  (-7261 from LEA)
+    RVA 0x005B63CA -> TARGET RVA 0x005B9C60  [sub_1405B9C60]  (-7150 from LEA)
+    RVA 0x005B63F3 -> TARGET RVA 0x0030E190  [sub_14030E190]  (-7109 from LEA)
+    RVA 0x005B6486 -> TARGET RVA 0x-13FFFFE88  [0x178]  (-6962 from LEA)
+    RVA 0x005B652E -> TARGET RVA 0x022BCB9E  [__RTDynamicCast]  (-6794 from LEA)
+    RVA 0x005B655B -> TARGET RVA 0x005088C0  [sub_1405088C0]  (-6749 from LEA)
+    RVA 0x005B66D3 -> TARGET RVA 0x022BCB9E  [__RTDynamicCast]  (-6373 from LEA)
+    RVA 0x005B66FC -> TARGET RVA 0x022BCB9E  [__RTDynamicCast]  (-6332 from LEA)
+    RVA 0x005B6791 -> TARGET RVA 0x022BCB9E  [__RTDynamicCast]  (-6183 from LEA)
+    RVA 0x005B6831 -> TARGET RVA 0x022BCB9E  [__RTDynamicCast]  (-6023 from LEA)
+    RVA 0x005B68D1 -> TARGET RVA 0x022BCB9E  [__RTDynamicCast]  (-5863 from LEA)
+    RVA 0x005B6971 -> TARGET RVA 0x022BCB9E  [__RTDynamicCast]  (-5703 from LEA)
+    RVA 0x005B6A11 -> TARGET RVA 0x022BCB9E  [__RTDynamicCast]  (-5543 from LEA)
+    RVA 0x005B6AB1 -> TARGET RVA 0x022BCB9E  [__RTDynamicCast]  (-5383 from LEA)
+    RVA 0x005B6B51 -> TARGET RVA 0x022BCB9E  [__RTDynamicCast]  (-5223 from LEA)
+    RVA 0x005B6BF1 -> TARGET RVA 0x022BCB9E  [__RTDynamicCast]  (-5063 from LEA)
+    RVA 0x005B6C91 -> TARGET RVA 0x022BCB9E  [__RTDynamicCast]  (-4903 from LEA)
+    RVA 0x005B6DD3 -> TARGET RVA 0x022BCB9E  [__RTDynamicCast]  (-4581 from LEA)
+    RVA 0x005B6E73 -> TARGET RVA 0x022BCB9E  [__RTDynamicCast]  (-4421 from LEA)
+    RVA 0x005B73C3 -> TARGET RVA 0x022BCB9E  [__RTDynamicCast]  (-3061 from LEA)
+    RVA 0x005B7463 -> TARGET RVA 0x022BCB9E  [__RTDynamicCast]  (-2901 from LEA)
+    RVA 0x005B7503 -> TARGET RVA 0x022BCB9E  [__RTDynamicCast]  (-2741 from LEA)
+    RVA 0x005B75A3 -> TARGET RVA 0x022BCB9E  [__RTDynamicCast]  (-2581 from LEA)
+    RVA 0x005B7A44 -> TARGET RVA 0x-13FFFFE68  [0x198]  (-1396 from LEA)
+
+[4b] Prologue bytes of candidate call targets:
+    RVA 0x022B76B0: 48 83 EC 10 4C 89 14 24 4C 89 5C 24 08 4D 33 DB 4C 8D 54 24 18 4C 2B D0 4D 0F 42 D3 65 4C 8B 1C  [_alloca_probe_0]
+    RVA 0x022BCB98: FF 25 22 C0 17 00 FF 25 C4 C0 17 00 FF 25 B6 C0 17 00 FF 25 A8 C0 17 00 FF 25 9A C0 17 00 FF 25  [memset]
+    RVA 0x005BBC50: 48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 57 41 54 41 55 41 56 41 57 48 81 EC 30 06 00 00 44  [sub_1405BBC50]
+    RVA 0x005B5A60: 48 89 5C 24 10 48 89 6C 24 18 56 57 41 54 41 56 41 57 48 83 EC 20 4C 8D 71 60 45 0F B6 E1 41 0F  [sub_1405B5A60]
+    RVA 0x024395E8: FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF  [0x1424395E8]
+    RVA 0x0030E190: 83 C1 E6 83 F9 75 77 1E 48 8D 15 61 1E CF FF 0F B6 84 0A C4 E1 30 00 8B 8C 82 BC E1 30 00 48 03  [sub_14030E190]
+    RVA 0x005B9C60: 48 8B C4 48 89 50 10 4C 89 40 18 4C 89 48 20 53 56 57 48 81 EC 50 01 00 00 48 8B DA 48 8D 70 18  [sub_1405B9C60]
+    RVA 0x-13FFFFE88: FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF  [0x178]
+    RVA 0x022BCB9E: FF 25 C4 C0 17 00 FF 25 B6 C0 17 00 FF 25 A8 C0 17 00 FF 25 9A C0 17 00 FF 25 8C C0 17 00 FF 25  [__RTDynamicCast]
+    RVA 0x005088C0: 48 8B 89 E0 00 00 00 48 85 C9 74 0A BA 43 43 4E 54 E9 9A AC E0 FF 33 C0 C3 CC CC CC CC CC CC CC  [sub_1405088C0]
+    RVA 0x-13FFFFE68: FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF  [0x198]
+
+[5] Hex-Rays decompiler output (context around 'Invalid ActorValue'):
+    [decompiler context — line 411]
+                      {
+                        if ( (unsigned int)v196 - (unsigned int)Src >= 0x1FF )
+                          break;
+                        v197 = *v196;
+                        if ( *v196 == 37 )
+                          v197 = 48;
+                        ++v196;
+                        *v195++ = v197;
+                      }
+                      while ( *v196 );
+                      v10 = a4;
+                    }
+                    *v195 = 0;
+                    sub_1405B9C60(
+                      v10,
+    >>>               "Invalid object reference '%s' for parameter %s.\r\nCompiled script not saved!",
+                      v221,
+                      *(_QWORD *)(a2 + 16 * v11));
+                    return 0;
+                  }
+                  v31 = *(_DWORD *)(a2 + 8 * v12 + 8);
+                  if ( v31 == 6 )
+                  {
+                    v38 = 0;
+                    if ( *(_BYTE *)(v30 + 26) == 65 )
+                      v38 = v30;
+                    if ( !v38 )
+                    {
+                      v39 = v220;
+                      v40 = Src;
+
+    [decompiler context — line 444]
+                        {
+                          if ( (unsigned int)v40 - (unsigned int)Src >= 0x1FF )
+                            break;
+                          v41 = *v40;
+                          if ( *v40 == 37 )
+                            v41 = 48;
+                          ++v40;
+                          *v39++ = v41;
+                        }
+                        while ( *v40 );
+                        v10 = a4;
+                      }
+                      *v39 = 0;
+                      sub_1405B9C60(
+                        v10,
+    >>>                 "Invalid actor '%s' for parameter %s.\r\nCompiled script not saved!",
+                        v220,
+                        *(_QWORD *)(a2 + 16 * v11));
+                      return 0;
+                    }
+                  }
+                  else if ( v31 == 24 )
+                  {
+                    if ( *(_QWORD *)(v30 + 224) != qword_1431E2C90 )
+                    {
+                      v35 = v219;
+                      v36 = Src;
+                      if ( Src[0] )
+                      {
+                        do
+
+    [decompiler context — line 474]
+                        {
+                          if ( (unsigned int)v36 - (unsigned int)Src >= 0x1FF )
+                            break;
+                          v37 = *v36;
+                          if ( *v36 == 37 )
+                            v37 = 48;
+                          ++v36;
+                          *v35++ = v37;
+                        }
+                        while ( *v36 );
+                        v10 = a4;
+                      }
+                      *v35 = 0;
+                      sub_1405B9C60(
+                        v10,
+    >>>                 "Invalid map marker '%s' for parameter %s.\r\nCompiled script not saved!",
+                        v219,
+                        *(_QWORD *)(a2 + 16 * v11));
+                      return 0;
+                    }
+                  }
+                  else if ( v31 == 26 && !sub_1405088C0(v30) )
+                  {
+                    v32 = v218;
+                    v33 = Src;
+                    if ( Src[0] )
+                    {
+                      do
+                      {
+                        if ( (unsigned int)v33 - (unsigned int)Src >= 0x1FF )
+
+    [decompiler context — line 502]
+                      {
+                        if ( (unsigned int)v33 - (unsigned int)Src >= 0x1FF )
+                          break;
+                        v34 = *v33;
+                        if ( *v33 == 37 )
+                          v34 = 48;
+                        ++v33;
+                        *v32++ = v34;
+                      }
+                      while ( *v33 );
+                      v10 = a4;
+                    }
+                    *v32 = 0;
+                    sub_1405B9C60(
+                      v10,
+    >>>               "Invalid container reference '%s' for parameter %s.\r\nCompiled script not saved!",
+                      v218,
+                      *(_QWORD *)(a2 + 16 * v11));
+                    return 0;
+                  }
+                  break;
+                case 5:
+                  if ( HIDWORD(v211) || v212 && v212[26] == 98 )
+                    break;
+                  v181 = v267;
+                  v182 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+
+    [decompiler context — line 531]
+                    {
+                      if ( (unsigned int)v182 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v183 = *v182;
+                      if ( *v182 == 37 )
+                        v183 = 48;
+                      ++v182;
+                      *v181++ = v183;
+                    }
+                    while ( *v182 );
+                    v10 = a4;
+                  }
+                  *v181 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid ActorValue '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v267,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 7:
+                  if ( HIDWORD(v211)
+                    || v212
+                    && (_RTDynamicCast(v212, 0, &TESForm `RTTI Type Descriptor', &SpellItem `RTTI Type Descriptor', 0)
+                     || _RTDynamicCast(v212, 0, &TESForm `RTTI Type Descriptor', &TESObjectBOOK `RTTI Type Descriptor', 0)) )
+                  {
+                    break;
+                  }
+                  v42 = v222;
+                  v43 = Src;
+                  if ( Src[0] )
+
+    [decompiler context — line 563]
+                    {
+                      if ( (unsigned int)v43 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v44 = *v43;
+                      if ( *v43 == 37 )
+                        v44 = 48;
+                      ++v43;
+                      *v42++ = v44;
+                    }
+                    while ( *v43 );
+                    v10 = a4;
+                  }
+                  *v42 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid spell item '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v222,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 9:
+                  v45 = _RTDynamicCast(v212, 0, &TESForm `RTTI Type Descriptor', &TESObjectCELL `RTTI Type Descriptor', 0);
+                  if ( HIDWORD(v211) || v45 && (*(_BYTE *)(v45 + 64) & 1) != 0 )
+                    break;
+                  v46 = v223;
+                  v47 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v47 - (unsigned int)Src >= 0x1FF )
+
+    [decompiler context — line 589]
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v47 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v48 = *v47;
+                      if ( *v47 == 37 )
+                        v48 = 48;
+                      ++v47;
+                      *v46++ = v48;
+                    }
+                    while ( *v47 );
+                    v10 = a4;
+                  }
+                  *v46 = 0;
+    >>>           sub_1405B9C60(v10, aInvalidInterio, v223, *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 11:
+                  if ( HIDWORD(v211)
+                    || v212 && _RTDynamicCast(v212, 0, &TESForm `RTTI Type Descriptor', &MagicItem `RTTI Type Descriptor', 0) )
+                  {
+                    break;
+                  }
+                  v85 = v233;
+                  v86 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v86 - (unsigned int)Src >= 0x1FF )
+
+    [decompiler context — line 617]
+                    {
+                      if ( (unsigned int)v86 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v87 = *v86;
+                      if ( *v86 == 37 )
+                        v87 = 48;
+                      ++v86;
+                      *v85++ = v87;
+                    }
+                    while ( *v86 );
+                    v10 = a4;
+                  }
+                  *v85 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid magic item '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v233,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 12:
+                  if ( HIDWORD(v211) || v212 && v212[26] == 0x84 )
+                    break;
+                  if ( Src[0] )
+                  {
+                    v91 = Src[0];
+                    if ( Src[0] == 37 )
+                      v91 = 48;
+                    v235[0] = v91;
+                    JUMPOUT(0x1405B6F3FLL);
+                  }
+
+    [decompiler context — line 635]
+                  return 0;
+                case 12:
+                  if ( HIDWORD(v211) || v212 && v212[26] == 0x84 )
+                    break;
+                  if ( Src[0] )
+                  {
+                    v91 = Src[0];
+                    if ( Src[0] == 37 )
+                      v91 = 48;
+                    v235[0] = v91;
+                    JUMPOUT(0x1405B6F3FLL);
+                  }
+                  v235[0] = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid sound '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v235,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 13:
+                  v95 = v237;
+                  v96 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v96 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v97 = *v96;
+                      if ( *v96 == 37 )
+
+    [decompiler context — line 661]
+                      if ( (unsigned int)v96 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v97 = *v96;
+                      if ( *v96 == 37 )
+                        v97 = 48;
+                      ++v96;
+                      *v95++ = v97;
+                    }
+                    while ( *v96 );
+                    v10 = a4;
+                  }
+                  v98 = HIDWORD(v211) == 0;
+                  *v95 = 0;
+                  if ( !v98 || v212 && v212[26] == 78 )
+                    break;
+    >>>           sub_1405B9C60(v10, aInvalidTopicSF, v237, *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 14:
+                  v99 = v238;
+                  v100 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v100 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v101 = *v100;
+                      if ( *v100 == 37 )
+                        v101 = 48;
+                      ++v100;
+
+    [decompiler context — line 687]
+                      v101 = *v100;
+                      if ( *v100 == 37 )
+                        v101 = 48;
+                      ++v100;
+                      *v99++ = v101;
+                    }
+                    while ( *v100 );
+                    v10 = a4;
+                  }
+                  v98 = HIDWORD(v211) == 0;
+                  *v99 = 0;
+                  if ( !v98 || v212 && v212[26] == 80 )
+                    break;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid info '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v238,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 15:
+                  v102 = v239;
+                  v103 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v103 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v104 = *v103;
+                      if ( *v103 == 37 )
+
+    [decompiler context — line 715]
+                      v104 = *v103;
+                      if ( *v103 == 37 )
+                        v104 = 48;
+                      ++v103;
+                      *v102++ = v104;
+                    }
+                    while ( *v103 );
+                    v10 = a4;
+                  }
+                  v98 = HIDWORD(v211) == 0;
+                  *v102 = 0;
+                  if ( !v98 || v212 && v212[26] == 17 )
+                    break;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid race '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v239,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 16:
+                  v105 = v240;
+                  v106 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v106 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v107 = *v106;
+                      if ( *v106 == 37 )
+
+    [decompiler context — line 743]
+                      v107 = *v106;
+                      if ( *v106 == 37 )
+                        v107 = 48;
+                      ++v106;
+                      *v105++ = v107;
+                    }
+                    while ( *v106 );
+                    v10 = a4;
+                  }
+                  v98 = HIDWORD(v211) == 0;
+                  *v105 = 0;
+                  if ( !v98 || v212 && v212[26] == 13 )
+                    break;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid class '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v240,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 17:
+                  if ( HIDWORD(v211) || v212 && v212[26] == 14 )
+                    break;
+                  v108 = v241;
+                  v109 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v109 - (unsigned int)Src >= 0x1FF )
+                        break;
+
+    [decompiler context — line 768]
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v109 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v110 = *v109;
+                      if ( *v109 == 37 )
+                        v110 = 48;
+                      ++v109;
+                      *v108++ = v110;
+                    }
+                    while ( *v109 );
+                    v10 = a4;
+                  }
+                  *v108 = 0;
+    >>>           sub_1405B9C60(v10, aInvalidFaction, v241, *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 19:
+                  if ( HIDWORD(v211) || v212 && v212[26] == 11 )
+                    break;
+                  v111 = v242;
+                  v112 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v112 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v113 = *v112;
+                      if ( *v112 == 37 )
+
+    [decompiler context — line 793]
+                    {
+                      if ( (unsigned int)v112 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v113 = *v112;
+                      if ( *v112 == 37 )
+                        v113 = 48;
+                      ++v112;
+                      *v111++ = v113;
+                    }
+                    while ( *v112 );
+                    v10 = a4;
+                  }
+                  *v111 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid global '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v242,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 20:
+                  if ( HIDWORD(v211) )
+                    break;
+                  if ( v212 )
+                  {
+                    v114 = v212[26] - 42;
+                    if ( v114 <= 0x34u )
+                    {
+                      v115 = 0x10000000002001LL;
+                      if ( _bittest64(&v115, v114) )
+                        break;
+
+    [decompiler context — line 830]
+                    {
+                      if ( (unsigned int)v117 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v118 = *v117;
+                      if ( *v117 == 37 )
+                        v118 = 48;
+                      ++v117;
+                      *v116++ = v118;
+                    }
+                    while ( *v117 );
+                    v10 = a4;
+                  }
+                  *v116 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid furniture object/list '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v243,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 21:
+                  if ( HIDWORD(v211)
+                    || v212 && _RTDynamicCast(v212, 0, &TESForm `RTTI Type Descriptor', &TESObject `RTTI Type Descriptor', 0) )
+                  {
+                    break;
+                  }
+                  v119 = v244;
+                  v120 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+
+    [decompiler context — line 860]
+                    {
+                      if ( (unsigned int)v120 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v121 = *v120;
+                      if ( *v120 == 37 )
+                        v121 = 48;
+                      ++v120;
+                      *v119++ = v121;
+                    }
+                    while ( *v120 );
+                    v10 = a4;
+                  }
+                  *v119 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid object '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v244,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 25:
+                  if ( HIDWORD(v211)
+                    || v212 && _RTDynamicCast(v212, 0, &TESForm `RTTI Type Descriptor', &TESActorBase `RTTI Type Descriptor', 0) )
+                  {
+                    break;
+                  }
+                  if ( Src[0] )
+                    JUMPOUT(0x1405B749FLL);
+                  v245[0] = 0;
+                  sub_1405B9C60(
+                    v10,
+
+    [decompiler context — line 875]
+                    "Invalid object '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v244,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 25:
+                  if ( HIDWORD(v211)
+                    || v212 && _RTDynamicCast(v212, 0, &TESForm `RTTI Type Descriptor', &TESActorBase `RTTI Type Descriptor', 0) )
+                  {
+                    break;
+                  }
+                  if ( Src[0] )
+                    JUMPOUT(0x1405B749FLL);
+                  v245[0] = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid actor base '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v245,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 27:
+                  if ( HIDWORD(v211) )
+                    break;
+                  if ( v212 )
+                  {
+                    v81 = v212[26];
+                    if ( v81 == 74 || v81 == 94 )
+                      break;
+                  }
+                  v82 = v232;
+                  v83 = Src;
+
+    [decompiler context — line 906]
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v83 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v84 = *v83;
+                      if ( *v83 == 37 )
+                        v84 = 48;
+                      ++v83;
+                      *v82++ = v84;
+                    }
+                    while ( *v83 );
+                    v10 = a4;
+                  }
+                  *v82 = 0;
+    >>>           sub_1405B9C60(v10, aInvalidWorldsp, v232, *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 29:
+                  if ( HIDWORD(v211)
+                    || v212 && _RTDynamicCast(v212, 0, &TESForm `RTTI Type Descriptor', &TESPackage `RTTI Type Descriptor', 0) )
+                  {
+                    break;
+                  }
+                  v122 = v246;
+                  v123 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v123 - (unsigned int)Src >= 0x1FF )
+
+    [decompiler context — line 934]
+                    {
+                      if ( (unsigned int)v123 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v124 = *v123;
+                      if ( *v123 == 37 )
+                        v124 = 48;
+                      ++v123;
+                      *v122++ = v124;
+                    }
+                    while ( *v123 );
+                    v10 = a4;
+                  }
+                  *v122 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid package '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v246,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 30:
+                  if ( HIDWORD(v211)
+                    || v212
+                    && _RTDynamicCast(v212, 0, &TESForm `RTTI Type Descriptor', &TESCombatStyle `RTTI Type Descriptor', 0) )
+                  {
+                    break;
+                  }
+                  if ( Src[0] )
+                    JUMPOUT(0x1405B75DFLL);
+                  v247[0] = 0;
+                  sub_1405B9C60(
+
+    [decompiler context — line 950]
+                    v246,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 30:
+                  if ( HIDWORD(v211)
+                    || v212
+                    && _RTDynamicCast(v212, 0, &TESForm `RTTI Type Descriptor', &TESCombatStyle `RTTI Type Descriptor', 0) )
+                  {
+                    break;
+                  }
+                  if ( Src[0] )
+                    JUMPOUT(0x1405B75DFLL);
+                  v247[0] = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid combat style '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v247,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 31:
+                  if ( HIDWORD(v211)
+                    || v212
+                    && _RTDynamicCast(v212, 0, &TESForm `RTTI Type Descriptor', &EffectSetting `RTTI Type Descriptor', 0) )
+                  {
+                    break;
+                  }
+                  v88 = v234;
+                  v89 = Src;
+                  if ( Src[0] )
+                  {
+
+    [decompiler context — line 1002]
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v126 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v127 = *v126;
+                      if ( *v126 == 37 )
+                        v127 = 48;
+                      ++v126;
+                      *v125++ = v127;
+                    }
+                    while ( *v126 );
+                    v10 = a4;
+                  }
+                  *v125 = 0;
+    >>>           sub_1405B9C60(v10, aInvalidWeather, v248, *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 34:
+                  if ( HIDWORD(v211) || v212 && v212[26] == 45 )
+                    break;
+                  v134 = v251;
+                  v135 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v135 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v136 = *v135;
+                      if ( *v135 == 37 )
+
+    [decompiler context — line 1027]
+                    {
+                      if ( (unsigned int)v135 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v136 = *v135;
+                      if ( *v135 == 37 )
+                        v136 = 48;
+                      ++v135;
+                      *v134++ = v136;
+                    }
+                    while ( *v135 );
+                    v10 = a4;
+                  }
+                  *v134 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid NPC '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v251,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 35:
+                  if ( HIDWORD(v211) )
+                    break;
+                  if ( v212 )
+                  {
+                    v137 = v212[26];
+                    if ( v137 == 45 || v137 == 14 )
+                      break;
+                  }
+                  v138 = v252;
+                  v139 = Src;
+
+    [decompiler context — line 1115]
+                    {
+                      if ( (unsigned int)v67 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v68 = *v67;
+                      if ( *v67 == 37 )
+                        v68 = 48;
+                      ++v67;
+                      *v66++ = v68;
+                    }
+                    while ( *v67 );
+                    v10 = a4;
+                  }
+                  *v66 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid form list '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v228,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 38:
+                  v69 = _RTDynamicCast(v212, 0, &TESForm `RTTI Type Descriptor', &BGSMenuIcon `RTTI Type Descriptor', 0);
+                  if ( HIDWORD(v211) || v69 )
+                    break;
+                  v70 = v229;
+                  v71 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v71 - (unsigned int)Src >= 0x1FF )
+
+    [decompiler context — line 1143]
+                    {
+                      if ( (unsigned int)v71 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v72 = *v71;
+                      if ( *v71 == 37 )
+                        v72 = 48;
+                      ++v71;
+                      *v70++ = v72;
+                    }
+                    while ( *v71 );
+                    v10 = a4;
+                  }
+                  *v70 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid menu icon '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v229,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 39:
+                  v73 = _RTDynamicCast(v212, 0, &TESForm `RTTI Type Descriptor', &BGSPerk `RTTI Type Descriptor', 0);
+                  if ( HIDWORD(v211) || v73 )
+                    break;
+                  v74 = v230;
+                  v75 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v75 - (unsigned int)Src >= 0x1FF )
+
+    [decompiler context — line 1171]
+                    {
+                      if ( (unsigned int)v75 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v76 = *v75;
+                      if ( *v75 == 37 )
+                        v76 = 48;
+                      ++v75;
+                      *v74++ = v76;
+                    }
+                    while ( *v75 );
+                    v10 = a4;
+                  }
+                  *v74 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid perk '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v230,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 40:
+                  v77 = _RTDynamicCast(v212, 0, &TESForm `RTTI Type Descriptor', &BGSNote `RTTI Type Descriptor', 0);
+                  if ( HIDWORD(v211) || v77 )
+                    break;
+                  v78 = v231;
+                  v79 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v79 - (unsigned int)Src >= 0x1FF )
+
+    [decompiler context — line 1199]
+                    {
+                      if ( (unsigned int)v79 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v80 = *v79;
+                      if ( *v79 == 37 )
+                        v80 = 48;
+                      ++v79;
+                      *v78++ = v80;
+                    }
+                    while ( *v79 );
+                    v10 = a4;
+                  }
+                  *v78 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid note '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v231,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 42:
+                  if ( HIDWORD(v211) || v212 && v212[26] == 93 )
+                    break;
+                  v128 = v249;
+                  v129 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v129 - (unsigned int)Src >= 0x1FF )
+                        break;
+
+    [decompiler context — line 1224]
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v129 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v130 = *v129;
+                      if ( *v129 == 37 )
+                        v130 = 48;
+                      ++v129;
+                      *v128++ = v130;
+                    }
+                    while ( *v129 );
+                    v10 = a4;
+                  }
+                  *v128 = 0;
+    >>>           sub_1405B9C60(v10, aInvalidImagesp, v249, *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 43:
+                  if ( HIDWORD(v211) || v212 && v212[26] == 92 )
+                    break;
+                  v131 = v250;
+                  v132 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v132 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v133 = *v132;
+                      if ( *v132 == 37 )
+
+    [decompiler context — line 1278]
+                    {
+                      if ( (unsigned int)v170 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v171 = *v170;
+                      if ( *v170 == 37 )
+                        v171 = 48;
+                      ++v170;
+                      *v169++ = v171;
+                    }
+                    while ( *v170 );
+                    v10 = a4;
+                  }
+                  *v169 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid VoiceType/FormList '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v263,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 50:
+                  v49 = _RTDynamicCast(v212, 0, &TESForm `RTTI Type Descriptor', &BGSEncounterZone `RTTI Type Descriptor', 0);
+                  if ( HIDWORD(v211) || v49 )
+                    break;
+                  v50 = v224;
+                  v51 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v51 - (unsigned int)Src >= 0x1FF )
+
+    [decompiler context — line 1330]
+                    {
+                      if ( (unsigned int)v63 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v64 = *v63;
+                      if ( *v63 == 37 )
+                        v64 = 48;
+                      ++v63;
+                      *v62++ = v64;
+                    }
+                    while ( *v63 );
+                    v10 = a4;
+                  }
+                  *v62 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid Idle form'%s' for parameter %s.\r\nCompiled script not saved!",
+                    v227,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 52:
+                  if ( HIDWORD(v211) || v212 && v212[26] == 108 )
+                    break;
+                  v144 = v254;
+                  v145 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v145 - (unsigned int)Src >= 0x1FF )
+                        break;
+
+    [decompiler context — line 1357]
+                    {
+                      if ( (unsigned int)v145 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v146 = *v145;
+                      if ( *v145 == 37 )
+                        v146 = 48;
+                      ++v145;
+                      *v144++ = v146;
+                    }
+                    while ( *v145 );
+                    v10 = a4;
+                  }
+                  *v144 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid message '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v254,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 53:
+                  if ( HIDWORD(v211) || v212 && ((unsigned __int8)sub_14030E190(v212[26], v17, v19, v16) || v212[26] == 94) )
+                    break;
+                  v20 = v216;
+                  v25 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v25 - (unsigned int)Src >= 0x1FF )
+                        break;
+
+    [decompiler context — line 1386]
+                        break;
+                      v26 = *v25;
+                      if ( *v25 == 37 )
+                        v26 = 48;
+                      ++v25;
+                      *v20++ = v26;
+                    }
+                    while ( *v25 );
+                    v10 = a4;
+                  }
+                  v23 = v216;
+        LABEL_27:
+                  *v20 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid inventory object '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v23,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 55:
+                  if ( HIDWORD(v211) || v212 && v212[26] == 124 )
+                    break;
+                  v159 = v260;
+                  v160 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v160 - (unsigned int)Src >= 0x1FF )
+                        break;
+
+    [decompiler context — line 1413]
+                    {
+                      if ( (unsigned int)v160 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v161 = *v160;
+                      if ( *v160 == 37 )
+                        v161 = 48;
+                      ++v160;
+                      *v159++ = v161;
+                    }
+                    while ( *v160 );
+                    v10 = a4;
+                  }
+                  *v159 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid EquipSlot '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v260,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 56:
+                  if ( HIDWORD(v211)
+                    || v212
+                    && ((*(unsigned __int8 (__fastcall **)(unsigned __int8 *, __int64, __int64, __int64))(*(_QWORD *)v212 + 376LL))(
+                          v212,
+                          v17,
+                          v19,
+                          v16)
+                     || v212[26] == 94) )
+                  {
+                    break;
+
+    [decompiler context — line 1449]
+                    {
+                      if ( (unsigned int)v28 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v29 = *v28;
+                      if ( *v28 == 37 )
+                        v29 = 48;
+                      ++v28;
+                      *v27++ = v29;
+                    }
+                    while ( *v28 );
+                    v10 = a4;
+                  }
+                  *v27 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid object '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v217,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 57:
+                  if ( !HIDWORD(v211) && (!v212 || v212[26] != 113) )
+                  {
+                    v92 = &v236;
+                    for ( i = Src; *i; *v92++ = v94 )
+                    {
+                      if ( (unsigned int)i - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v94 = *i;
+                      if ( *i == 37 )
+                        v94 = 48;
+
+    [decompiler context — line 1494]
+                    {
+                      if ( (unsigned int)v55 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v56 = *v55;
+                      if ( *v55 == 37 )
+                        v56 = 48;
+                      ++v55;
+                      *v54++ = v56;
+                    }
+                    while ( *v55 );
+                    v10 = a4;
+                  }
+                  *v54 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid keyword '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v225,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 60:
+                  v57 = _RTDynamicCast(v212, 0, &TESForm `RTTI Type Descriptor', &BGSLocationRefType `RTTI Type Descriptor', 0);
+                  if ( HIDWORD(v211) || v57 )
+                    break;
+                  v58 = v226;
+                  v59 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v59 - (unsigned int)Src >= 0x1FF )
+
+    [decompiler context — line 1522]
+                    {
+                      if ( (unsigned int)v59 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v60 = *v59;
+                      if ( *v59 == 37 )
+                        v60 = 48;
+                      ++v59;
+                      *v58++ = v60;
+                    }
+                    while ( *v59 );
+                    v10 = a4;
+                  }
+                  *v58 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid location ref type '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v226,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 61:
+                  if ( HIDWORD(v211) || v212 && v212[26] == 107 )
+                    break;
+                  v147 = v255;
+                  v148 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v148 - (unsigned int)Src >= 0x1FF )
+                        break;
+
+    [decompiler context — line 1549]
+                    {
+                      if ( (unsigned int)v148 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v149 = *v148;
+                      if ( *v148 == 37 )
+                        v149 = 48;
+                      ++v148;
+                      *v147++ = v149;
+                    }
+                    while ( *v148 );
+                    v10 = a4;
+                  }
+                  *v147 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid location '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v255,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 62:
+                case 78:
+                  if ( HIDWORD(v211) )
+                    break;
+                  if ( !v212 )
+                  {
+                    v198 = v257;
+                    v199 = Src;
+                    if ( Src[0] )
+                    {
+                      do
+
+    [decompiler context — line 1579]
+                      {
+                        if ( (unsigned int)v199 - (unsigned int)Src >= 0x1FF )
+                          break;
+                        v200 = *v199;
+                        if ( *v199 == 37 )
+                          v200 = 48;
+                        ++v199;
+                        *v198++ = v200;
+                      }
+                      while ( *v199 );
+                      v10 = a4;
+                    }
+                    *v198 = 0;
+                    sub_1405B9C60(
+                      v10,
+    >>>               "Invalid form '%s' for parameter %s.\r\nCompiled script not saved!",
+                      v257,
+                      *(_QWORD *)(a2 + 16 * v11));
+                    return 0;
+                  }
+                  if ( (*(__int64 (__fastcall **)(unsigned __int8 *, __int64, __int64, __int64))(*(_QWORD *)v212 + 408LL))(
+                         v212,
+                         v17,
+                         v19,
+                         v16) )
+                  {
+                    v150 = v256;
+                    v151 = Src;
+                    if ( Src[0] )
+                    {
+
+    [decompiler context — line 1639]
+                    {
+                      if ( (unsigned int)v163 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v164 = *v163;
+                      if ( *v163 == 37 )
+                        v164 = 48;
+                      ++v163;
+                      *v162++ = v164;
+                    }
+                    while ( *v163 );
+                    v10 = a4;
+                  }
+                  *v162 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid BGSScene '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v261,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 69:
+                  if ( HIDWORD(v211) || v212 && v212[26] == 127 )
+                    break;
+                  v165 = v262;
+                  v166 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v166 - (unsigned int)Src >= 0x1FF )
+                        break;
+
+    [decompiler context — line 1666]
+                    {
+                      if ( (unsigned int)v166 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v167 = *v166;
+                      if ( *v166 == 37 )
+                        v167 = 48;
+                      ++v166;
+                      *v165++ = v167;
+                    }
+                    while ( *v166 );
+                    v10 = a4;
+                  }
+                  *v165 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid BGSAssociationType '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v262,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 75:
+                  if ( HIDWORD(v211) || v212 && v212[26] == 60 )
+                    break;
+                  v172 = v264;
+                  v173 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v173 - (unsigned int)Src >= 0x1FF )
+                        break;
+
+    [decompiler context — line 1693]
+                    {
+                      if ( (unsigned int)v173 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v174 = *v173;
+                      if ( *v173 == 37 )
+                        v174 = 48;
+                      ++v173;
+                      *v172++ = v174;
+                    }
+                    while ( *v173 );
+                    v10 = a4;
+                  }
+                  *v172 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid BGSReferenceEffect '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v264,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 77:
+                  if ( HIDWORD(v211) || v212 && v212[26] == 0x86 )
+                    break;
+                  v175 = v265;
+                  v176 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v176 - (unsigned int)Src >= 0x1FF )
+                        break;
+
+    [decompiler context — line 1720]
+                    {
+                      if ( (unsigned int)v176 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v177 = *v176;
+                      if ( *v176 == 37 )
+                        v177 = 48;
+                      ++v176;
+                      *v175++ = v177;
+                    }
+                    while ( *v176 );
+                    v10 = a4;
+                  }
+                  *v175 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid sound category type '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v265,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 79:
+                  if ( HIDWORD(v211) || v212 && v212[26] == 61 )
+                    break;
+                  v153 = v258;
+                  v154 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v154 - (unsigned int)Src >= 0x1FF )
+                        break;
+
+    [decompiler context — line 1745]
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v154 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v155 = *v154;
+                      if ( *v154 == 37 )
+                        v155 = 48;
+                      ++v154;
+                      *v153++ = v155;
+                    }
+                    while ( *v154 );
+                    v10 = a4;
+                  }
+                  *v153 = 0;
+    >>>           sub_1405B9C60(v10, aInvalidRegion, v258, *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 80:
+                  if ( HIDWORD(v211) || v212 && v212[26] == 6 )
+                    break;
+                  v178 = v270;
+                  v179 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v179 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v180 = *v179;
+                      if ( *v179 == 37 )
+
+    [decompiler context — line 1770]
+                    {
+                      if ( (unsigned int)v179 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v180 = *v179;
+                      if ( *v179 == 37 )
+                        v180 = 48;
+                      ++v179;
+                      *v178++ = v180;
+                    }
+                    while ( *v179 );
+                    v10 = a4;
+                  }
+                  *v178 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid BGSAction '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v270,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 84:
+                  if ( HIDWORD(v211) || v212 && v212[26] == 12 )
+                    break;
+                  v156 = v259;
+                  v157 = Src;
+                  if ( Src[0] )
+                  {
+                    do
+                    {
+                      if ( (unsigned int)v157 - (unsigned int)Src >= 0x1FF )
+                        break;
+
+    [decompiler context — line 1797]
+                    {
+                      if ( (unsigned int)v157 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v158 = *v157;
+                      if ( *v157 == 37 )
+                        v158 = 48;
+                      ++v157;
+                      *v156++ = v158;
+                    }
+                    while ( *v157 );
+                    v10 = a4;
+                  }
+                  *v156 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid Damage Type '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v259,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                case 86:
+                  if ( HIDWORD(v211) )
+                    break;
+                  if ( v212 )
+                  {
+                    v184 = v212[26];
+                    if ( v184 == 4 || v184 == 94 )
+                      break;
+                  }
+                  v201 = v268;
+                  v202 = Src;
+
+    [decompiler context — line 1830]
+                    {
+                      if ( (unsigned int)v202 - (unsigned int)Src >= 0x1FF )
+                        break;
+                      v203 = *v202;
+                      if ( *v202 == 37 )
+                        v203 = 48;
+                      ++v202;
+                      *v201++ = v203;
+                    }
+                    while ( *v202 );
+                    v10 = a4;
+                  }
+                  *v201 = 0;
+                  sub_1405B9C60(
+                    v10,
+    >>>             "Invalid Keyword/FormList '%s' for parameter %s.\r\nCompiled script not saved!",
+                    v268,
+                    *(_QWORD *)(a2 + 16 * v11));
+                  return 0;
+                default:
+                  sub_14103BB90(
+                    qword_1430ED2B8,
+                    (int)"Param type '%d' (referenced object) unimplemented in ScriptCompiler::StandardCompile.",
+                    v19,
+                    v16,
+                    ArgList,
+                    0);
+                  return 0;
+              }
+            }
+
+
+[6] Symbol search for 'GetActorValueInfo' or 'ActorValueList':
+    0x14003CE90 (RVA 0x0003CE90): BGSObjectInstanceExtra::RemoveModsOnLimb(Actor&_ActorValueInfo&_uint&_BSScrapArray_BGSMod::Attachment::Mod___)
+    0x14003D120 (RVA 0x0003D120): BGSObjectInstanceExtra::UpdateLimbSubsegmentDamage(Actor&_ActorValueInfo&_float_float)
+    0x140054D70 (RVA 0x00054D70): BGSPropertySheet::GetPropertyValue(ActorValueInfo&)
+    0x140054D90 (RVA 0x00054D90): BGSPropertySheet::SetPropertyValue(ActorValueInfo&_float)
+    0x14006F8C0 (RVA 0x0006F8C0): EffectSetting::ShouldNegateMagnitude(ActorValueInfo&)
+    0x140070EE0 (RVA 0x00070EE0): TESForm::InitItemTT_ActorValueInfo_TESForm::DefaultFormIDResolver_ActorValueInfo__(ActorValueInfo_&_uint&_TESForm_)
+    0x140071540 (RVA 0x00071540): TESForm::DefaultFormIDResolver_ActorValueInfo_::operator()(uint&)
+    0x140072D40 (RVA 0x00072D40): EffectSettingCollection::CreateDefaultEffect(uint_char__char__ActorValueInfo__float_ActorValueInfo__ActorValueInfo__float_uint_ActorValueInfo__int_MagicSystem::CastingType_MagicSystem::Delivery)
+    0x140078BB0 (RVA 0x00078BB0): MagicItem::HasActorValueEffect(ActorValueInfo&)
+    0x14007BD40 (RVA 0x0007BD40): MagicSystem::MagicSkillToSchool(ActorValueInfo_)
+    0x14013B870 (RVA 0x0013B870): BGSDestructibleObjectForm::DamageObject(TESObjectREFR__ActorValueInfo__float_bool)
+    0x1401F6490 (RVA 0x001F6490): Workshop::GetWorkshopResourceDamage(TESObjectREFR&_ActorValueInfo&)
+    0x140332EA0 (RVA 0x00332EA0): TESObjectARMO::Protects(ActorValueInfo&_bool)
+    0x140336940 (RVA 0x00336940): TESObjectBOOK::SetActorValueToAdvance(ActorValueInfo_)
+    0x1403EF2E0 (RVA 0x003EF2E0): TESObjectREFR::DamageObject(ActorValueInfo__float_bool)
+    0x1404005A0 (RVA 0x004005A0): TESObjectREFR::GetActorValue(ActorValueInfo&)
+    0x140400640 (RVA 0x00400640): TESObjectREFR::GetPermanentActorValue(ActorValueInfo&)
+    0x1404006E0 (RVA 0x004006E0): TESObjectREFR::GetBaseActorValue(ActorValueInfo&)
+    0x1404007A0 (RVA 0x004007A0): TESObjectREFR::SetBaseActorValue(ActorValueInfo&_float)
+    0x140400830 (RVA 0x00400830): TESObjectREFR::ModBaseActorValue(ActorValueInfo&_float)
+    0x1404008E0 (RVA 0x004008E0): TESObjectREFR::ModActorValue(ACTOR_VALUE_MODIFIER_ActorValueInfo&_float)
+    0x1404009D0 (RVA 0x004009D0): TESObjectREFR::RestoreActorValue(ActorValueInfo&_float)
+    0x140400AA0 (RVA 0x00400AA0): TESObjectREFR::GetModifier(ACTOR_VALUE_MODIFIER_ActorValueInfo&)
+    0x140412400 (RVA 0x00412400): TESObjectREFR::CheckActorValueStorage(ActorValueInfo&)
+    0x1404382A0 (RVA 0x004382A0): TESObjectREFR_Events::SendLimbCrippleEvent(ActorValueInfo&_bool_NiPointer_TESObjectREFR__bool)
+    0x140514CC0 (RVA 0x00514CC0): BGSBodyPartData::ForEachPart__lambda_96553d8845f23cd978e199757f6c8327__(ActorValueInfo&__lambda_96553d8845f23cd978e199757f6c8327_&)
+    0x140521410 (RVA 0x00521410): Script::GetActorValueInfoFunction(SCRIPT_PARAMETER__char__TESObjectREFR__TESObjectREFR__Script__ScriptLocals__float&_uint&)
+    0x14055F620 (RVA 0x0055F620): BGSBodyPartData::GetBodyPart(ActorValueInfo_)
+    0x140571690 (RVA 0x00571690): BGSPerk::GetSPECIALForPerk(ActorValueInfo_&_uint&)
+    0x1405A25D0 (RVA 0x005A25D0): TESActorBase::GetActorValue(ActorValueInfo&)
+    0x1405A26E0 (RVA 0x005A26E0): TESActorBase::SetBaseActorValue(ActorValueInfo&_float)
+    0x1405BAFE0 (RVA 0x005BAFE0): TESNPC::ModAutoCalcActorValue(ActorValueInfo&_int_bool&)
+    0x1405BB060 (RVA 0x005BB060): TESNPC::GetActorValue(ActorValueInfo&)
+    0x1405BB160 (RVA 0x005BB160): TESNPC::SetActorValue(ActorValueInfo&_float)
+    0x14065D6D0 (RVA 0x0065D6D0): AiFormulas::AVDeriveUnarmedDamage(ActorValueOwner__ActorValueInfo&)
+    0x14065D720 (RVA 0x0065D720): AiFormulas::AVDeriveMeleeDamage(ActorValueOwner__ActorValueInfo&)
+    0x14065D770 (RVA 0x0065D770): AiFormulas::AVDeriveRegenRate(ActorValueOwner__ActorValueInfo&)
+    0x14065DA30 (RVA 0x0065DA30): AiFormulas::AVDeriveActionPoints(ActorValueOwner__ActorValueInfo&)
+    0x14065DA90 (RVA 0x0065DA90): AiFormulas::AVDeriveCarryWeight(ActorValueOwner__ActorValueInfo&)
+    0x14065DAF0 (RVA 0x0065DAF0): AiFormulas::AVDeriveHealth(ActorValueOwner__ActorValueInfo&)
+    0x14065DBE0 (RVA 0x0065DBE0): AiFormulas::AVDeriveFatigueAPMax(ActorValueOwner__ActorValueInfo&)
+    0x14065DCC0 (RVA 0x0065DCC0): AiFormulas::AVDeriveRadHealthMax(ActorValueOwner__ActorValueInfo&)
+    0x14065DF90 (RVA 0x0065DF90): _anonymous_namespace_::AVDeriveRegenRate_CheckException(Actor&_ActorValueInfo&)
+    0x14065FBE0 (RVA 0x0065FBE0): CombatFormulas::CalcResistedPercentage(ActorValueInfo&_float_float)
+    0x140661640 (RVA 0x00661640): CombatFormulas::GetNumCrippledForCondition(Actor&_ActorValueInfo&)
+    0x1406616D0 (RVA 0x006616D0): CombatFormulas::IsConditionCrippled(Actor&_ActorValueInfo&)
+    0x140662210 (RVA 0x00662210): _anonymous_namespace_::GetResistanceFactors(ActorValueInfo&_A0x8e7dd56a::ResistanceFactors&)
+    0x140664C50 (RVA 0x00664C50): GamePlayFormulas::GetDifficultyMultiplier(DifficultyLevel_ActorValueInfo&_bool)
+    0x140665FF0 (RVA 0x00665FF0): MagicFormulas::CalcAccumulatingModifierEffectRate(ActorValueInfo&_float_float)
+    0x14069F010 (RVA 0x0069F010): ActorValue::AddConditionActorValue(ActorValueInfo_)
+    0x14069F050 (RVA 0x0069F050): ActorValue::RegisterActorValue(int_char__ActorValue::AVType_uint_uint_std::function_float_(ActorValueOwner__ActorValueInfo&)__uint_...)
+    0x14069F210 (RVA 0x0069F210): ActorValueInfo::ActorValueInfo(int_char__ActorValue::AVType_uint)
+    0x14069F380 (RVA 0x0069F380): ActorValueInfo::ActorValueInfo(void)
+    0x14069F4B0 (RVA 0x0069F4B0): ActorValueInfo::_ActorValueInfo(void)
+    0x14069F620 (RVA 0x0069F620): ActorValueInfo::GetActorValueName(void)
+    0x14069F6A0 (RVA 0x0069F6A0): ActorValueInfo::ClampActorValue(float)
+    0x14069F720 (RVA 0x0069F720): ActorValueInfo::HasImplicitBaseValue(float&)
+    0x14069F790 (RVA 0x0069F790): ActorValueInfo::GetDerivedActorValue(ActorValueOwner__float&)
+    0x14069F7F0 (RVA 0x0069F7F0): ActorValueInfo::QAbbreviation(void)
+    0x14069FC30 (RVA 0x0069FC30): ActorValueInfo::SetFormEditorID(char_)
+    0x14069FD40 (RVA 0x0069FD40): ActorValueInfo::CallModifiedCallback(Actor__float_float_Actor_)
+    0x14069FEE0 (RVA 0x0069FEE0): ActorValue::RegisterActorValue(int_char__ActorValue::AVType_uint_uint_std::function_float_(ActorValueOwner__ActorValueInfo&)__uint_...)_0
+    0x1406A03F0 (RVA 0x006A03F0): std::function_void_(Actor__ActorValueInfo&_float_float_Actor_)_::function_void_(Actor__ActorValueInfo&_float_float_Actor_)_(void_(&)(Actor__ActorValueInfo&_float_float_Actor_))
+    0x1406A0520 (RVA 0x006A0520): AddUnique_ActorValueInfo__BSTArrayHeapAllocator_(BSTArray_ActorValueInfo__BSTArrayHeapAllocator_&_ActorValueInfo_&)
+    0x1406A0600 (RVA 0x006A0600): Find_ActorValueInfo__ArrayEqualFunctor_ActorValueInfo__ActorValueInfo___BSTArrayHeapAllocator_ActorValueInfo__(BSTArray_ActorValueInfo__BSTArrayHeapAllocator_&_ActorValueInfo_&_uint_ArrayEqualFunctor_ActorValueInfo__ActorValueInfo__&)
+    0x1406A0650 (RVA 0x006A0650): Find_ActorValueInfo__BSTArrayHeapAllocator_ActorValueInfo__(BSTArray_ActorValueInfo__BSTArrayHeapAllocator_&_ActorValueInfo_&)
+    0x1406A06A0 (RVA 0x006A06A0): BSTArray_ActorValueInfo__BSTArrayHeapAllocator_::ForEach__lambda_a71f1a116298ff1446f52e5a1d9a9625__(_lambda_a71f1a116298ff1446f52e5a1d9a9625_&)
+    0x1406A0700 (RVA 0x006A0700): BSTArray_ActorValueInfo__BSTArrayHeapAllocator_::ForEach__lambda_c07e0742cd943f5aa030a09578697e46__(_lambda_c07e0742cd943f5aa030a09578697e46_&)
+    0x1406A0C00 (RVA 0x006A0C00): std::_Allocate_std::_Func_impl_std::_Callable_fun_float_(_)(ActorValueOwner__ActorValueInfo&)_0__std::allocator_std::_Func_class_float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil___float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil__(unsigned___int64_std::_Func_impl_std::_Callable_fun_float_(_)(ActorValueOwner__ActorValueInfo&)_0__std::allocator_std::_Func_class_float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil___float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil__)
+    0x1406A0C70 (RVA 0x006A0C70): std::_Allocate_std::_Func_impl_std::_Callable_fun_void_(_)(Actor__ActorValueInfo&_float_float_Actor_)_0__std::allocator_std::_Func_class_void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil___void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil__(unsigned___int64_std::_Func_impl_std::_Callable_fun_void_(_)(Actor__ActorValueInfo&_float_float_Actor_)_0__std::allocator_std::_Func_class_void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil___void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil__)
+    0x1406A0CF0 (RVA 0x006A0CF0): std::_Callable_fun_void_(_)(Actor__ActorValueInfo&_float_float_Actor_)_0_::_ApplyX_void_Actor__ActorValueInfo&_float_float_Actor__(Actor_&&_ActorValueInfo&_float&&_float&&_Actor_&&)
+    0x1406A0F20 (RVA 0x006A0F20): BSTArray_ActorValueInfo__BSTArrayHeapAllocator_::BSTArray_ActorValueInfo__BSTArrayHeapAllocator_(void)
+    0x1406A0F50 (RVA 0x006A0F50): ConcreteFormFactory_ActorValueInfo_98_::ConcreteFormFactory_ActorValueInfo_98_(char_)
+    0x1406A0F80 (RVA 0x006A0F80): ConcreteObjectFormFactory_ActorValueInfo_98_119_4_::ConcreteObjectFormFactory_ActorValueInfo_98_119_4_(char_)
+    0x1406A10C0 (RVA 0x006A10C0): BSTArray_ActorValueInfo__BSTArrayHeapAllocator_::_BSTArray_ActorValueInfo__BSTArrayHeapAllocator_(void)
+    0x1406A1110 (RVA 0x006A1110): ConcreteFormFactory_ActorValueInfo_98_::_ConcreteFormFactory_ActorValueInfo_98_(void)
+    0x1406A1140 (RVA 0x006A1140): ConcreteObjectFormFactory_ActorValueInfo_98_119_4_::_ConcreteObjectFormFactory_ActorValueInfo_98_119_4_(void)
+    0x1406A1190 (RVA 0x006A1190): std::_Func_class_float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil_::__Func_class_float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil_(void)
+    0x1406A11C0 (RVA 0x006A11C0): std::_Func_class_void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil_::__Func_class_void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil_(void)
+    0x1406A1210 (RVA 0x006A1210): std::function_float_(ActorValueOwner__ActorValueInfo&)_::_function_float_(ActorValueOwner__ActorValueInfo&)_(void)
+    0x1406A1260 (RVA 0x006A1260): std::function_void_(Actor__ActorValueInfo&_float_float_Actor_)_::_function_void_(Actor__ActorValueInfo&_float_float_Actor_)_(void)
+    0x1406A12B0 (RVA 0x006A12B0): std::function_float_(ActorValueOwner__ActorValueInfo&)_::operator_(std::function_float_(ActorValueOwner__ActorValueInfo&)_&)
+    0x1406A1320 (RVA 0x006A1320): std::function_void_(Actor__ActorValueInfo&_float_float_Actor_)_::operator_(std::function_void_(Actor__ActorValueInfo&_float_float_Actor_)_&)
+    0x1406A13D0 (RVA 0x006A13D0): std::_Func_class_float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil_::operator()(ActorValueOwner__ActorValueInfo&)
+    0x1406A1460 (RVA 0x006A1460): ConcreteFormFactory_ActorValueInfo_98_::_vector_deleting_destructor_(uint)
+    0x1406A14D0 (RVA 0x006A14D0): ConcreteObjectFormFactory_ActorValueInfo_98_119_4_::_scalar_deleting_destructor_(uint)
+    0x1406A1540 (RVA 0x006A1540): std::_Func_base_float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil_::_vector_deleting_destructor_(uint)
+    0x1406A1590 (RVA 0x006A1590): std::_Func_base_void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil_::_scalar_deleting_destructor_(uint)
+    0x1406A15E0 (RVA 0x006A15E0): std::_Func_impl_std::_Callable_fun_float_(_)(ActorValueOwner__ActorValueInfo&)_0__std::allocator_std::_Func_class_float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil___float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil_::_vector_deleting_destructor_(uint)
+    0x1406A1630 (RVA 0x006A1630): std::_Func_impl_std::_Callable_fun_void_(_)(Actor__ActorValueInfo&_float_float_Actor_)_0__std::allocator_std::_Func_class_void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil___void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil_::_vector_deleting_destructor_(uint)
+    0x1406A16E0 (RVA 0x006A16E0): BSTArray_ActorValueInfo__BSTArrayHeapAllocator_::Add(ActorValueInfo_&)
+    0x1406A1740 (RVA 0x006A1740): BSTArray_ActorValueInfo__BSTArrayHeapAllocator_::AddUninitialized(void)
+    0x1406A1780 (RVA 0x006A1780): BSTArray_ActorValueInfo__BSTArrayHeapAllocator_::Clear(bool)
+    0x1406A17B0 (RVA 0x006A17B0): ConcreteFormFactory_ActorValueInfo_98_::Create(void)
+    0x1406A18F0 (RVA 0x006A18F0): ActorValueInfo::SetModifiedCallback(std::function_void_(Actor__ActorValueInfo&_float_float_Actor_)_)
+    0x1406A1950 (RVA 0x006A1950): std::_Func_impl_std::_Callable_fun_float_(_)(ActorValueOwner__ActorValueInfo&)_0__std::allocator_std::_Func_class_float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil___float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil_::_Copy(void_)
+    0x1406A19C0 (RVA 0x006A19C0): std::_Func_impl_std::_Callable_fun_void_(_)(Actor__ActorValueInfo&_float_float_Actor_)_0__std::allocator_std::_Func_class_void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil___void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil_::_Copy(void_)
+    0x1406A1A30 (RVA 0x006A1A30): std::_Func_impl_std::_Callable_fun_float_(_)(ActorValueOwner__ActorValueInfo&)_0__std::allocator_std::_Func_class_float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil___float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil_::_Delete_this(bool)
+    0x1406A1A90 (RVA 0x006A1A90): std::_Func_impl_std::_Callable_fun_void_(_)(Actor__ActorValueInfo&_float_float_Actor_)_0__std::allocator_std::_Func_class_void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil___void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil_::_Delete_this(bool)
+    0x1406A1BC0 (RVA 0x006A1BC0): std::_Func_impl_std::_Callable_fun_float_(_)(ActorValueOwner__ActorValueInfo&)_0__std::allocator_std::_Func_class_float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil___float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil_::_Move(void_)
+    0x1406A1C30 (RVA 0x006A1C30): std::_Func_impl_std::_Callable_fun_void_(_)(Actor__ActorValueInfo&_float_float_Actor_)_0__std::allocator_std::_Func_class_void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil___void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil_::_Move(void_)
+    0x1406A1CA0 (RVA 0x006A1CA0): std::_Func_class_float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil_::_Reset(std::_Func_class_float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil_&)
+    0x1406A1D00 (RVA 0x006A1D00): std::_Func_class_void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil_::_Reset(std::_Func_class_void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil_&)
+    0x1406A1DA0 (RVA 0x006A1DA0): std::_Func_class_float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil_::_Tidy(void)
+    0x1406A1DD0 (RVA 0x006A1DD0): std::_Func_class_void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil_::_Tidy(void)
+    0x1406A1E00 (RVA 0x006A1E00): std::allocator_std::_Func_impl_std::_Callable_fun_float_(_)(ActorValueOwner__ActorValueInfo&)_0__std::allocator_std::_Func_class_float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil___float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil__::allocate(unsigned___int64)
+    0x1406A1E70 (RVA 0x006A1E70): std::allocator_std::_Func_impl_std::_Callable_fun_void_(_)(Actor__ActorValueInfo&_float_float_Actor_)_0__std::allocator_std::_Func_class_void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil___void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil__::allocate(unsigned___int64)
+    0x1406A1EE0 (RVA 0x006A1EE0): std::allocator_std::_Func_impl_std::_Callable_fun_float_(_)(ActorValueOwner__ActorValueInfo&)_0__std::allocator_std::_Func_class_float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil___float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil__::deallocate(std::_Func_impl_std::_Callable_fun_float_(_)(ActorValueOwner__ActorValueInfo&)_0__std::allocator_std::_Func_class_float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil___float_ActorValueOwner__ActorValueInfo&_std::_Nil_std::_Nil_std::_Nil_std::_Nil_std::_Nil___unsigned___int64)
+    0x1406A1F20 (RVA 0x006A1F20): std::allocator_std::_Func_impl_std::_Callable_fun_void_(_)(Actor__ActorValueInfo&_float_float_Actor_)_0__std::allocator_std::_Func_class_void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil___void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil__::deallocate(std::_Func_impl_std::_Callable_fun_void_(_)(Actor__ActorValueInfo&_float_float_Actor_)_0__std::allocator_std::_Func_class_void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil___void_Actor__ActorValueInfo&_float_float_Actor__std::_Nil_std::_Nil___unsigned___int64)
+    0x1406A1F70 (RVA 0x006A1F70): ActorValueOwner::GetClampedActorValue(ActorValueInfo&)
+    0x1409DC150 (RVA 0x009DC150): _anonymous_namespace_::FindPowerArmorUnwearablesConditionFunctor::FindPowerArmorUnwearablesConditionFunctor(ActorValueInfo__Actor__bool)
+    0x140A0DA30 (RVA 0x00A0DA30): HUDMenuUtils::CalculatePercentRelativeToAdjustedMaximumValue(ActorValueInfo&)
+    0x140A0DB00 (RVA 0x00A0DB00): HUDActorValueMeterBase::HUDActorValueMeterBase(ActorValueInfo&_Scaleform::GFx::Value&_char__HUDModeInitParams&)
+    0x140AE21D0 (RVA 0x00AE21D0): SendHUDMessage::SendFlashMeterMessage(ActorValueInfo&)
+    0x140AF15E0 (RVA 0x00AF15E0): InventoryUserUIUtils::GetDamageTypePosition(ActorValueInfo&)
+    0x140BC4B60 (RVA 0x00BC4B60): nsStatsMenuUtils::ActorValueDamaged(ActorValueInfo&)
+    0x140C146A0 (RVA 0x00C146A0): HC_ActorValueCausesAlchemyItemRepopulate(ActorValueInfo&)
+    0x140C3BEB0 (RVA 0x00C3BEB0): PipboyPlayerInfoData::ProcessEvent(ActorValueEvents::ActorValueChangedEvent&_BSTEventSource_ActorValueEvents::ActorValueChangedEvent__)
+    0x140C3FEA0 (RVA 0x00C3FEA0): PipboySpecialData::UpdateSpecial(PipboyObject&_ActorValueInfo&)
+    0x140C41220 (RVA 0x00C41220): PipboyStatsData::CreateEntry(ActorValueInfo&_PipboyThrottleSettings_float_&)
+    0x140C41300 (RVA 0x00C41300): PipboyStatsData::UpdateEntry(ActorValueInfo&)
+    0x140C41390 (RVA 0x00C41390): PipboyStatsData::GetKeyByActorValue(ActorValueInfo&)
+    0x140C49320 (RVA 0x00C49320): PipboyWorkshopData::PopulateEntry(TESObjectREFR&_ActorValueInfo&_uint_(_&)(TESObjectREFR&)_PipboyArray&)
+    0x140C49550 (RVA 0x00C49550): PipboyWorkshopData::SetRatingAndGetFunctions(ActorValueInfo&_int_(_&)(TESObjectREFR&)_uint_(_&)(TESObjectREFR&))
+    0x140C5CF60 (RVA 0x00C5CF60): DualValueModifierEffect::ModifyActorValue(Actor__float_ActorValueInfo_)
+    0x140C6D380 (RVA 0x00C6D380): MagicTarget::AdjustResistedEffects(ActorValueInfo&)
+    0x140C74480 (RVA 0x00C74480): ActiveEffectList::ForEach__anonymous_namespace_::CountActorValueEffects_(_anonymous_namespace_::CountActorValueEffects&)
+    0x140C8A890 (RVA 0x00C8A890): ValueModifierEffect::ValueModifierEffect(Actor__MagicItem__EffectItem__ActorValueInfo&)
+    0x140C8B180 (RVA 0x00C8B180): ValueModifierEffect::ModifyActorValue(Actor__float_ActorValueInfo_)
+    0x140CA6300 (RVA 0x00CA6300): ActorUtils::GetEquippedArmorDamageResistance(Actor&_ActorValueInfo_)
+    0x140CA63F0 (RVA 0x00CA63F0): ActorUtils::CanAlterActorValue(Actor&_ActorValueInfo&)
+    0x140CA64B0 (RVA 0x00CA64B0): ActorUtils::IsConditionDismembered(Actor&_ActorValueInfo&)
+    0x140CA6590 (RVA 0x00CA6590): ActorUtils::UnequipItems(Actor&_ActorValueInfo&)
+    0x140CA8230 (RVA 0x00CA8230): BSTObjectArena_BSTTuple_ActorValueInfo&_float__BSTObjectArenaScrapAlloc_32_::ForEach__lambda_27bc849bf83487534e69d815f15935f4__(_lambda_27bc849bf83487534e69d815f15935f4_&)
+    0x140CA9440 (RVA 0x00CA9440): BSTObjectArena_BSTTuple_ActorValueInfo&_float__BSTObjectArenaScrapAlloc_32_::BSTObjectArena_BSTTuple_ActorValueInfo&_float__BSTObjectArenaScrapAlloc_32_(void)
+    0x140CA9600 (RVA 0x00CA9600): _anonymous_namespace_::DamageResistanceCollector::DamageResistanceCollector(Actor&_ActorValueInfo&)
+    0x140CA9780 (RVA 0x00CA9780): BSTObjectArena_BSTTuple_ActorValueInfo&_float__BSTObjectArenaScrapAlloc_32_::_BSTObjectArena_BSTTuple_ActorValueInfo&_float__BSTObjectArenaScrapAlloc_32_(void)
+    0x140CA9DB0 (RVA 0x00CA9DB0): BSTObjectArena_BSTTuple_ActorValueInfo&_float__BSTObjectArenaScrapAlloc_32_::Clear(bool)
+    0x140CA9F00 (RVA 0x00CA9F00): BSTObjectArena_BSTTuple_ActorValueInfo&_float__BSTObjectArenaScrapAlloc_32_::ClearFront(bool)
+    0x140CA9F90 (RVA 0x00CA9F90): BGSEquipSlot::ConditionRequired(ActorValueInfo_)
+    0x140CAA660 (RVA 0x00CAA660): BSTObjectArena_BSTTuple_ActorValueInfo&_float__BSTObjectArenaScrapAlloc_32_::RemoveHeadPage(bool)
+    0x140CAA6E0 (RVA 0x00CAA6E0): BSTObjectArena_BSTTuple_ActorValueInfo&_float__BSTObjectArenaScrapAlloc_32_::Reserve(void)
+    0x140D592A0 (RVA 0x00D592A0): TaskQueueInterface::QueueUpdateDestructibleObject(TESObjectREFR__float_ActorValueInfo__bool)
+    0x140D7A100 (RVA 0x00D7A100): Actor::GetActorValuePercentage(ActorValueInfo&)
+    0x140D7A170 (RVA 0x00D7A170): Actor::GetActorValuePercentage(ActorValueInfo&_float)
+    0x140DF6140 (RVA 0x00DF6140): Actor::IsActorValueDamaged(ActorValueInfo&)
+    0x140DF6670 (RVA 0x00DF6670): Actor::HandleRestoreActorValue(ActorValueInfo&_float)
+    0x140DF66C0 (RVA 0x00DF66C0): Actor::GetRestoreActorValueRate(ActorValueInfo&)
+    0x140DF6B20 (RVA 0x00DF6B20): Actor::UpdateRegenDelay(ActorValueInfo&_float)
+    0x140DF6C50 (RVA 0x00DF6C50): Actor::GetActorValue(ActorValueInfo&)
+    0x140DF6DD0 (RVA 0x00DF6DD0): Actor::GetPermanentActorValue(ActorValueInfo&)
+    0x140DF6EF0 (RVA 0x00DF6EF0): Actor::GetBaseActorValue(ActorValueInfo&)
+    0x140DF7020 (RVA 0x00DF7020): Actor::SetBaseActorValue(ActorValueInfo&_float)
+    0x140DF7050 (RVA 0x00DF7050): Actor::ModBaseActorValue(ActorValueInfo&_float)
+    0x140DF7080 (RVA 0x00DF7080): Actor::RestoreActorValue(ActorValueInfo&_float)
+    0x140DF7110 (RVA 0x00DF7110): Actor::ModActorValue(ACTOR_VALUE_MODIFIER_ActorValueInfo&_float)
+    0x140DF7140 (RVA 0x00DF7140): Actor::ModActorValue(ACTOR_VALUE_MODIFIER_ActorValueInfo&_float_Actor_)
+    0x140DF72D0 (RVA 0x00DF72D0): Actor::GetModifier(ACTOR_VALUE_MODIFIER_ActorValueInfo&)
+    0x140DF7350 (RVA 0x00DF7350): Actor::HandleActorValueModified(ActorValueInfo&_float_float_Actor_)
+    0x140DF7450 (RVA 0x00DF7450): Actor::GetModifiers(ActorValueInfo&)
+    0x140DF7490 (RVA 0x00DF7490): Actor::AddModifiers(ActorValueInfo&)
+    0x140DF74D0 (RVA 0x00DF74D0): Actor::DeleteModifiers(ActorValueInfo&)
+    0x140DF7870 (RVA 0x00DF7870): Actor::IsCrippled(ActorValueInfo_)
+    0x140DF78F0 (RVA 0x00DF78F0): Actor::CarryWeightModifiedCallback(Actor__ActorValueInfo&_float_float_Actor_)
+    0x140DF79C0 (RVA 0x00DF79C0): Actor::WeapReloadSpeedModifiedCallback(Actor__ActorValueInfo&_float_float_Actor_)
+    0x140DF7AC0 (RVA 0x00DF7AC0): Actor::HealthModifiedCallback(Actor__ActorValueInfo&_float_float_Actor_)
+    0x140DF7C40 (RVA 0x00DF7C40): Actor::APModifiedCallback(Actor__ActorValueInfo&_float_float_Actor_)
+    0x140DF7D50 (RVA 0x00DF7D50): Actor::StaminaModifiedCallback(Actor__ActorValueInfo&_float_float_Actor_)
+    0x140DF7D80 (RVA 0x00DF7D80): Actor::FatigueModifiedCallback(Actor__ActorValueInfo&_float_float_Actor_)
+    0x140DF7E70 (RVA 0x00DF7E70): Actor::RadsModifiedCallback(Actor__ActorValueInfo&_float_float_Actor_)
+    0x140DF7FC0 (RVA 0x00DF7FC0): Actor::ExperienceModifiedCallback(Actor__ActorValueInfo&_float_float_Actor_)
+    0x140DF8010 (RVA 0x00DF8010): Actor::WardPowerModifiedCallback(Actor__ActorValueInfo&_float_float_Actor_)
+    0x140DF82E0 (RVA 0x00DF82E0): Actor::CombatHealthRegenMultModifiedCallback(Actor__ActorValueInfo&_float_float_Actor_)
+    0x140DF8330 (RVA 0x00DF8330): Actor::DragonSoulsModifiedCallback(Actor__ActorValueInfo&_float_float_Actor_)
+    0x140DF83A0 (RVA 0x00DF83A0): Actor::ConditionModifiedCallback(Actor__ActorValueInfo&_float_float_Actor_)
+    0x140DF8900 (RVA 0x00DF8900): Actor::SPECIALModifiedCallback(Actor__ActorValueInfo&_float_float_Actor_)
+    0x140DF8A30 (RVA 0x00DF8A30): Actor::NotifyOfActorValueChanged(ActorValueInfo&)
+    0x140DF8EF0 (RVA 0x00DF8EF0): Actor::GetLocalModifiers(ActorValueInfo&)
+    0x140DF8F90 (RVA 0x00DF8F90): Actor::GetActorValueUncached(ActorValueInfo&)
+    0x140DF9000 (RVA 0x00DF9000): Actor::SetCachedActorValueDirty(ActorValueInfo&)
+    0x140DF9070 (RVA 0x00DF9070): Actor::GetUncachedPermanentActorValue(ActorValueInfo&)
+    0x140DF90E0 (RVA 0x00DF90E0): Actor::GetDamagedActorValueRegenDelay(ActorValueInfo&)
+    0x140DF9200 (RVA 0x00DF9200): Actor::CheckClampDamageModifier(ActorValueInfo&_float)
+    0x140DF9490 (RVA 0x00DF9490): Actor::CheckActorValueDamaged(ActorValueInfo&)
+    0x140DF9500 (RVA 0x00DF9500): Actor::CheckActorValueDamaged(Actor__ActorValueInfo&_float_float)
+    0x140DF9770 (RVA 0x00DF9770): _anonymous_namespace_::SetCachedValueFlag(Actor&_ActorValueInfo&_bool)
+    0x140DF9920 (RVA 0x00DF9920): _anonymous_namespace_::AttackConditionModified(Actor__ActorValueInfo&_bool)
+    0x140DF9AE0 (RVA 0x00DF9AE0): _anonymous_namespace_::MobilityConditionModified(Actor__ActorValueInfo&_bool)
+    0x140DFA9B0 (RVA 0x00DFA9B0): Actor::AlterActorValue_ModActorValueFunctor_(ActorValueInfo&_ModActorValueFunctor&_Actor_)
+    0x140DFAB30 (RVA 0x00DFAB30): Actor::AlterActorValue_ModBaseActorValueFunctor_(ActorValueInfo&_ModBaseActorValueFunctor&_Actor_)
+    0x140DFACA0 (RVA 0x00DFACA0): Actor::AlterActorValue_SetBaseActorValueFunctor_(ActorValueInfo&_SetBaseActorValueFunctor&_Actor_)
+    0x140E25B10 (RVA 0x00E25B10): ActorValueStorage::GetBaseActorValue(ActorValueInfo&)
+    0x140E25BA0 (RVA 0x00E25BA0): ActorValueStorage::GetBaseValueAt(ActorValueInfo&_float&)
+    0x140E25C40 (RVA 0x00E25C40): ActorValueStorage::SetBaseActorValue(ActorValueInfo&_float)
+    0x140E25D20 (RVA 0x00E25D20): ActorValueStorage::RemoveBaseActorValue(ActorValueInfo&)
+    0x140E25EC0 (RVA 0x00E25EC0): ActorValueStorage::GetModifiers(ActorValueInfo&)
+    0x140E25F50 (RVA 0x00E25F50): ActorValueStorage::AddModifiers(ActorValueInfo&)
+    0x140E260A0 (RVA 0x00E260A0): ActorValueStorage::DeleteModifiers(ActorValueInfo&)
+    0x140E27370 (RVA 0x00E27370): BGSLoadGameBuffer::LoadFormID_ActorValueInfo_(ActorValueInfo_&)
+    0x140E35E70 (RVA 0x00E35E70): AIProcess::SetLastCrippledValue(ActorValueInfo_)
+    0x140E46F80 (RVA 0x00E46F80): AIProcess::GetRegenDelay(ActorValueInfo&)
+    0x140E47050 (RVA 0x00E47050): AIProcess::UpdateRegenDelay(ActorValueInfo&_float)
+    0x140E47140 (RVA 0x00E47140): AIProcess::SetRegenDelay(ActorValueInfo&_float)
+    0x140E92380 (RVA 0x00E92380): CachedValues::SetActorValueDirty(ActorValueInfo&)
+    0x140E923C0 (RVA 0x00E923C0): CachedValues::SetPermanentActorValueDirty(ActorValueInfo&)
+    0x140E92400 (RVA 0x00E92400): CachedValues::GetCachedActorValue(ActorValueInfo&_float&)
+    0x140E92430 (RVA 0x00E92430): CachedValues::SetCachedActorValue(ActorValueInfo&_float)
+    0x140E92480 (RVA 0x00E92480): CachedValues::GetCachedPermanentActorValue(ActorValueInfo&_float&)
+    0x140E924B0 (RVA 0x00E924B0): CachedValues::SetCachedPermanentActorValue(ActorValueInfo&_float)
+    0x140E92750 (RVA 0x00E92750): _anonymous_namespace_::SaveCachedActorValues_ActorValueInfo__(uint)_(BGSSaveFormBuffer__BSTArray_CachedValueData_BSTArrayHeapAllocator_&_ActorValueInfo__(&)(uint))
+    0x140EA18A0 (RVA 0x00EA18A0): PlayerCharacter::IncrementSkill(ActorValueInfo__uint)
+    0x140EB7CE0 (RVA 0x00EB7CE0): PlayerCharacter::CheckClampDamageModifier(ActorValueInfo&_float)
+    0x140EB7DE0 (RVA 0x00EB7DE0): PlayerCharacter::HandleAttributeDamaged(ActorValueInfo&_float)
+    0x140EB9FC0 (RVA 0x00EB9FC0): PlayerCharacter::SetStimpakTarget(ActorValueInfo_)
+    0x140EC70E0 (RVA 0x00EC70E0): _anonymous_namespace_::HandleShowTutorialMenu(ActorValueInfo&_float_float_DEFAULT_OBJECT)
+    0x141045260 (RVA 0x01045260): CombatInventoryResourceManager::GetActorValueEntry(CombatInventoryItem__ActorValueInfo_)
+    0x141046AF0 (RVA 0x01046AF0): BSTArray_CombatInventoryResourceManager::ActorValueEntry_BSScrapArrayAllocator_::Add_ActorValueInfo__float_float_(ActorValueInfo__float_float)
+    0x1410563D0 (RVA 0x010563D0): CombatMagicCasterRestore::CheckRestoreTarget(CombatController__Actor__EffectSetting&_ActorValueInfo__bool)
+    0x14123DAA0 (RVA 0x0123DAA0): CombatAIFormulas::CalcRestorePercentage(Actor__ActorValueInfo_)
+    0x14123DB00 (RVA 0x0123DB00): CombatAIFormulas::CalcRestoreRestrictTime(ActorValueInfo_)
+    0x1412C14A0 (RVA 0x012C14A0): UIUtils::GetSPECIALActorValueInfo(uint)
+    0x1412C1500 (RVA 0x012C1500): UIUtils::GetSPECIALIndex(ActorValueInfo_)
+    0x1413C1670 (RVA 0x013C1670): GameScript::_anonymous_namespace_::st_Game_IncrementSkill(BSScript::IVirtualMachine__uint_void__ActorValueInfo__uint)
+    0x1413C64A0 (RVA 0x013C64A0): BSScript::Internal::CreateVarFromValue_ActorValueInfo_
+    0x1413C69C0 (RVA 0x013C69C0): BSScript::Internal::BindCObject_ActorValueInfo_
+    0x1413C7960 (RVA 0x013C7960): BSScript::NativeFunction0_BSScript::StaticFunctionTag_ActorValueInfo__::NativeFunction0_BSScript::StaticFunctionTag_ActorValueInfo__(char__char__ActorValueInfo__(_)(BSScript::IVirtualMachine__uint_void_)_BSTSmartPointer_BSScript::IVirtualMachine_BSTSmartPointerIntrusiveRefCount_&)
+    0x1413C86B0 (RVA 0x013C86B0): BSScript::NativeFunction2_BSScript::StaticFunctionTag_void_ActorValueInfo__uint_::NativeFunction2_BSScript::StaticFunctionTag_void_ActorValueInfo__uint_(char__char__void_(_)(BSScript::IVirtualMachine__uint_void__ActorValueInfo__uint)_BSTSmartPointer_BSScript::IVirtualMachine_BSTSmartPointerIntrusiveRefCount_&)
+    0x1413C9D10 (RVA 0x013C9D10): BSScript::NativeFunction0_BSScript::StaticFunctionTag_ActorValueInfo__::_vector_deleting_destructor_(uint)
+    0x1413CA3D0 (RVA 0x013CA3D0): BSScript::NativeFunction2_BSScript::StaticFunctionTag_void_ActorValueInfo__uint_::_vector_deleting_destructor_(uint)
+    0x1413CAFF0 (RVA 0x013CAFF0): BSScript::NativeFunction0_BSScript::StaticFunctionTag_ActorValueInfo__::StubHandler_ActorValueInfo__1_BSScript::NativeFunction0_BSScript::StaticFunctionTag_ActorValueInfo__::DummyStruct_::CallStub(BSScript::Variable&_ActorValueInfo__(_)(BSScript::IVirtualMachine__uint_void_)_BSScript::Internal::VirtualMachine__uint_BSScript::Variable&)
+    0x1413CB7E0 (RVA 0x013CB7E0): BSScript::NativeFunction2_BSScript::StaticFunctionTag_void_ActorValueInfo__uint_::StubHandler_void_ActorValueInfo__uint_1_BSScript::NativeFunction2_BSScript::StaticFunctionTag_void_ActorValueInfo__uint_::DummyStruct_::CallStub(BSScript::Variable&_void_(_)(BSScript::IVirtualMachine__uint_void__ActorValueInfo__uint)_ActorValueInfo__uint_BSScript::Internal::VirtualMachine__uint_BSScript::Variable&)
+    0x1413CC030 (RVA 0x013CC030): BSScript::TypeTraits_ActorValueInfo__::CreateVarFromValue(ActorValueInfo__BSScript::IVirtualMachine&)
+    0x1413CC050 (RVA 0x013CC050): BSScript::TypeTraits_ActorValueInfo__::ExtractFromVariable(BSScript::Variable&_BSScript::IVirtualMachine&)
+    0x1413CC3F0 (RVA 0x013CC3F0): BSScript::TypeTraits_ActorValueInfo__::GetFromStackFrame(BSScript::StackFrame&_uint_uint_BSScript::IVirtualMachine&)
+    0x1413CC920 (RVA 0x013CC920): BSScript::NativeFunction0_BSScript::StaticFunctionTag_ActorValueInfo__::MarshallAndDispatch(BSScript::Variable&_BSScript::Internal::VirtualMachine&_uint_BSScript::Variable&_BSScript::StackFrame&)
+    0x1413CD700 (RVA 0x013CD700): BSScript::NativeFunction2_BSScript::StaticFunctionTag_void_ActorValueInfo__uint_::MarshallAndDispatch(BSScript::Variable&_BSScript::Internal::VirtualMachine&_uint_BSScript::Variable&_BSScript::StackFrame&)
+    0x1413CE890 (RVA 0x013CE890): BSScript::TypeTraits_ActorValueInfo__::QTypeInfo(BSScript::IVirtualMachine&)
+    0x1413CEA90 (RVA 0x013CEA90): BSScript::TypeTraits_ActorValueInfo__::QTypeInfo(BSScript::IVirtualMachine&)_0
+    0x1413CEB50 (RVA 0x013CEB50): BSScript::TypeTraits_ActorValueInfo__::TypeMatches(BSScript::Variable&_BSScript::IVirtualMachine&)
+    0x1413FBAD0 (RVA 0x013FBAD0): GameScript::_anonymous_namespace_::LogOPError(ActorValueInfo__char__BSScript::IVirtualMachine__uint)
+    0x141404620 (RVA 0x01404620): GameScript::_anonymous_namespace_::mem_ObjectReference_DamageValue(BSScript::IVirtualMachine__uint_TESObjectREFR__ActorValueInfo__float)
+    0x141406840 (RVA 0x01406840): GameScript::_anonymous_namespace_::mem_ObjectReference_GetBaseValue(BSScript::IVirtualMachine__uint_TESObjectREFR__ActorValueInfo_)
+    0x141407470 (RVA 0x01407470): GameScript::_anonymous_namespace_::mem_ObjectReference_GetResourceDamage(BSScript::IVirtualMachine__uint_TESObjectREFR__ActorValueInfo_)
+    0x141407880 (RVA 0x01407880): GameScript::_anonymous_namespace_::mem_ObjectReference_GetValue(BSScript::IVirtualMachine__uint_TESObjectREFR__ActorValueInfo_)
+    0x141407970 (RVA 0x01407970): GameScript::_anonymous_namespace_::mem_ObjectReference_GetValuePercentage(BSScript::IVirtualMachine__uint_TESObjectREFR__ActorValueInfo_)
+    0x141407A50 (RVA 0x01407A50): GameScript::_anonymous_namespace_::mem_ObjectReference_GetWorkshopResourceDamage(BSScript::IVirtualMachine__uint_TESObjectREFR__ActorValueInfo_)
+    0x141407DD0 (RVA 0x01407DD0): GameScript::_anonymous_namespace_::mem_ObjectReference_GetWorkshopResourceObjects(BSScript::IVirtualMachine__uint_TESObjectREFR__ActorValueInfo__uint)
+    0x141409690 (RVA 0x01409690): GameScript::_anonymous_namespace_::mem_ObjectReference_ModValue(BSScript::IVirtualMachine__uint_TESObjectREFR__ActorValueInfo__float)
+    0x14140DEE0 (RVA 0x0140DEE0): GameScript::_anonymous_namespace_::mem_ObjectReference_RestoreValue(BSScript::IVirtualMachine__uint_TESObjectREFR__ActorValueInfo__float)
+    0x14140FDB0 (RVA 0x0140FDB0): GameScript::_anonymous_namespace_::mem_ObjectReference_SetValue(BSScript::IVirtualMachine__uint_TESObjectREFR__ActorValueInfo__float)
+    0x14141BC40 (RVA 0x0141BC40): GameScript::_anonymous_namespace_::GetWorkshopResourceObjectsLinkedRefChildVisitor::CheckItem__lambda_d3f89d162ab0638be10c1a55a6e13754__(TESObjectREFR&_ActorValueInfo&__lambda_d3f89d162ab0638be10c1a55a6e13754_&)
+    0x14141E3E0 (RVA 0x0141E3E0): BGSBodyPartData::ForEachPart__lambda_e6c0786c315fcad00a227e5f1acafd22__(ActorValueInfo&__lambda_e6c0786c315fcad00a227e5f1acafd22_&)
+    0x141424130 (RVA 0x01424130): BSScript::NativeFunction1_TESObjectREFR_float_ActorValueInfo__::NativeFunction1_TESObjectREFR_float_ActorValueInfo__(char__char__float_(_)(BSScript::IVirtualMachine__uint_TESObjectREFR__ActorValueInfo_)_BSTSmartPointer_BSScript::IVirtualMachine_BSTSmartPointerIntrusiveRefCount_&)
+    0x1414263D0 (RVA 0x014263D0): BSScript::NativeFunction2_TESObjectREFR_BSScript::ArrayWrapper_TESObjectREFR___ActorValueInfo__uint_::NativeFunction2_TESObjectREFR_BSScript::ArrayWrapper_TESObjectREFR___ActorValueInfo__uint_(char__char__BSScript::ArrayWrapper_TESObjectREFR___(_)(BSScript::IVirtualMachine__uint_TESObjectREFR__ActorValueInfo__uint)_BSTSmartPointer_BSScript::IVirtualMachine_BSTSmartPointerIntrusiveRefCount_&)
+    0x141427080 (RVA 0x01427080): BSScript::NativeFunction2_TESObjectREFR_void_ActorValueInfo__float_::NativeFunction2_TESObjectREFR_void_ActorValueInfo__float_(char__char__void_(_)(BSScript::IVirtualMachine__uint_TESObjectREFR__ActorValueInfo__float)_BSTSmartPointer_BSScript::IVirtualMachine_BSTSmartPointerIntrusiveRefCount_&)
+    0x14142EE20 (RVA 0x0142EE20): BSScript::NativeFunction1_TESObjectREFR_float_ActorValueInfo__::_vector_deleting_destructor_(uint)
+    0x14142FA80 (RVA 0x0142FA80): BSScript::NativeFunction2_TESObjectREFR_BSScript::ArrayWrapper_TESObjectREFR___ActorValueInfo__uint_::_vector_deleting_destructor_(uint)
+    0x14142FF00 (RVA 0x0142FF00): BSScript::NativeFunction2_TESObjectREFR_void_ActorValueInfo__float_::_scalar_deleting_destructor_(uint)
+    0x141433170 (RVA 0x01433170): BSScript::NativeFunction1_TESObjectREFR_float_ActorValueInfo__::StubHandler_float_ActorValueInfo__0_BSScript::NativeFunction1_TESObjectREFR_float_ActorValueInfo__::DummyStruct_::CallStub(BSScript::Variable&_float_(_)(BSScript::IVirtualMachine__uint_TESObjectREFR__ActorValueInfo_)_ActorValueInfo__BSScript::Internal::VirtualMachine__uint_BSScript::Variable&)
+    0x141434A00 (RVA 0x01434A00): BSScript::NativeFunction2_TESObjectREFR_BSScript::ArrayWrapper_TESObjectREFR___ActorValueInfo__uint_::StubHandler_BSScript::ArrayWrapper_TESObjectREFR___ActorValueInfo__uint_0_BSScript::NativeFunction2_TESObjectREFR_BSScript::ArrayWrapper_TESObjectREFR___ActorValueInfo__uint_::DummyStruct_::CallStub(BSScript::Variable&_BSScript::ArrayWrapper_TESObjectREFR___(_)(BSScript::IVirtualMachine__uint_TESObjectREFR__ActorValueInfo__uint)_ActorValueInfo__uint_BSScript::Internal::VirtualMachine__uint_BSScript::Variable&)
+    0x1414375F0 (RVA 0x014375F0): BSScript::NativeFunction2_TESObjectREFR_void_ActorValueInfo__float_::StubHandler_void_ActorValueInfo__float_0_BSScript::NativeFunction2_TESObjectREFR_void_ActorValueInfo__float_::DummyStruct_::CallStub(BSScript::Variable&_void_(_)(BSScript::IVirtualMachine__uint_TESObjectREFR__ActorValueInfo__float)_ActorValueInfo__float_BSScript::Internal::VirtualMachine__uint_BSScript::Variable&)
+    0x14143B490 (RVA 0x0143B490): BSScript::TypeTraits_ActorValueInfo__::ExtractFromVariable(BSScript::Variable&_BSScript::IVirtualMachine&)_0
+    0x14143BB40 (RVA 0x0143BB40): BSScript::TypeTraits_ActorValueInfo__::GetFromStackFrame(BSScript::StackFrame&_uint_uint_BSScript::IVirtualMachine&)_0
+    0x14143E2A0 (RVA 0x0143E2A0): BSScript::NativeFunction1_TESObjectREFR_float_ActorValueInfo__::MarshallAndDispatch(BSScript::Variable&_BSScript::Internal::VirtualMachine&_uint_BSScript::Variable&_BSScript::StackFrame&)
+    0x14143FC20 (RVA 0x0143FC20): BSScript::NativeFunction2_TESObjectREFR_BSScript::ArrayWrapper_TESObjectREFR___ActorValueInfo__uint_::MarshallAndDispatch(BSScript::Variable&_BSScript::Internal::VirtualMachine&_uint_BSScript::Variable&_BSScript::StackFrame&)
+    0x141440820 (RVA 0x01440820): BSScript::NativeFunction2_TESObjectREFR_void_ActorValueInfo__float_::MarshallAndDispatch(BSScript::Variable&_BSScript::Internal::VirtualMachine&_uint_BSScript::Variable&_BSScript::StackFrame&)
+    0x141444F80 (RVA 0x01444F80): BSScript::TypeTraits_ActorValueInfo__::TypeMatches(BSScript::Variable&_BSScript::IVirtualMachine&)_0
+    0x141461330 (RVA 0x01461330): BSScript::Internal::CreateVarFromValue_ActorValueInfo__0
+    0x141461DD0 (RVA 0x01461DD0): BSScript::Internal::BindCObject_ActorValueInfo__0
+    0x142500358 (RVA 0x02500358): ??_7?$ConcreteObjectFormFactory@VActorValueInfo@@$0GC@$0HH@$03@@6B@
+    0x1425005D8 (RVA 0x025005D8): ??_7ActorValueInfo@@6B@
+    0x142500830 (RVA 0x02500830): ??_7ActorValueInfo@@6B@_0
+    0x142500880 (RVA 0x02500880): ??_7ActorValueInfo@@6B@_1
+    0x142501728 (RVA 0x02501728): ??_7?$_Func_impl_no_alloc@P6AMPEBVActorValueOwner@@AEBVActorValueInfo@@@ZMPEBV1@AEBV2@@std@@6B@
+    0x142501760 (RVA 0x02501760): ??_7?$_Func_impl_no_alloc@P6AXPEAVActor@@AEBVActorValueInfo@@MM0@ZXPEAV1@AEBV2@MMPEAV1@@std@@6B@
+    0x1425BBAB8 (RVA 0x025BBAB8): ??_7?$NativeFunction2@UStaticFunctionTag@BSScript@@XPEAVActorValueInfo@@I@BSScript@@6B@
+    0x1425BC6B8 (RVA 0x025BC6B8): ??_7?$NativeFunction0@UStaticFunctionTag@BSScript@@PEBVActorValueInfo@@@BSScript@@6B@
+    0x1425C8458 (RVA 0x025C8458): ??_7?$NativeFunction2@VTESObjectREFR@@XPEBVActorValueInfo@@M@BSScript@@6B@
+    0x1425C91D8 (RVA 0x025C91D8): ??_7?$NativeFunction1@VTESObjectREFR@@MPEBVActorValueInfo@@@BSScript@@6B@
+    0x14295E330 (RVA 0x0295E330): ??_R4?$ConcreteObjectFormFactory@VActorValueInfo@@$0GC@$0HH@$03@@6B@
+    0x14295E358 (RVA 0x0295E358): ??_R3?$ConcreteObjectFormFactory@VActorValueInfo@@$0GC@$0HH@$03@@8
+    0x14295E370 (RVA 0x0295E370): ??_R2?$ConcreteObjectFormFactory@VActorValueInfo@@$0GC@$0HH@$03@@8
+    0x14295E390 (RVA 0x0295E390): ??_R1A@?0A@EA@?$ConcreteObjectFormFactory@VActorValueInfo@@$0GC@$0HH@$03@@8
+    0x14295E3B8 (RVA 0x0295E3B8): ??_R1A@?0A@EA@?$ConcreteFormFactory@VActorValueInfo@@$0GC@@@8
+    0x14295E3E0 (RVA 0x0295E3E0): ??_R3?$ConcreteFormFactory@VActorValueInfo@@$0GC@@@8
+    0x14295E3F8 (RVA 0x0295E3F8): ??_R2?$ConcreteFormFactory@VActorValueInfo@@$0GC@@@8
+    0x14295E410 (RVA 0x0295E410): ??_R4?$ConcreteFormFactory@VActorValueInfo@@$0GC@@@6B@
+    0x14295E438 (RVA 0x0295E438): ??_R4ActorValueInfo@@6B@
+    0x14295E460 (RVA 0x0295E460): ??_R3ActorValueInfo@@8
+    0x14295E478 (RVA 0x0295E478): ??_R2ActorValueInfo@@8
+    0x14295E4B8 (RVA 0x0295E4B8): ??_R1A@?0A@EA@ActorValueInfo@@8
+    0x14295E4E0 (RVA 0x0295E4E0): ??_R4ActorValueInfo@@6B@_0
+    0x14295E508 (RVA 0x0295E508): ??_R4ActorValueInfo@@6B@_1
+    0x14295E530 (RVA 0x0295E530): ??_R3?$_Func_base@XPEAVActor@@AEBVActorValueInfo@@MMPEAV1@@std@@8
+    0x14295E548 (RVA 0x0295E548): ??_R2?$_Func_base@XPEAVActor@@AEBVActorValueInfo@@MMPEAV1@@std@@8
+    0x14295E558 (RVA 0x0295E558): ??_R1A@?0A@EA@?$_Func_base@XPEAVActor@@AEBVActorValueInfo@@MMPEAV1@@std@@8
+    0x14295E580 (RVA 0x0295E580): ??_R3?$_Func_base@MPEBVActorValueOwner@@AEBVActorValueInfo@@@std@@8
+    0x14295E598 (RVA 0x0295E598): ??_R2?$_Func_base@MPEBVActorValueOwner@@AEBVActorValueInfo@@@std@@8
+    0x14295E5A8 (RVA 0x0295E5A8): ??_R1A@?0A@EA@?$_Func_base@MPEBVActorValueOwner@@AEBVActorValueInfo@@@std@@8
+    0x14295E5D0 (RVA 0x0295E5D0): ??_R4?$_Func_impl_no_alloc@P6AMPEBVActorValueOwner@@AEBVActorValueInfo@@@ZMPEBV1@AEBV2@@std@@6B@
+    0x14295E5F8 (RVA 0x0295E5F8): ??_R3?$_Func_impl_no_alloc@P6AMPEBVActorValueOwner@@AEBVActorValueInfo@@@ZMPEBV1@AEBV2@@std@@8
+    0x14295E610 (RVA 0x0295E610): ??_R2?$_Func_impl_no_alloc@P6AMPEBVActorValueOwner@@AEBVActorValueInfo@@@ZMPEBV1@AEBV2@@std@@8
+    0x14295E628 (RVA 0x0295E628): ??_R1A@?0A@EA@?$_Func_impl_no_alloc@P6AMPEBVActorValueOwner@@AEBVActorValueInfo@@@ZMPEBV1@AEBV2@@std@@8
+    0x14295E650 (RVA 0x0295E650): ??_R4?$_Func_impl_no_alloc@P6AXPEAVActor@@AEBVActorValueInfo@@MM0@ZXPEAV1@AEBV2@MMPEAV1@@std@@6B@
+    0x14295E678 (RVA 0x0295E678): ??_R3?$_Func_impl_no_alloc@P6AXPEAVActor@@AEBVActorValueInfo@@MM0@ZXPEAV1@AEBV2@MMPEAV1@@std@@8
+    0x14295E690 (RVA 0x0295E690): ??_R2?$_Func_impl_no_alloc@P6AXPEAVActor@@AEBVActorValueInfo@@MM0@ZXPEAV1@AEBV2@MMPEAV1@@std@@8
+    0x14295E6A8 (RVA 0x0295E6A8): ??_R1A@?0A@EA@?$_Func_impl_no_alloc@P6AXPEAVActor@@AEBVActorValueInfo@@MM0@ZXPEAV1@AEBV2@MMPEAV1@@std@@8
+    0x142A3C820 (RVA 0x02A3C820): _dynamic_initializer_for__HC_ActorValueCausesAlchemyItemRepopulateList__
+    0x142A5EF68 (RVA 0x02A5EF68): ??_R4?$NativeFunction2@UStaticFunctionTag@BSScript@@XPEAVActorValueInfo@@I@BSScript@@6B@
+    0x142A5EF90 (RVA 0x02A5EF90): ??_R3?$NativeFunction2@UStaticFunctionTag@BSScript@@XPEAVActorValueInfo@@I@BSScript@@8
+    0x142A5EFA8 (RVA 0x02A5EFA8): ??_R2?$NativeFunction2@UStaticFunctionTag@BSScript@@XPEAVActorValueInfo@@I@BSScript@@8
+    0x142A5EFD0 (RVA 0x02A5EFD0): ??_R1A@?0A@EA@?$NativeFunction2@UStaticFunctionTag@BSScript@@XPEAVActorValueInfo@@I@BSScript@@8
+    0x142A5F870 (RVA 0x02A5F870): ??_R4?$NativeFunction0@UStaticFunctionTag@BSScript@@PEBVActorValueInfo@@@BSScript@@6B@
+    0x142A5F898 (RVA 0x02A5F898): ??_R3?$NativeFunction0@UStaticFunctionTag@BSScript@@PEBVActorValueInfo@@@BSScript@@8
+    0x142A5F8B0 (RVA 0x02A5F8B0): ??_R2?$NativeFunction0@UStaticFunctionTag@BSScript@@PEBVActorValueInfo@@@BSScript@@8
+    0x142A5F8D8 (RVA 0x02A5F8D8): ??_R1A@?0A@EA@?$NativeFunction0@UStaticFunctionTag@BSScript@@PEBVActorValueInfo@@@BSScript@@8
+    0x142A662D0 (RVA 0x02A662D0): ??_R4?$NativeFunction2@VTESObjectREFR@@XPEBVActorValueInfo@@M@BSScript@@6B@
+    0x142A662F8 (RVA 0x02A662F8): ??_R3?$NativeFunction2@VTESObjectREFR@@XPEBVActorValueInfo@@M@BSScript@@8
+    0x142A66310 (RVA 0x02A66310): ??_R2?$NativeFunction2@VTESObjectREFR@@XPEBVActorValueInfo@@M@BSScript@@8
+    0x142A66338 (RVA 0x02A66338): ??_R1A@?0A@EA@?$NativeFunction2@VTESObjectREFR@@XPEBVActorValueInfo@@M@BSScript@@8
+    0x142A66D10 (RVA 0x02A66D10): ??_R4?$NativeFunction1@VTESObjectREFR@@MPEBVActorValueInfo@@@BSScript@@6B@
+    0x142A66D38 (RVA 0x02A66D38): ??_R3?$NativeFunction1@VTESObjectREFR@@MPEBVActorValueInfo@@@BSScript@@8
+    0x142A66D50 (RVA 0x02A66D50): ??_R2?$NativeFunction1@VTESObjectREFR@@MPEBVActorValueInfo@@@BSScript@@8
+    0x142A66D78 (RVA 0x02A66D78): ??_R1A@?0A@EA@?$NativeFunction1@VTESObjectREFR@@MPEBVActorValueInfo@@@BSScript@@8
+    0x142A67850 (RVA 0x02A67850): ??_R4?$NativeFunction2@VTESObjectREFR@@V?$ArrayWrapper@PEAVTESObjectREFR@@@BSScript@@PEBVActorValueInfo@@I@BSScript@@6B@
+    0x142A67878 (RVA 0x02A67878): ??_R3?$NativeFunction2@VTESObjectREFR@@V?$ArrayWrapper@PEAVTESObjectREFR@@@BSScript@@PEBVActorValueInfo@@I@BSScript@@8
+    0x142A67890 (RVA 0x02A67890): ??_R2?$NativeFunction2@VTESObjectREFR@@V?$ArrayWrapper@PEAVTESObjectREFR@@@BSScript@@PEBVActorValueInfo@@I@BSScript@@8
+    0x142A678B8 (RVA 0x02A678B8): ??_R1A@?0A@EA@?$NativeFunction2@VTESObjectREFR@@V?$ArrayWrapper@PEAVTESObjectREFR@@@BSScript@@PEBVActorValueInfo@@I@BSScript@@8
+    0x142F94618 (RVA 0x02F94618): ??_R0?AVActorValueInfo@@@8
+    0x142FAA700 (RVA 0x02FAA700): ??_R0?AV?$ConcreteObjectFormFactory@VActorValueInfo@@$0GC@$0HH@$03@@@8
+    0x142FAA760 (RVA 0x02FAA760): ??_R0?AV?$ConcreteFormFactory@VActorValueInfo@@$0GC@@@@8
+    0x142FAA7A8 (RVA 0x02FAA7A8): ??_R0P6AXPEAVActor@@AEBVActorValueInfo@@MM0@Z@8
+    0x142FAA7F0 (RVA 0x02FAA7F0): ??_R0P6AMPEBVActorValueOwner@@AEBVActorValueInfo@@@Z@8
+    0x142FAA840 (RVA 0x02FAA840): ??_R0?AV?$_Func_base@XPEAVActor@@AEBVActorValueInfo@@MMPEAV1@@std@@@8
+    0x142FAA890 (RVA 0x02FAA890): ??_R0?AV?$_Func_base@MPEBVActorValueOwner@@AEBVActorValueInfo@@@std@@@8
+    0x142FAA8F0 (RVA 0x02FAA8F0): ??_R0?AV?$_Func_impl_no_alloc@P6AMPEBVActorValueOwner@@AEBVActorValueInfo@@@ZMPEBV1@AEBV2@@std@@@8
+    0x142FAA960 (RVA 0x02FAA960): ??_R0?AV?$_Func_impl_no_alloc@P6AXPEAVActor@@AEBVActorValueInfo@@MM0@ZXPEAV1@AEBV2@MMPEAV1@@std@@@8
+    0x143078A70 (RVA 0x03078A70): ??_R0?AV?$NativeFunction2@UStaticFunctionTag@BSScript@@XPEAVActorValueInfo@@I@BSScript@@@8
+    0x143079130 (RVA 0x03079130): ??_R0?AV?$NativeFunction0@UStaticFunctionTag@BSScript@@PEBVActorValueInfo@@@BSScript@@@8
+    0x14307D910 (RVA 0x0307D910): ??_R0?AV?$NativeFunction2@VTESObjectREFR@@XPEBVActorValueInfo@@M@BSScript@@@8
+    0x14307DFD0 (RVA 0x0307DFD0): ??_R0?AV?$NativeFunction1@VTESObjectREFR@@MPEBVActorValueInfo@@@BSScript@@@8
+    0x14307E7D0 (RVA 0x0307E7D0): ??_R0?AV?$NativeFunction2@VTESObjectREFR@@V?$ArrayWrapper@PEAVTESObjectREFR@@@BSScript@@PEBVActorValueInfo@@I@BSScript@@@8
+
+======================================================================
+Output written to: C:\Users\hotto\source\repos\DoxCoSync\F4 Update\av_lookup_result.txt
+======================================================================

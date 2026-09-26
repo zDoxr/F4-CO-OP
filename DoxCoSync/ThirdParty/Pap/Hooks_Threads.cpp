@@ -1,13 +1,9 @@
-#include "Hooks_Threads.h"
-
-#include "ICriticalSection.h"
-#include "GameThreads.h"
-#include "Relocation.h"
-#include "BranchTrampoline.h"
-#include "xbyak.h"
-
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
+#include "f4se/Hooks_Threads.h"
+#include "common/ICriticalSection.h"
+#include "f4se/GameThreads.h"
+#include "f4se_common/Relocation.h"
+#include "f4se_common/BranchTrampoline.h"
+#include "xbyak/xbyak.h"
 
 #include <queue>
 
@@ -19,12 +15,12 @@ ICriticalSection		s_uiQueueLock;
 std::queue<ITaskDelegate*>	s_uiQueue;
 
 typedef bool (* _MessageQueueProcessTask)(void * messageQueue, float timeout, UInt32 unk1);
-RelocAddr <_MessageQueueProcessTask> MessageQueueProcessTask(0x00C44C30);
+RelocAddr <_MessageQueueProcessTask> MessageQueueProcessTask(0x00C44DC0);
 _MessageQueueProcessTask MessageQueueProcessTask_Original = nullptr;
 
-RelocAddr <uintptr_t> ProcessEventQueue_HookTarget(0x01A80030 + 0xFAC);
+RelocAddr <uintptr_t> ProcessEventQueue_HookTarget(0x01A80150 + 0xFAC);
 typedef void (* _ProcessEventQueue_Internal)(void * unk1);
-RelocAddr <_ProcessEventQueue_Internal> ProcessEventQueue_Internal(0x01B1DD10);
+RelocAddr <_ProcessEventQueue_Internal> ProcessEventQueue_Internal(0x01B1DE30);
 
 bool MessageQueueProcessTask_Hook(void * messageQueue, float timeout, UInt32 unk1)
 {

@@ -1,23 +1,23 @@
-#include "PapyrusActor.h"
+#include "f4se/PapyrusActor.h"
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
-#include "PapyrusArgs.h"
-#include "PapyrusStruct.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
+#include "f4se/PapyrusArgs.h"
+#include "f4se/PapyrusStruct.h"
 
-#include "GameForms.h"
-#include "GameReferences.h"
-#include "GameRTTI.h"
-#include "GameObjects.h"
-#include "GameExtraData.h"
+#include "f4se/GameForms.h"
+#include "f4se/GameReferences.h"
+#include "f4se/GameRTTI.h"
+#include "f4se/GameObjects.h"
+#include "f4se/GameExtraData.h"
 
-#include "PapyrusDelayFunctors.h"
+#include "f4se/PapyrusDelayFunctors.h"
 
-#include "NiRTTI.h"
-#include "NiNodes.h"
-#include "BSGeometry.h"
-#include "NiProperties.h"
-#include "NiMaterials.h"
+#include "f4se/NiRTTI.h"
+#include "f4se/NiNodes.h"
+#include "f4se/BSGeometry.h"
+#include "f4se/NiProperties.h"
+#include "f4se/NiMaterials.h"
 	
 namespace papyrusActor
 {

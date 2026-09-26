@@ -1,58 +1,58 @@
 #include "Hooks_Papyrus.h"
-#include "Relocation.h"
-#include "BranchTrampoline.h"
+#include "f4se_common/Relocation.h"
+#include "f4se_common/BranchTrampoline.h"
 
-#include "PapyrusVM.h"
-#include "PapyrusEvents.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusEvents.h"
 
-#include "PapyrusF4SE.h"
-#include "PapyrusForm.h"
-#include "PapyrusMath.h"
-#include "PapyrusActor.h"
-#include "PapyrusActorBase.h"
-#include "PapyrusHeadPart.h"
-#include "PapyrusObjectReference.h"
-#include "PapyrusGame.h"
-#include "PapyrusScriptObject.h"
-#include "PapyrusDelayFunctors.h"
-#include "PapyrusUtility.h"
-#include "PapyrusUI.h"
-#include "PapyrusEquipSlot.h"
-#include "PapyrusWeapon.h"
-#include "PapyrusObjectMod.h"
-#include "PapyrusInstanceData.h"
-#include "PapyrusWaterType.h"
-#include "PapyrusCell.h"
-#include "PapyrusPerk.h"
-#include "PapyrusLocation.h"
-#include "PapyrusEncounterZone.h"
-#include "PapyrusInput.h"
-#include "PapyrusDefaultObject.h"
-#include "PapyrusConstructibleObject.h"
-#include "PapyrusComponent.h"
-#include "PapyrusMiscObject.h"
-#include "PapyrusMaterialSwap.h"
-#include "PapyrusFavoritesManager.h"
-#include "PapyrusArmorAddon.h"
-#include "PapyrusArmor.h"
+#include "f4se/PapyrusF4SE.h"
+#include "f4se/PapyrusForm.h"
+#include "f4se/PapyrusMath.h"
+#include "f4se/PapyrusActor.h"
+#include "f4se/PapyrusActorBase.h"
+#include "f4se/PapyrusHeadPart.h"
+#include "f4se/PapyrusObjectReference.h"
+#include "f4se/PapyrusGame.h"
+#include "f4se/PapyrusScriptObject.h"
+#include "f4se/PapyrusDelayFunctors.h"
+#include "f4se/PapyrusUtility.h"
+#include "f4se/PapyrusUI.h"
+#include "f4se/PapyrusEquipSlot.h"
+#include "f4se/PapyrusWeapon.h"
+#include "f4se/PapyrusObjectMod.h"
+#include "f4se/PapyrusInstanceData.h"
+#include "f4se/PapyrusWaterType.h"
+#include "f4se/PapyrusCell.h"
+#include "f4se/PapyrusPerk.h"
+#include "f4se/PapyrusLocation.h"
+#include "f4se/PapyrusEncounterZone.h"
+#include "f4se/PapyrusInput.h"
+#include "f4se/PapyrusDefaultObject.h"
+#include "f4se/PapyrusConstructibleObject.h"
+#include "f4se/PapyrusComponent.h"
+#include "f4se/PapyrusMiscObject.h"
+#include "f4se/PapyrusMaterialSwap.h"
+#include "f4se/PapyrusFavoritesManager.h"
+#include "f4se/PapyrusArmorAddon.h"
+#include "f4se/PapyrusArmor.h"
 
-#include "Serialization.h"
+#include "f4se/Serialization.h"
 
-#include "xbyak.h"
+#include "xbyak/xbyak.h"
 
-RelocAddr <uintptr_t> RegisterPapyrusFunctions_Start(0x0113E770 + 0x461);
-RelocAddr <uintptr_t> DelayFunctorQueue_Start(0x010F0300 + 0x66);
+RelocAddr <uintptr_t> RegisterPapyrusFunctions_Start(0x0113E910 + 0x461);
+RelocAddr <uintptr_t> DelayFunctorQueue_Start(0x010F04A0 + 0x66);
 
 typedef bool (* _SaveRegistrationHandles)(void * unk1, void * vm, void * handleReaderWriter, void * saveStorageWrapper);
-RelocAddr <_SaveRegistrationHandles> SaveRegistrationHandles(0x011A09A0);
+RelocAddr <_SaveRegistrationHandles> SaveRegistrationHandles(0x011A0B40);
 _SaveRegistrationHandles SaveRegistrationHandles_Original = nullptr;
 
 typedef bool (* _LoadRegistrationHandles)(void * unk1, void * vm, void * handleReaderWriter, UInt16 version, void * loadStorageWrapper, void * unk2);
-RelocAddr <_LoadRegistrationHandles> LoadRegistrationHandles(0x011A0B20);
+RelocAddr <_LoadRegistrationHandles> LoadRegistrationHandles(0x011A0CC0);
 _LoadRegistrationHandles LoadRegistrationHandles_Original = nullptr;
 
 typedef void (* _RevertGlobalData)(void * vm);
-RelocAddr <_RevertGlobalData> RevertGlobalData(0x010EE540);
+RelocAddr <_RevertGlobalData> RevertGlobalData(0x010EE6E0);
 _RevertGlobalData RevertGlobalData_Original = nullptr;
 
 typedef std::list <F4SEPapyrusInterface::RegisterFunctions> PapyrusPluginList;

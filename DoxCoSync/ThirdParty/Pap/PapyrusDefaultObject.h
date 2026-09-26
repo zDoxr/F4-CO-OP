@@ -1,6 +1,6 @@
 #pragma once
 
-#include "GameTypes.h"
+#include "f4se/GameTypes.h"
 
 class VirtualMachine;
 

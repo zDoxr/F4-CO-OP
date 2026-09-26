@@ -1,6 +1,6 @@
 #pragma once
 
-#include "NiObjects.h"
+#include "f4se/NiObjects.h"
 
 // 180
 class bhkWorld : public NiObject

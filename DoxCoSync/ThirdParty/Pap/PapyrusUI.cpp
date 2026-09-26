@@ -1,18 +1,18 @@
-#include "PapyrusUI.h"
+#include "f4se/PapyrusUI.h"
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
-#include "PapyrusDelayFunctors.h"
-#include "PapyrusEvents.h"
+#include "f4se/PapyrusDelayFunctors.h"
+#include "f4se/PapyrusEvents.h"
 
-#include "Serialization.h"
-#include "apyrusSerialization.h"
+#include "f4se/Serialization.h"
+#include "f4se/PapyrusSerialization.h"
 
-#include "GameMenus.h"
-#include "PapyrusScaleformAdapter.h"
+#include "f4se/GameMenus.h"
+#include "f4se/PapyrusScaleformAdapter.h"
 
-#include "CustomMenu.h"
+#include "f4se/CustomMenu.h"
 
 namespace papyrusUI
 {

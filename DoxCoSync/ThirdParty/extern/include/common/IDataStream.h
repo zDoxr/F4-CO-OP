@@ -2,16 +2,14 @@
 
 #include "common/IErrors.h"
 
-/**
- *	An arbitrary data stream
- */
+
 class IDataStream
 {
 	public:
 		IDataStream();
 		virtual ~IDataStream();
 
-		// read
+
 		virtual UInt8	Read8(void);
 		virtual UInt16	Read16(void);
 		virtual UInt32	Read32(void);
@@ -20,7 +18,7 @@ class IDataStream
 		virtual UInt32	ReadString(char * buf, UInt32 bufLength, char altTerminator = 0, char altTerminator2 = 0);
 		virtual void	ReadBuf(void * buf, UInt32 inLength) = 0;
 
-		// peek
+
 		virtual UInt8	Peek8(void);
 		virtual UInt16	Peek16(void);
 		virtual UInt32	Peek32(void);
@@ -30,7 +28,7 @@ class IDataStream
 
 		virtual void	Skip(SInt64 inBytes);
 
-		// write
+
 		virtual void	Write8(UInt8 inData);
 		virtual void	Write16(UInt16 inData);
 		virtual void	Write32(UInt32 inData);
@@ -38,7 +36,7 @@ class IDataStream
 		virtual void	WriteFloat(float inData);
 		virtual void	WriteString(const char * buf);
 		virtual void	WriteBuf(const void * buf, UInt32 inLength) = 0;
-		
+
 		SInt64			GetLength(void);
 		SInt64			GetRemain(void);
 		SInt64			GetOffset(void);
@@ -63,9 +61,7 @@ class IDataStream
 		bool			swapBytes;
 };
 
-/**
- *	A utility class to automatically save and restore the current position of an IDataStream
- */
+
 class IDataStream_PositionSaver
 {
 	public:

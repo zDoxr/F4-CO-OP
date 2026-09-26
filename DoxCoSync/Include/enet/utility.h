@@ -1,7 +1,3 @@
-/** 
- @file  utility.h
- @brief ENet utility header
-*/
 #ifndef __ENET_UTILITY_H__
 #define __ENET_UTILITY_H__
 
@@ -19,5 +15,4 @@
 #define ENET_OFFSETOF(str, field) ((size_t) & ((str *) 0) -> field)
 #endif
 
-#endif /* __ENET_UTILITY_H__ */
-
+#endif

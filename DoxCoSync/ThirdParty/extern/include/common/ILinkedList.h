@@ -1,6 +1,6 @@
 #pragma once
 
-// ILink members must be public
+
 template <typename T>
 struct ILink
 {

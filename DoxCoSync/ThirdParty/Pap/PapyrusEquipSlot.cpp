@@ -1,7 +1,7 @@
-#include "PapyrusEquipSlot.h"
+#include "f4se/PapyrusEquipSlot.h"
  
-#include "GameForms.h"
-#include "PapyrusArgs.h"
+#include "f4se/GameForms.h"
+#include "f4se/PapyrusArgs.h"
 
 namespace papyrusEquipSlot
 {
@@ -22,8 +22,8 @@ namespace papyrusEquipSlot
 	}
 }
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
 void papyrusEquipSlot::RegisterFuncs(VirtualMachine* vm)
 {

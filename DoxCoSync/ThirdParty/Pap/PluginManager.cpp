@@ -1,16 +1,16 @@
 #include "PluginManager.h"
-#include "IDirectoryIterator.h"
-#include "IFileStream.h"
+#include "common/IDirectoryIterator.h"
+#include "common/IFileStream.h"
 #include "GameAPI.h"
-#include "Utilities.h"
-#include "f4se_version.h"
-#include "BranchTrampoline.h"
+#include "f4se_common/Utilities.h"
+#include "f4se_common/f4se_version.h"
+#include "f4se_common/BranchTrampoline.h"
 #include "Hooks_Scaleform.h"
 #include "Hooks_Papyrus.h"
-#include "Serialization.h"
+#include "f4se/Serialization.h"
 #include "Hooks_Threads.h"
-#include "PapyrusDelayFunctors.h"
-#include "PapyrusObjects.h"
+#include "f4se/PapyrusDelayFunctors.h"
+#include "f4se/PapyrusObjects.h"
 
 #include <cassert>
 #include <cstdint>
@@ -243,8 +243,6 @@ PluginManager::LoadedPlugin::LoadedPlugin()
 
 void PluginManager::Init(void)
 {
-	bool	result = false;
-
 	if(FindPluginDirectory())
 	{
 		_MESSAGE("plugin directory = %s", m_pluginDirectory.c_str());
@@ -255,8 +253,6 @@ void PluginManager::Init(void)
 		__try
 		{
 			ScanPlugins();
-
-			result = true;
 		}
 		__except(EXCEPTION_EXECUTE_HANDLER)
 		{
@@ -303,7 +299,7 @@ void PluginManager::InstallPlugins(UInt32 phase)
 		if(plugin.handle)
 		{
 			plugin.load[phase] = (_F4SEPlugin_Load)GetProcAddress(plugin.handle, (phase == kPhase_Preload) ? "F4SEPlugin_Preload" : "F4SEPlugin_Load");
-			if(plugin.load)
+			if(plugin.load[phase])
 			{
 				const char * loadStatus = nullptr;
 
@@ -335,7 +331,6 @@ void PluginManager::InstallPlugins(UInt32 phase)
 			// fix iterator
 			i--;
 		}
-
 	}
 
 	s_currentLoadingPlugin = nullptr;

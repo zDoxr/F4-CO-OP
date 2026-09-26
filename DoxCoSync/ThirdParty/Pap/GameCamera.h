@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Relocation.h"
-#include "GameEvents.h"
-#include "GameInput.h"
-#include "NiTypes.h"
+#include "f4se_common/Relocation.h"
+#include "f4se/GameEvents.h"
+#include "f4se/GameInput.h"
+#include "f4se/NiTypes.h"
 
 class NiNode;
 class TESCameraState;
@@ -67,7 +67,7 @@ public:
 	UInt32	unk34;		// 34
 
 	MEMBER_FN_PREFIX(TESCamera);
-	DEFINE_MEMBER_FN(SetCameraState, void, 0x00827A80, TESCameraState * cameraState);
+	DEFINE_MEMBER_FN(SetCameraState, void, 0x00827AC0, TESCameraState * cameraState);
 };
 
 class PlayerCamera : public TESCamera

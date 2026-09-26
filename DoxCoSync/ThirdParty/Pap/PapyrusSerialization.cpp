@@ -1,6 +1,6 @@
-#include "PapyrusSerialization.h"
+#include "f4se/PapyrusSerialization.h"
 
-#include "PapyrusArgs.h"
+#include "f4se/PapyrusArgs.h"
 
 namespace Serialization
 {

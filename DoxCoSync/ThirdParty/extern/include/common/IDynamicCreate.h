@@ -4,16 +4,14 @@
 #include "common/IDataStream.h"
 #include "common/IErrors.h"
 
-// this screws with edit-and-continue and we don't use it
+
 #define ENABLE_IDYNAMICCREATE 0
 
 #if ENABLE_IDYNAMICCREATE
 
-//! Get a pointer to the IDynamicType for a class.
-//! @note This is not a function; the parameter must be constant.
 #define GetDynType(name)	(&(##name##::__DYN_DynamicType))
 
-//! Declare the members used for dynamic class creation
+
 #define DYNAMIC_DECLARE(name)															\
 public:																					\
 	class __DYN_##name##_DynamicType : public IDynamicType								\
@@ -32,28 +30,22 @@ public:																					\
 																						\
 	friend __DYN_##name##_DynamicType;
 
-//! Define the members used for dynamic class creation
+
 #define DYNAMIC_DEFINE(name) name##::__DYN_##name##_DynamicType name##::__DYN_DynamicType;
 
-//! Define a dynamic instantiation handler
+
 #define DYNAMIC_INSTANTIATE_HANDLER(name)		IDynamic * name##::__DYN_##name##_DynamicType::Instantiate(IDataStream * stream) { name * object = new name;
 #define END_DYNAMIC_INSTANTIATE_HANDLER			return object; }
 
-//! Specifies that a dynamic class should not be instantiated automatically
+
 #define NO_DYNAMIC_INSTANTIATE_HANDLER(name)	DYNAMIC_INSTANTIATE_HANDLER(name) { HALT("attempted to instantiate " #name); } END_DYNAMIC_INSTANTIATE_HANDLER
 
-//! Casts 
+
 #define CAST(ptr, type)	_DynamicCast <type>(ptr);
 
 class IDynamicType;
 
-/**
- *	Pure virtual base class allowing dynamic creation of objects
- *	
- *	To allow dynamic creation of a class, publicly inherit IDynamic, add the
- *	macro DYNAMIC_DECLARE(classname) first in the class declaration, and add
- *	the macro DYNAMIC_DEFINE(classname) somewhere in the class definition file.
- */
+
 class IDynamic
 {
 	public:
@@ -63,9 +55,7 @@ class IDynamic
 		virtual IDynamicType *	__DYN_GetDynamicType(void) = 0;
 };
 
-/**
- *	Pure virtual base class allowing class instantiation and information retrieval
- */
+
 class IDynamicType
 {
 	public:
@@ -78,7 +68,7 @@ class IDynamicType
 		virtual IDynamic *	Instantiate(IDataStream * stream) = 0;
 };
 
-//! 
+
 template <typename T>
 T * _DynamicCast(IDynamic * ptr)
 {
@@ -88,9 +78,7 @@ T * _DynamicCast(IDynamic * ptr)
 	return NULL;
 }
 
-/**
- *	Registry of dynamic classes
- */
+
 class IClassRegistry
 {
 	public:

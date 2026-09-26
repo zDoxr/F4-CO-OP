@@ -2,9 +2,7 @@
 
 #include "common/ITypes.h"
 
-/**
- *	A high-resolution timer.
- */
+
 class ITimer
 {
 	public:
@@ -16,17 +14,17 @@ class ITimer
 
 		void	Start(void);
 
-		double	GetElapsedTime(void);	// seconds
+		double	GetElapsedTime(void);
 
 	private:
-		UInt64	m_qpcBase;	// QPC
-		UInt32	m_tickBase;	// timeGetTime
+		UInt64	m_qpcBase;
+		UInt32	m_tickBase;
 
 		static double	s_secondsPerCount;
 		static TIMECAPS	s_timecaps;
 		static bool		s_setTime;
 
-		// safe QPC stuff
+
 		static UInt64	GetQPC(void);
 
 		static UInt64	s_lastQPC;

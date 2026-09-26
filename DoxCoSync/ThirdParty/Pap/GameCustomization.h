@@ -1,11 +1,10 @@
 #pragma once
 
-#include "Relocation.h"
-#include "Utilities.h"
+#include "f4se_common/Relocation.h"
+#include "f4se_common/Utilities.h"
 
-#include "GameUtilities.h"
-#include "GameTypes.h"
-#include "IDebugLog.h"
+#include "f4se/GameUtilities.h"
+#include "f4se/GameTypes.h"
 
 class Actor;
 class TESNPC;
@@ -417,7 +416,7 @@ public:
 	UInt64					unk520[(0x548-0x520)/8];	// 520
 
 	MEMBER_FN_PREFIX(CharacterCreation);
-	DEFINE_MEMBER_FN(LoadPreset, void, 0x00BBC890, UInt32 presetIndex); // Loads preset by index onto the actor
+	DEFINE_MEMBER_FN(LoadPreset, void, 0x00BBC700, UInt32 presetIndex); // Loads preset by index onto the actor
 };
 
 // ??
@@ -439,7 +438,7 @@ public:
 	NiAVObject	* camera;							// 34A8 - NiCamera (WorldRoot Camera)
 
 	MEMBER_FN_PREFIX(BSFaceGenManager);
-	DEFINE_MEMBER_FN(ApplyDynamicData, void, 0x006DE050, BSTriShape * trishape);
+	DEFINE_MEMBER_FN(ApplyDynamicData, void, 0x006DE070, BSTriShape * trishape);
 };
 STATIC_ASSERT(offsetof(BSFaceGenManager, unk3230) == 0x3230);
 STATIC_ASSERT(offsetof(BSFaceGenManager, unk3478) == 0x3478);

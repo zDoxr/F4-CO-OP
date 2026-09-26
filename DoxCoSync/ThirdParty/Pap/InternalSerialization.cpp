@@ -1,17 +1,17 @@
 #include <map>
 #include <string>
 
-#include "IFileStream.h"
+#include "common/IFileStream.h"
 
-#include "PluginAPI.h"
-#include "GameData.h"
-#include "InternalSerialization.h"
-#include "Serialization.h"
-#include "PapyrusEvents.h"
-#include "PapyrusObjects.h"
-#include "PapyrusDelayFunctors.h"
+#include "f4se/PluginAPI.h"
+#include "f4se/GameData.h"
+#include "f4se/InternalSerialization.h"
+#include "f4se/Serialization.h"
+#include "f4se/PapyrusEvents.h"
+#include "f4se/PapyrusObjects.h"
+#include "f4se/PapyrusDelayFunctors.h"
 
-#include "CustomMenu.h"
+#include "f4se/CustomMenu.h"
 
 // Internal
 

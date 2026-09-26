@@ -1,9 +1,9 @@
-#include "PapyrusWeapon.h"
+#include "f4se/PapyrusWeapon.h"
 
-#include "GameObjects.h"
-#include "GameData.h"
+#include "f4se/GameObjects.h"
+#include "f4se/GameData.h"
 
-#include "PapyrusStruct.h"
+#include "f4se/PapyrusStruct.h"
 
 namespace papyrusWeapon
 {
@@ -20,8 +20,8 @@ namespace papyrusWeapon
 	}
 }
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
 void papyrusWeapon::RegisterFuncs(VirtualMachine* vm)
 {

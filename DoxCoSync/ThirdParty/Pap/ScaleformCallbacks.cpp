@@ -1,4 +1,4 @@
-#include "ScaleformCallbacks.h"
+#include "f4se/ScaleformCallbacks.h"
 
 UInt32 g_GFxFunctionHandler_count = 0;
 

@@ -1,20 +1,20 @@
 #include "Hooks_GameData.h"
-#include "GameThreads.h"
-#include "GameData.h"
-#include "Relocation.h"
-#include "SafeWrite.h"
-#include "BranchTrampoline.h"
-#include "xbyak.h"
-#include "PluginManager.h"
+#include "f4se/GameThreads.h"
+#include "f4se/GameData.h"
+#include "f4se_common/Relocation.h"
+#include "f4se_common/SafeWrite.h"
+#include "f4se_common/BranchTrampoline.h"
+#include "xbyak/xbyak.h"
+#include "f4se/PluginManager.h"
 
 typedef UInt64 (* _InitGameDataThread_Run_Original)(InitGameDataThread * thread);
-RelocAddr <_InitGameDataThread_Run_Original> InitGameDataThread_Run_Original(0x00C41320);
+RelocAddr <_InitGameDataThread_Run_Original> InitGameDataThread_Run_Original(0x00C414B0);
 
 typedef void (* _GameDataReady_Original)(bool isReady);
 // writes to g_isGameDataReady
 
 // 
-RelocAddr <_GameDataReady_Original> GameDataReady_Original(0x008289B0);
+RelocAddr <_GameDataReady_Original> GameDataReady_Original(0x008289F0);
 
 UInt64 InitGameDataRun_Hook(InitGameDataThread * thread)
 {
@@ -38,7 +38,7 @@ void Hooks_GameData_Init()
 void Hooks_GameData_Commit()
 {
 	// ??_7InitGameDataThread@?A0x0a0dfc9e@@6B@
-	RelocAddr <uintptr_t> InitGameDataThread_Run(0x0255DB48 + 8); 
+	RelocAddr <uintptr_t> InitGameDataThread_Run(0x0255DB58 + 8); 
 
 	SafeWrite64(InitGameDataThread_Run.GetUIntPtr(), (UInt64)InitGameDataRun_Hook);
 	g_branchTrampoline.Write6Branch(GameDataReady_Original.GetUIntPtr(), (uintptr_t)GameDataReady_Hook);

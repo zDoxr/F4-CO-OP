@@ -1,0 +1,90 @@
+/*
+ * CoSync teammate HUD -- Fallout 4 HUD language: HUD-colour bars with a thin
+ * frame, red radiation claiming health from the right, condensed type with a
+ * soft glow, no panels. Sits bottom-left, above the player's own vanilla
+ * health bar. Colour follows the player's HUD colour (set from C++).
+ */
+
+@font-face {
+  font-family: "FO Main";
+  src: url("fonts/RobotoCondensed-700.ttf") format("truetype");
+  font-weight: 700;
+}
+
+:root {
+  --hud:      rgb(18, 255, 21);
+  --hud-55:   rgba(18, 255, 21, 0.55);
+  --hud-25:   rgba(18, 255, 21, 0.25);
+  --hud-glow: rgba(18, 255, 21, 0.45);
+  --rads:     rgb(230, 40, 30);
+  --hit:      rgb(255, 60, 45);
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: none;
+  font-family: "FO Main", "Roboto Condensed", "Arial Narrow", sans-serif;
+  font-weight: 700;
+  color: var(--hud);
+}
+
+.team {
+  position: absolute;
+  left: 3.6vh;
+  bottom: 21vh;
+  display: flex;
+  flex-direction: column-reverse;   /* newest at the top, stack grows upward */
+  gap: 1.4vh;
+  width: 26vh;
+}
+
+.mate { text-shadow: 0 0 0.5vh var(--hud-glow); }
+
+.mate .top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.45vh;
+  font-size: 1.9vh;
+  letter-spacing: 0.03em;
+}
+.mate .name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 17vh;
+}
+.mate .lvl { color: var(--hud-55); font-size: 1.6vh; margin-left: 0.8vh; }
+.mate .downed { color: var(--hit); text-shadow: 0 0 0.5vh rgba(255, 60, 45, 0.6); letter-spacing: 0.08em; }
+
+/* Health: HUD colour from the left, radiation red from the right. */
+.bar {
+  position: relative;
+  height: 1.25vh;
+  border: 0.15vh solid var(--hud-55);
+  background: rgba(0, 0, 0, 0.35);
+}
+.bar .hp   { position: absolute; left: 0;  top: 0; bottom: 0; background: var(--hud); }
+.bar .rads { position: absolute; right: 0; top: 0; bottom: 0; background: var(--rads); }
+.mate.hurt .bar .hp { background: var(--hit); }
+
+/* AP: thin strip under health, like the vanilla AP meter. */
+.ap {
+  position: relative;
+  margin-top: 0.35vh;
+  width: 80%;
+  height: 0.55vh;
+  border: 0.1vh solid var(--hud-25);
+  background: rgba(0, 0, 0, 0.3);
+}
+.ap .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--hud-55); }
+
+.mate.down .bar { border-color: var(--hit); }
+
+/* Glide between the 10 Hz vitals samples (100 ms apart): a linear transition
+   slightly longer than the gap keeps regen continuous instead of stepped. */
+.bar .hp, .bar .rads, .ap .fill { transition: width 150ms linear; }
+.bar .hp { transition: width 150ms linear, background-color 120ms ease-out; }

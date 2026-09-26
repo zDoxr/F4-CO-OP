@@ -1,7 +1,7 @@
 #pragma once
 
-#include "NiObjects.h"
-#include "BSLight.h"
+#include "f4se/NiObjects.h"
+#include "f4se/BSLight.h"
 
 // 140
 class NiNode : public NiAVObject
@@ -25,7 +25,7 @@ public:
 	static NiNode * Create(UInt16 children = 0);
 
 	MEMBER_FN_PREFIX(NiNode);
-	DEFINE_MEMBER_FN(ctor, NiNode*, 0x016BDFE0, UInt16 children);
+	DEFINE_MEMBER_FN(ctor, NiNode*, 0x016BE100, UInt16 children);
 };
 STATIC_ASSERT(sizeof(NiNode) == 0x140);
 

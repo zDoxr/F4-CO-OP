@@ -1,12 +1,12 @@
-#include "papyrusMiscObject.h"
+#include "f4se/papyrusMiscObject.h"
 
-#include "PapyrusArgs.h"
-#include "PapyrusStruct.h"
+#include "f4se/PapyrusArgs.h"
+#include "f4se/PapyrusStruct.h"
 
-#include "GameExtraData.h"
-#include "GameForms.h"
-#include "GameObjects.h"
-#include "GameRTTI.h"
+#include "f4se/GameExtraData.h"
+#include "f4se/GameForms.h"
+#include "f4se/GameObjects.h"
+#include "f4se/GameRTTI.h"
 
 namespace papyrusMiscObject
 {
@@ -59,8 +59,8 @@ namespace papyrusMiscObject
 	}
 }
 
-#include "PapyrusVM.h"
-#include "PapyrusNativeFunctions.h"
+#include "f4se/PapyrusVM.h"
+#include "f4se/PapyrusNativeFunctions.h"
 
 void papyrusMiscObject::RegisterFuncs(VirtualMachine* vm)
 {

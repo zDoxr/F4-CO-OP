@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -36,7 +36,7 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -49,7 +49,7 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -58,16 +58,12 @@
   <ImportGroup Label="Shared">
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -82,6 +78,22 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
+
+  <!-- =========================================================
+       Papyrus Script Compiler
+       Override PapyrusCompilerPath in your user .props file or
+       via the VS property sheet if your FO4 install is elsewhere.
+       ========================================================= -->
+  <PropertyGroup>
+    <PapyrusCompilerPath Condition="'$(PapyrusCompilerPath)'==''">C:\Program Files (x86)\Steam\steamapps\common\Fallout 4\Papyrus Compiler\PapyrusCompiler.exe</PapyrusCompilerPath>
+    <PapyrusDataDir Condition="'$(PapyrusDataDir)'==''">$(SolutionDir)F4se-Data\Data\Scripts</PapyrusDataDir>
+    <PapyrusFlagsFile Condition="'$(PapyrusFlagsFile)'==''">$(PapyrusDataDir)\Source\Base\Institute_Papyrus_Flags.flg</PapyrusFlagsFile>
+    <PapyrusImportDirs Condition="'$(PapyrusImportDirs)'==''">$(PapyrusDataDir)\Source;$(PapyrusDataDir)\Source\Base;$(PapyrusDataDir)\Scripts</PapyrusImportDirs>
+    <PapyrusOutputDir Condition="'$(PapyrusOutputDir)'==''">$(PapyrusDataDir)</PapyrusOutputDir>
+    <!-- FO4 install directory — override in a user .props file if your install differs -->
+    <FO4DataDir Condition="'$(FO4DataDir)'==''">C:\Program Files (x86)\Steam\steamapps\common\Fallout 4\Data</FO4DataDir>
+  </PropertyGroup>
+
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -89,7 +101,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <AdditionalIncludeDirectories>C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se_common;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\Steam;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Clothing;$(ProjectDir)World;$(ProjectDir)Items;$(ProjectDir)Networking;$(ProjectDir)Hooks;$(ProjectDir)Character;$(ProjectDir)Animations;$(ProjectDir)Weapons;$(ProjectDir)Core;$(ProjectDir)CoSync;$(ProjectDir)GUI;$(ProjectDir)Dialog;$(ProjectDir)Armor;$(ProjectDir)ThirdParty/extern/include;$(ProjectDir)ThirdParty/extern/include/common;$(SolutionDir)f4se-0.7.9;$(SolutionDir)f4se-0.7.9\f4se;$(SolutionDir)f4se-0.7.9\f4se_common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\MinHook\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>Default</LanguageStandard>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
@@ -99,7 +111,7 @@
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>f4se_1_11_169.lib;f4se_common.lib;GameNetworkingSockets.lib;GameNetworkingSockets_s.lib;common.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -111,7 +123,8 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <AdditionalIncludeDirectories>C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include;C:\Users\hotto\Desktop\CoSync\Testing\f4se\f4se;C:\Users\hotto\Desktop\CoSync\Testing\f4se\f4se_common;C:\Users\hotto\Desktop\CoSync\Testing\common\common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\ImGui;$(ProjectDir)ThirdParty\MinHook\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Clothing;$(ProjectDir)World;$(ProjectDir)Items;$(ProjectDir)Networking;$(ProjectDir)Hooks;$(ProjectDir)Character;$(ProjectDir)Animations;$(ProjectDir)Weapons;$(ProjectDir)Core;$(ProjectDir)CoSync;$(ProjectDir)GUI;$(ProjectDir)Dialog;$(ProjectDir)Armor;$(ProjectDir)ThirdParty/extern/include;$(ProjectDir)ThirdParty/extern/include/common;$(SolutionDir)f4se-0.7.9;$(SolutionDir)f4se-0.7.9\f4se;$(SolutionDir)f4se-0.7.9\f4se_common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\MinHook\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>IPrefix.h</ForcedIncludeFiles>
       <LanguageStandard>Default</LanguageStandard>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <DisableSpecificWarnings>4996;4244;4100;%(DisableSpecificWarnings)</DisableSpecificWarnings>
@@ -120,9 +133,16 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>C:\Users\hotto\Desktop\CoSync\Testing\common\build\Release;$(ProjectDir)ThirdParty/GNS/Lib;$(ProjectDir)ThirdParty/MinHook/Lib;C:\Users\hotto\Desktop\CoSync\Testing\f4se\build\f4se\f4se_common\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)Lib;$(ProjectDir)ThirdParty/GNS/Lib;$(ProjectDir)ThirdParty/MinHook/Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>common.lib;f4se_common.lib;GameNetworkingSockets.lib;crypt32.lib;secur32.lib;iphlpapi.lib;minhook.x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
+      <!-- 2026-08-04: emit a linker map so the VEH's "DoxCoSync.dll+0xRVA"
+           crash lines can be resolved to an actual function name. Without it
+           the only way to attribute a crash was to guess which recent change
+           caused it and rebuild - which cost several rounds on the quest
+           crash. Map generation has no runtime cost. -->
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapExports>true</MapExports>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -132,7 +152,8 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <AdditionalIncludeDirectories>C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\f4se_common;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\Steam;C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>$(ProjectDir)Core\GlobalPrelude.h</ForcedIncludeFiles>
+      <AdditionalIncludeDirectories>$(ProjectDir)Clothing;$(ProjectDir)World;$(ProjectDir)Items;$(ProjectDir)Networking;$(ProjectDir)Hooks;$(ProjectDir)Character;$(ProjectDir)Animations;$(ProjectDir)Weapons;$(ProjectDir)Core;$(ProjectDir)CoSync;$(ProjectDir)GUI;$(ProjectDir)Dialog;$(ProjectDir)Armor;$(ProjectDir)ThirdParty/extern/include;$(ProjectDir)ThirdParty/extern/include/common;$(SolutionDir)f4se-0.7.9;$(SolutionDir)f4se-0.7.9\f4se;$(SolutionDir)f4se-0.7.9\f4se_common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\MinHook\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>Default</LanguageStandard>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
@@ -142,7 +163,7 @@
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>f4se_1_11_169.lib;f4se_common.lib;GameNetworkingSockets.lib;GameNetworkingSockets_s.lib;common.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -154,71 +175,205 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <AdditionalIncludeDirectories>C:\Users\hotto\source\repos\DoxCoSync\DoxCoSync\Include;C:\Users\hotto\Desktop\CoSync\Testing\f4se\f4se;C:\Users\hotto\Desktop\CoSync\Testing\f4se\f4se_common;C:\Users\hotto\Desktop\CoSync\Testing\common\common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\ImGui;$(ProjectDir)ThirdParty\MinHook\Include;C:\Users\hotto\Desktop\CoSync\Testing\f4se\xbyak;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp14</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir)Clothing;$(ProjectDir)World;$(ProjectDir)Items;$(ProjectDir)Networking;$(ProjectDir)Hooks;$(ProjectDir)Character;$(ProjectDir)Animations;$(ProjectDir)Weapons;$(ProjectDir)Core;$(ProjectDir)CoSync;$(ProjectDir)GUI;$(ProjectDir)Dialog;$(ProjectDir)Armor;$(ProjectDir)ThirdParty/extern/include;$(ProjectDir)ThirdParty/extern/include/common;$(SolutionDir)f4se-0.7.9;$(SolutionDir)f4se-0.7.9\f4se;$(SolutionDir)f4se-0.7.9\f4se_common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\MinHook\Include;$(ProjectDir)ThirdParty\PrismaUI;$(SolutionDir)f4se-0.7.9\xbyak;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>IPrefix.h</ForcedIncludeFiles>
+      <!-- C++17: required by the PrismaUI modder API header (inline constexpr,
+           [[nodiscard]], std::is_*_v traits). -->
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <DisableSpecificWarnings>4996;4244;4100;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <!-- /utf-8: treat all source files as UTF-8 so Unicode in comments (em-dashes,
+           arrows, etc.) does not confuse the MSVC tokeniser. Without this flag the
+           compiler falls back to the system code page (CP1252) and misinterprets the
+           multi-byte sequences as Windows-1252 characters, producing C3873/C2006. -->
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>C:\Users\hotto\Desktop\CoSync\Testing\common\build\Release;$(ProjectDir)ThirdParty/GNS/Lib;$(ProjectDir)ThirdParty/MinHook/Lib;C:\Users\hotto\Desktop\CoSync\Testing\f4se\build\f4se\f4se_common\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)Lib;$(ProjectDir)ThirdParty/GNS/Lib;$(ProjectDir)ThirdParty/MinHook/Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>common.lib;f4se_common.lib;GameNetworkingSockets.lib;crypt32.lib;secur32.lib;iphlpapi.lib;minhook.x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
+      <!-- 2026-08-04: emit a linker map so the VEH's "DoxCoSync.dll+0xRVA"
+           crash lines can be resolved to an actual function name. Without it
+           the only way to attribute a crash was to guess which recent change
+           caused it and rebuild - which cost several rounds on the quest
+           crash. Map generation has no runtime cost. -->
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapExports>true</MapExports>
+      <EnableCOMDATFolding>false</EnableCOMDATFolding>
     </Link>
+    <!-- Deploy DLL + ESP + PEX to Fallout 4 Data directory after a Release build.
+         Requires FO4DataDir to point at a valid FO4 installation.
+         Override FO4DataDir in a user .props file if needed. -->
+    <PostBuildEvent>
+      <Message>Deploying DoxCoSync to $(FO4DataDir)</Message>
+      <Command>
+if not exist "$(FO4DataDir)\F4SE\Plugins" mkdir "$(FO4DataDir)\F4SE\Plugins"
+copy /Y "$(TargetPath)" "$(FO4DataDir)\F4SE\Plugins\$(TargetName).dll"
+if exist "$(TargetDir)$(TargetName).pdb" copy /Y "$(TargetDir)$(TargetName).pdb" "$(FO4DataDir)\F4SE\Plugins\$(TargetName).pdb"
+set "_pcomp=$(PapyrusCompilerPath)"
+set "_pout=$(PapyrusOutputDir)"
+set "_pflags=$(PapyrusFlagsFile)"
+set "_pi=$(PapyrusDataDir)\Source;$(PapyrusDataDir)\Source\Base;$(PapyrusDataDir)\Scripts"
+if exist "%_pcomp%" "%_pcomp%" "CoSyncQuest" "-f=%_pflags%" "-i=%_pi%" "-o=%_pout%"
+if exist "%_pcomp%" "%_pcomp%" "CoSyncPlayer" "-f=%_pflags%" "-i=%_pi%" "-o=%_pout%"
+if exist "$(PapyrusOutputDir)\CoSync.pex" copy /Y "$(PapyrusOutputDir)\CoSync.pex" "$(FO4DataDir)\Scripts\CoSync.pex"
+if exist "$(PapyrusOutputDir)\CoSyncQuest.pex" copy /Y "$(PapyrusOutputDir)\CoSyncQuest.pex" "$(FO4DataDir)\Scripts\CoSyncQuest.pex"
+if exist "$(PapyrusOutputDir)\CoSyncPlayer.pex" copy /Y "$(PapyrusOutputDir)\CoSyncPlayer.pex" "$(FO4DataDir)\Scripts\CoSyncPlayer.pex"
+if exist "$(SolutionDir)F4se-Data\Data\CoSync.esp" copy /Y "$(SolutionDir)F4se-Data\Data\CoSync.esp" "$(FO4DataDir)\CoSync.esp"
+rem GameNetworkingSockets runtime (+ abseil/libcrypto/libprotobuf). F4SE loads
+rem plugins with plain LoadLibrary, so these are resolved from the GAME ROOT
+rem (exe dir), not from F4SE\Plugins. A game reinstall/update wiped them on
+rem 2026-09-22 and DoxCoSync failed to load with error 126. Copy only if missing.
+for %%D in (GameNetworkingSockets.dll abseil_dll.dll libcrypto-3-x64.dll libprotobuf.dll) do if not exist "$(FO4DataDir)\..\%%D" if exist "$(ProjectDir)F4se-Data\GameRoot\%%D" copy "$(ProjectDir)F4se-Data\GameRoot\%%D" "$(FO4DataDir)\..\%%D"
+rem PrismaUI views (HTML/CSS/JS/fonts) -> Data\PrismaUI_F4\views\DoxCoSync\
+if exist "$(ProjectDir)F4se-Data\Data\PrismaUI_F4\views\DoxCoSync" xcopy /E /Y /I "$(ProjectDir)F4se-Data\Data\PrismaUI_F4\views\DoxCoSync" "$(FO4DataDir)\PrismaUI_F4\views\DoxCoSync\"
+rem CoSync.ini: deliberately NOT /Y -- this is user-editable config, so ship the
+rem default once and never overwrite a local change on a later rebuild.
+if not exist "$(FO4DataDir)\F4SE\Plugins\CoSync.ini" if exist "$(SolutionDir)F4se-Data\Data\F4SE\Plugins\CoSync.ini" copy "$(SolutionDir)F4se-Data\Data\F4SE\Plugins\CoSync.ini" "$(FO4DataDir)\F4SE\Plugins\CoSync.ini"
+rem 2026-07-21: RE-ENABLED with a fundamentally different, safer technique.
+rem The original approach (hand-assembled minimal NiNode from scratch, no
+rem validation tooling) hung the game the first time it went live -- see
+rem CHANGELOG [0.0.39]/[0.0.40]. Replaced entirely: these 91 files are the
+rem REAL game meshes extracted directly from Fallout4 - Meshes.ba2/
+rem MeshesExtra.ba2 (a hand-written BA2 reader, not a NIF writer), with only
+rem the root NiNode's scale float overwritten to 0.0 in place -- header,
+rem block table, and all other bytes are byte-identical to the shipped game
+rem asset. Each patch site was verified against the expected post-scale
+rem byte shape (collision ref + plausible child count) before being
+rem accepted; 6 candidates that didn't match were left untouched rather
+rem than guessed at. See CHANGELOG [0.0.41] for the full methodology.
+if exist "$(ProjectDir)F4se-Data\Data\Meshes\LoadScreenArt" xcopy /Y /I "$(ProjectDir)F4se-Data\Data\Meshes\LoadScreenArt\*.nif" "$(FO4DataDir)\Meshes\LoadScreenArt\"
+exit /b 0
+      </Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameInput.h" />
-    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameRTTI.h" />
-    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameUtilities.h">
+    <ClInclude Include="Core\CoSyncAddressScan.h" />
+    <ClInclude Include="Core\CoSyncAddressSignatures.h" />
+    <ClInclude Include="$(SolutionDir)f4se-0.7.9\f4se\GameData.h" />
+    <ClInclude Include="$(SolutionDir)f4se-0.7.9\f4se\GameInput.h" />
+    <ClInclude Include="$(SolutionDir)f4se-0.7.9\f4se\GameRTTI.h" />
+    <ClInclude Include="$(SolutionDir)f4se-0.7.9\f4se\GameUtilities.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\Hooks_Threads.h" />
-    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\NiTypes.h" />
-    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusArgs.h" />
-    <ClInclude Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se_common\Utilities.h" />
-    <ClInclude Include="ConsoleLogger.h" />
-    <ClInclude Include="CoSyncActorValues.h" />
-    <ClInclude Include="CoSyncEntityRegistry.h" />
-    <ClInclude Include="CoSyncEntityState.h" />
-    <ClInclude Include="CoSyncEntityTypes.h" />
-    <ClInclude Include="CoSyncGameAPI.h" />
-    <ClInclude Include="CoSynclocalplayer.h" />
+    <ClInclude Include="$(SolutionDir)f4se-0.7.9\f4se\Hooks_Threads.h" />
+    <ClInclude Include="$(SolutionDir)f4se-0.7.9\f4se\NiTypes.h" />
+    <ClInclude Include="$(SolutionDir)f4se-0.7.9\f4se\PapyrusArgs.h" />
+    <ClInclude Include="$(SolutionDir)f4se-0.7.9\f4se_common\Utilities.h" />
+    <ClInclude Include="Character\Actor.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="Character\ActorState.h" />
+    <ClInclude Include="AIProcess.h" />
+    <ClInclude Include="Animations\AnimationVariables.h" />
+    <ClInclude Include="GUI\ConsoleLogger.h" />
+    <ClInclude Include="Character\CoSyncActorValues.h" />
+    <ClInclude Include="Animations\BSAnimationGraphManager.h" />
+    <ClInclude Include="Animations\BShkbAnimationGraph.h" />
+    <ClInclude Include="Animations\CoSyncAnimationState.h" />
+    <ClInclude Include="Animations\CoSyncAnimationUtils.h" />
+    <ClInclude Include="Animations\CoSyncAnimVarSystem.h" />
+    <ClInclude Include="Animations\CoSyncCreatureAnimSync.h" />
+    <ClInclude Include="Animations\CoSyncBehaviorGraph.h" />
+    <ClInclude Include="Animations\CoSyncPlayerAnimation.h" />
+    <ClInclude Include="Animations\CoSyncBoneAnimator.h" />
+    <ClInclude Include="Networking\CoSyncBonePackets.h" />
+    <ClInclude Include="CoSyncBoneSync.h" />
+    <ClInclude Include="CoSync\CoSyncEntityRegistry.h" />
+    <ClInclude Include="CoSync\CoSyncEntityState.h" />
+    <ClInclude Include="CoSync\CoSyncEntityTypes.h" />
+    <ClInclude Include="CoSync\CoSyncGameAPI.h" />
+    <ClInclude Include="Animations\CoSyncLocalAnimationCapture.h" />
+    <ClInclude Include="Character\CoSynclocalplayer.h" />
     <ClInclude Include="CoSyncMessageHelpers.h" />
     <ClInclude Include="CoSyncMessageTypes.h" />
-    <ClInclude Include="CoSyncNet.h" />
-    <ClInclude Include="CoSyncOverlay.h" />
+    <ClInclude Include="Networking\CoSyncNet.h" />
+    <ClInclude Include="Networking\CoSyncSteamID.h" />
+    <ClInclude Include="GUI\CoSyncOverlay.h" />
+    <ClInclude Include="GUI\CoSyncPrismaUI.h" />
+    <ClInclude Include="GUI\CoSyncWindowHook.h" />
+    <ClInclude Include="ThirdParty\PrismaUI\PrismaUI_F4_API.h" />
     <ClInclude Include="CoSyncPapyrushelper.h" />
-    <ClInclude Include="CoSyncPlayer.h" />
-    <ClInclude Include="CoSyncPlayerManager.h" />
-    <ClInclude Include="CoSyncPlayerSpawner.h" />
-    <ClInclude Include="CoSyncRuntime.h" />
+    <ClInclude Include="Character\CoSyncPlayer.h" />
+    <ClInclude Include="Character\CoSyncPlayerManager.h" />
+    <ClInclude Include="Character\CoSyncPlayerMarker.h" />
+    <ClInclude Include="Character\CoSyncTeleport.h" />
+    <ClInclude Include="Character\CoSyncPlayerSpawner.h" />
+    <ClInclude Include="Animations\CoSyncRemoteAnimation.h" />
+    <ClInclude Include="World\CoSyncRuntime.h" />
+    <ClInclude Include="CoSyncTickFallback.h" />
     <ClInclude Include="CoSyncSpawnTasks.h" />
-    <ClInclude Include="CoSyncSteam.h" />
-    <ClInclude Include="CoSyncSteamManager.h" />
-    <ClInclude Include="CoSyncTransport.h" />
-    <ClInclude Include="CoSyncWorld.h" />
-    <ClInclude Include="DX11Hook.h" />
-    <ClInclude Include="EntitySerialization.h" />
-    <ClInclude Include="F4MP_Main.h" />
+    <ClInclude Include="Networking\CoSyncTransport.h" />
+    <ClInclude Include="World\CoSyncWorld.h" />
+    <ClInclude Include="World\CoSyncWorldSync.h" />
+    <ClInclude Include="World\CoSyncTimeWeatherSync.h" />
+    <ClInclude Include="World\CoSyncTimeSync.h" />
+    <ClInclude Include="Items\CoSyncWorkshopSync.h" />
+    <ClInclude Include="CoSyncHealthSync.h" />
+    <ClInclude Include="CoSyncReviveSync.h" />
+    <ClInclude Include="Character\CoSyncActorValueSafety.h" />
+    <ClInclude Include="Items\CoSyncInventorySync.h" />
+    <ClInclude Include="World\CoSyncMapSync.h" />
+    <ClInclude Include="World\CoSyncQuestSync.h" />
+    <ClInclude Include="Armor\CoSyncPowerArmorSync.h" />
+    <ClInclude Include="Items\CoSyncConsumableSync.h" />
+    <ClInclude Include="CoSyncSpecialSync.h" />
+    <ClInclude Include="Clothing\CoSyncOutfitSync.h" />
+    <ClInclude Include="Clothing\CoSyncEquipHook.h" />
+    <ClInclude Include="World\CoSyncDoorHook.h" />
+    <ClInclude Include="World\CoSyncLockHook.h" />
+    <ClInclude Include="World\CoSyncEngineResumeHook.h" />
+    <ClInclude Include="Items\CoSyncPickupHook.h" />
+    <ClInclude Include="Items\CoSyncContainerSync.h" />
+    <ClInclude Include="Items\CoSyncItemDropSync.h" />
+    <ClInclude Include="Dialog\CoSyncSceneSync.h" />
+    <ClInclude Include="Weapons\CoSyncVatsSync.h" />
+    <ClInclude Include="Weapons\CoSyncExplosionSync.h" />
+    <ClInclude Include="Weapons\CoSyncThrowableSync.h" />
+    <ClInclude Include="World\CoSyncNpcWorldSync.h" />
+    <ClInclude Include="Dialog\CoSyncDialogSync.h" />
+    <ClInclude Include="Items\CoSyncLootSync.h" />
+    <ClInclude Include="Character\CoSyncCompanionSync.h" />
+    <ClInclude Include="Networking\EntitySerialization.h" />
+    <ClInclude Include="Core\CoSync_Main.h" />
+    <ClInclude Include="Core\CoSyncMenuInject.h" />
     <ClInclude Include="GameTasks.h" />
-    <ClInclude Include="GNS_Core.h" />
-    <ClInclude Include="GNS_Session.h" />
-    <ClInclude Include="HamachiUtil.h" />
-    <ClInclude Include="IniReader.h" />
-    <ClInclude Include="IntellisenseFix.h" />
-    <ClInclude Include="LocalPlayerState.h" />
-    <ClInclude Include="LocalPlayerStateGlobals.h" />
-    <ClInclude Include="Logger.h" />
-    <ClInclude Include="Packets_EntityCreate.h" />
-    <ClInclude Include="Packets_EntityDestroy.h" />
-    <ClInclude Include="Packets_EntityUpdate.h" />
-    <ClInclude Include="PacketTypes.h" />
+    <ClInclude Include="Core\GlobalCrashHandler.h" />
+    <ClInclude Include="Networking\GNS_Core.h" />
+    <ClInclude Include="Networking\GNS_Session.h" />
+    <ClInclude Include="Networking\CoSyncDiscovery.h" />
+    <ClInclude Include="Networking\CoSyncWorldTransfer.h" />
+    <ClInclude Include="World\CoSyncSaveLoad.h" />
+    <ClInclude Include="Character\CoSyncProfiles.h" />
+    <ClInclude Include="Character\CoSyncProxyLooks.h" />
+    <ClInclude Include="Character\CoSyncCompanions.h" />
+    <ClInclude Include="Character\CoSyncItemMods.h" />
+    <ClInclude Include="Networking\CoSyncSessionConfig.h" />
+    <ClInclude Include="Animations\HkbBehaviorGraph.h" />
+    <ClInclude Include="Animations\HkbVariableValueSet.h" />
+    <ClInclude Include="Animations\HkbStateMachine.h" />
+    <ClInclude Include="Core\IniReader.h" />
+    <ClInclude Include="Core\IntellisenseFix.h" />
+    <ClInclude Include="Character\LocalPlayerState.h" />
+    <ClInclude Include="Character\LocalPlayerStateGlobals.h" />
+    <ClInclude Include="Core\Logger.h" />
+    <ClInclude Include="MiddleProcess.h" />
+    <ClInclude Include="ModManager.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="New_Refr_Data.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="Networking\Packets_EntityCreate.h" />
+    <ClInclude Include="Networking\Packets_EntityDestroy.h" />
+    <ClInclude Include="Networking\Packets_EntityUpdate.h" />
+    <ClInclude Include="Networking\PacketTypes.h" />
     <ClInclude Include="Papyrus_CoSync.h" />
-    <ClInclude Include="PatternScan.h" />
-    <ClInclude Include="PlayerStatePacket.h" />
-    <ClInclude Include="SteamDiagnostics.h" />
+    <ClInclude Include="Core\PatternScan.h" />
+    <ClInclude Include="Character\PlayerStatePacket.h" />
     <ClInclude Include="Tasks.h" />
     <ClInclude Include="ThirdParty\GNS\Include\steam\isteamnetworkingmessages.h" />
     <ClInclude Include="ThirdParty\GNS\Include\steam\isteamnetworkingsockets.h" />
@@ -231,14 +386,6 @@
     <ClInclude Include="ThirdParty\GNS\Include\steam\steamtypes.h" />
     <ClInclude Include="ThirdParty\GNS\Include\steam\steamuniverse.h" />
     <ClInclude Include="ThirdParty\GNS\Include\steam\steam_api_common.h" />
-    <ClInclude Include="ThirdParty\ImGui\imconfig.h" />
-    <ClInclude Include="ThirdParty\ImGui\imgui.h" />
-    <ClInclude Include="ThirdParty\ImGui\imgui_impl_dx11.h" />
-    <ClInclude Include="ThirdParty\ImGui\imgui_impl_win32.h" />
-    <ClInclude Include="ThirdParty\ImGui\imgui_internal.h" />
-    <ClInclude Include="ThirdParty\ImGui\imstb_rectpack.h" />
-    <ClInclude Include="ThirdParty\ImGui\imstb_textedit.h" />
-    <ClInclude Include="ThirdParty\ImGui\imstb_truetype.h" />
     <ClInclude Include="ThirdParty\MinHook\src\buffer.h" />
     <ClInclude Include="ThirdParty\MinHook\src\hde\hde32.h" />
     <ClInclude Include="ThirdParty\MinHook\src\hde\hde64.h" />
@@ -246,84 +393,244 @@
     <ClInclude Include="ThirdParty\MinHook\src\hde\table32.h" />
     <ClInclude Include="ThirdParty\MinHook\src\hde\table64.h" />
     <ClInclude Include="ThirdParty\MinHook\src\trampoline.h" />
-    <ClInclude Include="TickHook.h" />
-    <ClInclude Include="Version.h" />
+    <ClInclude Include="Hooks\TickHook.h" />
+    <ClInclude Include="Hooks\CoSyncAnimGraphHandleGuard.h" />
+    <ClInclude Include="Hooks\CoSyncMovementHandleGuard.h" />
+    <ClInclude Include="Hooks\CoSyncLocomotionCalcGuard.h" />
+    <ClInclude Include="Hooks\CoSyncSharedHandleLeafGuard.h" />
+    <ClInclude Include="Hooks\CoSyncActorLocomotionGuard.h" />
+    <ClInclude Include="Hooks\CoSyncActorProcessGuard.h" />
+    <ClInclude Include="Hooks\CoSyncMusicChangerCellTeardownGuard.h" />
+    <ClInclude Include="Hooks\CoSyncActorAudioScaleGuard.h" />
+    <ClInclude Include="Hooks\CoSyncFirstPersonGraph.h" />
+    <ClInclude Include="Core\Version.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameAPI.cpp" />
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameExtraData.cpp" />
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameForms.cpp">
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se\GameAPI.cpp" />
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se\GameData.cpp" />
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se\GameExtraData.cpp" />
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se\GameForms.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameObjects.cpp" />
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameRTTI.cpp" />
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameTypes.cpp" />
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameUtilities.cpp">
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se\GameObjects.cpp" />
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se\GameCamera.cpp" />
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se\GameRTTI.cpp" />
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se\GameTypes.cpp" />
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se\GameUtilities.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\Hooks_Threads.cpp" />
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\NiTypes.cpp" />
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusArgs.cpp">
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se\GameHandle.cpp" />
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se\GameWorkshop.cpp" />
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se\NiObjects.cpp" />
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se\Hooks_Threads.cpp" />
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se\NiTypes.cpp" />
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se\PapyrusArgs.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusInterfaces.cpp" />
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusValue.cpp">
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se\PapyrusInterfaces.cpp" />
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se\PapyrusValue.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\PapyrusVM.cpp" />
-    <ClCompile Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se_common\Utilities.cpp">
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se\PapyrusVM.cpp" />
+    <ClCompile Include="$(SolutionDir)f4se-0.7.9\f4se_common\Utilities.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="CoSyncActorValues.cpp" />
-    <ClCompile Include="CoSyncEntityRegistry.cpp" />
-    <ClCompile Include="CoSyncEntityState.cpp" />
-    <ClCompile Include="CoSyncGame.cpp" />
-    <ClCompile Include="CoSyncGameAPI.cpp" />
-    <ClCompile Include="CoSynclocalplayer.cpp" />
-    <ClCompile Include="CoSyncNet.cpp" />
-    <ClCompile Include="CoSyncOverlay.cpp" />
-    <ClCompile Include="CoSyncPapyrushelper.cpp" />
-    <ClCompile Include="CoSyncPlayer.cpp" />
-    <ClCompile Include="CoSyncPlayerManager.cpp" />
-    <ClCompile Include="CoSyncPlayerSpawner.cpp" />
-    <ClCompile Include="CoSyncRuntime.cpp" />
-    <ClCompile Include="CoSyncSpawnTasks.cpp" />
-    <ClCompile Include="CoSyncSteam.cpp" />
-    <ClCompile Include="CoSyncSteamManager.cpp" />
-    <ClCompile Include="CoSyncTransport.cpp" />
-    <ClCompile Include="CoSyncWorld.cpp" />
-    <ClCompile Include="DX11Hook.cpp" />
-    <ClCompile Include="F4MP_Main.cpp" />
-    <ClCompile Include="F4MP_Plugin.cpp" />
-    <ClCompile Include="GameGlobals.cpp" />
-    <ClCompile Include="GameTasks.cpp" />
-    <ClCompile Include="GNS_Core.cpp" />
-    <ClCompile Include="GNS_Session.cpp" />
-    <ClCompile Include="HamachiUtil.cpp" />
-    <ClCompile Include="Heap.cpp" />
-    <ClCompile Include="IniReader.cpp" />
-    <ClCompile Include="LocalPlayerState.cpp" />
-    <ClCompile Include="LocalPlayerStateGlobals.cpp" />
-    <ClCompile Include="PapyrusNoWaitReloc.cpp" />
-    <ClCompile Include="Papyrus_CoSync.cpp" />
-    <ClCompile Include="PlayerStatePacket.cpp" />
-    <ClCompile Include="SteamDiagnostics.cpp" />
-    <ClCompile Include="ThirdParty\ImGui\imgui.cpp" />
-    <ClCompile Include="ThirdParty\ImGui\imgui_demo.cpp" />
-    <ClCompile Include="ThirdParty\ImGui\imgui_draw.cpp" />
-    <ClCompile Include="ThirdParty\ImGui\imgui_impl_dx11.cpp" />
-    <ClCompile Include="ThirdParty\ImGui\imgui_impl_win32.cpp" />
-    <ClCompile Include="ThirdParty\ImGui\imgui_tables.cpp" />
-    <ClCompile Include="ThirdParty\ImGui\imgui_widgets.cpp" />
-    <ClCompile Include="ThirdParty\MinHook\src\buffer.c" />
-    <ClCompile Include="ThirdParty\MinHook\src\hde\hde32.c" />
-    <ClCompile Include="ThirdParty\MinHook\src\hde\hde64.c" />
-    <ClCompile Include="ThirdParty\MinHook\src\hook.c" />
-    <ClCompile Include="ThirdParty\MinHook\src\trampoline.c" />
-    <ClCompile Include="TickHook.cpp" />
+    <ClCompile Include="Core\CoSyncAddressScan.cpp" />
+    <ClCompile Include="Character\Actor.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Character\ActorState.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="AIProcess.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Character\CoSyncActorValues.cpp" />
+    <ClCompile Include="Animations\CoSyncAnimationDetector.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Animations\CoSyncAnimationUtils.cpp" />
+    <ClCompile Include="Hooks\CoSyncAnimEventHook.cpp" />
+    <ClCompile Include="Hooks\CoSyncModEventHook.cpp" />
+    <ClCompile Include="Hooks\CoSyncQuestHook.cpp" />
+    <ClCompile Include="Hooks\CoSyncQuestObjectiveHook.cpp" />
+    <ClCompile Include="Animations\CoSyncAnimVarSystem.cpp" />
+    <ClCompile Include="Animations\CoSyncCreatureAnimSync.cpp" />
+    <ClCompile Include="Animations\CoSyncBehaviorGraph.cpp" />
+    <ClCompile Include="Animations\CoSyncPlayerAnimation.cpp" />
+    <ClCompile Include="Animations\CoSyncBoneAnimator.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="CoSyncBoneSync.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="CoSync\CoSyncEntityRegistry.cpp" />
+    <ClCompile Include="CoSync\CoSyncEntityState.cpp" />
+    <ClCompile Include="CoSync\CoSyncGame.cpp" />
+    <ClCompile Include="CoSync\CoSyncGameAPI.cpp" />
+    <ClCompile Include="Animations\CoSyncLocalAnimationCapture.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Character\CoSynclocalplayer.cpp" />
+    <ClCompile Include="Networking\CoSyncNet.cpp" />
+    <ClCompile Include="Networking\CoSyncSteamID.cpp" />
+    <ClCompile Include="GUI\CoSyncOverlay.cpp" />
+    <ClCompile Include="GUI\CoSyncPrismaUI.cpp" />
+    <ClCompile Include="GUI\CoSyncWindowHook.cpp" />
+    <ClCompile Include="CoSync\CoSyncPapyrusHelper.cpp" />
+    <ClCompile Include="Character\CoSyncPlayer.cpp" />
+    <ClCompile Include="Character\CoSyncPlayerManager.cpp" />
+    <ClCompile Include="Character\CoSyncPlayerMarker.cpp" />
+    <ClCompile Include="Character\CoSyncTeleport.cpp" />
+    <ClCompile Include="Character\CoSyncPlayerSpawner.cpp" />
+    <ClCompile Include="Animations\CoSyncRemoteAnimation.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="CoSync\CoSyncRuntime.cpp" />
+    <ClCompile Include="World\RuntimeVersion.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="CoSyncTickFallback.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Character\CoSyncSpawnTasks.cpp" />
+    <ClCompile Include="Networking\CoSyncTransport.cpp" />
+    <ClCompile Include="World\CoSyncWorld.cpp" />
+    <ClCompile Include="World\CoSyncWorldSync.cpp" />
+    <ClCompile Include="World\CoSyncTimeWeatherSync.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="World\CoSyncTimeSync.cpp" />
+    <ClCompile Include="Items\CoSyncWorkshopSync.cpp" />
+    <ClCompile Include="Character\CoSyncHealthSync.cpp" />
+    <ClCompile Include="Character\CoSyncReviveSync.cpp" />
+    <ClCompile Include="Character\CoSyncActorValueSafety.cpp" />
+    <ClCompile Include="Items\CoSyncInventorySync.cpp" />
+    <ClCompile Include="World\CoSyncMapSync.cpp" />
+    <ClCompile Include="World\CoSyncQuestSync.cpp" />
+    <ClCompile Include="Armor\CoSyncPowerArmorSync.cpp" />
+    <ClCompile Include="Items\CoSyncConsumableSync.cpp" />
+    <ClCompile Include="Character\CoSyncSpecialSync.cpp" />
+    <ClCompile Include="Clothing\CoSyncOutfitSync.cpp" />
+    <ClCompile Include="Clothing\CoSyncEquipHook.cpp" />
+    <ClCompile Include="World\CoSyncDoorHook.cpp" />
+    <ClCompile Include="World\CoSyncLockHook.cpp" />
+    <ClCompile Include="World\CoSyncEngineResumeHook.cpp" />
+    <ClCompile Include="Items\CoSyncPickupHook.cpp" />
+    <ClCompile Include="Items\CoSyncContainerSync.cpp" />
+    <ClCompile Include="Items\CoSyncItemDropSync.cpp" />
+    <ClCompile Include="Dialog\CoSyncSceneSync.cpp" />
+    <ClCompile Include="Items\CoSyncWorkshopScrapHook.cpp" />
+    <ClCompile Include="Weapons\CoSyncVatsSync.cpp" />
+    <ClCompile Include="Weapons\CoSyncExplosionSync.cpp" />
+    <ClCompile Include="Weapons\CoSyncThrowableSync.cpp" />
+    <ClCompile Include="World\CoSyncNpcWorldSync.cpp" />
+    <ClCompile Include="Dialog\CoSyncDialogSync.cpp" />
+    <ClCompile Include="Items\CoSyncLootSync.cpp" />
+    <ClCompile Include="Character\CoSyncCompanionSync.cpp" />
+    <ClCompile Include="Core\CoSync_Main.cpp" />
+    <ClCompile Include="Core\CoSync_Plugin.cpp" />
+    <ClCompile Include="Core\GameGlobals.cpp" />
+    <ClCompile Include="Core\GameTasks.cpp" />
+    <ClCompile Include="Core\GlobalCrashHandler.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Networking\GNS_Core.cpp" />
+    <ClCompile Include="Networking\GNS_Session.cpp" />
+    <ClCompile Include="Networking\CoSyncDiscovery.cpp" />
+    <ClCompile Include="Networking\CoSyncWorldTransfer.cpp" />
+    <ClCompile Include="World\CoSyncSaveLoad.cpp" />
+    <ClCompile Include="Character\CoSyncProfiles.cpp" />
+    <ClCompile Include="Character\CoSyncProxyLooks.cpp" />
+    <ClCompile Include="Character\CoSyncCompanions.cpp" />
+    <ClCompile Include="Character\CoSyncItemMods.cpp" />
+    <ClCompile Include="Networking\CoSyncModSync.cpp" />
+    <ClCompile Include="Networking\CoSyncModEventBus.cpp" />
+    <ClCompile Include="Core\Heap.cpp" />
+    <ClCompile Include="Core\IniReader.cpp" />
+    <ClCompile Include="Character\LocalPlayerState.cpp" />
+    <ClCompile Include="Character\LocalPlayerStateGlobals.cpp" />
+    <ClCompile Include="ModManager.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="New_Refr_Data.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Core\PapyrusNoWaitReloc.cpp" />
+    <ClCompile Include="CoSync\Papyrus_CoSync.cpp" />
+    <ClCompile Include="Character\PlayerStatePacket.cpp" />
+    <ClCompile Include="Core\CoSyncMainMenu.cpp" />
+    <ClCompile Include="Core\CoSyncMenuInject.cpp" />
+    <ClCompile Include="Core\CoSyncLoadingScreen.cpp" />
+    <ClCompile Include="ThirdParty\Pap\GameEvents.cpp" />
+    <ClCompile Include="ThirdParty\Pap\ScaleformCallbacks.cpp" />
+    <ClCompile Include="ThirdParty\Pap\ScaleformValue.cpp" />
+    <ClCompile Include="ThirdParty\MinHook\src\buffer.c">
+      <ForcedIncludeFiles></ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\MinHook\src\hde\hde32.c">
+      <ForcedIncludeFiles></ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\MinHook\src\hde\hde64.c">
+      <ForcedIncludeFiles></ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\MinHook\src\hook.c">
+      <ForcedIncludeFiles></ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\MinHook\src\trampoline.c">
+      <ForcedIncludeFiles></ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="Hooks\TickHook.cpp">
+      <ConformanceMode>false</ConformanceMode>
+    </ClCompile>
+    <ClCompile Include="Hooks\CoSyncAnimGraphHandleGuard.cpp" />
+    <ClCompile Include="Hooks\CoSyncMovementHandleGuard.cpp" />
+    <ClCompile Include="Hooks\CoSyncLocomotionCalcGuard.cpp" />
+    <ClCompile Include="Hooks\CoSyncSharedHandleLeafGuard.cpp" />
+    <ClCompile Include="Hooks\CoSyncActorLocomotionGuard.cpp" />
+    <ClCompile Include="Hooks\CoSyncActorProcessGuard.cpp" />
+    <ClCompile Include="Hooks\CoSyncMusicChangerCellTeardownGuard.cpp" />
+    <ClCompile Include="Hooks\CoSyncActorAudioScaleGuard.cpp" />
+    <ClCompile Include="Hooks\CoSyncFirstPersonGraph.cpp" />
+  </ItemGroup>
+  <!-- Papyrus script: compiled by PapyrusCompiler.exe as a custom build step -->
+  <ItemGroup>
+    <ResourceCompile Include="Core\CoSync.rc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\..\..\Desktop\CoSync\Testing\f4se\f4se\GameRTTI.inl" />
+    <CustomBuild Include="$(SolutionDir)F4se-Data\Data\Scripts\Scripts\CoSync.psc">
+      <Message>Compiling Papyrus script %(Filename)%(Extension)</Message>
+      <Command>set "_pcomp=$(PapyrusCompilerPath)"
+if exist "%_pcomp%" (("%_pcomp%" "%(FullPath)" "-f=$(PapyrusFlagsFile)" "-i=$(PapyrusImportDirs)" "-o=$(PapyrusOutputDir)") || echo [PapyrusSkip] Compile failed -- skipping) else (echo [PapyrusSkip] Compiler not found -- skipping Papyrus compile)
+exit 0</Command>
+      <Outputs>$(PapyrusOutputDir)\%(Filename).pex</Outputs>
+      <AdditionalInputs>%(FullPath)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="$(SolutionDir)F4se-Data\Data\Scripts\Scripts\CoSyncQuest.psc">
+      <Message>Compiling Papyrus script %(Filename)%(Extension)</Message>
+      <Command>set "_pcomp=$(PapyrusCompilerPath)"
+if exist "%_pcomp%" (("%_pcomp%" "%(Filename)" "-f=$(PapyrusFlagsFile)" "-i=$(PapyrusImportDirs)" "-o=$(PapyrusOutputDir)") || echo [PapyrusSkip] Compile failed -- skipping) else (echo [PapyrusSkip] Compiler not found -- skipping Papyrus compile)
+exit 0</Command>
+      <Outputs>$(PapyrusOutputDir)\%(Filename).pex</Outputs>
+      <AdditionalInputs>%(FullPath)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="$(SolutionDir)F4se-Data\Data\Scripts\Scripts\CoSyncPlayer.psc">
+      <Message>Compiling Papyrus script %(Filename)%(Extension)</Message>
+      <Command>set "_pcomp=$(PapyrusCompilerPath)"
+if exist "%_pcomp%" (("%_pcomp%" "%(Filename)" "-f=$(PapyrusFlagsFile)" "-i=$(PapyrusImportDirs)" "-o=$(PapyrusOutputDir)") || echo [PapyrusSkip] Compile failed -- skipping) else (echo [PapyrusSkip] Compiler not found -- skipping Papyrus compile)
+exit 0</Command>
+      <Outputs>$(PapyrusOutputDir)\%(Filename).pex</Outputs>
+      <AdditionalInputs>%(FullPath)</AdditionalInputs>
+    </CustomBuild>
+  </ItemGroup>
+
+  <!-- ESP / plugin files — visible in Solution Explorer, deployed by post-build event -->
+  <ItemGroup>
+    <None Include="$(SolutionDir)F4se-Data\Data\CoSync.esp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(SolutionDir)f4se-0.7.9\f4se\GameRTTI.inl" />
     <None Include="ThirdParty\GNS\Bin\abseil_dll.dll" />
     <None Include="ThirdParty\GNS\Bin\GameNetworkingSockets.dll" />
     <None Include="ThirdParty\GNS\Bin\libcrypto-3-x64.dll" />
@@ -336,3 +643,8 @@
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>
+
+
+
+
+
