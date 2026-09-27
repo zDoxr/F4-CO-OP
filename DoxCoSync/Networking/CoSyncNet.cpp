@@ -1,5 +1,6 @@
 ﻿
 #include "CoSyncNet.h"
+#include "Version.h"
 
 #include "ConsoleLogger.h"
 #include "CoSyncTransport.h"
@@ -128,9 +129,11 @@ namespace
     // host round-5 against a stale P2 DLL (companion CREATE arrived with the
     // pre-round-4 proxy base) and "a lot of stuff did not work" — mixed
     // versions must be loudly detectable from either side's log.
-    // 230 (2026-09-26): BONES wire format gained a sequence field (N3) --
-    // mixed builds must refuse each other, which VER/WORLDREQ already do.
-    constexpr uint32_t kCoSyncBuildNumber = 230;
+    // Network build number = COSYNC_VERSION (Core/Version.h, currently 0.2.3
+    // -> 203). It used to be a separate hand-kept number (229, then 230 for the
+    // BONES sequence field); one source now, so a version bump always makes
+    // mismatched peers refuse each other through VER/WORLDREQ.
+    constexpr uint32_t kCoSyncBuildNumber = COSYNC_VERSION;
     bool s_verSent = false;
 
 
