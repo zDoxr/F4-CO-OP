@@ -55,6 +55,14 @@ namespace CoSyncNpcWorldSync
     // from inside CoSyncPlayerManager::Tick's entity loop.
     void ForgetBinding(uint32_t entityID);
 
+    // Host: a client left. Every world NPC that client owned is released --
+    // a DESTROY goes to the remaining peers (dead flag kept, so corpses stay
+    // corpses) and the host unbinds its own copy, which re-shows the host's
+    // real NPC. The host's regular scan then re-registers it as host-owned and
+    // everyone re-binds. Without this, the NPCs of a departed owner stayed
+    // frozen puppets with the host's own originals hidden (bug W2). Game thread.
+    void HostReleaseEntitiesOwnedBy(uint32_t ownerEntityID);
+
     // Fix #2 (spawn/despawn race, proven 2026-08-02): true while a world-actor
     // entity is still pending a proxy spawn (s_spawnFallback) or already bound
     // (s_eidToActor). The async clone-spawn task calls this on completion — a

@@ -1189,6 +1189,10 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
         LOG_INFO("[CoSyncNet] Peer left: '%s' sid=%llu (%zu remaining)",
             who.c_str(), (unsigned long long)sid, remaining);
 
+        // W2: the NPCs this player owned have no simulating owner any more.
+        if (sid != 0)
+            CoSyncNpcWorldSync::HostReleaseEntitiesOwnedBy(EntityIDFromSteamID(sid));
+
         char note[160];
         std::snprintf(note, sizeof(note), "%s left the game", who.empty() ? "A player" : who.c_str());
         CoSyncGameAPI::QueueNotification(note);

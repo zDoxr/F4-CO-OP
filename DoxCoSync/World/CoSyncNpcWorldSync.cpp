@@ -2551,6 +2551,34 @@ bool IsWorldActorWanted(uint32_t entityID)
     return s_spawnFallback.count(entityID) != 0 || s_eidToActor.count(entityID) != 0;
 }
 
+void HostReleaseEntitiesOwnedBy(uint32_t ownerEntityID)
+{
+    LOG_REQUIREMENT("CoSyncNpcWorldSync::HostReleaseEntitiesOwnedBy", "Host, game thread (PEERLEFT). Safe when the owner had nothing.");
+    if (!CoSyncNet::IsHost() || ownerEntityID == 0)
+        return;
+
+    std::vector<std::pair<uint32_t, uint32_t>> owned;   // entityID, destroy reason flags
+    for (const auto& kv : g_CoSyncPlayerManager.GetStates())
+    {
+        const CoSyncEntityState& st = kv.second;
+        if (IsWorldActorEntityID(kv.first) && st.hasCreate && st.lastCreate.ownerEntityID == ownerEntityID)
+            owned.push_back({ kv.first, IsEntityDead(kv.first) ? kDestroyReason_Dead : 0u });
+    }
+
+    for (const auto& e : owned)
+    {
+        EntityDestroyPacket d{};
+        d.entityID    = e.first;
+        d.reasonFlags = e.second;
+        CoSyncTransport::Send(SerializeEntityDestroy(d));
+        ClientUnbindWorldActor(e.first, e.second);   // erases the state entry: collected above first
+    }
+
+    if (!owned.empty())
+        LOG_UPDATED("[NpcWorldSync] Released %zu world NPC(s) owned by departed player %u -- the host takes them back",
+            owned.size(), ownerEntityID);
+}
+
 void ForgetBinding(uint32_t entityID)
 {
     LOG_REQUIREMENT("CoSyncNpcWorldSync::ForgetBinding", "Game thread. Safe for an untracked entity. Only erases binding-map entries; never dereferences the (possibly freed) actor and never touches the player manager.");
