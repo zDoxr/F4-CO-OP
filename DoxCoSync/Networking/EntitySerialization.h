@@ -12,6 +12,15 @@
 #include "Packets_EntityDestroy.h"
 #include "CoSyncMessageHelpers.h"
 
+// P7 (2026-09-26): "%f" parsing accepts "nan"/"inf", and the engine stores
+// positions with no validation of its own (IDA: TESObjectREFR::SetPosition
+// 0x513DB0 compares and writes the floats as given). A non-finite transform
+// from any peer would be written straight into an actor. Reject it here.
+inline bool CoSyncIsFinite3(const NiPoint3& v)
+{
+    return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
+}
+
 inline std::string SerializeEntityCreate(const EntityCreatePacket& p)
 {
     std::ostringstream ss;
@@ -83,6 +92,9 @@ inline bool DeserializeEntityCreate(const std::string& msg, EntityCreatePacket& 
         &out.spawnRot.z) != 3)
         return false;
 
+
+    if (!CoSyncIsFinite3(out.spawnPos) || !CoSyncIsFinite3(out.spawnRot))
+        return false;
 
     // reserved0 — world NPC reference formID (or companion refFormID); optional
     // field added after rot. Old packets that don't include this field leave
@@ -196,6 +208,9 @@ inline bool DeserializeEntityUpdate(const std::string& msg, EntityUpdatePacket& 
         &out.vel.x, &out.vel.y, &out.vel.z) != 3)
         return false;
 
+
+    if (!CoSyncIsFinite3(out.pos) || !CoSyncIsFinite3(out.rot) || !CoSyncIsFinite3(out.vel))
+        return false;
 
     if (std::getline(ss, tok, '|') && !tok.empty())
         out.timestamp = std::strtod(tok.c_str(), nullptr);
