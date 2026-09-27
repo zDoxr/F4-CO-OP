@@ -59,7 +59,7 @@ extern "C"
     {
         F4SEPluginVersionData::kVersion,
 
-        COSYNC_VERSION,   // Core/Version.h (0.2.3 -> 203)
+        COSYNC_VERSION,   // Core/Version.h (e.g. 0.2.4 -> 204)
         "DoxCoSync",
         "Doxr",
 

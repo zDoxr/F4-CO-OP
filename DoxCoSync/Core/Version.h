@@ -9,9 +9,10 @@
 // History: "0.007" -> "0.320" (2026-08-04), then switched to semantic-style
 // 0.2.3 on 2026-09-26 at the user's request; the separate hand-kept network
 // build number (229/230 in CoSyncNet.cpp) was folded into COSYNC_VERSION.
+// 0.2.4 (2026-09-26): compact BONES wire format (N4).
 #define COSYNC_VERSION_MAJOR 0
 #define COSYNC_VERSION_MINOR 2
-#define COSYNC_VERSION_PATCH 3
+#define COSYNC_VERSION_PATCH 4
 #define COSYNC_VERSION_TAG   ""
 
 // Numeric form used on the wire. MINOR and PATCH must stay below 100 for the
@@ -28,7 +29,7 @@ static_assert(COSYNC_VERSION_MINOR < 100 && COSYNC_VERSION_PATCH < 100,
 #define COSYNC_VERSION_STRINGIFY_(x) #x
 #define COSYNC_VERSION_STRINGIFY(x)  COSYNC_VERSION_STRINGIFY_(x)
 
-// "0.2.3" -- built from the numbers above so the two can never disagree.
+// "0.2.4" -- built from the numbers above so the two can never disagree.
 #define COSYNC_VERSION_STR \
     COSYNC_VERSION_STRINGIFY(COSYNC_VERSION_MAJOR) "." \
     COSYNC_VERSION_STRINGIFY(COSYNC_VERSION_MINOR) "." \

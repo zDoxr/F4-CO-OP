@@ -2411,7 +2411,8 @@ int GetFirstPersonCaptureMode()
     return s_mode;
 }
 
-// Wire format (2026-08-21):
+// Wire format (2026-08-21) -- SUPERSEDED on the wire by the N4 compact
+// encoding below (0.2.4); kept for the hash-identity rationale:
 //
 //   BONES|<entityID>|<boneCount>|<hash8>,<qx>,<qy>,<qz>,<qw>|...|<trCount>|<hash8>,<x>,<y>,<z>;...
 //
@@ -2432,17 +2433,134 @@ void SetLocalFirstPerson(bool inFirstPerson) noexcept
     g_localFirstPerson.store(inFirstPerson, std::memory_order_relaxed);
 }
 
+// ---------------------------------------------------------------------------
+// N4 (2026-09-26) compact encoding. The text format above cost ~38 bytes per
+// bone -- ~3.5 KB per packet, 80%+ of all session traffic (0.2.3 logs:
+// 28.8-35.5 KB/s of BONES per player), which projected to ~2.1 MB/s host
+// upload at 8 players. Now:
+//   * each rotation is 4 bytes, smallest-three packed (2-bit index of the
+//     largest component + three 10-bit components in [-1/sqrt2, 1/sqrt2],
+//     scaled so 0 is exact; measured over 2M random rotations: mean error
+//     0.08 deg, worst 0.24 deg; identity round-trips exactly);
+//   * the bone hashes (still the sender's own, still self-describing -- no
+//     cross-machine agreement, see the header note) are sent only when the
+//     bone set changes and every kLayoutResendMs, under a 32-bit layout ID
+//     that every packet carries;
+//   * both byte runs are base64, so the message stays text: the relay, the
+//     sender checks, the inbox eviction and the logs are unchanged.
+//   92 bones: ~0.6 KB per packet, ~1.1 KB when the layout rides along
+//   (was ~3.5 KB).
+//
+//   BONES|<eid>|<seq>|<n>|<fp>|<layout hex8>|<hashes b64 or ->|<quats b64>|<trCount>|<hash8>,<x>,<y>,<z>;...
+// ---------------------------------------------------------------------------
+namespace
+{
+    constexpr uint64_t kLayoutResendMs = 2000;
+    constexpr float    kQuatRange      = 0.70710678f;   // 1/sqrt(2)
+
+    const char kB64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    void Base64Append(std::string& out, const uint8_t* data, size_t len)
+    {
+        for (size_t i = 0; i < len; i += 3)
+        {
+            const uint32_t v = (uint32_t(data[i]) << 16) |
+                               (i + 1 < len ? uint32_t(data[i + 1]) << 8 : 0u) |
+                               (i + 2 < len ? uint32_t(data[i + 2]) : 0u);
+            out += kB64[(v >> 18) & 63];
+            out += kB64[(v >> 12) & 63];
+            out += (i + 1 < len) ? kB64[(v >> 6) & 63] : '=';
+            out += (i + 2 < len) ? kB64[v & 63] : '=';
+        }
+    }
+
+    // Decodes [p, end) into out. False on any character outside the alphabet.
+    bool Base64Decode(const char* p, const char* end, std::vector<uint8_t>& out)
+    {
+        out.clear();
+        uint32_t acc = 0;
+        int bits = 0;
+        for (; p < end; ++p)
+        {
+            const char c = *p;
+            int v;
+            if (c >= 'A' && c <= 'Z') v = c - 'A';
+            else if (c >= 'a' && c <= 'z') v = c - 'a' + 26;
+            else if (c >= '0' && c <= '9') v = c - '0' + 52;
+            else if (c == '+') v = 62;
+            else if (c == '/') v = 63;
+            else if (c == '=') break;
+            else return false;
+            acc = (acc << 6) | uint32_t(v);
+            bits += 6;
+            if (bits >= 8)
+            {
+                bits -= 8;
+                out.push_back(uint8_t((acc >> bits) & 0xFF));
+            }
+        }
+        return true;
+    }
+
+    uint32_t PackQuat(const float qIn[4])
+    {
+        float q[4] = { qIn[0], qIn[1], qIn[2], qIn[3] };
+        const float len = std::sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]);
+        if (!(len > 1e-6f))
+        {
+            q[0] = q[1] = q[2] = 0.f;   // degenerate -> identity
+            q[3] = 1.f;
+        }
+        else
+        {
+            for (float& c : q) c /= len;
+        }
+
+        int big = 0;
+        for (int k = 1; k < 4; ++k)
+            if (std::fabs(q[k]) > std::fabs(q[big])) big = k;
+        const float sign = q[big] < 0.f ? -1.f : 1.f;   // q and -q are the same rotation
+
+        uint32_t packed = uint32_t(big) << 30;
+        int shift = 20;
+        for (int k = 0; k < 4; ++k)
+        {
+            if (k == big) continue;
+            float c = q[k] * sign / kQuatRange;          // -> [-1, 1]
+            c = (std::min)(1.f, (std::max)(-1.f, c));
+            const uint32_t u = uint32_t(std::lround((c + 1.f) * 0.5f * 1022.f));   // 511 = exactly 0
+            packed |= (u & 1023u) << shift;
+            shift -= 10;
+        }
+        return packed;
+    }
+
+    void UnpackQuat(uint32_t packed, float q[4])
+    {
+        const int big = int(packed >> 30);
+        float sumSq = 0.f;
+        int shift = 20;
+        for (int k = 0; k < 4; ++k)
+        {
+            if (k == big) continue;
+            const uint32_t u = (packed >> shift) & 1023u;
+            q[k] = (float(u) / 1022.f * 2.f - 1.f) * kQuatRange;
+            sumSq += q[k] * q[k];
+            shift -= 10;
+        }
+        q[big] = std::sqrt((std::max)(0.f, 1.f - sumSq));
+    }
+}
+
 std::string SerializeSkeletonCapture(uint32_t entityID, const CoSyncPlayerAnimation::SkeletonCapture& capture)
 {
     if (!capture.valid || capture.count == 0)
         return std::string();
 
-    std::ostringstream ss;
-    ss << std::fixed << std::setprecision(4);
-
-    std::ostringstream body;
-    body << std::fixed << std::setprecision(4);
-    uint32_t written = 0;
+    std::vector<uint32_t> hashes;
+    std::vector<uint8_t>  quatBytes;
+    hashes.reserve(capture.count);
+    quatBytes.reserve(capture.count * 4);
 
     std::ostringstream trss;
     trss << std::fixed << std::setprecision(4);
@@ -2457,13 +2575,13 @@ std::string SerializeSkeletonCapture(uint32_t entityID, const CoSyncPlayerAnimat
 
         float q[4];
         Mat3ToQuat(bt.rot, q);
+        const uint32_t pq = PackQuat(q);
 
-        char hashBuf[16];
-        std::snprintf(hashBuf, sizeof(hashBuf), "%08x", bt.nameHash);
-
-        body << "|" << hashBuf << ","
-             << q[0] << "," << q[1] << "," << q[2] << "," << q[3];
-        ++written;
+        hashes.push_back(bt.nameHash);
+        quatBytes.push_back(uint8_t(pq >> 24));
+        quatBytes.push_back(uint8_t(pq >> 16));
+        quatBytes.push_back(uint8_t(pq >> 8));
+        quatBytes.push_back(uint8_t(pq));
 
         // Restricted translation channel -- COM/Pelvis only. FO4_Wrld's
         // "crouch channel" design: writing translation onto an arbitrary
@@ -2471,24 +2589,66 @@ std::string SerializeSkeletonCapture(uint32_t entityID, const CoSyncPlayerAnimat
         // assumptions diverged, so every other bone is rotation-only.
         if (std::strcmp(bt.name, "COM") == 0 || std::strcmp(bt.name, "Pelvis") == 0)
         {
+            char hashBuf[16];
+            std::snprintf(hashBuf, sizeof(hashBuf), "%08x", bt.nameHash);
             if (trCount > 0) trss << ";";
             trss << hashBuf << "," << bt.trans[0] << "," << bt.trans[1] << "," << bt.trans[2];
             ++trCount;
         }
     }
 
-    if (written == 0)
+    if (hashes.empty())
         return std::string();
+
+    // Layout ID: FNV-1a over the ordered hash list.
+    uint32_t layout = 2166136261u;
+    for (uint32_t h : hashes)
+        for (int k = 0; k < 4; ++k) { layout ^= (h >> (k * 8)) & 0xFF; layout *= 16777619u; }
+
+    static uint32_t s_lastLayout = 0;
+    static uint64_t s_lastLayoutMs = 0;
+    const uint64_t nowMs = GetTickCount64();
+    const bool sendLayout = layout != s_lastLayout || nowMs - s_lastLayoutMs >= kLayoutResendMs;
+    if (sendLayout)
+    {
+        s_lastLayout = layout;
+        s_lastLayoutMs = nowMs;
+    }
 
     // N3 (2026-09-26): BONES travels unreliable, and GNS may deliver
     // unreliable messages out of order or more than once -- an older pose
     // could overwrite a newer one. Every capture carries a per-sender sequence
     // number right after the entity ID; receivers keep only newer ones.
     static uint32_t s_boneSeq = 0;
-    ss << "BONES|" << entityID << "|" << ++s_boneSeq << "|" << written << "|" << (g_localFirstPerson ? 1 : 0) << body.str()
-       << "|" << trCount << "|" << trss.str();
 
-    return ss.str();
+    std::string out;
+    out.reserve(64 + hashes.size() * (sendLayout ? 12 : 6) + 96);
+    char head[96];
+    std::snprintf(head, sizeof(head), "BONES|%u|%u|%u|%d|%08x|",
+        entityID, ++s_boneSeq, uint32_t(hashes.size()), g_localFirstPerson ? 1 : 0, layout);
+    out += head;
+    if (sendLayout)
+    {
+        std::vector<uint8_t> hb;
+        hb.reserve(hashes.size() * 4);
+        for (uint32_t h : hashes)
+        {
+            hb.push_back(uint8_t(h >> 24)); hb.push_back(uint8_t(h >> 16));
+            hb.push_back(uint8_t(h >> 8));  hb.push_back(uint8_t(h));
+        }
+        Base64Append(out, hb.data(), hb.size());
+    }
+    else
+    {
+        out += '-';
+    }
+    out += '|';
+    Base64Append(out, quatBytes.data(), quatBytes.size());
+    out += '|';
+    out += std::to_string(trCount);
+    out += '|';
+    out += trss.str();
+    return out;
 }
 
 bool IsBonesPacket(const std::string& msg)
@@ -2501,6 +2661,10 @@ namespace
     std::mutex s_recvSkelMutex;
     std::unordered_map<uint32_t, CoSyncPlayerAnimation::SkeletonCapture> s_recvSkeletons;
     std::unordered_map<uint32_t, uint32_t> s_recvBoneSeq;   // entityID -> newest sequence applied (N3)
+
+    // N4: each sender's current bone layout (its own hash list) by entity.
+    struct BoneLayout { uint32_t id = 0; std::vector<uint32_t> hashes; };
+    std::unordered_map<uint32_t, BoneLayout> s_recvLayouts;
 }
 
 void OnReceiveBones(const std::string& msg)
@@ -2536,32 +2700,57 @@ void OnReceiveBones(const std::string& msg)
     cap.bones[0].nameHash = 0u;
     cap.count = n + 1;
 
+    // <layout hex8>|<hashes b64 or ->|<quats b64>|
+    const uint32_t layoutId = static_cast<uint32_t>(std::strtoul(p, &e, 16));
+    if (e == p || *e != '|') return;
+    p = e + 1;
+
+    const char* hashEnd = std::strchr(p, '|');
+    if (!hashEnd) return;
+    std::vector<uint32_t> sentHashes;
+    if (!(hashEnd - p == 1 && *p == '-'))
+    {
+        std::vector<uint8_t> hb;
+        if (!Base64Decode(p, hashEnd, hb) || hb.size() != size_t(n) * 4) return;
+        sentHashes.resize(n);
+        for (uint32_t i = 0; i < n; ++i)
+            sentHashes[i] = (uint32_t(hb[i * 4]) << 24) | (uint32_t(hb[i * 4 + 1]) << 16) |
+                            (uint32_t(hb[i * 4 + 2]) << 8) | uint32_t(hb[i * 4 + 3]);
+    }
+    p = hashEnd + 1;
+
+    const char* quatEnd = std::strchr(p, '|');
+    if (!quatEnd) return;
+    std::vector<uint8_t> qb;
+    if (!Base64Decode(p, quatEnd, qb) || qb.size() != size_t(n) * 4) return;
+    p = quatEnd + 1;
+
+    std::vector<uint32_t> hashes;
+    {
+        std::lock_guard<std::mutex> lk(s_recvSkelMutex);
+        BoneLayout& lay = s_recvLayouts[entityID];
+        if (!sentHashes.empty())
+        {
+            lay.id = layoutId;
+            lay.hashes = std::move(sentHashes);
+        }
+        // Layout not received yet (joined mid-stream, or its packet was lost):
+        // wait for the next one, at most kLayoutResendMs away.
+        if (lay.id != layoutId || lay.hashes.size() != n)
+            return;
+        hashes = lay.hashes;
+    }
+
     for (uint32_t i = 0; i < n; ++i)
     {
         CoSyncPlayerAnimation::BoneTransform& bt = cap.bones[i + 1];
-
-        const uint32_t hash = static_cast<uint32_t>(std::strtoul(p, &e, 16));
-        if (e == p || *e != ',') return;
-        p = e + 1;
-
+        const uint32_t packed = (uint32_t(qb[i * 4]) << 24) | (uint32_t(qb[i * 4 + 1]) << 16) |
+                                (uint32_t(qb[i * 4 + 2]) << 8) | uint32_t(qb[i * 4 + 3]);
         float q[4];
-        for (int k = 0; k < 4; ++k)
-        {
-            q[k] = std::strtof(p, &e);
-            if (e == p) return;
-            if (k < 3)
-            {
-                if (*e != ',') return;
-            }
-            else
-            {
-                if (*e != '|') return;
-            }
-            p = e + 1;
-        }
+        UnpackQuat(packed, q);
 
         bt.name[0]  = '\0';   // names do not cross the wire; the hash is the identity
-        bt.nameHash = hash;
+        bt.nameHash = hashes[i];
         bt.trans[0] = bt.trans[1] = bt.trans[2] = 0.0f;
         bt.scale    = 1.0f;
         QuatToMat3(q, bt.rot);
@@ -2623,6 +2812,7 @@ void ForgetReceivedSkeleton(uint32_t entityID)
     std::lock_guard<std::mutex> lk(s_recvSkelMutex);
     s_recvSkeletons.erase(entityID);
     s_recvBoneSeq.erase(entityID);   // a respawned proxy accepts the next pose
+    s_recvLayouts.erase(entityID);
 }
 
 } // namespace CoSyncPlayerAnimation

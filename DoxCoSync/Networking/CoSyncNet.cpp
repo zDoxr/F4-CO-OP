@@ -131,8 +131,8 @@ namespace
     // host round-5 against a stale P2 DLL (companion CREATE arrived with the
     // pre-round-4 proxy base) and "a lot of stuff did not work" — mixed
     // versions must be loudly detectable from either side's log.
-    // Network build number = COSYNC_VERSION (Core/Version.h, currently 0.2.3
-    // -> 203). It used to be a separate hand-kept number (229, then 230 for the
+    // Network build number = COSYNC_VERSION (Core/Version.h, e.g. 0.2.4
+    // -> 204). It used to be a separate hand-kept number (229, then 230 for the
     // BONES sequence field); one source now, so a version bump always makes
     // mismatched peers refuse each other through VER/WORLDREQ.
     constexpr uint32_t kCoSyncBuildNumber = COSYNC_VERSION;
