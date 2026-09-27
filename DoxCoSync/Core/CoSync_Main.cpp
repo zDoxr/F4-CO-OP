@@ -14,6 +14,7 @@
 #include "CoSyncProxyLooks.h"
 #include "CoSyncCompanions.h"
 #include "CoSyncItemMods.h"
+#include "CoSyncSteamLobby.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -205,6 +206,7 @@ namespace cosync
         JoinStartThread();
 
         CoSyncDiscovery::StopAdvertising();
+        CoSyncSteamLobby::Leave();           // Steam lobby + rich presence
         CoSyncProfiles::ClientUploadNow();   // client: last snapshot to the host
         CoSyncNet::Shutdown();
         CoSyncWorldTransfer::Reset();

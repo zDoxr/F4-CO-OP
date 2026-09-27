@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <atomic>
 #include "CoSyncThreadDiag.h"
+#include "CoSyncSteamLobby.h"
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -231,6 +232,36 @@ namespace
 
         // Found games. Every field came off the network: escaped here, and
         // escaped again by the page before it touches the DOM.
+        // Steam: availability, our lobby, friends' games (names came off the
+        // network -- escaped here and again by the page).
+        {
+            json += ",\"steam\":{\"available\":";
+            json += CoSyncSteamLobby::IsAvailable() ? "true" : "false";
+            json += ",\"backend\":";
+            json += GNS_Session::Get().IsSteamBackend() && CoSyncTransport::IsInitialized() ? "true" : "false";
+            json += ",\"lobby\":";
+            json += CoSyncSteamLobby::IsHostingLobby() ? "true" : "false";
+            json += ",\"error\":\"" + JsonEscape(CoSyncSteamLobby::LastError().c_str()) + "\"";
+            json += ",\"games\":[";
+            bool first = true;
+            char idHex[32];
+            for (const auto& g : CoSyncSteamLobby::FriendsGames())
+            {
+                if (!first) json += ",";
+                first = false;
+                std::snprintf(idHex, sizeof(idHex), "%llx", (unsigned long long)g.lobby);
+                json += "{\"id\":\"" + std::string(idHex) + "\"";
+                json += ",\"name\":\"" + JsonEscape(g.name.c_str()) + "\"";
+                json += ",\"host\":\"" + JsonEscape(g.host.c_str()) + "\"";
+                json += ",\"players\":" + std::to_string(g.players);
+                json += ",\"build\":" + std::to_string(g.build);
+                json += ",\"compatible\":";
+                json += g.compatible ? "true" : "false";
+                json += "}";
+            }
+            json += "]}";
+        }
+
         const uint32_t myBuild = CoSyncNet::GetBuildNumber();
         json += ",\"search\":{\"seconds\":" + std::to_string(static_cast<int>(CoSyncDiscovery::SecondsSinceSearchStarted()));
         json += ",\"sessions\":[";
@@ -472,6 +503,55 @@ namespace
                 cosync::CoSync_Main::Get().ResetNetState();
                 cosync::CoSync_Main::Get().StartHosting("");   // all interfaces
             }
+            PushState();
+        }
+        else if (cmd == "steam_host")
+        {
+            // Internet play: host on Steam's networking (P2P + Valve relay);
+            // friends find the game through its friends-only Steam lobby.
+            if (!CoSyncWorld::IsWorldReady())
+                LOG_WARN("[PrismaUI] Steam host ignored: no save loaded");
+            else if (CoSyncTransport::IsInitialized())
+                LOG_WARN("[PrismaUI] Steam host ignored: already in a session");
+            else if (!CoSyncSteamLobby::IsAvailable())
+                LOG_WARN("[PrismaUI] Steam host ignored: Steam unavailable");
+            else
+            {
+                LOG_INFO("[PrismaUI] Host Game (Steam friends)");
+                CoSyncDiscovery::StopSearching();
+                cosync::CoSync_Main::Get().ResetNetState();
+                cosync::CoSync_Main::Get().StartHosting("steam");
+                CoSyncSteamLobby::RequestHost();
+            }
+            PushState();
+        }
+        else if (cmd == "steam_invite")
+        {
+            CoSyncSteamLobby::OpenInvite();
+        }
+        else if (cmd == "steam_join")
+        {
+            uint64_t lobby = 0;
+            try { lobby = std::stoull(arg, nullptr, 16); } catch (...) { lobby = 0; }
+            std::string label;
+            for (const auto& g : CoSyncSteamLobby::FriendsGames())
+                if (g.lobby == lobby) { label = g.name; break; }
+            if (lobby == 0 || label.empty())
+                LOG_WARN("[PrismaUI] Steam join: game '%.20s' is no longer listed", arg.c_str());
+            else
+            {
+                CoSyncDiscovery::StopSearching();
+                if (CoSyncTransport::IsInitialized())
+                    EndSession();
+                s_joinTarget = label;
+                LOG_INFO("[PrismaUI] Joining '%s' through Steam lobby %llx", label.c_str(), (unsigned long long)lobby);
+                CoSyncSteamLobby::RequestJoin(lobby);
+            }
+            PushState();
+        }
+        else if (cmd == "steam_browse")
+        {
+            CoSyncSteamLobby::SetBrowsing(arg == "1");
             PushState();
         }
         else if (cmd == "stop")

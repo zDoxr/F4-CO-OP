@@ -6,7 +6,9 @@
  *                  "close" | "refresh" | "controller_style|0|1" | "anim_mode|0|1" |
  *                  "sound|ok|cancel|focus|prevnext" |
  *                  "host" | "stop" | "search_start" | "search_stop" |
- *                  "join|<sessionId>" | "direct|<ipv4>|<port>")
+ *                  "join|<sessionId>" | "direct|<ipv4>|<port>" |
+ *                  "steam_host" | "steam_invite" | "steam_join|<lobbyHex>" |
+ *                  "steam_browse|0|1")
  *   C++ -> JS  : window.cosyncState(json)   real state, pushed on demand
  *                window.cosyncOpen()        menu (re)opened: back to root
  *
@@ -28,6 +30,7 @@
     network: { available: false, type: '', adapter: '', address: '' },
     discovery: 'OFF',
     search: { seconds: 0, sessions: [] },
+    steam: { available: false, backend: false, lobby: false, error: '', games: [] },
     roster: [],
     joining: 0,
     transfer: { phase: 'idle', percent: 0, error: '' },
@@ -52,6 +55,7 @@
   const inGame = () => state.context === 'ingame';
   const gameName = () => (state.playerName ? state.playerName + "'s Game" : 'Your Game');
   const networkLabel = () => state.network.available ? state.network.type : 'No Network';
+  const steamSession = () => !!(state.steam && state.steam.backend);
 
   const FAILED = ['CONNECTION FAILED', 'SESSION FULL', 'VERSION MISMATCH', 'HOST DISCONNECTED', 'FAILED'];
 
@@ -118,9 +122,9 @@
             desc: 'The game you joined.' });
         } else {
           list.push({ key: 'host', label: 'Host Game', go: 'host',
-            desc: 'Open your game so other players on your network can join.' });
+            desc: 'Open your game to your Steam friends or to players on your network.' });
           list.push({ key: 'join', label: 'Join Game', go: 'join',
-            desc: 'Find games hosted on your network and join one.' });
+            desc: 'Join a Steam friend’s game or a game hosted on your network.' });
         }
         list.push({ key: 'status', label: 'Network Status', go: 'status',
           desc: 'Connection details, for troubleshooting.' });
@@ -146,9 +150,9 @@
           const rows = [
             ['Game Name', gameName()],
             ['Status', status(), statusCls(status())],
-            ['Network', networkLabel()],
+            ['Network', steamSession() ? 'Steam (friends)' : networkLabel()],
           ];
-          if (state.network.available && state.net.port)
+          if (!steamSession() && state.network.available && state.net.port)
             rows.push(['Address', state.network.address + ' : ' + state.net.port]);
           return rows.concat(rosterRows());
         }
@@ -161,9 +165,15 @@
       },
       notice: () => {
         if (role() === 'HOST') {
+          if (steamSession() && state.steam.error === 'lobby_failed')
+            return { head: 'Steam lobby failed',
+              text: 'Your game is open, but Steam could not create the lobby friends use to find it. Stop hosting and try again.' };
           if (status() === 'WAITING FOR PLAYERS')
-            return { head: 'Waiting for players…',
-              text: 'Players on your network will see your game under JOIN GAME.' };
+            return steamSession()
+              ? { head: 'Waiting for friends…',
+                  text: 'Your Steam friends see your game under JOIN GAME, or invite them with INVITE FRIENDS.' }
+              : { head: 'Waiting for players…',
+                  text: 'Players on your network will see your game under JOIN GAME.' };
           return null;
         }
         if (!inGame())
@@ -177,16 +187,26 @@
         return null;
       },
       items: () => {
-        if (role() === 'HOST')
-          return [
-            { key: 'stop', label: 'Stop Hosting', action: 'stop',
-              desc: 'Close your game to other players. Everyone connected will be disconnected.' },
-            { key: 'back', label: 'Back', action: 'back', desc: 'Return to the Multiplayer menu. Your game stays open.' },
-          ];
+        if (role() === 'HOST') {
+          const list = [];
+          if (steamSession())
+            list.push({ key: 'invite', label: 'Invite Friends', action: 'steam_invite',
+              disabled: !state.steam.lobby,
+              desc: 'Open the Steam overlay and invite friends to your game.' });
+          list.push({ key: 'stop', label: 'Stop Hosting', action: 'stop',
+            desc: 'Close your game to other players. Everyone connected will be disconnected.' });
+          list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to the Multiplayer menu. Your game stays open.' });
+          return list;
+        }
         return [
-          { key: 'host', label: 'Host Game', action: 'host',
+          { key: 'steam_host', label: 'Host with Steam Friends', action: 'steam_host',
+            disabled: !inGame() || status() === 'STARTING' || !state.steam.available,
+            desc: !state.steam.available ? 'Steam is not available.'
+                : (inGame() ? 'Open your game to your Steam friends over the internet. No port forwarding needed.'
+                            : 'Load a save first. Hosting starts from inside your game.') },
+          { key: 'host', label: 'Host on Local Network', action: 'host',
             disabled: !inGame() || status() === 'STARTING',
-            desc: inGame() ? 'Open your game. CoSync picks the network automatically.'
+            desc: inGame() ? 'Open your game to players on your network (same router or Wi-Fi).'
                            : 'Load a save first. Hosting starts from inside your game.' },
           { key: 'back', label: 'Back', action: 'back', desc: 'Return to the Multiplayer menu.' },
         ];
@@ -196,27 +216,35 @@
     join: {
       title: () => 'Join Game',
       live: true,
-      enter: () => native('search_start'),
-      leave: () => native('search_stop'),
+      enter: () => { native('search_start'); native('steam_browse|1'); },
+      leave: () => { native('search_stop'); native('steam_browse|0'); },
       notice: () => {
-        if (state.search.sessions.length) return null;
+        if (state.search.sessions.length || state.steam.games.length) return null;
         if (!state.network.available)
           return { head: 'No network',
             text: 'This PC is not connected to a network. Connect to your router by cable or Wi-Fi.' };
         if (state.search.seconds < 3)
           return { head: 'Searching for games…', text: 'Looking for CoSync games on your network.' };
         return { head: 'No games found',
-          text: 'Make sure the host has started hosting and both PCs are on the same network (same router or Wi-Fi). Windows Firewall must allow Fallout 4.' };
+          text: 'Steam friends who host with Steam show up here. For a local game, make sure the host has started hosting and both PCs are on the same network (same router or Wi-Fi); Windows Firewall must allow Fallout 4.' };
       },
       items: () => {
-        const list = state.search.sessions.map(s => {
+        const steamList = state.steam.games.map(g => {
+          const full = g.players >= state.maxPlayers;
+          let desc = 'Steam friend ' + g.host + '.  ' + g.players + ' / ' + state.maxPlayers + ' players.';
+          if (!g.compatible) desc = 'Different CoSync version (host build ' + g.build + ', yours ' + state.build + '). Both players need the same version.';
+          else if (full) desc = 'This game is full.';
+          return { key: 's:' + g.id, label: g.name, meta: 'Steam  ' + g.players + ' / ' + state.maxPlayers,
+                   disabled: full || !g.compatible, steamJoin: g.id, desc: desc };
+        });
+        const list = steamList.concat(state.search.sessions.map(s => {
           const full = s.players >= s.max;
           let desc = 'Hosted by ' + s.host + '.  ' + s.players + ' / ' + s.max + ' players.';
           if (!s.compatible) desc = 'Different CoSync version (host build ' + s.build + ', yours ' + state.build + '). Both players need the same version.';
           else if (full) desc = 'This game is full.';
           return { key: 'g:' + s.id, label: s.name, meta: s.players + ' / ' + s.max,
                    disabled: full || !s.compatible, join: s.id, desc: desc };
-        });
+        }));
         list.push({ key: 'refresh', label: 'Refresh', action: 'refresh', desc: 'Search your network again.' });
         list.push({ key: 'direct', label: 'Direct Connect', go: 'direct',
           desc: 'Connect to a host by address. For unusual networks and troubleshooting.' });
@@ -256,6 +284,12 @@
       },
       notice: () => {
         if (xferFailed()) return XFER_ERRORS[state.transfer.error] || XFER_ERRORS.default;
+        if (status() === 'OFFLINE' && state.steam.error === 'version_mismatch')
+          return XFER_ERRORS.version_mismatch;
+        if (status() === 'OFFLINE' && state.steam.error === 'join_failed')
+          return { head: 'Could not join', text: 'The Steam lobby could not be joined. The host may have stopped hosting.' };
+        if (status() === 'OFFLINE' && state.steam.error === 'steam_unavailable')
+          return { head: 'Steam unavailable', text: 'Steam must be running to join a friend’s game.' };
         switch (status()) {
           case 'SESSION FULL':
             return { head: 'Session full', text: 'This game already has ' + state.maxPlayers + ' players.' };
@@ -496,9 +530,9 @@
     if (it.field) { move(+1); return; }          // Enter in a field: next row
     if (it.toggle) { cycleOption(it); return; }
     if (it.go) { sound('ok'); go(it.go); return; }
-    if (it.join) {
+    if (it.join || it.steamJoin) {
       sound('ok');
-      doJoin('join|' + it.join);
+      doJoin(it.steamJoin ? 'steam_join|' + it.steamJoin : 'join|' + it.join);
       stack = ['root', 'connect'];
       transition(() => render(null));
       return;
@@ -506,6 +540,8 @@
     switch (it.action) {
       case 'back':    back(); break;
       case 'host':    sound('ok'); native('host'); break;
+      case 'steam_host': sound('ok'); native('steam_host'); break;
+      case 'steam_invite': sound('ok'); native('steam_invite'); break;
       case 'stop':    sound('ok'); native('stop'); break;
       case 'stop_root': sound('cancel'); native('stop'); goRoot(); break;
       case 'leave_back': sound('cancel'); native('stop'); goRoot(); break;

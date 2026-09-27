@@ -69,6 +69,7 @@ extern volatile void* g_animUtils_lastActor;
 #include "CoSyncCompanions.h"
 #include "CoSyncItemMods.h"
 #include "CoSyncThreadDiag.h"
+#include "CoSyncSteamLobby.h"
 
 #include <DbgHelp.h>
 #include <atomic>
@@ -368,6 +369,9 @@ void CoSyncRuntime_TickGameThread()
 
     // Hook calling-thread census (diagnostic only, see CoSyncThreadDiag.h).
     CoSyncThreadDiag::Report(now);
+
+    // Steam lobby (host lobby / friend browse / join) async polling.
+    CoSyncSteamLobby::Tick(now);
 
     PollAndPrintAnimDiagnostics();
     PollLoadingMenuState();

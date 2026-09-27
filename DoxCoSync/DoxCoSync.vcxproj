@@ -293,6 +293,7 @@ exit /b 0
     <ClInclude Include="Networking\CoSyncNet.h" />
     <ClInclude Include="Networking\CoSyncSteamID.h" />
     <ClInclude Include="Networking\CoSyncSteamAPI.h" />
+    <ClInclude Include="Networking\CoSyncSteamLobby.h" />
     <ClInclude Include="GUI\CoSyncOverlay.h" />
     <ClInclude Include="GUI\CoSyncPrismaUI.h" />
     <ClInclude Include="GUI\CoSyncWindowHook.h" />
@@ -476,6 +477,7 @@ exit /b 0
     <ClCompile Include="Networking\CoSyncNet.cpp" />
     <ClCompile Include="Networking\CoSyncSteamID.cpp" />
     <ClCompile Include="Networking\CoSyncSteamAPI.cpp" />
+    <ClCompile Include="Networking\CoSyncSteamLobby.cpp" />
     <ClCompile Include="GUI\CoSyncOverlay.cpp" />
     <ClCompile Include="GUI\CoSyncPrismaUI.cpp" />
     <ClCompile Include="GUI\CoSyncWindowHook.cpp" />
