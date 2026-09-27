@@ -26,6 +26,7 @@
 #include <string>
 #include <cstdlib>
 #include <cstdio>
+#include "CoSyncThreadDiag.h"
 
 // Was extern RelocPtr<PlayerCharacter*> g_player -- switched to CoSyncGetPlayer()
 // (see GameGlobals.cpp), the established, confirmed-working replacement for
@@ -290,6 +291,7 @@ static void SendDialogLine(uint32_t entityID, uint32_t topicFormID)
 static void* __fastcall Detour_BuildDialogueItem(
     void* topic, void* speaker, int a3, void* a4, void* a5, void* a6)
 {
+    CoSyncThreadDiag::Note(CoSyncThreadDiag::kDialogueLine);
     void* result = g_origBuildDialogueItem
         ? g_origBuildDialogueItem(topic, speaker, a3, a4, a5, a6)
         : nullptr;

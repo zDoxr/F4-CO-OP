@@ -14,6 +14,7 @@
 
 #include <atomic>
 #include <cstdio>
+#include "CoSyncThreadDiag.h"
 
 // sub_140500430 = "INV_ADD_FROM_WORLD" helper.
 // Called by PlayerCharacter::PickUp when the player grabs a world item.
@@ -89,6 +90,7 @@ __declspec(noinline) static void* SafeReadPtr(const void* base, size_t off)
 static void __fastcall Detour_InvAddFromWorld(void* dstActor, void* srcREFR, unsigned int count)
 {
     LOG_REQUIREMENT("CoSyncPickupHook::Detour_InvAddFromWorld", "Runs whenever any actor picks up a world item. Needs the hook installed and treats the actor/item pointers as untrusted, only reading them through the safe helpers. Only sends a pickup message once connected to another player.");
+    CoSyncThreadDiag::Note(CoSyncThreadDiag::kPickup);
     // round 94 diagnostic: unconditional fire-heartbeat, confirms the
     // round-93 RVA fix (kInvAddFromWorld_RVA) is reached -- fires for every
     // actor picking up any world item, not just the player.

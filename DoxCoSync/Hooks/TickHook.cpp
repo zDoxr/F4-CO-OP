@@ -27,6 +27,7 @@
 #include <vector>
 #include "MinHook.h"
 #include "CoSyncRequirementsLog.h"
+#include "CoSyncThreadDiag.h"
 
 
 extern RelocPtr<PlayerCharacter*> g_player;
@@ -124,6 +125,7 @@ static __int64 __fastcall ActorUpdate_Hook(
     void* arg3)
 {
     LOG_REQUIREMENT("ActorUpdate_Hook", "This runs once per frame for the player, once the hook is installed. The actor passed in could be the real local player or a remote player's stand-in -- both are handled here.");
+    CoSyncThreadDiag::Note(CoSyncThreadDiag::kLocalActorUpdate);
 
     // UPDATE 2026-06-21 (round 79): per FO4_Wrld's independently-developed
     // "GHOST-BAIL" mitigation for this exact crash family (studied for
@@ -356,6 +358,7 @@ static __int64 __fastcall RemoteActorUpdate_Hook(
     void*            arg3)
 {
     LOG_REQUIREMENT("RemoteActorUpdate_Hook", "This is installed separately for each remote player's stand-in actor, and only runs for that specific actor.");
+    CoSyncThreadDiag::Note(CoSyncThreadDiag::kRemoteActorUpdate);
     g_lastTickStep = "TickHook:RemoteActorUpdate_Hook:entry";
 
     CoSyncPlayer* player = nullptr;

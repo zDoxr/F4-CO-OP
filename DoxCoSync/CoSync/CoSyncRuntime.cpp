@@ -68,6 +68,7 @@ extern volatile void* g_animUtils_lastActor;
 #include "CoSyncProxyLooks.h"
 #include "CoSyncCompanions.h"
 #include "CoSyncItemMods.h"
+#include "CoSyncThreadDiag.h"
 
 // LoadingMenu open-state poll — drives CoSyncOverlay_IsLoadingScreenActive()
 // (the player marker holds position while a loading screen is up).
@@ -278,6 +279,9 @@ void CoSyncRuntime_TickGameThread()
             LOG_INFO("[CoSyncRuntime] main tick heartbeat #%u lastStep=%s", s_tickCount, g_lastTickStep ? g_lastTickStep : "<none>");
         }
     }
+
+    // Hook calling-thread census (diagnostic only, see CoSyncThreadDiag.h).
+    CoSyncThreadDiag::Report(now);
 
     PollAndPrintAnimDiagnostics();
     PollLoadingMenuState();

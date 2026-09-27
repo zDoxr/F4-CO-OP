@@ -121,6 +121,12 @@ void CoSyncTransport::ForwardMessage(const std::string& msg, HSteamNetConnection
     // World chunks are raw save bytes; profiles are large -- log the size only.
     if (msg.rfind("WORLDCHUNK|", 0) == 0 || msg.rfind("PROFILEUP|", 0) == 0)
         LOG_DEBUG("[Transport] ForwardMessage %zu bytes (conn=%u): %.10s...", msg.size(), conn, msg.c_str());
+    // EU: 80 chars cut off the sender timestamp (field 6), which is what a
+    // send-vs-arrival jitter measurement needs (Phase 5 audit). 170 covers
+    // entity|flags|pos|rot|vel|timestamp for any in-world coordinate.
+    else if (msg.rfind("EU|", 0) == 0)
+        LOG_INFO("[Transport] ForwardMessage %zu bytes (conn=%u): %.170s",
+            msg.size(), conn, msg.c_str());
     else
         LOG_INFO("[Transport] ForwardMessage %zu bytes (conn=%u): %.80s",
             msg.size(), conn, msg.c_str());

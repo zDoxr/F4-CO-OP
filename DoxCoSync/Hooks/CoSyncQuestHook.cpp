@@ -14,6 +14,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include "CoSyncThreadDiag.h"
 
 // Quest.SetCurrentStageID Papyrus dispatch — FO4 1.11.221
 // Signature: void(VirtualMachine* vm, uint32_t stackID, TESQuest* thisObj, int32_t aiStageID)
@@ -72,6 +73,7 @@ static void __fastcall Detour_SetCurrentStageID(
     int32_t          aiStageID)
 {
     LOG_REQUIREMENT("Detour_SetCurrentStageID", "Needs the quest-stage hook to already be installed correctly, and a valid quest object to relay the stage change.");
+    CoSyncThreadDiag::Note(CoSyncThreadDiag::kQuestStage);
     {
         static std::atomic<uint32_t> s_n{ 0 };
         const uint32_t n = ++s_n;

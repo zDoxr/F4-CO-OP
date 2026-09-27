@@ -23,6 +23,7 @@
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
+#include "CoSyncThreadDiag.h"
 
 extern RelocAddr<_LookupFormByID> LookupFormByID;
 
@@ -153,6 +154,7 @@ static char __fastcall Detour_ActivateWorker(
     void* a5, void* a6, void* a7)
 {
     LOG_REQUIREMENT("(global)::Detour_ActivateWorker", "Needs the hook to already be installed so it can call the real game function. Broadcasting the door also needs an active connection.");
+    CoSyncThreadDiag::Note(CoSyncThreadDiag::kDoorActivate);
     // round 94 diagnostic: unconditional fire-heartbeat, confirms the
     // round-93 RVA fix (kActivateWorker_RVA) is reached. This fires for
     // EVERY activation in the game (not just doors), so it should appear

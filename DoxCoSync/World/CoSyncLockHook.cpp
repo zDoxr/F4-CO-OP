@@ -19,6 +19,7 @@
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
+#include "CoSyncThreadDiag.h"
 
 extern RelocAddr<_LookupFormByID> LookupFormByID;
 
@@ -186,12 +187,14 @@ namespace { std::atomic<uint64_t> g_unlockFires{ 0 }, g_lockFires{ 0 }; }
 static void __fastcall Detour_ForceUnlock(void* refr)
 {
     LOG_REQUIREMENT("(global)::Detour_ForceUnlock", "Needs the hook to already be installed so we can still reach the original game function afterward.");
+    CoSyncThreadDiag::Note(CoSyncThreadDiag::kLockFlip);
     OnLockFlip(refr, false, g_origForceUnlock, g_unlockFires, "UNLOCK");
 }
 
 static void __fastcall Detour_ForceLock(void* refr)
 {
     LOG_REQUIREMENT("(global)::Detour_ForceLock", "Needs the hook to already be installed so we can still reach the original game function afterward.");
+    CoSyncThreadDiag::Note(CoSyncThreadDiag::kLockFlip);
     OnLockFlip(refr, true, g_origForceLock, g_lockFires, "LOCK");
 }
 

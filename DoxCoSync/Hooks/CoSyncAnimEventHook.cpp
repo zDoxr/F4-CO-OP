@@ -21,6 +21,7 @@
 #include <atomic>
 #include <mutex>
 #include <vector>
+#include "CoSyncThreadDiag.h"
 
 // Was extern RelocPtr<PlayerCharacter*> g_player -- switched to CoSyncGetPlayer()
 // (see GameGlobals.cpp), the established, confirmed-working replacement for
@@ -317,6 +318,7 @@ static int __fastcall HookedReceiveEvent(
     void*                  dispatcher)
 {
     LOG_REQUIREMENT("HookedReceiveEvent", "Needs this to be the real animation event listener so it can find the owning actor, and the original game function must stay valid so every event still gets processed normally.");
+    CoSyncThreadDiag::Note(CoSyncThreadDiag::kAnimEvent);
 
     // Deliberately NOT forwarding the local player here: player animation sync
     // already works through TickAnimVars' state-based dispatch, and firing both

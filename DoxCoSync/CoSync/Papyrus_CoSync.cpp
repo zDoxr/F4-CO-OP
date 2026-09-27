@@ -32,6 +32,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include "CoSyncThreadDiag.h"
 
 using PapyrusActionType = TESForm*;
 
@@ -281,6 +282,7 @@ static VMArray<SInt32> CoSync_GetAllEntityIDs(StaticFunctionTag*)
 static TESObjectREFR* CoSync_GetActorByEntityID(StaticFunctionTag*, SInt32 entityID)
 {
     LOG_REQUIREMENT("CoSync_GetActorByEntityID", "Needs a valid entity ID (zero or greater, checked) and the entity registry to have an entry for it. Returns nothing otherwise.");
+    CoSyncThreadDiag::Note(CoSyncThreadDiag::kPapyrusGetActor);
     if (entityID < 0)
         return nullptr;
 
