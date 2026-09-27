@@ -537,6 +537,12 @@ void CoSyncNet::Shutdown()
         CoSyncTransport::Send(std::string(reason));
     }
 
+    // L3 (2026-09-26): nothing removed proxies or restored hidden NPCs on
+    // Stop/Leave -- OnGNSDisconnected's queued destroys never ran because the
+    // tick that drains them stops right here. Tear everything down now.
+    if (s_initialized)
+        g_CoSyncPlayerManager.DespawnAllRemote("session shutdown");
+
     s_initialized = false;
     s_pendingInit = false;
 

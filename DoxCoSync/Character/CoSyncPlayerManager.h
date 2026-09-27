@@ -66,6 +66,12 @@ public:
 
     void UnregisterEntityIDOnly(uint32_t entityID);
 
+    // Session end (L3): despawn every remote player proxy and unbind every
+    // world NPC through NpcWorldSync (re-showing hidden originals), right now
+    // rather than via the inbox -- the tick that drains it stops at shutdown.
+    // Game thread.
+    void DespawnAllRemote(const char* reason);
+
 
     const std::unordered_map<uint32_t, CoSyncEntityState>&
         GetStates() const { LOG_REQUIREMENT("CoSyncPlayerManager::GetStates", "Just returns the already-built entity state list."); return m_statesByEntityID; }

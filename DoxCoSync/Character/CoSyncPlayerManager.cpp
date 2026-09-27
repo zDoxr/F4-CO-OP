@@ -605,7 +605,47 @@ void CoSyncPlayerManager::ProcessEntityDestroy(const EntityDestroyPacket& d)
     if (d.entityID == kDebugNpcEntityID && !CoSyncNet::IsHost())
         return;
 
+    // World NPCs are owned by NpcWorldSync (binding, clone, hidden original):
+    // unbind them there, as CoSyncNet's ED receiver and the timeout path do.
+    // DespawnEntity alone left NpcWorldSync's binding behind (bug N1 class).
+    if (CoSyncNpcWorldSync::IsWorldActorEntityID(d.entityID))
+    {
+        CoSyncNpcWorldSync::ClientUnbindWorldActor(d.entityID, d.reasonFlags);
+        return;
+    }
+
     DespawnEntity(d.entityID, "network destroy");
+}
+
+void CoSyncPlayerManager::DespawnAllRemote(const char* reason)
+{
+    LOG_REQUIREMENT("CoSyncPlayerManager::DespawnAllRemote", "Game thread, session end. Collects every remote entity ID first, then tears each one down.");
+    std::vector<uint32_t> ids;
+    ids.reserve(m_playersByEntityID.size() + m_statesByEntityID.size());
+    for (const auto& kv : m_playersByEntityID)
+        if (kv.first != 0 && kv.first != m_localEntityID)
+            ids.push_back(kv.first);
+    for (const auto& kv : m_statesByEntityID)
+        if (kv.first != 0 && kv.first != m_localEntityID && !m_playersByEntityID.count(kv.first))
+            ids.push_back(kv.first);
+
+    for (uint32_t id : ids)
+    {
+        if (CoSyncNpcWorldSync::IsWorldActorEntityID(id))
+            CoSyncNpcWorldSync::ClientUnbindWorldActor(id);
+        else
+            DespawnEntity(id, reason);
+    }
+
+    {
+        std::lock_guard<std::mutex> lk(m_inboxMutex);
+        m_inbox.clear();
+    }
+    {
+        std::lock_guard<std::mutex> lk(m_spawnMutex);
+        m_pendingCreates.clear();
+    }
+    LOG_UPDATED("[PlayerMgr] Session end: removed %zu remote entities (%s)", ids.size(), reason);
 }
 
 void CoSyncPlayerManager::DespawnEntity(uint32_t entityID, const char* reason)
