@@ -473,6 +473,30 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD reason, LPVOID)
 
         DetectMyInstance();
 
+        // Steam-path testing on one PC (2026-09-27): Steam refuses a second
+        // process connecting to its own account, so the two instances run
+        // under gbe_fork -- which must see two DIFFERENT emulated accounts.
+        // gbe_fork keeps account_steamid/account_name in configs.user.ini
+        // under its save path, and the GseSavePath environment variable
+        // overrides that path per process (dll/settings_parser.cpp). The
+        // second instance gets its own folder, so gbe generates a separate
+        // SteamID there. Valve's steam_api64.dll ignores the variable. Set
+        // here, long before the game calls SteamAPI_Init.
+        if (s_isMyInstance)
+        {
+            wchar_t appdata[MAX_PATH] = {};
+            if (GetEnvironmentVariableW(L"APPDATA", appdata, MAX_PATH) > 0)
+            {
+                wchar_t savePath[MAX_PATH] = {};
+                _snwprintf_s(savePath, MAX_PATH, _TRUNCATE, L"%s\\GSE Saves Instance2\\", appdata);
+                CreateDirectoryW(savePath, NULL);
+                if (SetEnvironmentVariableW(L"GseSavePath", savePath))
+                    Log("Second instance: GseSavePath=%S (separate gbe_fork account)", savePath);
+                else
+                    Log("Second instance: SetEnvironmentVariable(GseSavePath) failed err=%lu", GetLastError());
+            }
+        }
+
         HMODULE k32   = GetModuleHandleA("kernel32.dll");
         HMODULE user32 = GetModuleHandleA("user32.dll");
 
