@@ -337,7 +337,10 @@ void UninstallDoorHook()
 namespace
 {
     using LockDataGetFn = void* (__fastcall*)(void* refr);
-    constexpr uintptr_t kLockDataGet_RVA_Local = 0x00563490;
+    // TESObjectREFR -> REFR_LOCK* (sub_1405634A0, IDA 1.11.240 2026-09-26);
+    // the old 0x563490 was int3 padding on this build. Same value as
+    // CoSyncLockHook's kLockDataGet_RVA.
+    constexpr uintptr_t kLockDataGet_RVA_Local = 0x005634A0;
     constexpr size_t    kLockData_FlagsOff     = 0x10;
     constexpr uint8_t   kLockFlag_Locked       = 0x01;
 }

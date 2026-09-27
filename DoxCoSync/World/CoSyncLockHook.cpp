@@ -41,13 +41,17 @@ extern RelocAddr<_LookupFormByID> LookupFormByID;
 // live bytes there are a function tail and lone-ret padding respectively.
 static constexpr uintptr_t kForceUnlock_RVA      = 0x00563650;
 static constexpr uintptr_t kForceLock_RVA        = 0x00563690;
-static constexpr uintptr_t kLockDataGet_RVA      = 0x00563490;
-// Papyrus ObjectReference.Lock binding -- VERIFIED round 94 (entry_match=True,
-// 5-param signature). Bonus cross-validation: its decompile calls
-// sub_140305760 (our DoorHook SetOpenState) and sub_140563170 (our
-// LockDataGet above) directly by those exact addresses -- independent
-// confirmation those two round-93 fixes are correct.
-static constexpr uintptr_t kLockPapyrusApply_RVA = 0x01158640;
+// TESObjectREFR -> REFR_LOCK* (own ExtraLock, else the linked door's).
+// IDA 1.11.240, 2026-09-26: sub_1405634A0, 52 callers; returns
+// sub_14027FC20(extraList) = ExtraLock(type 0x2A)+0x18. The previous
+// 0x563490 was int3 padding on this build (Phase 6 RVA sweep), so every
+// lock-state read raised a breakpoint exception and reported "not locked".
+static constexpr uintptr_t kLockDataGet_RVA      = 0x005634A0;
+// Applying a remote lock flip: the old kLockPapyrusApply_RVA (0x01158640,
+// verified on 1.11.221) lands 0x30 bytes inside sub_141158610 on 1.11.240 --
+// a Papyrus native that reports "is not a radio receiver". Remote flips now
+// replay the engine's own ForceLock/ForceUnlock (the functions hooked above,
+// called through their trampolines), exactly what the sender's engine ran.
 
 // LockData layout (RE'd in FO4_Wrld re/ dossier).
 static constexpr size_t  kLockData_FlagsOff = 0x10;
@@ -57,13 +61,10 @@ thread_local bool tls_cs_lock_applying = false;
 
 using LockFlipFn        = void(__fastcall*)(void* refr);
 using LockDataGetFn     = void*(__fastcall*)(void* refr);
-// void(unused, unused, REFR*, u8 locked, char ai_notify)
-using LockPapyrusApplyFn = void(__fastcall*)(void* a1, void* a2, void* refr, uint8_t locked, char aiNotify);
 
 static LockFlipFn        g_origForceUnlock   = nullptr;
 static LockFlipFn        g_origForceLock     = nullptr;
 static LockDataGetFn     g_fnLockDataGet     = nullptr;
-static LockPapyrusApplyFn g_fnLockApply      = nullptr;
 
 static std::atomic<bool> g_hooksInstalled{ false };
 
@@ -211,7 +212,6 @@ void InstallLockHook()
     const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandle(NULL));
 
     g_fnLockDataGet = reinterpret_cast<LockDataGetFn>(base + kLockDataGet_RVA);
-    g_fnLockApply   = reinterpret_cast<LockPapyrusApplyFn>(base + kLockPapyrusApply_RVA);
 
     MH_STATUS st = MH_Initialize();
     if (st != MH_OK && st != MH_ERROR_ALREADY_INITIALIZED)
@@ -331,10 +331,11 @@ __declspec(noinline) static TESObjectREFR* SafeLookupAndCastLockRefr(uint32_t re
 static void DoLockApply(void* refr, uint8_t locked) noexcept
 {
     LOG_REQUIREMENT("(global)::DoLockApply", "Needs the resolved game function and a valid ref. The actual game call is wrapped in a crash guard.");
-    if (!g_fnLockApply || !refr) return;
+    const LockFlipFn fn = locked ? g_origForceLock : g_origForceUnlock;
+    if (!fn || !refr) return;
     tls_cs_lock_applying = true;
     __try {
-        g_fnLockApply(nullptr, nullptr, refr, locked, 0);
+        fn(refr);   // original ForceLock/ForceUnlock via the MinHook trampoline
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {}
     tls_cs_lock_applying = false;
