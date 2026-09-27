@@ -2040,8 +2040,19 @@ void CoSyncPlayerManager::Tick()
             {
                 LOG_WARN("[PlayerMgr] entity=%u actor=%p freed (unloaded) — clearing",
                     ent.entityID, static_cast<void*>(ent.actorRef));
+                Actor* const freedActor = ent.actorRef;
                 ent.actorRef   = nullptr;
                 ent.hasSpawned = false;
+                // L2 (2026-09-26): release every other index still keyed by the
+                // dead actor, exactly as DespawnEntity does. Left behind, the
+                // registry refused the respawned actor ("already registered",
+                // runtime log 16708 12:57:45) and the TickHook / bone-cache
+                // entries pointed at freed memory. All three only use the
+                // pointer as a lookup key (the bone cache's nodes are pinned by
+                // our own reference, so releasing them is correct).
+                g_CoSyncEntities.Remove(ent.entityID);
+                UnregisterRemoteActor(freedActor);
+                CoSyncPlayerAnimation::ReleaseBoneCache(freedActor);
                 // The rebuilt replacement actor gets a fresh body -- any
                 // outfit/weapon marked "applied" against the OLD actor is
                 // stale. Outfit's cache is keyed by entityID only (no actor
