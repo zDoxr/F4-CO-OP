@@ -70,6 +70,90 @@ extern volatile void* g_animUtils_lastActor;
 #include "CoSyncItemMods.h"
 #include "CoSyncThreadDiag.h"
 
+#include <DbgHelp.h>
+#include <atomic>
+#include <string>
+
+// ---------------------------------------------------------------------------
+// Hang watchdog (2026-09-26). In the 0.2.4 test the client's tick stopped for
+// good at 23:39:14 while its network thread kept receiving; the game was
+// closed without a crash, so nothing showed what the engine was doing. A
+// plain OS thread (never joined, dies with the process) watches the tick's
+// timestamp: a stall of kHangDumpSeconds writes one CoSync_hang.dmp with
+// every thread's stack, and any stall over kStallLogSeconds is logged when
+// the tick comes back (loading screens run 15-43 s in the 26 Sep logs, so
+// they show up as logged stalls, not dumps). Diagnostic only.
+// ---------------------------------------------------------------------------
+namespace
+{
+    constexpr uint64_t kHangDumpSeconds = 90;
+    constexpr uint64_t kStallLogSeconds = 20;
+
+    std::atomic<uint64_t> g_lastTickMs{ 0 };
+    std::atomic<bool>     g_watchdogStarted{ false };
+
+    void WriteHangDump(uint64_t stalledSec)
+    {
+        char exePath[MAX_PATH] = {};
+        if (::GetModuleFileNameA(nullptr, exePath, MAX_PATH) == 0)
+            return;
+        std::string path(exePath);
+        const size_t slash = path.find_last_of("\\/");
+        path = (slash == std::string::npos) ? std::string() : path.substr(0, slash + 1);
+        path += "Data\\F4SE\\Plugins\\CoSync_hang.dmp";
+
+        HANDLE hFile = ::CreateFileA(path.c_str(), GENERIC_WRITE, 0, nullptr,
+            CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (hFile == INVALID_HANDLE_VALUE)
+            return;
+        const BOOL ok = ::MiniDumpWriteDump(::GetCurrentProcess(), ::GetCurrentProcessId(), hFile,
+            static_cast<MINIDUMP_TYPE>(MiniDumpWithDataSegs | MiniDumpWithThreadInfo),
+            nullptr, nullptr, nullptr);
+        ::CloseHandle(hFile);
+        LOG_ERROR("[HangWatchdog] tick stalled %llus -- %s CoSync_hang.dmp",
+            (unsigned long long)stalledSec, ok ? "wrote" : "FAILED to write");
+    }
+
+    DWORD WINAPI HangWatchdogProc(void*)
+    {
+        bool dumped = false;
+        for (;;)
+        {
+            ::Sleep(1000);
+            const uint64_t last = g_lastTickMs.load(std::memory_order_relaxed);
+            if (last == 0)
+                continue;
+            const uint64_t stalled = (::GetTickCount64() - last) / 1000;
+            if (!dumped && stalled >= kHangDumpSeconds)
+            {
+                const char* step = g_lastTickStep ? const_cast<const char*>(g_lastTickStep) : "<none>";
+                LOG_ERROR("[HangWatchdog] no CoSync tick for %llus (lastTickStep=%s, loadingMenu=%d)",
+                    (unsigned long long)stalled, step, CoSyncOverlay_IsLoadingScreenActive() ? 1 : 0);
+                WriteHangDump(stalled);
+                dumped = true;   // once per process
+            }
+        }
+    }
+
+    // Tick side: stamp, log a long stall once it ends, start the thread once.
+    void HangWatchdogTick()
+    {
+        const uint64_t nowMs = ::GetTickCount64();
+        const uint64_t prev = g_lastTickMs.exchange(nowMs, std::memory_order_relaxed);
+        if (prev != 0 && nowMs - prev >= kStallLogSeconds * 1000)
+            LOG_WARN("[HangWatchdog] tick resumed after a %.1fs stall (lastTickStep=%s)",
+                (nowMs - prev) / 1000.0, g_lastTickStep ? const_cast<const char*>(g_lastTickStep) : "<none>");
+        if (!g_watchdogStarted.exchange(true))
+        {
+            HANDLE h = ::CreateThread(nullptr, 0, HangWatchdogProc, nullptr, 0, nullptr);
+            if (h)
+                ::CloseHandle(h);
+            else
+                g_watchdogStarted.store(false);
+        }
+    }
+}
+
 // LoadingMenu open-state poll — drives CoSyncOverlay_IsLoadingScreenActive()
 // (the player marker holds position while a loading screen is up).
 //
@@ -266,6 +350,7 @@ void CoSyncRuntime_TickGameThread()
     LOG_REQUIREMENT("CoSyncRuntime_TickGameThread", "Must run on the main game thread, not the render thread, to avoid a cross-thread race that's been hit before. Relies on the networking/player subsystems gating themselves until they're ready.");
     const double now = NowSeconds();
     CoSyncThreadDiag::TickScope tickScope;   // overlap census, see CoSyncThreadDiag.h
+    HangWatchdogTick();
 
     // Unconditional heartbeat -- proves the main-thread task itself is still
     // getting turns at all. If it goes silent, g_lastTickStep's last value
