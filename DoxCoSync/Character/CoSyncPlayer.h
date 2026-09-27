@@ -232,6 +232,12 @@ public:
     double m_lastAnimTickTime = 0.0;
 
     float m_smoothPitch   = 0.0f;
+    // PitchDiag (see TickAnimVars): raw Pitch range per 10 s window.
+    double   m_pitchDiagStart   = 0.0;
+    float    m_pitchDiagMin     = 1e30f;
+    float    m_pitchDiagMax     = -1e30f;
+    uint32_t m_pitchDiagSamples = 0;
+    uint32_t m_pitchDiagClamped = 0;
     float m_smoothHeading = 0.0f;
 
     NiPoint3 m_prevRecvPos{ 0.f, 0.f, 0.f };

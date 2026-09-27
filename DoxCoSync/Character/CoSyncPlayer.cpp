@@ -1073,11 +1073,38 @@ void CoSyncPlayer::TickAnimVars()
             constexpr float kMaxPitch = 1.2f;
             float rawPitch = m_lastRecvAnimVars.floats[6];
 
+            // 2026-09-26: the 0.2.4 test logged this ~25x/s (10,469 lines in
+            // 7 min on the client) with values that sit steadily at -5..-21
+            // for minutes -- not a one-off rebuild glitch. Those numbers are
+            // plausible look angles IN DEGREES, so the radian premise of
+            // kMaxPitch is UNCONFIRMED. PitchDiag logs the full raw range
+            // (in-range samples too) every 10 s so a look-up/look-down test
+            // settles the unit; the warning is rate-limited meanwhile.
+            if (std::isfinite(rawPitch))
+            {
+                m_pitchDiagMin = (std::min)(m_pitchDiagMin, rawPitch);
+                m_pitchDiagMax = (std::max)(m_pitchDiagMax, rawPitch);
+                ++m_pitchDiagSamples;
+            }
+            if (animNow - m_pitchDiagStart >= 10.0)
+            {
+                if (m_pitchDiagSamples > 0)
+                    LOG_INFO("[PitchDiag] entity=%u raw Pitch over %.0fs: min=%.3f max=%.3f (%u samples, %u clamped)",
+                        entityID, animNow - m_pitchDiagStart, m_pitchDiagMin, m_pitchDiagMax,
+                        m_pitchDiagSamples, m_pitchDiagClamped);
+                m_pitchDiagStart = animNow;
+                m_pitchDiagMin = 1e30f;
+                m_pitchDiagMax = -1e30f;
+                m_pitchDiagSamples = 0;
+                m_pitchDiagClamped = 0;
+            }
+
             if (!std::isfinite(rawPitch) || fabsf(rawPitch) > kMaxPitch)
             {
-                LOG_UPDATED_WARN("[TickAnimVars] entity=%u implausible pitch %.3f rad "
-                                 "(clamped) — likely a graph rebuild during equip",
-                    entityID, rawPitch);
+                if ((m_pitchDiagClamped++ % 600) == 0)
+                    LOG_UPDATED_WARN("[TickAnimVars] entity=%u implausible pitch %.3f rad "
+                                     "(clamped) — likely a graph rebuild during equip (1 in 600 logged)",
+                        entityID, rawPitch);
                 rawPitch = (rawPitch > 0.f) ? kMaxPitch : -kMaxPitch;
                 if (!std::isfinite(m_lastRecvAnimVars.floats[6]))
                     rawPitch = 0.0f;
