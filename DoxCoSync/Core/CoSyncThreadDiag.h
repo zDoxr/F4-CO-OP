@@ -97,8 +97,16 @@ namespace CoSyncThreadDiag
         // Track the current one instead of freezing the first.
         const uint32_t cur = ::GetCurrentThreadId();
         const uint32_t prev = g_mainTid.exchange(cur, std::memory_order_relaxed);
-        if (prev != cur)
-            LOG_INFO("[ThreadDiag] CoSync tick thread is now tid=%u (was %u)", cur, prev);
+        // In game the tick hops between the engine's job threads almost every
+        // frame (~96k of these lines per session in the 2026-09-26 logs), so
+        // only the first few changes are logged.
+        static uint32_t s_changesLogged = 0;
+        if (prev != cur && s_changesLogged < 16)
+        {
+            ++s_changesLogged;
+            LOG_INFO("[ThreadDiag] CoSync tick thread is now tid=%u (was %u)%s", cur, prev,
+                s_changesLogged == 16 ? " -- further changes not logged" : "");
+        }
 
         static double s_lastReport = 0.0;
         if (now - s_lastReport < 5.0)
