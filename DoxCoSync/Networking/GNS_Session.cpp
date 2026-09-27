@@ -467,12 +467,36 @@ void GNS_Session::ProcessMessagesOnConnection(HSteamNetConnection conn)
             // of the same std::unordered_map (this function runs on both the
             // background network thread and, redundantly, the main thread via
             // Tick() -- see the Tick()-side fix below for the actual root cause).
-            std::lock_guard<std::mutex> lk(m_connsMutex);
-            m_peerSteamIDs[conn] = sid;
+            BindPeerSteamID(conn, sid);
         }
 
         CoSyncTransport::ForwardMessage(text, conn);
     }
+}
+
+// P5/N7 (2026-09-26): the identity a connection gives in its first HELLO is
+// the one the host checks every entity message against, so a later HELLO must
+// not switch it to another player's Steam ID. (Without Steam authentication the
+// first claim itself is still unverified -- IP_AllowWithoutAuth=1.)
+void GNS_Session::BindPeerSteamID(HSteamNetConnection conn, uint64_t sid)
+{
+    std::lock_guard<std::mutex> lk(m_connsMutex);
+    auto it = m_peerSteamIDs.find(conn);
+    if (it == m_peerSteamIDs.end())
+    {
+        m_peerSteamIDs.emplace(conn, sid);
+        return;
+    }
+    if (it->second != sid)
+        LOG_WARN("[GNS] conn=%u sent a HELLO as %llu but identified as %llu -- keeping the first identity",
+            conn, (unsigned long long)sid, (unsigned long long)it->second);
+}
+
+uint64_t GNS_Session::GetPeerSteamID(HSteamNetConnection conn) const
+{
+    std::lock_guard<std::mutex> lk(m_connsMutex);
+    auto it = m_peerSteamIDs.find(conn);
+    return it != m_peerSteamIDs.end() ? it->second : 0;
 }
 
 void GNS_Session::ProcessMessagesOnPollGroup()
@@ -503,10 +527,7 @@ void GNS_Session::ProcessMessagesOnPollGroup()
 
         uint64_t sid = 0;
         if (ParseHelloSteamID(text, sid) && conn != k_HSteamNetConnection_Invalid)
-        {
-            std::lock_guard<std::mutex> lk(m_connsMutex);
-            m_peerSteamIDs[conn] = sid;
-        }
+            BindPeerSteamID(conn, sid);
 
         CoSyncTransport::ForwardMessage(text, conn);
     }

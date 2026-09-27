@@ -77,6 +77,10 @@ public:
     // relayed message came from). Client role: same as SendText.
     void SendTextExcept(const std::string& text, HSteamNetConnection except, bool reliable = true);
 
+    // Host: the Steam ID a client connection identified itself with in its
+    // FIRST HELLO (0 = no HELLO yet). Later HELLOs cannot change it.
+    uint64_t GetPeerSteamID(HSteamNetConnection conn) const;
+
 
     std::string GetHostConnectString() const;
 
@@ -129,6 +133,7 @@ private:
     std::unordered_set<HSteamNetConnection> m_pendingClientConns;
     std::unordered_set<HSteamNetConnection> m_clientConns;
     std::unordered_map<HSteamNetConnection, uint64_t> m_peerSteamIDs;
+    void BindPeerSteamID(HSteamNetConnection conn, uint64_t sid);
 
 
     std::thread       m_networkThread;

@@ -163,6 +163,56 @@ static uint32_t EntityIDFromSteamID(uint64_t sid)
     return static_cast<uint32_t>(sid & 0xFFFFFFFFu);
 }
 
+// ---------------------------------------------------------------------------
+// P5/N7 (2026-09-26): sender authorization on the host.
+// The host used to apply and relay entity messages from any client about any
+// entity, so one client could move, delete or re-own every other player's
+// proxy and every NPC. The sender is now the identity bound to its
+// connection (first HELLO, GNS_Session::GetPeerSteamID) -- never an ID
+// written inside the message -- and it may only speak for:
+//   * its own player entity, or
+//   * a world NPC the host's own records say it owns
+//     (CoSyncEntityState::lastCreate.ownerEntityID, set from NPCSEEN/COMPOWN).
+// Checked by the host only; clients trust the host.
+// ---------------------------------------------------------------------------
+static uint32_t HostSenderEntityID(HSteamNetConnection conn)
+{
+    if (conn == k_HSteamNetConnection_Invalid)
+        return 0;
+    return EntityIDFromSteamID(GNS_Session::Get().GetPeerSteamID(conn));
+}
+
+static bool HostSenderOwns(uint32_t senderEid, uint32_t entityID)
+{
+    if (senderEid == 0 || entityID == 0)
+        return false;
+    if (entityID == senderEid)
+        return true;
+    if (!CoSyncNpcWorldSync::IsWorldActorEntityID(entityID))
+        return false;
+    const auto& states = g_CoSyncPlayerManager.GetStates();
+    auto it = states.find(entityID);
+    return it != states.end() && it->second.hasCreate &&
+           it->second.lastCreate.ownerEntityID == senderEid;
+}
+
+static void LogUnauthorized(const char* what, HSteamNetConnection conn, uint32_t senderEid, uint32_t entityID)
+{
+    static uint32_t s_dropped = 0;
+    if ((s_dropped++ % 100) == 0)
+        LOG_WARN("[CoSyncNet] Dropped %s from conn=%u (sender entity=%u) about entity=%u it does not own (%u dropped so far)",
+            what, conn, senderEid, entityID, s_dropped);
+}
+
+// Text after the last '|' as a number (NPCSEEN / COMPOWN end with the ID the
+// sender claims to be).
+static uint32_t LastFieldU32(const std::string& msg)
+{
+    const size_t bar = msg.rfind('|');
+    return bar == std::string::npos ? 0u
+        : static_cast<uint32_t>(std::strtoul(msg.c_str() + bar + 1, nullptr, 10));
+}
+
 static bool ParseHello(const std::string& msg, std::string& outName, uint64_t& outSid, NiPoint3& outPos)
 {
     outName.clear();
@@ -1112,6 +1162,10 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
 {
 
     const bool isHostRole = s_isHost || (s_pendingInit && s_pendingHostFlag);
+    // Remote client messages are checked (P5/N7); conn==Invalid is a local
+    // GNS notice (PEERLEFT) and clients trust everything from the host.
+    const bool checkSender = isHostRole && conn != k_HSteamNetConnection_Invalid;
+    const uint32_t senderEid = checkSender ? HostSenderEntityID(conn) : 0;
 
     // Shared host save: world transfer + player profiles.
     if (CoSyncWorldTransfer::IsTransferMessage(msg))
@@ -1126,6 +1180,12 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
     }
     if (CoSyncCompanions::IsCompanionMessage(msg))
     {
+        // COMPOWN's last field is the owner the host will register.
+        if (checkSender && LastFieldU32(msg) != senderEid)
+        {
+            LogUnauthorized("COMPOWN", conn, senderEid, LastFieldU32(msg));
+            return;
+        }
         CoSyncCompanions::OnReceive(msg, isHostRole);
         return;
     }
@@ -1257,6 +1317,15 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
 
         const uint32_t eid = EntityIDFromSteamID(sid);
 
+        // P5/N7: a connection keeps the identity of its first HELLO
+        // (GNS_Session::BindPeerSteamID); a later HELLO naming someone else
+        // must not create or overwrite that player.
+        if (checkSender && eid != senderEid)
+        {
+            LogUnauthorized("HELLO", conn, senderEid, eid);
+            return;
+        }
+
         bool isNewPeer = false;
         {
             std::lock_guard<std::mutex> lk(s_peerMutex);
@@ -1340,6 +1409,11 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
         if (!DeserializeEntityUpdate(msg, u))
             return;
 
+        if (checkSender && !HostSenderOwns(senderEid, u.entityID))
+        {
+            LogUnauthorized("EU", conn, senderEid, u.entityID);
+            return;
+        }
 
         if (isHostRole)
         {
@@ -1363,6 +1437,12 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
         if (!DeserializeEntityDestroy(msg, d))
             return;
 
+        if (checkSender && !HostSenderOwns(senderEid, d.entityID))
+        {
+            LogUnauthorized("DESTROY", conn, senderEid, d.entityID);
+            return;
+        }
+
         if (CoSyncNpcWorldSync::IsWorldActorEntityID(d.entityID))
         {
             if (isHostRole)
@@ -1381,6 +1461,32 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
         EntityCreatePacket p{};
         if (!DeserializeEntityCreate(msg, p))
             return;
+
+        // A client may only (re)announce an entity it owns, and only in its
+        // own name: a world NPC must name the sender as owner AND match the
+        // host's record if the host already has one.
+        if (checkSender)
+        {
+            const bool worldActor = CoSyncNpcWorldSync::IsWorldActorEntityID(p.entityID);
+            bool ok;
+            if (worldActor)
+            {
+                const auto& states = g_CoSyncPlayerManager.GetStates();
+                auto it = states.find(p.entityID);
+                ok = p.ownerEntityID == senderEid &&
+                     (it == states.end() || !it->second.hasCreate ||
+                      it->second.lastCreate.ownerEntityID == senderEid);
+            }
+            else
+            {
+                ok = p.entityID == senderEid;
+            }
+            if (!ok)
+            {
+                LogUnauthorized("CREATE", conn, senderEid, p.entityID);
+                return;
+            }
+        }
 
         if (CoSyncOverlay_IsLoadingScreenActive())
             CoSyncOverlay_SignalLoadingComplete();
@@ -1900,6 +2006,12 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
 
     if (CoSyncNpcWorldSync::IsNpcSeen(msg))
     {
+        // The reporter (last field) becomes the NPC's owner.
+        if (checkSender && LastFieldU32(msg) != senderEid)
+        {
+            LogUnauthorized("NPCSEEN", conn, senderEid, LastFieldU32(msg));
+            return;
+        }
         CoSyncNpcWorldSync::OnReceiveNpcSeen(msg);
         return;
     }
@@ -1986,6 +2098,16 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
         // N2: not back to the sender -- a player has no proxy of itself, so
         // its own pose is never applied (measured: 48% of a client's BONES
         // download was its own echo, ~56 KB/s).
+        // P5/N7: a player only ever sends its own skeleton.
+        if (checkSender)
+        {
+            const uint32_t boneEid = static_cast<uint32_t>(std::strtoul(msg.c_str() + 6, nullptr, 10));
+            if (boneEid != senderEid || senderEid == 0)
+            {
+                LogUnauthorized("BONES", conn, senderEid, boneEid);
+                return;
+            }
+        }
         if (isHostRole)
             CoSyncTransport::SendExcept(msg, conn, /*reliable=*/false);
         CoSyncPlayerAnimation::OnReceiveBones(msg);
