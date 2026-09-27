@@ -46,6 +46,15 @@ namespace CoSyncNpcWorldSync
 
     void ClientUnbindWorldActor(uint32_t entityID, uint32_t reasonFlags = 0);
 
+    // Drops only this entity's actor binding (s_eidToActor / s_actorToEID /
+    // pending-spawn flag) after the engine freed the bound actor. Claims and
+    // hidden originals are kept -- the entity still exists and its owner's
+    // next CREATE re-binds it. Without this, ClientBindWorldActor's
+    // "already bound" guard rejected every re-bind forever (bug N1).
+    // Game thread; never touches the player manager, so it is safe to call
+    // from inside CoSyncPlayerManager::Tick's entity loop.
+    void ForgetBinding(uint32_t entityID);
+
     // Fix #2 (spawn/despawn race, proven 2026-08-02): true while a world-actor
     // entity is still pending a proxy spawn (s_spawnFallback) or already bound
     // (s_eidToActor). The async clone-spawn task calls this on completion — a

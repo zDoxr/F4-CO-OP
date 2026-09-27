@@ -2544,6 +2544,21 @@ bool IsWorldActorWanted(uint32_t entityID)
     return s_spawnFallback.count(entityID) != 0 || s_eidToActor.count(entityID) != 0;
 }
 
+void ForgetBinding(uint32_t entityID)
+{
+    LOG_REQUIREMENT("CoSyncNpcWorldSync::ForgetBinding", "Game thread. Safe for an untracked entity. Only erases binding-map entries; never dereferences the (possibly freed) actor and never touches the player manager.");
+    auto it = s_eidToActor.find(entityID);
+    if (it != s_eidToActor.end())
+    {
+        s_actorToEID.erase(it->second);   // key only -- the actor may already be freed
+        s_eidToActor.erase(it);
+    }
+    s_spawnFallback.erase(entityID);
+    s_firstBindFail.erase(entityID);
+    LOG_UPDATED("[NpcWorldSync] entity=%u binding forgotten (actor freed) -- the owner's next CREATE re-binds it",
+        entityID);
+}
+
 void ClientUnbindWorldActor(uint32_t entityID, uint32_t reasonFlags)
 {
     LOG_REQUIREMENT("CoSyncNpcWorldSync::ClientUnbindWorldActor", "Safe to call even if this entity isn't currently tracked. Despawning the proxy happens asynchronously, so it's safe to call from here. When the entity is known dead (KILL applied locally, or kDestroyReason_Dead in the packet) the proxy corpse is left in the world and the disabled original is NOT re-enabled.");

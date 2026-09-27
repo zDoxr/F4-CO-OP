@@ -2065,6 +2065,11 @@ void CoSyncPlayerManager::Tick()
                     auto stIt = m_statesByEntityID.find(ent.entityID);
                     if (stIt != m_statesByEntityID.end())
                         stIt->second.spawnQueued = false;
+                    // N1: "re-bind via the owner's CREATE re-broadcast" only
+                    // works if NpcWorldSync forgets the dead binding too --
+                    // its "already bound" guard otherwise rejects every
+                    // re-bind for the rest of the session.
+                    CoSyncNpcWorldSync::ForgetBinding(ent.entityID);
                 }
                 continue;
             }
@@ -2540,6 +2545,16 @@ void CoSyncPlayerManager::HandleTimeouts(double now)
     {
         LOG_UPDATED("[PlayerMgr] TIMEOUT entity=%u — no update for %.0fs, removing",
             entityID, kEntityTimeoutSec);
-        DespawnEntity(entityID, "timeout");
+        // N1 (2026-09-26, proven by the Dogmeat/65536 log): a world NPC must be
+        // unbound through NpcWorldSync, which owns its binding, clone and
+        // hidden original. DespawnEntity erased only this manager's state, so
+        // NpcWorldSync still believed it bound and ignored every re-sent
+        // CREATE: the NPC stayed gone while REQENT fired every 2 s. The full
+        // unbind also re-shows the client's own original, and the owner's
+        // next CREATE (5 s re-broadcast or a REQENT answer) binds it again.
+        if (CoSyncNpcWorldSync::IsWorldActorEntityID(entityID))
+            CoSyncNpcWorldSync::ClientUnbindWorldActor(entityID);
+        else
+            DespawnEntity(entityID, "timeout");
     }
 }
