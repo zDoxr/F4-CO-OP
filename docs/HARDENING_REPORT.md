@@ -4,6 +4,19 @@ Build: 0.2.3 (network build 203), runtime 1.11.240 only. Report date 2026-09-26.
 Evidence labels: **PROVEN** (log, dump or IDA shows it), **STRONGLY SUPPORTED**
 (consistent evidence, no direct proof), **UNCONFIRMED** (plausible, not shown).
 
+## Updates after the report (0.2.4)
+
+- **Blocker 3 closed (P5/N7), 809cef7 + 540ed59:** the host only accepts
+  EU/BONES/CREATE/DESTROY, NPCSEEN/COMPOWN and 23 self-state message types
+  from the entity's owner. Identity binds to the first player-naming message
+  per connection. Replay of the 0.2.3 host log: 35,586 client messages, 0
+  dropped. Still open by design: DMG, KILL, revive, PU, DOOR/LOCK, containers,
+  quests (these need game-rule checks, not ownership).
+- **Blocker 2 mostly closed (N4), 7a3c0e6:** BONES ~0.6 KB instead of ~3.5 KB
+  (mean rotation error 0.08°). Projected host upload at 8 players drops from
+  ~2.1 MB/s to roughly 0.6 MB/s. Wire format changed: **version 0.2.4**.
+- Both are untested in game.
+
 ## 1. Verdict
 
 **Not yet ready for 8 players over the public internet.** Two-player play on one
