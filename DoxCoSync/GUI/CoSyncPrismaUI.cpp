@@ -715,31 +715,25 @@ namespace CoSyncPrismaUI
         }
     }
 
-    void TickHud()
+    // Session state sampled by TickHud on CoSync's tick; read by the HUD
+    // update on PrismaUI's thread.
+    std::atomic<bool> s_hudSessionLive{ false };
+    std::atomic<bool> s_hudUpdatePending{ false };
+
+    // PrismaUI's game thread only (all view calls below).
+    void HudUpdateOnGameThread(void*)
     {
-        LOG_REQUIREMENT("CoSyncPrismaUI::TickHud", "Main-thread tick only. Throttled to 10 Hz; pushes to the page only when the data changed.");
+        s_hudUpdatePending.store(false);
         if (!s_api)
             return;
-        if (!s_api->IsGameThread())
-        {
-            static bool s_warned = false;
-            if (!s_warned) { s_warned = true; LOG_WARN("[PrismaUI] TickHud called off PrismaUI's game thread -- HUD disabled"); }
-            return;
-        }
-
-        static uint64_t s_nextMs = 0;
         const uint64_t nowMs = GetTickCount64();
-        if (nowMs < s_nextMs)
-            return;
-        s_nextMs = nowMs + 100;
 
         // Teammates only: the vanilla HUD already shows your own bars.
         std::vector<CoSyncHudPlayer> players = CoSyncOverlay_GetLobbySnapshot();
         players.erase(std::remove_if(players.begin(), players.end(),
             [](const CoSyncHudPlayer& p) { return p.isLocal; }), players.end());
 
-        const bool want = CoSyncTransport::IsInitialized() && CoSyncNet::IsConnected() &&
-                          !s_wantOpen && !players.empty();
+        const bool want = s_hudSessionLive.load() && !s_wantOpen && !players.empty();
         if (!want)
         {
             if (s_hudShown && s_hud != 0 && s_api->IsValid(s_hud))
@@ -811,5 +805,37 @@ namespace CoSyncPrismaUI
             s_hudLastJson = json;
             s_api->InteropCall(s_hud, "cosyncHud", json.c_str());
         }
+    }
+
+    // CoSync's tick. In game it runs on engine job threads, while PrismaUI's
+    // game thread is the window thread (2026-09-26 logs: every UI event on
+    // the window thread, the tick on 6-7 job threads). This used to bail out
+    // whenever the two differed, so the teammate HUD switched itself off on
+    // the first in-game tick ("TickHud called off PrismaUI's game thread")
+    // and never showed. The update now goes to PrismaUI's thread.
+    void TickHud()
+    {
+        LOG_REQUIREMENT("CoSyncPrismaUI::TickHud", "CoSync tick. Throttled to 10 Hz; the view work runs on PrismaUI's game thread and pushes to the page only when the data changed.");
+        if (!s_api)
+            return;
+
+        static uint64_t s_nextMs = 0;
+        const uint64_t nowMs = GetTickCount64();
+        if (nowMs < s_nextMs)
+            return;
+        s_nextMs = nowMs + 100;
+
+        s_hudSessionLive.store(CoSyncTransport::IsInitialized() && CoSyncNet::IsConnected());
+
+        if (s_api->IsGameThread())
+        {
+            HudUpdateOnGameThread(nullptr);
+            return;
+        }
+        // One update in flight at a time.
+        if (s_hudUpdatePending.exchange(true))
+            return;
+        if (!s_api->DispatchToGameThread(HudUpdateOnGameThread, nullptr))
+            s_hudUpdatePending.store(false);
     }
 }
