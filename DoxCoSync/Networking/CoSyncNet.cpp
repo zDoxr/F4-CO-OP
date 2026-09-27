@@ -128,7 +128,9 @@ namespace
     // host round-5 against a stale P2 DLL (companion CREATE arrived with the
     // pre-round-4 proxy base) and "a lot of stuff did not work" — mixed
     // versions must be loudly detectable from either side's log.
-    constexpr uint32_t kCoSyncBuildNumber = 229;
+    // 230 (2026-09-26): BONES wire format gained a sequence field (N3) --
+    // mixed builds must refuse each other, which VER/WORLDREQ already do.
+    constexpr uint32_t kCoSyncBuildNumber = 230;
     bool s_verSent = false;
 
 

@@ -2480,7 +2480,12 @@ std::string SerializeSkeletonCapture(uint32_t entityID, const CoSyncPlayerAnimat
     if (written == 0)
         return std::string();
 
-    ss << "BONES|" << entityID << "|" << written << "|" << (g_localFirstPerson ? 1 : 0) << body.str()
+    // N3 (2026-09-26): BONES travels unreliable, and GNS may deliver
+    // unreliable messages out of order or more than once -- an older pose
+    // could overwrite a newer one. Every capture carries a per-sender sequence
+    // number right after the entity ID; receivers keep only newer ones.
+    static uint32_t s_boneSeq = 0;
+    ss << "BONES|" << entityID << "|" << ++s_boneSeq << "|" << written << "|" << (g_localFirstPerson ? 1 : 0) << body.str()
        << "|" << trCount << "|" << trss.str();
 
     return ss.str();
@@ -2495,6 +2500,7 @@ namespace
 {
     std::mutex s_recvSkelMutex;
     std::unordered_map<uint32_t, CoSyncPlayerAnimation::SkeletonCapture> s_recvSkeletons;
+    std::unordered_map<uint32_t, uint32_t> s_recvBoneSeq;   // entityID -> newest sequence applied (N3)
 }
 
 void OnReceiveBones(const std::string& msg)
@@ -2507,6 +2513,11 @@ void OnReceiveBones(const std::string& msg)
     char* e = nullptr;
     const uint32_t entityID = static_cast<uint32_t>(std::strtoul(p, &e, 10));
     if (!e || *e != '|' || entityID == 0)
+        return;
+    p = e + 1;
+
+    const uint32_t seq = static_cast<uint32_t>(std::strtoul(p, &e, 10));
+    if (!e || *e != '|')
         return;
     p = e + 1;
 
@@ -2588,6 +2599,12 @@ void OnReceiveBones(const std::string& msg)
     cap.recvMs = GetTickCount64();   // drives ApplySkeleton's FRESH/HOLD/RELEASE tiering
 
     std::lock_guard<std::mutex> lk(s_recvSkelMutex);
+    // N3: keep only poses newer than the last one applied for this entity
+    // (wrap-safe signed difference). Stale reorders and duplicates stop here.
+    auto itSeq = s_recvBoneSeq.find(entityID);
+    if (itSeq != s_recvBoneSeq.end() && static_cast<int32_t>(seq - itSeq->second) <= 0)
+        return;
+    s_recvBoneSeq[entityID] = seq;
     s_recvSkeletons[entityID] = cap;
 }
 
@@ -2605,6 +2622,7 @@ void ForgetReceivedSkeleton(uint32_t entityID)
 {
     std::lock_guard<std::mutex> lk(s_recvSkelMutex);
     s_recvSkeletons.erase(entityID);
+    s_recvBoneSeq.erase(entityID);   // a respawned proxy accepts the next pose
 }
 
 } // namespace CoSyncPlayerAnimation
