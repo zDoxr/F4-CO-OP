@@ -7,11 +7,16 @@
 #include "CoSyncMessageHelpers.h"
 #include "EntitySerialization.h"
 #include "CoSyncSessionConfig.h"
+#include "CoSyncSteamAPI.h"
 
 #include "steam/steamnetworkingsockets.h"
 #include "steam/isteamnetworkingutils.h"
 
 #include <functional>
+#include <cstring>
+#include <unordered_map>
+#include <mutex>
+#include <atomic>
 #include <sstream>
 #include <chrono>
 
@@ -56,14 +61,49 @@ namespace
     }
 }
 
+// Which library the session runs on: the bundled open-source GNS (LAN /
+// direct IP) or Steam's own ISteamNetworkingSockets (P2P + SDR relay). The two
+// share the vendored C++ interface -- every vtable slot proven identical
+// (see CoSyncSteamAPI.h).
+static std::atomic<bool> g_steamBackend{ false };
+
 static ISteamNetworkingSockets* gSockets()
 {
-    return SteamNetworkingSockets();
+    return g_steamBackend.load() ? CoSyncSteamAPI::Sockets() : SteamNetworkingSockets();
 }
 
+static ISteamNetworkingUtils* gUtils()
+{
+    return g_steamBackend.load() ? CoSyncSteamAPI::Utils() : SteamNetworkingUtils();
+}
+
+// Steam sessions: virtual port every CoSync host listens on.
+static constexpr int kSteamVirtualPort = 0;
+
+
+static bool g_steamCallbacksRegistered = false;
 
 static void EnsureCallbacksRegistered()
 {
+    if (g_steamBackend.load())
+    {
+        if (g_steamCallbacksRegistered)
+            return;
+        // Valve's DLL: function-pointer path, dispatched by the network
+        // thread's sock->RunCallbacks() exactly like the open-source library.
+        // gbe_fork: only Steam's callback system (dispatched when the game
+        // runs SteamAPI_RunCallbacks). Both are registered; the status handler
+        // drops repeats of the same (connection, state).
+        auto* utils = gUtils();
+        if (utils)
+            utils->SetGlobalCallback_SteamNetConnectionStatusChanged(OnSteamNetConnectionStatusChanged);
+        const bool cb = CoSyncSteamAPI::RegisterConnectionStatus(OnSteamNetConnectionStatusChanged);
+        g_steamCallbacksRegistered = true;
+        LOG_INFO("[GNS] Steam connection-status callbacks registered (fn-ptr=%d callback=%d)",
+            utils ? 1 : 0, cb ? 1 : 0);
+        return;
+    }
+
     if (g_callbacksRegistered)
         return;
 
@@ -244,6 +284,10 @@ bool GNS_Session::StartHost(const char* ip)
 {
     ResetSession();
 
+    const bool steam = ip && std::strcmp(ip, "steam") == 0;
+    if (!SelectBackend(steam))
+        return false;
+
     m_role = GNSRole::Host;
     m_connected = false;
 
@@ -254,6 +298,23 @@ bool GNS_Session::StartHost(const char* ip)
     {
         LOG_ERROR("[GNS] StartHost FAILED: sockets null");
         return false;
+    }
+
+    if (steam)
+    {
+        SteamNetworkingConfigValue_t sopts[2]{};
+        sopts[0].SetInt32(k_ESteamNetworkingConfig_TimeoutInitial, 15000);
+        sopts[1].SetInt32(k_ESteamNetworkingConfig_TimeoutConnected, 10000);
+        m_listenSocket = sock->CreateListenSocketP2P(kSteamVirtualPort, 2, sopts);
+        if (m_listenSocket == k_HSteamListenSocket_Invalid)
+        {
+            LOG_ERROR("[GNS] Host FAILED: CreateListenSocketP2P (Steam)");
+            return false;
+        }
+        LOG_INFO("[GNS] Steam host listening (P2P virtual port %d, SteamID %llu)",
+            kSteamVirtualPort, (unsigned long long)CoSyncSteamAPI::MySteamID());
+        StartNetworkThread();
+        return true;
     }
 
     // Accept "", "ip", ":port" or "ip:port" -- port defaults to kGamePortBase.
@@ -324,6 +385,10 @@ bool GNS_Session::StartClient(const std::string& connectString)
 {
     ResetSession();
 
+    const bool steam = connectString.rfind("steam:", 0) == 0;
+    if (!SelectBackend(steam))
+        return false;
+
     m_role = GNSRole::Client;
     m_connected = false;
 
@@ -334,6 +399,42 @@ bool GNS_Session::StartClient(const std::string& connectString)
     {
         LOG_ERROR("[GNS] StartClient FAILED: sockets null");
         return false;
+    }
+
+    if (steam)
+    {
+        uint64_t hostID = 0;
+        try { hostID = std::stoull(connectString.substr(6)); }
+        catch (...) { hostID = 0; }
+        if (hostID == 0)
+        {
+            LOG_ERROR("[GNS] Invalid Steam connect string: %s", connectString.c_str());
+            return false;
+        }
+        SteamNetworkingIdentity ident;
+        ident.Clear();
+        ident.SetSteamID64(hostID);
+        SteamNetworkingConfigValue_t sopts[2]{};
+        sopts[0].SetInt32(k_ESteamNetworkingConfig_TimeoutInitial, 15000);
+        sopts[1].SetInt32(k_ESteamNetworkingConfig_TimeoutConnected, 10000);
+        LOG_INFO("[GNS] Connecting over Steam to host %llu", (unsigned long long)hostID);
+        m_clientState.store(GNSClientState::Connecting);
+        m_serverConn = sock->ConnectP2P(ident, kSteamVirtualPort, 2, sopts);
+        if (m_serverConn == k_HSteamNetConnection_Invalid)
+        {
+            LOG_ERROR("[GNS] Steam ConnectP2P FAILED (host %llu)", (unsigned long long)hostID);
+            m_clientState.store(GNSClientState::Closed);
+            return false;
+        }
+        {
+            // The host's identity is Steam-verified; bind it now.
+            std::lock_guard<std::mutex> lk(m_connsMutex);
+            m_peerSteamIDs[m_serverConn] = hostID;
+        }
+        if (m_pollGroup != k_HSteamNetPollGroup_Invalid)
+            sock->SetConnectionPollGroup(m_serverConn, m_pollGroup);
+        StartNetworkThread();
+        return true;
     }
 
 
@@ -563,6 +664,22 @@ void GNS_Session::HandleConnectionStatusChanged(const SteamNetConnectionStatusCh
             }
 
             LOG_INFO("[GNS] Incoming connection %u — accepting", info->m_hConn);
+
+            // Steam sessions: the peer's SteamID is verified by Steam, so it
+            // is the connection's identity from the start (first-wins, see
+            // BindPeerSteamID -- its HELLO must then name the same ID).
+            if (g_steamBackend.load())
+            {
+                const uint64_t verified = info->m_info.m_identityRemote.GetSteamID64();
+                if (verified == 0)
+                {
+                    LOG_WARN("[GNS] Rejecting Steam connection %u: no Steam identity", info->m_hConn);
+                    sock->CloseConnection(info->m_hConn, 0, "no_identity", false);
+                    return;
+                }
+                BindPeerSteamID(info->m_hConn, verified);
+                LOG_INFO("[GNS] Steam connection %u is SteamID %llu", info->m_hConn, (unsigned long long)verified);
+            }
 
             if (sock->AcceptConnection(info->m_hConn) != k_EResultOK)
             {
@@ -873,5 +990,69 @@ std::string GNS_Session::GetHostConnectString() const
 
 static void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* info)
 {
+    if (!info)
+        return;
+    {
+        // Steam sessions register two delivery paths (see
+        // EnsureCallbacksRegistered); handle each (connection, state) once.
+        static std::mutex s_seenMutex;
+        static std::unordered_map<HSteamNetConnection, int> s_lastState;
+        std::lock_guard<std::mutex> lk(s_seenMutex);
+        const int st = static_cast<int>(info->m_info.m_eState);
+        auto it = s_lastState.find(info->m_hConn);
+        if (it != s_lastState.end() && it->second == st)
+            return;
+        s_lastState[info->m_hConn] = st;
+        if (s_lastState.size() > 4096)
+            s_lastState.clear();
+    }
     GNS_Session::Get().HandleConnectionStatusChanged(info);
+}
+
+bool GNS_Session::SelectBackend(bool steam)
+{
+    if (steam && !CoSyncSteamAPI::Init())
+    {
+        LOG_ERROR("[GNS] Steam networking unavailable -- can't start a Steam session");
+        return false;
+    }
+    if (g_steamBackend.load() == steam && m_pollGroup != k_HSteamNetPollGroup_Invalid)
+    {
+        m_steamBackend.store(steam);
+        return true;
+    }
+
+    if (auto* old = gSockets())
+        if (m_pollGroup != k_HSteamNetPollGroup_Invalid)
+            old->DestroyPollGroup(m_pollGroup);
+    m_pollGroup = k_HSteamNetPollGroup_Invalid;
+
+    g_steamBackend.store(steam);
+    m_steamBackend.store(steam);
+
+    if (steam)
+    {
+        CoSyncSteamAPI::InitRelay();
+        // Same buffers as the open-source setup (GNS_Core.cpp); a lower rate
+        // floor than LAN because this path crosses the internet.
+        if (auto* u = gUtils())
+        {
+            u->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_SendBufferSize, 32 * 1024 * 1024);
+            u->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_RecvBufferSize, 32 * 1024 * 1024);
+            u->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_RecvBufferMessages, 16384);
+            u->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_SendRateMin, 512 * 1024);
+            u->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_SendRateMax, 8 * 1024 * 1024);
+        }
+    }
+    CoSyncNet::SetSteamIdentity(steam);
+
+    if (auto* sock = gSockets())
+        m_pollGroup = sock->CreatePollGroup();
+    if (m_pollGroup == k_HSteamNetPollGroup_Invalid)
+    {
+        LOG_ERROR("[GNS] Failed to create a poll group on the %s backend", steam ? "Steam" : "open-source");
+        return false;
+    }
+    LOG_INFO("[GNS] Backend: %s", steam ? "Steam (P2P + relay)" : "open-source GNS (LAN / direct IP)");
+    return true;
 }

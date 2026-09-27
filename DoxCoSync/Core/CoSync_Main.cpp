@@ -112,6 +112,9 @@ namespace cosync
 
             // Make the session findable on the LAN. The player count is read
             // live from GNS (host + connected clients), never from the UI.
+            // A Steam-hosted session has no UDP game port -- friends find it
+            // through its Steam lobby instead (CoSyncSteamLobby).
+            if (!GNS_Session::Get().IsSteamBackend())
             CoSyncDiscovery::StartAdvertising(
                 GNS_Session::Get().GetBoundPort(),
                 hostName + "'s Game",

@@ -86,6 +86,11 @@ public:
 
     GNSRole GetRole() const { return m_role; }
 
+    // True while the session runs on Steam's networking sockets (hosted with
+    // StartHost("steam") / joined with StartClient("steam:<SteamID64>")):
+    // P2P over Valve's relay network, peers identified by Steam-verified IDs.
+    bool IsSteamBackend() const { return m_steamBackend.load(); }
+
     bool IsConnected() const { return m_connected.load(std::memory_order_relaxed); }
 
     // Host: port the listen socket actually bound (0 when not hosting).
@@ -119,6 +124,9 @@ private:
 
 private:
     GNSRole m_role = GNSRole::None;
+    std::atomic<bool> m_steamBackend{ false };
+    // Destroys the poll group on the current backend, switches, recreates it.
+    bool SelectBackend(bool steam);
 
 
     std::atomic<bool> m_connected{false};

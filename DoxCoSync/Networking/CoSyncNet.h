@@ -26,6 +26,11 @@ public:
 
 
     static uint64_t GetMySteamID();
+    // Steam sessions identify players by their real, Steam-verified SteamID;
+    // LAN/direct sessions keep the salted per-instance token (bSaltInstanceID)
+    // that lets two instances share one account. Called when a session picks
+    // its backend; resets the cached identity so it is recomputed.
+    static void SetSteamIdentity(bool steam);
     static uint32_t GetMyEntityID();
 
     // Sends the client's HELLO once the local save has finished loading.

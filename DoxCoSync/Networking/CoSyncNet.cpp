@@ -40,6 +40,7 @@
 #include "CoSyncCompanionSync.h"
 #include "CoSyncEquipHook.h"
 #include "GNS_Session.h"
+#include "CoSyncSteamAPI.h"
 #include "CoSyncSessionConfig.h"
 #include "CoSyncWorldTransfer.h"
 #include "CoSyncProfiles.h"
@@ -718,8 +719,26 @@ static bool ReadSaltInstanceIDSetting()
     return s_cached != 0;
 }
 
+static bool s_steamIdentity = false;
+
+void CoSyncNet::SetSteamIdentity(bool steam)
+{
+    if (s_steamIdentity == steam && s_mySteamID != 0)
+        return;
+    s_steamIdentity = steam;
+    s_mySteamID = 0;
+    s_myEntityID = 0;
+    LOG_INFO("[CoSyncNet] Identity mode: %s", steam ? "Steam account (verified by Steam)" : "instance token");
+}
+
 uint64_t CoSyncNet::GetMySteamID()
 {
+    if (s_mySteamID == 0 && s_steamIdentity)
+    {
+        const uint64_t real = CoSyncSteamAPI::MySteamID();
+        if (real != 0)
+            s_mySteamID = real;
+    }
     if (s_mySteamID == 0)
     {
         // Salting is a TEST-RIG setting, read from
