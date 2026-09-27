@@ -59,6 +59,12 @@ namespace
     // NotifyQuestStage: this is the ONLY current-stage record available,
     // because TESQuest's stage field is not exposed by the f4se struct.
     std::unordered_map<uint32_t, int> s_lastKnownStage;
+    // T1 (2026-09-26): NotifyQuestStage runs inside the SetCurrentStageID
+    // hook, which the thread census proved executes on Papyrus worker threads,
+    // while TickLocalQuests reads/writes this map on the game thread. Every
+    // access takes this lock; never call out (NotifyQuestStage, Send) while
+    // holding it.
+    std::mutex s_stageMutex;
 
     // Tracks quests that were started/completed via a remote packet so
     // TickLocalQuests doesn't echo them back.
@@ -179,7 +185,10 @@ void CoSyncQuestSync::NotifyQuestStage(
     // record of current stage we have. TickLocalQuests_Impl replays it for
     // late joiners, who would otherwise receive QS_ST (quest active) with no
     // stage at all and sit at stage 0 forever.
-    s_lastKnownStage[questFormID] = stage;
+    {
+        std::lock_guard<std::mutex> lk(s_stageMutex);
+        s_lastKnownStage[questFormID] = stage;
+    }
 
     const std::string msg = SerializeQuestStage(senderEntityID, questFormID, stage);
     CoSyncTransport::Send(msg);
@@ -888,14 +897,20 @@ __declspec(noinline) static void TickLocalQuests_Impl(double now)
             if (isHost)
             {
                 const uint16_t curStage = GetQuestCurrentStage(quest);
-                auto known = s_lastKnownStage.find(formID);
-                if (known == s_lastKnownStage.end())
+                bool stageChanged = false;
                 {
-                    s_lastKnownStage[formID] = curStage;
+                    std::lock_guard<std::mutex> lk(s_stageMutex);
+                    auto known = s_lastKnownStage.find(formID);
+                    if (known == s_lastKnownStage.end())
+                        s_lastKnownStage[formID] = curStage;
+                    else if (known->second != static_cast<int>(curStage))
+                    {
+                        known->second = curStage;
+                        stageChanged = true;
+                    }
                 }
-                else if (known->second != static_cast<int>(curStage))
+                if (stageChanged)
                 {
-                    known->second = curStage;
                     CoSyncQuestSync::NotifyQuestStage(formID, curStage, myID);
                     LOG_UPDATED("[QuestSync] stage change detected quest=0x%08X -> %u (field read)",
                         formID, (unsigned)curStage);
@@ -928,7 +943,7 @@ __declspec(noinline) static void TickLocalQuests_Impl(double now)
         {
             LOG_INFO("[QuestSync] running quests: %u (completed tracked: %u, stages tracked: %u)",
                 (unsigned)s_knownActive.size(), (unsigned)s_knownCompleted.size(),
-                (unsigned)s_lastKnownStage.size());
+                (unsigned)[] { std::lock_guard<std::mutex> lk(s_stageMutex); return s_lastKnownStage.size(); }());
             s_lastActiveCount = s_knownActive.size();
         }
     }
@@ -1069,10 +1084,20 @@ static void DrainQuestPushQueues()
         // Stage MUST follow the start, or the joiner ends up with the quest
         // running but stuck at stage 0 and would only catch up if the host
         // happened to advance that quest again.
-        auto st = s_lastKnownStage.find(fid);
-        if (st != s_lastKnownStage.end())
+        int  knownStage = 0;
+        bool haveStage  = false;
         {
-            CoSyncQuestSync::NotifyQuestStage(fid, st->second, myID);
+            std::lock_guard<std::mutex> lk(s_stageMutex);
+            auto st = s_lastKnownStage.find(fid);
+            if (st != s_lastKnownStage.end())
+            {
+                knownStage = st->second;
+                haveStage  = true;
+            }
+        }
+        if (haveStage)
+        {
+            CoSyncQuestSync::NotifyQuestStage(fid, knownStage, myID);
             ++sent;
         }
     }
