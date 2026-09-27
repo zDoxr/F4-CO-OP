@@ -4,6 +4,7 @@
 #include "ConsoleLogger.h"
 #include "GNS_Session.h"
 
+#include <algorithm>
 #include <utility>
 
 namespace
@@ -23,7 +24,25 @@ namespace
     double s_lastTickLog = 0.0;
 
 
-    constexpr size_t kInboxHardCap = 4096;
+    // P1 (2026-09-26): the game thread stops ticking for 8-32 s during loading
+    // screens (26 Sep logs) while the network thread keeps queueing. One peer
+    // queued 1237 messages in a 32 s stall; 8 players project to ~9000, and
+    // the old 4096 cap then dropped the OLDEST message -- reliable CREATE,
+    // DESTROY, KILL and quest events included. The cap now covers that load
+    // with margin (~30 MB worst case), and when it is ever reached a
+    // superseded state message is evicted first (see ForwardMessage).
+    constexpr size_t kInboxHardCap = 65536;
+
+    // Position (EU) and pose (BONES) messages are pure state: the next one
+    // for the same entity replaces them completely, so evicting one loses
+    // nothing permanent. Every other message is an event.
+    bool IsSupersededState(const std::string& m)
+    {
+        return m.rfind("EU|", 0) == 0 || m.rfind("BONES|", 0) == 0;
+    }
+
+    size_t s_evictedState = 0;
+    size_t s_droppedEvents = 0;
 
 
     bool s_wasConnected = false;
@@ -134,7 +153,25 @@ void CoSyncTransport::ForwardMessage(const std::string& msg, HSteamNetConnection
     std::lock_guard<std::mutex> lk(s_inboxMutex);
 
     if (s_inbox.size() >= kInboxHardCap)
-        s_inbox.pop_front();
+    {
+        // Evict the oldest superseded state message; only if the whole queue
+        // is events does an event get dropped, and that is logged as an error.
+        auto victim = std::find_if(s_inbox.begin(), s_inbox.end(),
+            [](const CoSyncTransport::InboxMessage& m) { return IsSupersededState(m.text); });
+        if (victim != s_inbox.end())
+        {
+            s_inbox.erase(victim);
+            if ((s_evictedState++ % 1000) == 0)
+                LOG_WARN("[Transport] Inbox full (%zu) -- evicting stale position/pose updates (%zu so far)",
+                    kInboxHardCap, s_evictedState);
+        }
+        else
+        {
+            LOG_ERROR("[Transport] Inbox full (%zu) of events only -- dropping the oldest event '%.40s' (%zu dropped)",
+                kInboxHardCap, s_inbox.front().text.c_str(), ++s_droppedEvents);
+            s_inbox.pop_front();
+        }
+    }
 
     s_inbox.push_back({ msg, conn });
 }
