@@ -1,4 +1,4 @@
-﻿
+
 #pragma once
 
 #include <string>
@@ -72,6 +72,10 @@ public:
 
     // Host: send to ONE client only (e.g. that client's copy of the world).
     void SendTextTo(HSteamNetConnection conn, const std::string& text, bool reliable = true);
+
+    // Host: send to every connected client except `except` (the connection a
+    // relayed message came from). Client role: same as SendText.
+    void SendTextExcept(const std::string& text, HSteamNetConnection except, bool reliable = true);
 
 
     std::string GetHostConnectString() const;

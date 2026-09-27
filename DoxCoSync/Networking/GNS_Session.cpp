@@ -728,6 +728,28 @@ void GNS_Session::SendText(const std::string& text, bool reliable)
             sendFlags, nullptr);
 }
 
+void GNS_Session::SendTextExcept(const std::string& text, HSteamNetConnection except, bool reliable)
+{
+    if (m_role != GNSRole::Host || except == k_HSteamNetConnection_Invalid)
+    {
+        SendText(text, reliable);
+        return;
+    }
+    auto* sock = gSockets();
+    if (!sock || !m_connected.load(std::memory_order_relaxed))
+        return;
+
+    std::vector<HSteamNetConnection> clients;
+    {
+        std::lock_guard<std::mutex> lk(m_connsMutex);
+        clients.assign(m_clientConns.begin(), m_clientConns.end());
+    }
+    const int sendFlags = reliable ? k_nSteamNetworkingSend_Reliable : k_nSteamNetworkingSend_Unreliable;
+    for (auto conn : clients)
+        if (conn != except)
+            sock->SendMessageToConnection(conn, text.data(), static_cast<uint32>(text.size()), sendFlags, nullptr);
+}
+
 void GNS_Session::KickClient(HSteamNetConnection conn, int reason, const char* debug)
 {
     auto* sock = gSockets();

@@ -132,6 +132,13 @@ void CoSyncTransport::SendTo(HSteamNetConnection conn, const std::string& msg, b
     GNS_Session::Get().SendTextTo(conn, msg, reliable);
 }
 
+void CoSyncTransport::SendExcept(const std::string& msg, HSteamNetConnection except, bool reliable)
+{
+    if (!s_initialized)
+        return;
+    GNS_Session::Get().SendTextExcept(msg, except, reliable);
+}
+
 void CoSyncTransport::ForwardMessage(const std::string& msg, HSteamNetConnection conn)
 {
     if (!s_initialized)

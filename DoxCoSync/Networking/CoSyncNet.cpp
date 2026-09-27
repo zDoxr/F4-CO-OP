@@ -1340,7 +1340,11 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
         {
 
             u.timestamp = now;
-            CoSyncTransport::Send(SerializeEntityUpdate(u));
+            // N2 (2026-09-26): not back to the sender. Its own EU would be
+            // dropped anyway (ProcessEntityUpdate ignores the local entity and
+            // entities this machine owns) -- measured 9365 wasted echoes in
+            // one 16-minute two-player session.
+            CoSyncTransport::SendExcept(SerializeEntityUpdate(u), conn);
         }
 
         g_CoSyncPlayerManager.EnqueueEntityUpdate(u);
@@ -1974,8 +1978,11 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
         // see the send site in CoSynclocalplayer.cpp. The host relays roughly
         // 21 KB/s of pose data per connected peer; none of it is worth
         // retransmitting or blocking the stream for.
+        // N2: not back to the sender -- a player has no proxy of itself, so
+        // its own pose is never applied (measured: 48% of a client's BONES
+        // download was its own echo, ~56 KB/s).
         if (isHostRole)
-            CoSyncTransport::Send(msg, /*reliable=*/false);
+            CoSyncTransport::SendExcept(msg, conn, /*reliable=*/false);
         CoSyncPlayerAnimation::OnReceiveBones(msg);
         return;
     }

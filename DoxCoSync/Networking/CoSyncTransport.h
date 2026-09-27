@@ -29,6 +29,9 @@ namespace CoSyncTransport
     // Host: one client only.
     void SendTo(HSteamNetConnection conn, const std::string& msg, bool reliable = true);
 
+    // Host: every client except the one a relayed message came from.
+    void SendExcept(const std::string& msg, HSteamNetConnection except, bool reliable = true);
+
     void ForwardMessage(const std::string& msg, HSteamNetConnection conn);
 
     void SetReceiveCallback(ReceiveCallback fn);
