@@ -15,7 +15,12 @@
 
 namespace CoSyncModSync
 {
-    static const size_t kMaxAutoSendBytes = 10 * 1024 * 1024; // 10 MB
+    // P4 (2026-09-26): a MODFILE is one GNS message, hex-encoded (2 bytes per
+    // file byte), and GNS refuses anything over k_cbMaxSteamNetworkingSockets-
+    // MessageSizeSend (512 KB) -- the old 10 MB limit let every plugin over
+    // ~256 KB fail silently in SendText. Files that don't fit get MODSKIP.
+    static const size_t kMaxMessageBytes  = 512 * 1024;
+    static const size_t kMaxAutoSendBytes = (kMaxMessageBytes - 1024) / 2;
 
     // ---- Helpers ----
 
@@ -117,7 +122,7 @@ namespace CoSyncModSync
         return msg.rfind("MODFILE|", 0) == 0 || msg.rfind("MODSKIP|", 0) == 0;
     }
 
-    void OnReceiveModList(const std::string& msg)
+    void OnReceiveModList(const std::string& msg, uint32_t conn)
     {
         // Parse client mod list: "MODLIST|mod1.esp|mod2.esp|..."
         std::vector<std::string> clientMods;
@@ -150,7 +155,7 @@ namespace CoSyncModSync
             {
                 LOG_WARN("[ModSync] '%s' is %.1f MB — too large, notifying client",
                     hmod.c_str(), static_cast<double>(fileSize) / 1048576.0);
-                CoSyncTransport::Send("MODSKIP|" + hmod + "|" + std::to_string(fileSize));
+                CoSyncTransport::SendTo(conn, "MODSKIP|" + hmod + "|" + std::to_string(fileSize));
                 skipped++;
                 continue;
             }
@@ -159,7 +164,7 @@ namespace CoSyncModSync
             f.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(fileSize));
 
             std::string packet = "MODFILE|" + hmod + "|" + HexEncode(data);
-            CoSyncTransport::Send(packet);
+            CoSyncTransport::SendTo(conn, packet);   // the requester only, not every client
             LOG_INFO("[ModSync] Sent '%s' (%zu bytes)", hmod.c_str(), fileSize);
             sent++;
         }
@@ -197,18 +202,16 @@ namespace CoSyncModSync
         auto data = HexDecode(hexData);
         std::string outPath = GetDataDir() + filename;
 
-        // Skip if already present with identical size
-        HANDLE hExist = CreateFileA(outPath.c_str(), GENERIC_READ, FILE_SHARE_READ,
-            nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-        if (hExist != INVALID_HANDLE_VALUE)
+        // P4 (2026-09-26): only ever ADD a missing plugin. This used to
+        // overwrite any existing file whose size differed -- a host could
+        // replace Fallout4.esm or a DLC master. An existing file of any size is
+        // the player's own and is never touched; the mismatch is reported.
+        const DWORD attrs = GetFileAttributesA(outPath.c_str());
+        if (attrs != INVALID_FILE_ATTRIBUTES)
         {
-            DWORD existSize = GetFileSize(hExist, nullptr);
-            CloseHandle(hExist);
-            if (existSize == static_cast<DWORD>(data.size()))
-            {
-                LOG_INFO("[ModSync] '%s' already present (same size)", filename.c_str());
-                return;
-            }
+            LOG_WARN("[ModSync] '%s' already exists here -- keeping the local copy (host sent %zu bytes)",
+                filename.c_str(), data.size());
+            return;
         }
 
         std::ofstream out(outPath, std::ios::binary | std::ios::trunc);

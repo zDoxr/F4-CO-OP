@@ -1989,7 +1989,7 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
     if (CoSyncModSync::IsModList(msg))
     {
         if (isHostRole)
-            CoSyncModSync::OnReceiveModList(msg);
+            CoSyncModSync::OnReceiveModList(msg, conn);
         return;
     }
 
