@@ -1989,6 +1989,62 @@ static bool SafeCombatToggle(Actor* actor, const BSFixedString& fn, Actor* targe
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
+// Clears a proxy whose actor the engine has freed. Returns true if it did.
+// Guard against stale proxy actors of ANY entity type. When the local
+// engine unloads a cell (transition, or the remote player moving
+// beyond this machine's loaded grid), it frees the actors in it.
+// TickAnimVars/TickSmoothing/ApplyPendingTransformIfAny dereference
+// actorRef directly; on a freed actor the READ AV lands at
+// 0xFFFF...FFFF. IsFormStillLive is SEH-wrapped so it's safe even on
+// freed pointers. World-actor entities additionally drop spawnQueued
+// so the watchdog doesn't respawn a clone the engine just unloaded
+// (they re-bind via the owner's CREATE re-broadcast instead); player
+// proxies keep spawnQueued so the watchdog can respawn them once the
+// remote player is back within loaded range.
+bool CoSyncPlayerManager::ReleaseIfFreed(CoSyncPlayer& ent)
+{
+    if (!ent.hasSpawned || !ent.actorRef || ent.isLocalPlayer)
+        return false;
+    if (!CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(ent.actorRef)))
+    {
+        LOG_WARN("[PlayerMgr] entity=%u actor=%p freed (unloaded) — clearing",
+            ent.entityID, static_cast<void*>(ent.actorRef));
+        Actor* const freedActor = ent.actorRef;
+        ent.actorRef   = nullptr;
+        ent.hasSpawned = false;
+        // L2 (2026-09-26): release every other index still keyed by the
+        // dead actor, exactly as DespawnEntity does. Left behind, the
+        // registry refused the respawned actor ("already registered",
+        // runtime log 16708 12:57:45) and the TickHook / bone-cache
+        // entries pointed at freed memory. All three only use the
+        // pointer as a lookup key (the bone cache's nodes are pinned by
+        // our own reference, so releasing them is correct).
+        g_CoSyncEntities.Remove(ent.entityID);
+        UnregisterRemoteActor(freedActor);
+        CoSyncPlayerAnimation::ReleaseBoneCache(freedActor);
+        // The rebuilt replacement actor gets a fresh body -- any
+        // outfit/weapon marked "applied" against the OLD actor is
+        // stale. Outfit's cache is keyed by entityID only (no actor
+        // identity), so without this it silently never re-equips
+        // (confirmed: FLUSH kept logging "confirmed" with a visibly
+        // bare proxy after a reload rebuilt it).
+        CoSyncOutfitSync::ClearAppliedOutfits(ent.entityID);
+        if (CoSyncNpcWorldSync::IsWorldActorEntityID(ent.entityID))
+        {
+            auto stIt = m_statesByEntityID.find(ent.entityID);
+            if (stIt != m_statesByEntityID.end())
+                stIt->second.spawnQueued = false;
+            // N1: "re-bind via the owner's CREATE re-broadcast" only
+            // works if NpcWorldSync forgets the dead binding too --
+            // its "already bound" guard otherwise rejects every
+            // re-bind for the rest of the session.
+            CoSyncNpcWorldSync::ForgetBinding(ent.entityID);
+        }
+        return true;
+    }
+    return false;
+}
+
 void CoSyncPlayerManager::Tick()
 {
     LOG_REQUIREMENT("CoSyncPlayerManager::Tick", "Runs each per-entity step in turn (position, animation, weapons, combat, dialog, pipboy); each step checks its own actor is valid. A breadcrumb marks which step is running so a crash shows exactly where it happened.");
@@ -1996,6 +2052,17 @@ void CoSyncPlayerManager::Tick()
     static const BSFixedString kEquipItem("EquipItem");
     static const BSFixedString kStartCombat("StartCombat");
     static const BSFixedString kStopCombat("StopCombat");
+    // Drop engine-freed actors before ANY step below touches actorRef.
+    // This sweep used to run only in the entity loop at the END of Tick, so
+    // an actor unloaded since the previous frame was still dereferenced by
+    // the steps before it -- HostSendNpcUpdates -> SendAnimEdges ->
+    // CoSyncAnimUtils::Is3DLoaded made a vcall on a freed actor (client
+    // READ AV at 0xFFFF...FFFF, 20:47:57 2026-09-26, lastTickStep
+    // AnimVarSystem:SaveAnimationVariables:exit).
+    g_lastTickStep = "PlayerMgr:Tick:ReleaseFreedActors";
+    for (auto& kv : m_playersByEntityID)
+        ReleaseIfFreed(*kv.second);
+
     g_lastTickStep = "PlayerMgr:Tick:ProcessInbox";
     ProcessInbox();
 
@@ -2063,57 +2130,8 @@ void CoSyncPlayerManager::Tick()
         if (!ent.hasSpawned)
             continue;
 
-        // Guard against stale proxy actors of ANY entity type. When the local
-        // engine unloads a cell (transition, or the remote player moving
-        // beyond this machine's loaded grid), it frees the actors in it.
-        // TickAnimVars/TickSmoothing/ApplyPendingTransformIfAny dereference
-        // actorRef directly; on a freed actor the READ AV lands at
-        // 0xFFFF...FFFF. IsFormStillLive is SEH-wrapped so it's safe even on
-        // freed pointers. World-actor entities additionally drop spawnQueued
-        // so the watchdog doesn't respawn a clone the engine just unloaded
-        // (they re-bind via the owner's CREATE re-broadcast instead); player
-        // proxies keep spawnQueued so the watchdog can respawn them once the
-        // remote player is back within loaded range.
-        if (ent.actorRef && !ent.isLocalPlayer)
-        {
-            if (!CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(ent.actorRef)))
-            {
-                LOG_WARN("[PlayerMgr] entity=%u actor=%p freed (unloaded) — clearing",
-                    ent.entityID, static_cast<void*>(ent.actorRef));
-                Actor* const freedActor = ent.actorRef;
-                ent.actorRef   = nullptr;
-                ent.hasSpawned = false;
-                // L2 (2026-09-26): release every other index still keyed by the
-                // dead actor, exactly as DespawnEntity does. Left behind, the
-                // registry refused the respawned actor ("already registered",
-                // runtime log 16708 12:57:45) and the TickHook / bone-cache
-                // entries pointed at freed memory. All three only use the
-                // pointer as a lookup key (the bone cache's nodes are pinned by
-                // our own reference, so releasing them is correct).
-                g_CoSyncEntities.Remove(ent.entityID);
-                UnregisterRemoteActor(freedActor);
-                CoSyncPlayerAnimation::ReleaseBoneCache(freedActor);
-                // The rebuilt replacement actor gets a fresh body -- any
-                // outfit/weapon marked "applied" against the OLD actor is
-                // stale. Outfit's cache is keyed by entityID only (no actor
-                // identity), so without this it silently never re-equips
-                // (confirmed: FLUSH kept logging "confirmed" with a visibly
-                // bare proxy after a reload rebuilt it).
-                CoSyncOutfitSync::ClearAppliedOutfits(ent.entityID);
-                if (CoSyncNpcWorldSync::IsWorldActorEntityID(ent.entityID))
-                {
-                    auto stIt = m_statesByEntityID.find(ent.entityID);
-                    if (stIt != m_statesByEntityID.end())
-                        stIt->second.spawnQueued = false;
-                    // N1: "re-bind via the owner's CREATE re-broadcast" only
-                    // works if NpcWorldSync forgets the dead binding too --
-                    // its "already bound" guard otherwise rejects every
-                    // re-bind for the rest of the session.
-                    CoSyncNpcWorldSync::ForgetBinding(ent.entityID);
-                }
-                continue;
-            }
-        }
+        if (ReleaseIfFreed(ent))
+            continue;
 
         bool isMyOwnRealActor = false;
         if (CoSyncNpcWorldSync::IsWorldActorEntityID(ent.entityID))

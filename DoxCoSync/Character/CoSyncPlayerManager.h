@@ -98,6 +98,7 @@ private:
 
     __declspec(noinline) void HostScanCompanions_Impl(double now);
     __declspec(noinline) void HostSendNpcUpdates_Impl(double now);
+    bool ReleaseIfFreed(CoSyncPlayer& ent);
 
 
     void PumpDeferredSpawns();
