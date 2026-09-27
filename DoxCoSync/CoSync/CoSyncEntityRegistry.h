@@ -2,6 +2,7 @@
 
 #include <unordered_map>
 #include <cstdint>
+#include <mutex>
 
 class Actor;
 
@@ -31,6 +32,10 @@ public:
     void Clear();
 
 private:
+    // P3 (2026-09-26): the Papyrus native GetActorByEntityID (flagged NoWait,
+    // so it runs on a Papyrus VM thread) reads this map while the game thread
+    // registers/removes entries. Every method takes this lock.
+    mutable std::mutex m_mutex;
     std::unordered_map<uint32_t, Entry> entities;
 };
 

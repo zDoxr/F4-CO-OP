@@ -7,6 +7,7 @@ CoSyncEntityRegistry g_CoSyncEntities;
 Actor* CoSyncEntityRegistry::GetActor(uint32_t entityID) const
 {
     LOG_REQUIREMENT("CoSyncEntityRegistry::GetActor", "Safe to call with any entity ID -- just returns nothing if it is not registered.");
+    std::lock_guard<std::mutex> lk(m_mutex);
     auto it = entities.find(entityID);
     return (it != entities.end()) ? it->second.actor : nullptr;
 }
@@ -14,6 +15,7 @@ Actor* CoSyncEntityRegistry::GetActor(uint32_t entityID) const
 uint32_t CoSyncEntityRegistry::GetEntityID(Actor* actor) const
 {
     LOG_REQUIREMENT("CoSyncEntityRegistry::GetEntityID", "Safe to call with a null actor -- just returns 0. Otherwise only needs the registry itself.");
+    std::lock_guard<std::mutex> lk(m_mutex);
     if (!actor)
         return 0;
 
@@ -28,6 +30,7 @@ uint32_t CoSyncEntityRegistry::GetEntityID(Actor* actor) const
 bool CoSyncEntityRegistry::Register(uint32_t entityID, Actor* actor)
 {
     LOG_REQUIREMENT("CoSyncEntityRegistry::Register", "Needs a valid actor and an entity ID that is not already registered, or the call fails.");
+    std::lock_guard<std::mutex> lk(m_mutex);
     if (!actor)
     {
         LOG_ERROR(
@@ -62,6 +65,7 @@ bool CoSyncEntityRegistry::Register(uint32_t entityID, Actor* actor)
 void CoSyncEntityRegistry::Remove(uint32_t entityID)
 {
     LOG_REQUIREMENT("CoSyncEntityRegistry::Remove", "Safe to call anytime -- does nothing if the entity ID is not in the registry.");
+    std::lock_guard<std::mutex> lk(m_mutex);
     auto it = entities.find(entityID);
     if (it == entities.end())
         return;
@@ -78,6 +82,7 @@ void CoSyncEntityRegistry::Remove(uint32_t entityID)
 void CoSyncEntityRegistry::Clear()
 {
     LOG_REQUIREMENT("CoSyncEntityRegistry::Clear", "Safe to call anytime -- just empties the whole registry.");
+    std::lock_guard<std::mutex> lk(m_mutex);
     LOG_INFO(
         "[EntityRegistry] Clearing %zu entities",
         entities.size()
