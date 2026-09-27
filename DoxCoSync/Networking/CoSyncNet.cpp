@@ -79,6 +79,8 @@
 #include <mutex>
 #include <unordered_set>
 #include <unordered_map>
+#include <cstring>
+#include <iterator>
 #include <sstream>
 #include <string>
 #include <functional>
@@ -175,11 +177,37 @@ static uint32_t EntityIDFromSteamID(uint64_t sid)
 //     (CoSyncEntityState::lastCreate.ownerEntityID, set from NPCSEEN/COMPOWN).
 // Checked by the host only; clients trust the host.
 // ---------------------------------------------------------------------------
+// Connection -> the player entity it speaks as. Bound by the first message
+// that names a player (HELLO or a SelfStateType message): a joining client
+// sends VER/SPEC/IMODS/LOOKS ~14 s BEFORE its HELLO (it loads the host world
+// and builds its character first -- host log 16236, 20:38:29 vs 20:38:43), so
+// the HELLO-only binding in GNS_Session is not enough on its own. Same trust
+// level as HELLO (a claim, unauthenticated until Steam sockets); what it
+// prevents is switching identity afterwards. Game-thread only (OnReceive).
+static std::unordered_map<HSteamNetConnection, uint32_t> s_connSenderEid;
+
 static uint32_t HostSenderEntityID(HSteamNetConnection conn)
 {
     if (conn == k_HSteamNetConnection_Invalid)
         return 0;
-    return EntityIDFromSteamID(GNS_Session::Get().GetPeerSteamID(conn));
+    auto it = s_connSenderEid.find(conn);
+    if (it != s_connSenderEid.end())
+        return it->second;
+    const uint32_t eid = EntityIDFromSteamID(GNS_Session::Get().GetPeerSteamID(conn));
+    if (eid != 0)
+        s_connSenderEid[conn] = eid;
+    return eid;
+}
+
+// First player-naming message on an unbound connection binds it. World NPC IDs
+// never bind (a client only owns NPCs through the host's own records).
+static uint32_t HostBindSender(HSteamNetConnection conn, uint32_t claimed)
+{
+    if (claimed == 0 || CoSyncNpcWorldSync::IsWorldActorEntityID(claimed))
+        return 0;
+    s_connSenderEid[conn] = claimed;
+    LOG_INFO("[CoSyncNet] conn=%u speaks as entity=%u", conn, claimed);
+    return claimed;
 }
 
 static bool HostSenderOwns(uint32_t senderEid, uint32_t entityID)
@@ -202,6 +230,26 @@ static void LogUnauthorized(const char* what, HSteamNetConnection conn, uint32_t
     if ((s_dropped++ % 100) == 0)
         LOG_WARN("[CoSyncNet] Dropped %s from conn=%u (sender entity=%u) about entity=%u it does not own (%u dropped so far)",
             what, conn, senderEid, entityID, s_dropped);
+}
+
+// Message types whose FIRST field is the entity doing the thing (verified
+// against every send site, 2026-09-26): a player's own vitals, gear, anim
+// events, consumables, power armor, throwables, VATS, SPECIAL, looks and
+// version. Returns the type name, or nullptr if msg is not one of them.
+static const char* SelfStateType(const std::string& msg)
+{
+    static const char* const kTypes[] = {
+        "HP", "INV", "OUTFIT", "EQUIP", "IMODS", "LOOKS", "DOWN",
+        "PA", "PAI", "PAMODS", "SPEC", "AE", "AEV", "SW", "PB",
+        "CONS", "SPELL", "THRP", "THRM", "THRX", "VATS_ENTER", "VATS_EXIT", "VER",
+    };
+    const size_t bar = msg.find('|');
+    if (bar == std::string::npos)
+        return nullptr;
+    for (const char* t : kTypes)
+        if (msg.compare(0, bar, t) == 0 && std::strlen(t) == bar)
+            return t;
+    return nullptr;
 }
 
 // Text after the last '|' as a number (NPCSEEN / COMPOWN end with the ID the
@@ -600,6 +648,7 @@ void CoSyncNet::Shutdown()
 
     s_initialized = false;
     s_pendingInit = false;
+    s_connSenderEid.clear();
 
     s_connected = false;
     s_isHost = false;
@@ -1165,7 +1214,23 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
     // Remote client messages are checked (P5/N7); conn==Invalid is a local
     // GNS notice (PEERLEFT) and clients trust everything from the host.
     const bool checkSender = isHostRole && conn != k_HSteamNetConnection_Invalid;
-    const uint32_t senderEid = checkSender ? HostSenderEntityID(conn) : 0;
+    uint32_t senderEid = checkSender ? HostSenderEntityID(conn) : 0;
+
+    if (checkSender)
+    {
+        if (const char* type = SelfStateType(msg))
+        {
+            const uint32_t subject = static_cast<uint32_t>(
+                std::strtoul(msg.c_str() + std::strlen(type) + 1, nullptr, 10));
+            if (senderEid == 0)
+                senderEid = HostBindSender(conn, subject);
+            if (!HostSenderOwns(senderEid, subject))
+            {
+                LogUnauthorized(type, conn, senderEid, subject);
+                return;
+            }
+        }
+    }
 
     // Shared host save: world transfer + player profiles.
     if (CoSyncWorldTransfer::IsTransferMessage(msg))
@@ -1181,10 +1246,16 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
     if (CoSyncCompanions::IsCompanionMessage(msg))
     {
         // COMPOWN's last field is the owner the host will register.
-        if (checkSender && LastFieldU32(msg) != senderEid)
+        if (checkSender)
         {
-            LogUnauthorized("COMPOWN", conn, senderEid, LastFieldU32(msg));
-            return;
+            const uint32_t claimed = LastFieldU32(msg);
+            if (senderEid == 0)
+                senderEid = HostBindSender(conn, claimed);
+            if (claimed != senderEid || senderEid == 0)
+            {
+                LogUnauthorized("COMPOWN", conn, senderEid, claimed);
+                return;
+            }
         }
         CoSyncCompanions::OnReceive(msg, isHostRole);
         return;
@@ -1257,6 +1328,13 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
             }
             remaining = s_peers.size();
         }
+        if (sid != 0)
+        {
+            const uint32_t leftEid = EntityIDFromSteamID(sid);
+            for (auto it = s_connSenderEid.begin(); it != s_connSenderEid.end(); )
+                it = (it->second == leftEid) ? s_connSenderEid.erase(it) : std::next(it);
+        }
+
         LOG_INFO("[CoSyncNet] Peer left: '%s' sid=%llu (%zu remaining)",
             who.c_str(), (unsigned long long)sid, remaining);
 
@@ -1320,10 +1398,15 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
         // P5/N7: a connection keeps the identity of its first HELLO
         // (GNS_Session::BindPeerSteamID); a later HELLO naming someone else
         // must not create or overwrite that player.
-        if (checkSender && eid != senderEid)
+        if (checkSender)
         {
-            LogUnauthorized("HELLO", conn, senderEid, eid);
-            return;
+            if (senderEid == 0)
+                senderEid = HostBindSender(conn, eid);
+            if (eid != senderEid)
+            {
+                LogUnauthorized("HELLO", conn, senderEid, eid);
+                return;
+            }
         }
 
         bool isNewPeer = false;
@@ -2007,10 +2090,16 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
     if (CoSyncNpcWorldSync::IsNpcSeen(msg))
     {
         // The reporter (last field) becomes the NPC's owner.
-        if (checkSender && LastFieldU32(msg) != senderEid)
+        if (checkSender)
         {
-            LogUnauthorized("NPCSEEN", conn, senderEid, LastFieldU32(msg));
-            return;
+            const uint32_t claimed = LastFieldU32(msg);
+            if (senderEid == 0)
+                senderEid = HostBindSender(conn, claimed);
+            if (claimed != senderEid || senderEid == 0)
+            {
+                LogUnauthorized("NPCSEEN", conn, senderEid, claimed);
+                return;
+            }
         }
         CoSyncNpcWorldSync::OnReceiveNpcSeen(msg);
         return;
