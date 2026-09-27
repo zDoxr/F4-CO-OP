@@ -50,6 +50,21 @@ namespace cosync
 
     private:
         CoSync_Main() = default;
+        // The static instance is destroyed during the CRT's exit teardown: a
+        // still-joinable std::thread there would call std::terminate (the T2
+        // crash class), so release the start-up thread without blocking.
+        ~CoSync_Main() { if (m_startThread.joinable()) m_startThread.detach(); }
+
+        // P10 (2026-09-26): host/join set-up runs on this thread. It used to be
+        // detached, so Shutdown() could kill GNS while it was still binding
+        // sockets / initialising the transport and discovery. Everything that
+        // tears down or restarts joins it first (a few ms of socket set-up).
+        void JoinStartThread()
+        {
+            if (m_startThread.joinable() && m_startThread.get_id() != std::this_thread::get_id())
+                m_startThread.join();
+        }
+        std::thread m_startThread;
 
         std::atomic<bool>           initialized{ false };
         std::atomic<bool>           isServer{ false };

@@ -74,7 +74,8 @@ namespace cosync
         // Read on the caller's thread (UI), not the start-up thread.
         const std::string hostName = CoSyncNet::GetMyName();
 
-        std::thread([this, hostName]()
+        JoinStartThread();
+        m_startThread = std::thread([this, hostName]()
         {
             LOG_REQUIREMENT("cosync::CoSync_Main::StartHosting::{lambda}", "Needs this object to stay alive for as long as this background thread runs. Also relies on Init() having already run.");
             std::string ip;
@@ -121,7 +122,7 @@ namespace cosync
             isServer.store(true);
             m_netState.store(CoSyncNetState::Done);
             LOG_INFO("[MAIN] Hosting is ready");
-        }).detach();
+        });
     }
 
     void CoSync_Main::StartJoining(const std::string& connectStr)
@@ -140,7 +141,8 @@ namespace cosync
 
         LOG_INFO("[MAIN] Queued joining: %s", connectStr.c_str());
 
-        std::thread([this]()
+        JoinStartThread();
+        m_startThread = std::thread([this]()
         {
             LOG_REQUIREMENT("cosync::CoSync_Main::StartJoining::{lambda}", "Needs this object to stay alive for as long as this background thread runs. Also relies on Init() having already run.");
             std::string addr;
@@ -178,7 +180,7 @@ namespace cosync
             isServer.store(false);
             m_netState.store(CoSyncNetState::Done);
             LOG_INFO("[MAIN] Connected to the host");
-        }).detach();
+        });
     }
 
     void CoSync_Main::Tick(double now)
@@ -195,6 +197,9 @@ namespace cosync
     {
         LOG_REQUIREMENT("cosync::CoSync_Main::Shutdown", "Safe to call even if we were never initialized. Assumes networking and transport shutdown are themselves safe to call regardless of state.");
         LOG_INFO("[MAIN] Shutting down");
+
+        // P10: never tear down while host/join set-up is still running.
+        JoinStartThread();
 
         CoSyncDiscovery::StopAdvertising();
         CoSyncProfiles::ClientUploadNow();   // client: last snapshot to the host
