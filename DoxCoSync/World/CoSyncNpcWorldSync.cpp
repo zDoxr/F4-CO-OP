@@ -1841,7 +1841,12 @@ static Actor* FindLocalDuplicateCreature(uint32_t baseFormID, const NiPoint3& at
     return best;
 }
 
-static void SpawnProxyForWorldActor(Actor* realActor, const EntityCreatePacket& p)
+// Returns true when it actually hid realActor and queued the replacement
+// spawn; false when the spawn was only deferred (target not in the local area)
+// and nothing was disabled. The callers' logs used to claim "Hid the local ref"
+// either way -- 642 such lines in the 26 Sep host log, of which only one NPC
+// (0x4B8F9) was really hidden.
+static bool SpawnProxyForWorldActor(Actor* realActor, const EntityCreatePacket& p)
 {
     if (!IsSpawnPositionUsable(p.spawnPos))
     {
@@ -1863,7 +1868,7 @@ static void SpawnProxyForWorldActor(Actor* realActor, const EntityCreatePacket& 
         deferred.isLocallyOwned    = false;
         deferred.lastCreate        = p;
         deferred.spawnQueued       = false;
-        return;
+        return false;
     }
 
     // Skip Disable() if the engine already has this ref disabled. Repeated
@@ -1903,6 +1908,7 @@ static void SpawnProxyForWorldActor(Actor* realActor, const EntityCreatePacket& 
     CoSyncSpawnTasks::EnqueueSpawn(
         p.entityID, p.baseFormID, CoSyncEntityType::NPC,
         p.spawnFlags, p.spawnPos, p.spawnRot);
+    return true;
 }
 
 // UPDATE 2026-06-18 (round 23 audit): same fix as TickScanWorldActors above --
@@ -2006,7 +2012,8 @@ __declspec(noinline) static void ClientBindWorldActor_Impl(const EntityCreatePac
             // the puppet REPLACES it instead of doubling. SpawnProxyForWorldActor
             // disables the ref it is handed; null when there's no local match.
             Actor* localDup = FindLocalDuplicateCreature(p.baseFormID, p.spawnPos);
-            SpawnProxyForWorldActor(localDup, p);
+            if (!SpawnProxyForWorldActor(localDup, p))
+                return;   // deferred: target not in the local area yet
             static std::atomic<uint32_t> s_dynClones{ 0 };
             const uint32_t n = ++s_dynClones;
             if (n <= 20 || n % 25 == 0)
@@ -2103,9 +2110,9 @@ __declspec(noinline) static void ClientBindWorldActor_Impl(const EntityCreatePac
                 return;
             }
 
-            SpawnProxyForWorldActor(actor, p);
-            LOG_UPDATED("[NpcWorldSync] Hid the local ref=0x%08X actor=%p, spawning a synced copy as entity=%u base=0x%08X",
-                p.reserved0, static_cast<void*>(actor), p.entityID, p.baseFormID);
+            if (SpawnProxyForWorldActor(actor, p))
+                LOG_UPDATED("[NpcWorldSync] Hid the local ref=0x%08X actor=%p, spawning a synced copy as entity=%u base=0x%08X",
+                    p.reserved0, static_cast<void*>(actor), p.entityID, p.baseFormID);
             return;
         }
 
@@ -2188,9 +2195,9 @@ __declspec(noinline) static void ClientBindWorldActor_Impl(const EntityCreatePac
 
     if (bestActor)
     {
-        SpawnProxyForWorldActor(bestActor, p);
-        LOG_UPDATED("[NpcWorldSync] Hid local actor=%p (nearby scan, dist=%.0f), spawning a synced copy as entity=%u base=0x%08X",
-            static_cast<void*>(bestActor), sqrtf(bestDistSq), p.entityID, p.baseFormID);
+        if (SpawnProxyForWorldActor(bestActor, p))
+            LOG_UPDATED("[NpcWorldSync] Hid local actor=%p (nearby scan, dist=%.0f), spawning a synced copy as entity=%u base=0x%08X",
+                static_cast<void*>(bestActor), sqrtf(bestDistSq), p.entityID, p.baseFormID);
         return;
     }
 
@@ -2603,6 +2610,19 @@ void ClientUnbindWorldActor(uint32_t entityID, uint32_t reasonFlags)
         }
     }
 
+    // W1 (2026-09-26): s_entityToDisabledOriginal is the authoritative record
+    // of which local NPC this entity hid. The fallback flag above can be gone
+    // (ForgetBinding after an engine free, or a re-bind), and the map entry
+    // was never erased at all -- so restore from it and always drop it here.
+    {
+        auto mo = s_entityToDisabledOriginal.find(entityID);
+        if (mo != s_entityToDisabledOriginal.end())
+        {
+            if (originalRefToEnable == 0 && !isDead && (mo->second & 0xFF000000u) != 0xFF000000u)
+                originalRefToEnable = mo->second;
+            s_entityToDisabledOriginal.erase(mo);
+        }
+    }
     s_spawnFallback.erase(entityID);
     s_firstBindFail.erase(entityID);
     s_killedEntities.erase(entityID);
