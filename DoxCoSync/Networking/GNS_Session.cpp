@@ -598,17 +598,30 @@ void GNS_Session::HandleConnectionStatusChanged(const SteamNetConnectionStatusCh
         }
 
         uint64_t peerSteamID = 0;
+        bool     identityStillConnected = false;
         {
             std::lock_guard<std::mutex> lk(m_connsMutex);
             auto it = m_peerSteamIDs.find(info->m_hConn);
             if (it != m_peerSteamIDs.end())
                 peerSteamID = it->second;
             m_peerSteamIDs.erase(info->m_hConn);
+            // N5 (2026-09-26): the same identity can be live on another
+            // connection (a player reconnecting before this one timed out).
+            // Announcing this one's departure would destroy that live
+            // player's proxy on every machine.
+            if (peerSteamID != 0)
+                for (const auto& kv : m_peerSteamIDs)
+                    if (kv.second == peerSteamID) { identityStillConnected = true; break; }
         }
 
         CloseConnection(info->m_hConn, "closed");
 
-        if (m_role == GNSRole::Host && peerSteamID != 0)
+        if (m_role == GNSRole::Host && peerSteamID != 0 && identityStillConnected)
+        {
+            LOG_WARN("[GNS] conn=%u closed, but its identity %llu is still connected on another connection -- not announcing a departure",
+                info->m_hConn, (unsigned long long)peerSteamID);
+        }
+        else if (m_role == GNSRole::Host && peerSteamID != 0)
         {
 
             EntityDestroyPacket d{};
@@ -728,6 +741,10 @@ void GNS_Session::KickClient(HSteamNetConnection conn, int reason, const char* d
         if (it != m_peerSteamIDs.end())
             peerSteamID = it->second;
         m_peerSteamIDs.erase(conn);
+        // N5: don't announce a departure for an identity that is still live
+        // on another connection.
+        for (const auto& kv : m_peerSteamIDs)
+            if (peerSteamID != 0 && kv.second == peerSteamID) { peerSteamID = 0; break; }
     }
 
     LOG_WARN("[GNS] Kicking client conn=%u (reason=%d '%s')", conn, reason, debug ? debug : "");
