@@ -231,6 +231,11 @@ static void ReFireOne(const PendingEvent& ev)
         ev.formID, ev.eventName.c_str(), count);
 }
 
+bool IsModEventHookInstalled()
+{
+    return g_hookInstalled.load();
+}
+
 void FlushPendingCustomEvents()
 {
     LOG_REQUIREMENT("FlushPendingCustomEvents", "Must run on the main game thread. Replays every custom event that came in from other players since the last flush.");

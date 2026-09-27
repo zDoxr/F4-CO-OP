@@ -10,6 +10,11 @@
 void InstallModEventHook();
 void UninstallModEventHook();
 
+// True only while the SendCustomEvent hook is installed, i.e. while this
+// machine itself relays custom events. CoSyncNet accepts inbound
+// CUSTOMEVENT| packets only in that state (S-SEC1).
+bool IsModEventHookInstalled();
+
 // Called from CoSyncNet::OnReceive (network/transport thread)
 void QueueRemoteCustomEvent(uint32_t senderFormID,
                             const std::string& eventName,

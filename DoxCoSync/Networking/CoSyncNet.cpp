@@ -2010,6 +2010,19 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
 
     if (msg.rfind("CUSTOMEVENT|", 0) == 0)
     {
+        // S-SEC1 (2026-09-26): a CUSTOMEVENT fires an arbitrary Papyrus custom
+        // event (any form, event name and arguments) on every machine. The
+        // sending side (InstallModEventHook) is disabled, so no legitimate
+        // peer of this build ever sends one -- accept and relay only while
+        // this machine has the feature enabled too.
+        if (!IsModEventHookInstalled())
+        {
+            static uint32_t s_dropped = 0;
+            if ((s_dropped++ % 50) == 0)
+                LOG_WARN("[CoSyncNet] Dropped CUSTOMEVENT from conn=%u -- custom-event relay is disabled on this build (%u dropped)",
+                    conn, s_dropped);
+            return;
+        }
         if (isHostRole)
             CoSyncTransport::Send(msg);
 
