@@ -1501,6 +1501,64 @@ namespace CoSyncGameAPI
         }
     }
 
+    // ExtraDataList::ExtraDataList() -- IDA 1.11.240, 2026-09-26: 33 engine
+    // callers; zeroes refcount/data/presence, points the tail at m_data and
+    // constructs the lock. sub_14034A310 creates a stack's missing list with
+    // exactly Allocate(40) -> this ctor -> InterlockedIncrement(refcount).
+    typedef void* (*_ExtraDataListCtor)(void* mem);
+    static RelocAddr<_ExtraDataListCtor> g_ExtraDataListCtor(0x272A50);
+    static constexpr uint8_t kExtraDataListCtorPrologue[9] = { 0x40, 0x53, 0x48, 0x83, 0xEC, 0x20, 0x48, 0x8B, 0xD9 };
+    static constexpr size_t  kExtraDataListBytes = 0x28;
+
+    int EnsureStackExtraLists(TESObjectREFR* ref, TESForm* item)
+    {
+        LOG_REQUIREMENT("CoSyncGameAPI::EnsureStackExtraLists", "Main thread. Needs a live ref and a real item form; builds missing stack lists with the engine's own allocator and constructor, under the inventory write lock.");
+        if (!ref || !item || !IsFormStillLive(static_cast<TESForm*>(ref)))
+            return -1;
+
+        static int s_ctorOk = -1;
+        if (s_ctorOk < 0)
+        {
+            s_ctorOk = (std::memcmp(reinterpret_cast<const void*>(g_ExtraDataListCtor.GetUIntPtr()),
+                kExtraDataListCtorPrologue, sizeof(kExtraDataListCtorPrologue)) == 0) ? 1 : 0;
+            if (!s_ctorOk)
+                LOG_ERROR("[GameAPI] ExtraDataList constructor bytes don't match 1.11.240 -- stack lists won't be created");
+        }
+        if (!s_ctorOk)
+            return -1;
+
+        BGSInventoryList* inv = SafeReadInventoryList(ref);
+        if (!inv)
+            return 0;
+
+        int created = 0;
+        BSWriteLocker lock(&inv->inventoryLock);
+        for (UInt32 i = 0; i < inv->items.count; ++i)
+        {
+            BGSInventoryItem& entry = inv->items.entries[i];
+            if (entry.form != item)
+                continue;
+            for (BGSInventoryItem::Stack* s = entry.stack; s; s = s->next)
+            {
+                if (s->extraData)
+                    continue;
+                void* mem = Heap_Allocate(kExtraDataListBytes);
+                if (!mem)
+                    break;
+                auto* list = static_cast<ExtraDataList*>(g_ExtraDataListCtor(mem));
+                _InterlockedIncrement(reinterpret_cast<volatile long*>(list));   // refcount (+0x00), as the engine does
+                s->extraData = list;
+                ++created;
+            }
+            break;
+        }
+
+        if (created > 0)
+            LOG_UPDATED("[GameAPI] gave %d stack(s) of item 0x%08X on ref 0x%08X an extra-data list (equip precondition)",
+                created, item->formID, ref->formID);
+        return created;
+    }
+
     bool DirectInjectInventoryItem(TESObjectREFR* actor, TESForm* form)
     {
         if (!actor || !form) return false;

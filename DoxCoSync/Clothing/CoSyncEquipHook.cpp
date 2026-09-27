@@ -12,6 +12,7 @@
 #include "CoSyncRequirementsLog.h"
 #include "CoSyncVMFormArg.h"
 #include "CoSyncPlayerAnimation.h"
+#include "CoSyncGameAPI.h"
 
 #include "GameReferences.h"
 #include "GameForms.h"
@@ -28,6 +29,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include "CoSyncThreadDiag.h"
 
 extern RelocPtr<PlayerCharacter*> g_player;
 extern RelocAddr<_LookupFormByID> LookupFormByID;
@@ -198,6 +200,7 @@ static char __fastcall Detour_EquipObject(
     char queueEquip, char forceEquip, char playSounds, char applyNow, char locked)
 {
     LOG_REQUIREMENT("CoSyncEquipHook::Detour_EquipObject", "Needs the equip hook to be installed. Treats actor/object as untrusted and only reads them through the safe helpers. The re-entry flag must be accurate or this can echo its own equips back out.");
+    CoSyncThreadDiag::Note(CoSyncThreadDiag::kEquip);
     LogEquipHeartbeat(actor);
 
     // Cache the singleton pointer on first call so EquipItemDirect can use it.
@@ -252,6 +255,7 @@ static char __fastcall Detour_UnequipObject(
     char queueEquip, char forceEquip, char playSounds, char applyNow, void* slotBeingReplaced)
 {
     LOG_REQUIREMENT("CoSyncEquipHook::Detour_UnequipObject", "Needs the unequip hook to be installed. Treats actor/object as untrusted and only reads them through the safe helpers. The re-entry flag must be accurate or this can echo its own unequips back out.");
+    CoSyncThreadDiag::Note(CoSyncThreadDiag::kEquip);
     LogUnequipHeartbeat(actor);
 
     if (tls_cs_equip_applying)
@@ -467,6 +471,7 @@ void CoSyncEquipHook::FlushPendingEquipOps()
         {
             if (s_equipMgr && g_origEquip)
             {
+                CoSyncGameAPI::EnsureStackExtraLists(pl->actorRef, form);   // E1 precondition
                 void* instPair[2] = { form, nullptr };
                 g_origEquip(s_equipMgr, pl->actorRef, instPair,
                     0, 1, nullptr,
@@ -492,6 +497,7 @@ void CoSyncEquipHook::FlushPendingEquipOps()
         {
             if (s_equipMgr && g_origUnequip)
             {
+                CoSyncGameAPI::EnsureStackExtraLists(pl->actorRef, form);   // E1 precondition
                 void* instPair[2] = { form, nullptr };
                 g_origUnequip(s_equipMgr, pl->actorRef, instPair,
                     1, nullptr, 0,
@@ -561,6 +567,35 @@ bool CoSyncEquipHook::EquipItemDirect(Actor* actor, TESForm* form)
                 form->formID);
     }
 
+    // E1 (2026-09-26): the engine's EquipObject walks every stack of this
+    // item and reads each stack's ExtraDataList without a null check, but the
+    // engine creates lists lazily, so a plain stack can have none (client crash,
+    // Fallout4+0x165940F reading 0x20). Satisfy that precondition first.
+    CoSyncGameAPI::EnsureStackExtraLists(actor, form);
+
+    // Ownership of the cloned instance (IDA 1.11.240, 2026-09-26): the WEAP
+    // clone (vtable 0x56 = sub_140478100 -> ctor sub_140473990) is returned
+    // with refcount 0 (+0x08). The engine's equip copies the pair (AddRef) and
+    // releases its copy before returning (sub_140CDFCD0), so a floating object
+    // could be destroyed while the call is still using it. Hold a reference
+    // for the call, then release it the engine's way: whoever drops the last
+    // reference destroys it -- the engine if it kept the weapon equipped, us
+    // if it didn't. Freed exactly once, never early, never leaked.
+    auto addRef = [](void* obj)
+    {
+        _InterlockedIncrement(reinterpret_cast<volatile long*>(static_cast<uint8_t*>(obj) + 0x08));
+    };
+    auto release = [](void* obj)
+    {
+        if (_InterlockedExchangeAdd(reinterpret_cast<volatile long*>(static_cast<uint8_t*>(obj) + 0x08), -1) == 1)
+        {
+            using DeletingDtor = void(__fastcall*)(void*, int);
+            reinterpret_cast<DeletingDtor>((*reinterpret_cast<void***>(obj))[0])(obj, 1);
+        }
+    };
+    if (idata)
+        addRef(idata);
+
     void* instPair[2] = { form, idata };
     tls_cs_equip_applying = true;
     g_origEquip(s_equipMgr, actor, instPair,
@@ -568,6 +603,9 @@ bool CoSyncEquipHook::EquipItemDirect(Actor* actor, TESForm* form)
         /*queueEquip*/0, /*forceEquip*/1,
         /*playSounds*/0, /*applyNow*/1, /*locked*/0);
     tls_cs_equip_applying = false;
+
+    if (idata)
+        release(idata);
     return true;
 }
 

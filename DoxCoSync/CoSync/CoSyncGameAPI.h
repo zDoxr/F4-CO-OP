@@ -201,6 +201,17 @@ namespace CoSyncGameAPI
     // TESObjectREFR* implicitly -- no caller changes needed.
     bool DirectInjectInventoryItem(TESObjectREFR* refr, TESForm* form);
 
+    // Precondition for calling the engine's equip/unequip directly on a proxy:
+    // every inventory stack of `item` must own an ExtraDataList. The engine's
+    // stack walk inside EquipObject (sub_140CDFCD0) reads each stack's list
+    // with no null check, but the engine itself creates stacks without one
+    // (lists are made lazily) -- bug E1, a crash at Fallout4+0x165940F.
+    // Creates any missing list the engine's own way (MemoryManager::Allocate
+    // + the ExtraDataList constructor, under the inventory write lock).
+    // Returns the number of lists created, or -1 if the ref/constructor is not
+    // usable. MAIN THREAD.
+    int EnsureStackExtraLists(TESObjectREFR* ref, TESForm* item);
+
     // The engine's own AddItem (what Papyrus AddItem runs), called directly --
     // works on refs without a script object (proxies). Synchronous. MAIN THREAD.
     bool NativeAddItem(TESObjectREFR* target, TESForm* item, UInt32 count);
