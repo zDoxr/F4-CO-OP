@@ -594,6 +594,30 @@ namespace
             return;
         }
 
+        // Only while MainMenu shows its main list. In QUIT_CONFIRM_STATE the
+        // list keeps its selection (and follows the mouse), so the click that
+        // confirmed QUIT also read as "MULTIPLAYER row activated": the PrismaUI
+        // menu opened and took focus as the game was shutting down. PrismaUI
+        // then released its input layer after the engine had destroyed
+        // BSInputEnableManager (0x30E88B0 nulled by 0x140C3CF20) and
+        // CRT-freed the game-owned layer -- 0xC0000374 on both host and
+        // client, 2026-09-26. currentState is MainMenu.as's public getter for
+        // strCurrentState. Unreadable => don't open (fail closed).
+        {
+            GFxValue state;
+            if (!menuMc.GetMember("currentState", &state) || !state.IsString())
+            {
+                LOG_WARN("[CoSyncMenuInject] PollMultiplayerRowActivation: MainMenu currentState unreadable -- ignoring press");
+                return;
+            }
+            const char* s = state.GetString();
+            if (!s || strcmp(s, "MAIN_STATE") != 0)
+            {
+                LOG_INFO("[CoSyncMenuInject] Activate ignored -- MainMenu state is '%s', not MAIN_STATE", s ? s : "(null)");
+                return;
+            }
+        }
+
         GFxValue mainPanel;
         if (!menuMc.GetMember("MainPanel_mc", &mainPanel) || !mainPanel.IsObject())
         {
