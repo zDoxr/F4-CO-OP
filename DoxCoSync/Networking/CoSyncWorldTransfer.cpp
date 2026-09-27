@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <cstring>
 #include <deque>
+#include <unordered_set>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -121,6 +122,11 @@ namespace
     bool                 s_saveQueued = false;
     std::vector<Outgoing> s_outgoing;
     uint32_t             s_nextId = 1;
+    // S-SEC2 (2026-09-26): a client requests the world exactly once per
+    // connection (CoSyncNet::OnGNSConnected -> ClientBegin); a reconnect is a
+    // new connection handle. Every extra WORLDREQ used to queue another full
+    // host save plus a multi-MB transfer, so one peer could spam the host.
+    std::unordered_set<uint32_t> s_worldRequestedConns;
 
     // ── Client state ────────────────────────────────────────────────────────
     std::atomic<int> s_phase{ static_cast<int>(CoSyncWorldTransfer::ClientPhase::Idle) };
@@ -266,6 +272,11 @@ namespace CoSyncWorldTransfer
                 CoSyncTransport::SendTo(conn, "WORLDERR|host_not_in_game");
                 return;
             }
+            if (!s_worldRequestedConns.insert(conn).second)
+            {
+                LOG_WARN("[WorldXfer] Ignoring a repeated WORLDREQ from conn=%u (one world per connection)", conn);
+                return;
+            }
             const std::string key  = f.size() > 2 ? f[2] : std::string();
             const std::string name = f.size() > 3 ? f[3] : std::string();
             CoSyncProfiles::HostOnPlayerKey(conn, key, name);
@@ -298,7 +309,9 @@ namespace CoSyncWorldTransfer
             uint64_t id = 0, sz0 = 0, sz1 = 0, c0 = 0, c1 = 0;
             if (f.size() < 6 || !ParseU64(f[1], id) || !ParseU64(f[2], sz0) || !ParseU64(f[3], sz1) ||
                 !ParseU64(f[4], c0) || !ParseU64(f[5], c1) || sz0 == 0 ||
-                sz0 > kMaxFileBytes || sz1 > kMaxFileBytes)
+                sz0 > kMaxFileBytes || sz1 > kMaxFileBytes ||
+                sz0 + sz1 > kMaxFileBytes)   // S-SEC2: both buffers are allocated up front
+
             {
                 Fail("bad_header");
                 return;
@@ -495,6 +508,7 @@ namespace CoSyncWorldTransfer
             s_returnToMenu = true;
         s_pendingRequests.clear();
         s_outgoing.clear();
+        s_worldRequestedConns.clear();
         s_saveQueued = false;
         s_inFiles[0].clear(); s_inFiles[1].clear();
         s_inReceived = 0;
