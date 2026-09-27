@@ -284,7 +284,14 @@ bool GNS_Session::StartHost(const char* ip)
 
     SteamNetworkingConfigValue_t opts[2]{};
     opts[0].SetInt32(k_ESteamNetworkingConfig_TimeoutInitial, 15000);
-    opts[1].SetInt32(k_ESteamNetworkingConfig_TimeoutConnected, 300000);
+    // P6 (2026-09-26): was 300000 (5 min, no recorded reason, from the first
+    // GNS integration). A crashed peer's proxy then stayed frozen and its slot
+    // counted toward the 8-player cap for five minutes. Loading screens don't
+    // need it: GNS services keepalives on its own thread, and the 26 Sep logs
+    // show messages arriving throughout 8-32 s game-thread stalls. 10000 is
+    // GNS's own default (csteamnetworkingsockets.cpp), set explicitly so it
+    // doesn't depend on the DLL build.
+    opts[1].SetInt32(k_ESteamNetworkingConfig_TimeoutConnected, 10000);
 
     for (int attempt = 0; attempt < CoSyncSessionConfig::kGamePortTries; ++attempt)
     {
@@ -369,7 +376,14 @@ bool GNS_Session::StartClient(const std::string& connectString)
 
     SteamNetworkingConfigValue_t opts[2]{};
     opts[0].SetInt32(k_ESteamNetworkingConfig_TimeoutInitial, 15000);
-    opts[1].SetInt32(k_ESteamNetworkingConfig_TimeoutConnected, 300000);
+    // P6 (2026-09-26): was 300000 (5 min, no recorded reason, from the first
+    // GNS integration). A crashed peer's proxy then stayed frozen and its slot
+    // counted toward the 8-player cap for five minutes. Loading screens don't
+    // need it: GNS services keepalives on its own thread, and the 26 Sep logs
+    // show messages arriving throughout 8-32 s game-thread stalls. 10000 is
+    // GNS's own default (csteamnetworkingsockets.cpp), set explicitly so it
+    // doesn't depend on the DLL build.
+    opts[1].SetInt32(k_ESteamNetworkingConfig_TimeoutConnected, 10000);
 
     LOG_INFO("[GNS] Connecting to %s", connectString.c_str());
 
