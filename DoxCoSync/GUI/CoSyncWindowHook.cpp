@@ -3,6 +3,7 @@
 #include "CoSyncPrismaUI.h"
 #include "ConsoleLogger.h"
 #include "CoSyncRequirementsLog.h"
+#include "CoSyncThreadDiag.h"
 
 #include <Windows.h>
 
@@ -14,6 +15,7 @@ namespace
     LRESULT CALLBACK HookedWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
         LOG_REQUIREMENT("(anonymous)::HookedWndProc", "Runs on the game window's thread. The original window procedure must already be saved.");
+        CoSyncThreadDiag::NoteWindowEntry();
 
         // PauseMenu DISCONNECT: read GFx selectedIndex on the main thread.
         // WM_LBUTTONUP is intentional -- GFx processes the click on

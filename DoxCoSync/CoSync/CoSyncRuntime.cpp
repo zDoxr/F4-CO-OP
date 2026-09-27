@@ -265,6 +265,7 @@ void CoSyncRuntime_TickGameThread()
 {
     LOG_REQUIREMENT("CoSyncRuntime_TickGameThread", "Must run on the main game thread, not the render thread, to avoid a cross-thread race that's been hit before. Relies on the networking/player subsystems gating themselves until they're ready.");
     const double now = NowSeconds();
+    CoSyncThreadDiag::TickScope tickScope;   // overlap census, see CoSyncThreadDiag.h
 
     // Unconditional heartbeat -- proves the main-thread task itself is still
     // getting turns at all. If it goes silent, g_lastTickStep's last value

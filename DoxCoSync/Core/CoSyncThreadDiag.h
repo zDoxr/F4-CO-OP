@@ -61,6 +61,30 @@ namespace CoSyncThreadDiag
     inline std::atomic<uint32_t> g_mainTid{ 0 };   // current CoSync tick thread
     inline std::atomic<uint32_t> g_overflow{ 0 };
 
+    // Can window-thread code run WHILE the tick is running? In game the tick
+    // is the engine's "NonRendersafeAI" job (Fallout4 sub_140BD6170 in the
+    // frame job list) on a worker thread, while WndProc and PrismaUI's UI
+    // callbacks run on the window thread. Whether the two ever overlap is
+    // UNCONFIRMED from IDA; this counts it. The tick holds a TickScope; the
+    // window-thread entry points call NoteWindowEntry (no logging there).
+    inline std::atomic<uint32_t> g_tickActive{ 0 };
+    inline std::atomic<uint64_t> g_windowOverlaps{ 0 };
+    inline std::atomic<uint64_t> g_windowEntries{ 0 };
+
+    struct TickScope
+    {
+        TickScope()  { g_tickActive.fetch_add(1, std::memory_order_acq_rel); }
+        ~TickScope() { g_tickActive.fetch_sub(1, std::memory_order_acq_rel); }
+    };
+
+    inline void NoteWindowEntry()
+    {
+        g_windowEntries.fetch_add(1, std::memory_order_relaxed);
+        if (g_tickActive.load(std::memory_order_acquire) != 0 &&
+            ::GetCurrentThreadId() != g_mainTid.load(std::memory_order_relaxed))
+            g_windowOverlaps.fetch_add(1, std::memory_order_relaxed);
+    }
+
     // Any thread. Must stay trivially cheap and side-effect free.
     inline void Note(Site s)
     {
@@ -139,6 +163,15 @@ namespace CoSyncThreadDiag
             LOG_INFO("[ThreadDiag] %u hook calls from threads beyond the per-site table (%d slots)",
                 overflow - s_lastOverflow, kMaxThreadsPerSite);
             s_lastOverflow = overflow;
+        }
+        const uint64_t overlaps = g_windowOverlaps.load(std::memory_order_relaxed);
+        static uint64_t s_lastOverlaps = 0;
+        if (overlaps != s_lastOverlaps)
+        {
+            LOG_WARN("[ThreadDiag] window-thread code ran WHILE the tick was running: %llu times (+%llu) of %llu window entries",
+                (unsigned long long)overlaps, (unsigned long long)(overlaps - s_lastOverlaps),
+                (unsigned long long)g_windowEntries.load(std::memory_order_relaxed));
+            s_lastOverlaps = overlaps;
         }
     }
 }

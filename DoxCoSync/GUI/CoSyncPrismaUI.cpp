@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include "CoSyncThreadDiag.h"
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -425,6 +426,7 @@ namespace
     void OnCommand(const char* argument, void*)
     {
         LOG_REQUIREMENT("(anonymous)::OnCommand", "Runs on the game thread (BindGameThreadUIEvent). Treats the page's argument as untrusted text.");
+        CoSyncThreadDiag::NoteWindowEntry();
         const std::string cmdLine = argument ? argument : "";
         const size_t bar = cmdLine.find('|');
         const std::string cmd = cmdLine.substr(0, bar);
