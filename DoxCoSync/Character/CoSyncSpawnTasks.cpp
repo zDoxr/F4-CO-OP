@@ -190,6 +190,23 @@ public:
             m_spawnPos.x, m_spawnPos.y, m_spawnPos.z
         );
 
+        // P2 (2026-09-26): every spawn source records the entity's CREATE in
+        // the player manager (hasCreate) before enqueueing this task, and
+        // DespawnEntity erases that state. If it is gone, the entity was
+        // destroyed while this task waited (player left, kick, timeout) --
+        // GetOrCreateByEntityID below would resurrect it as an orphan proxy
+        // that no state entry, timeout or destroy could ever remove.
+        {
+            const auto& states = g_CoSyncPlayerManager.GetStates();
+            auto itState = states.find(m_entityID);
+            if (itState == states.end() || !itState->second.hasCreate)
+            {
+                LOG_UPDATED("[SpawnTask] entity=%u was destroyed before its spawn ran -- dropping the spawn",
+                    m_entityID);
+                return;
+            }
+        }
+
         CoSyncPlayer& pl = g_CoSyncPlayerManager.GetOrCreateByEntityID(m_entityID);
 
         // SpawnInWorld branches on pl.createType; the world-actor bind path
