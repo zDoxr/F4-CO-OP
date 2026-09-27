@@ -65,7 +65,12 @@ extern "C"
 
         0,
         0,
-        { RUNTIME_VERSION_1_11_191, RUNTIME_VERSION_1_11_221, RUNTIME_VERSION_1_11_240, 0 },
+        // P8 (2026-09-26): only the runtime every hardcoded address was
+        // verified against. 1.11.191/.221 were listed too, but the Phase 6
+        // IDA sweep showed addresses from those builds land mid-function on
+        // .240 and vice versa -- F4SE should refuse to load us elsewhere
+        // rather than let us call the wrong code.
+        { RUNTIME_VERSION_1_11_240, 0 },
 
         0,
     };
