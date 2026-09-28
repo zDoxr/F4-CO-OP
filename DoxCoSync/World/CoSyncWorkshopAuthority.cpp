@@ -137,7 +137,13 @@ namespace
         int      inRangeMisses = 0;
     };
 
+    // s_mx guards the registry, maps and jobs, and IS held across engine
+    // calls on the tick. The hooks run on the engine's own UI path, so they
+    // must never wait on it: they only use s_evMx (event queue) and
+    // s_countMx (build counts), which are never held across engine calls.
     std::recursive_mutex s_mx;
+    std::mutex             s_evMx;
+    std::mutex             s_countMx;
     std::deque<LocalEvent> s_events;       // from hooks, drained on Tick
 
     // Authority (host / solo)
@@ -320,7 +326,7 @@ namespace
 
     uint32_t CountFor(uint32_t ws)
     {
-        std::lock_guard<std::recursive_mutex> lk(s_mx);
+        std::lock_guard<std::mutex> lk(s_countMx);
         auto it = s_counts.find(ws);
         return it == s_counts.end() ? 0u : it->second;
     }
@@ -382,7 +388,7 @@ namespace
 
     void QueueEvent(char op, const Capture& c)
     {
-        std::lock_guard<std::recursive_mutex> lk(s_mx);
+        std::lock_guard<std::mutex> lk(s_evMx);
         if (s_events.size() < 512)
             s_events.push_back({ op, c });
     }
@@ -683,6 +689,7 @@ namespace
 
     std::string CountsBody()
     {
+        std::lock_guard<std::mutex> lk(s_countMx);
         std::string b;
         for (const auto& kv : s_counts)
         {
@@ -694,9 +701,13 @@ namespace
 
     void RecountAuthority()
     {
-        s_counts.clear();
+        std::unordered_map<uint32_t, uint32_t> counts;
         for (const auto& kv : s_reg)
-            if (kv.second.ws && kv.second.built) ++s_counts[kv.second.ws];
+            if (kv.second.ws && kv.second.built) ++counts[kv.second.ws];
+        {
+            std::lock_guard<std::mutex> lk(s_countMx);
+            s_counts.swap(counts);
+        }
         s_countsDirty = true;
     }
 
@@ -1211,7 +1222,7 @@ namespace
                 return Deny(conn, 'P', cref, "That spot is outside the settlement's build area.");
             if (s_limitMode.load() == static_cast<int>(CoSyncFactions::BuildLimitMode::Custom))
             {
-                const uint32_t n = s_counts.count(o.ws) ? s_counts[o.ws] : 0u;
+                const uint32_t n = CountFor(o.ws);
                 if (n >= s_customLimit.load())
                     return Deny(conn, 'P', cref, Fmt("Build limit reached for this settlement (%u / %u).", n, s_customLimit.load()));
             }
@@ -1348,13 +1359,15 @@ namespace
         }
         if (type == "WKC")
         {
-            s_counts.clear();
+            std::unordered_map<uint32_t, uint32_t> counts;
             if (!v.empty() && !v[0].empty())
                 for (const std::string& kv : Split(v[0], ';'))
                 {
                     const size_t eq = kv.find('=');
-                    if (eq != std::string::npos) s_counts[U(kv.substr(0, eq))] = U(kv.substr(eq + 1));
+                    if (eq != std::string::npos) counts[U(kv.substr(0, eq))] = U(kv.substr(eq + 1));
                 }
+            std::lock_guard<std::mutex> lk(s_countMx);
+            s_counts.swap(counts);
             return;
         }
         if (type == "WKN" && v.size() >= 3)
@@ -1391,10 +1404,12 @@ namespace CoSyncWorkshopAuthority
         if (!isHost)
         {
             s_jobs.clear();
+            std::lock_guard<std::mutex> lc(s_countMx);
             s_counts.clear();
         }
         else
             RecountAuthority();
+        std::lock_guard<std::mutex> le(s_evMx);
         s_events.clear();
     }
 
@@ -1408,6 +1423,7 @@ namespace CoSyncWorkshopAuthority
         if (client)
         {
             s_jobs.clear();
+            std::lock_guard<std::mutex> lc(s_countMx);
             s_counts.clear();
         }
     }
@@ -1431,13 +1447,17 @@ namespace CoSyncWorkshopAuthority
             CoSyncWorldSync::SetLegacyWorkshopSync(!ok);
         }
 
+        std::deque<LocalEvent> events;
+        {
+            std::lock_guard<std::mutex> le(s_evMx);
+            events.swap(s_events);
+        }
+
         std::lock_guard<std::recursive_mutex> lk(s_mx);
 
         // Local operations from the hooks.
-        while (!s_events.empty())
+        for (const LocalEvent& e : events)
         {
-            const LocalEvent e = s_events.front();
-            s_events.pop_front();
             if (AuthorityNow()) LocalAuthority(e);
             else                LocalClient(e);
         }
@@ -1495,10 +1515,19 @@ namespace CoSyncWorkshopAuthority
     {
         std::lock_guard<std::recursive_mutex> lk(s_mx);
         if (!SessionLive()) return;
+        // Everything already in the host's world is in the save the newcomer
+        // just loaded (same form IDs; bound on first use). Only objects the
+        // host accepted but has not placed yet (it was far away) must be sent.
+        size_t sent = 0;
         for (const auto& kv : s_reg)
-            BroadcastAdd(kv.second, 0, 0, conn);
+            if (kv.second.hostRef == 0)
+            {
+                BroadcastAdd(kv.second, 0, 0, conn);
+                ++sent;
+            }
         Send("WKC|" + CountsBody(), conn);
-        LOG_INFO("[Workshop] sent %zu settlement object(s) to joining conn=%u", s_reg.size(), conn);
+        LOG_INFO("[Workshop] joining conn=%u: %zu registered object(s), %zu not yet in the host world sent",
+            conn, s_reg.size(), sent);
     }
 
     uint32_t GetBuiltCount(uint32_t ws)
@@ -1513,6 +1542,7 @@ namespace CoSyncWorkshopAuthority
         j += s_hooksActive.load() ? "true" : "false";
         j += ",\"counts\":{";
         bool first = true;
+        std::lock_guard<std::mutex> lc(s_countMx);
         for (const auto& kv : s_counts)
         {
             if (!first) j += ",";
@@ -1596,7 +1626,8 @@ namespace CoSyncWorkshopAuthority
         s_reg.clear();
         s_refToNet.clear();
         s_jobs.clear();
-        s_counts.clear();
         s_nextNet = 1;
+        std::lock_guard<std::mutex> lc(s_countMx);
+        s_counts.clear();
     }
 }
