@@ -63,11 +63,12 @@ depends on it.
 
 ### Corrections to existing CoSync code
 
-* `ThirdParty/Pap/GameWorkshop.cpp` (compiled into DoxCoSync) has **1.11.221**
-  RVAs: `hCurrentWorkshop` 0x030EC618, ScrapReference 0x393C10,
-  FindNearestValidWorkshop 0x3853F0. On 1.11.240, 0x3853F0 is the *store
-  prompt*. CoSyncWorkshopSync::Tick therefore read a wrong global. The new
-  code uses the verified 1.11.240 values above.
+* `ThirdParty/Pap/GameWorkshop.cpp` has **1.11.221** RVAs (`hCurrentWorkshop`
+  0x030EC618, ScrapReference 0x393C10, FindNearestValidWorkshop 0x3853F0; on
+  1.11.240, 0x3853F0 is the store prompt). It is NOT compiled: the project builds
+  F4SE 0.7.9's `GameWorkshop.cpp` (DoxCoSync.vcxproj), so CoSyncWorkshopSync uses
+  the correct 1.11.240 values. (Corrected 2026-09-28; the first version of this
+  document said otherwise.)
 * `CoSyncWorkshopScrapHook` targets 0x393EC6, which is not a function entry
   on 1.11.240 (ScrapReference starts at 0x393F30). That hook stays disabled
   and is superseded.
