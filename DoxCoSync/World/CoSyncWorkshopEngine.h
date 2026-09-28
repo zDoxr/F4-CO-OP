@@ -34,6 +34,11 @@ namespace CoSyncWorkshopEngine
     // Link (or, with workshop == nullptr, unlink) a built object.
     bool SetLinkedWorkshop(TESObjectREFR* item, TESObjectREFR* workshop);
 
+    // Where a workbench keeps its components: the workbench itself when its
+    // base is a container, otherwise its WorkshopLinkContainer (0x30F78C0)
+    // linked ref -- the same choice ScrapReference makes for scrap rewards.
+    TESObjectREFR* GetWorkbenchContainer(TESObjectREFR* workshop);
+
     // Workshop::FindNearestValidWorkshop (0x385720).
     TESObjectREFR* FindNearestValidWorkshop(TESObjectREFR* from);
 

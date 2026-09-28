@@ -7,6 +7,7 @@
 #include "CoSyncRequirementsLog.h"
 
 #include "GameReferences.h"
+#include "GameForms.h"
 
 #include <cstdint>
 
@@ -20,6 +21,7 @@ namespace
     constexpr uintptr_t kRVA_PlacementItem      = 0x30F7680;  // u32 handle
     constexpr uintptr_t kRVA_WorkshopItemKeyword= 0x30F7818;  // BGSKeyword*
     constexpr uintptr_t kRVA_WorkshopKeyword    = 0x30F77E0;  // BGSKeyword*
+    constexpr uintptr_t kRVA_LinkContainerKeyword = 0x30F78C0; // BGSKeyword* (ScrapReference: reward container link)
 
     // Functions
     constexpr uintptr_t kRVA_FindNearestValidWorkshop = 0x385720;
@@ -179,6 +181,28 @@ namespace CoSyncWorkshopEngine
         {
             LOG_WARN("[WorkshopEngine] SetLinkedRef faulted -- caught");
             return false;
+        }
+    }
+
+    __declspec(noinline) TESObjectREFR* GetWorkbenchContainer(TESObjectREFR* ws)
+    {
+        __try
+        {
+            if (!ws || !ws->baseForm)
+                return nullptr;
+            // ScrapReference: base form type 31 (CONT) -> the workbench holds
+            // the components itself.
+            if (ws->baseForm->formType == kFormType_CONT)
+                return ws;
+            void* extra = *reinterpret_cast<void**>(reinterpret_cast<uint8_t*>(ws) + kRefExtraList);
+            void* kw = *At<void**>(kRVA_LinkContainerKeyword);
+            if (!extra || !kw)
+                return nullptr;
+            return At<GetLinkedRef_t>(kRVA_GetLinkedRef)(extra, kw, true);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return nullptr;
         }
     }
 

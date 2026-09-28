@@ -1,5 +1,6 @@
 #include "CoSyncProfiles.h"
 #include "CoSyncFactions.h"
+#include "CoSyncWorkshopAuthority.h"
 
 #include "CoSyncWorldTransfer.h"
 #include "CoSyncTransport.h"
@@ -1177,6 +1178,7 @@ namespace
         // callbacks per plugin). Outside s_mx: those modules call back into
         // Profiles (HostGetConnKey) under their own locks.
         CoSyncFactions::SaveRecord(ser);
+        CoSyncWorkshopAuthority::SaveRecord(ser);
     }
 
     void OnLoad(const F4SESerializationInterface* ser)
@@ -1188,7 +1190,8 @@ namespace
         {
             // Other modules' records are read without s_mx held (see OnSave).
             lk.unlock();
-            const bool other = CoSyncFactions::LoadRecord(ser, type, version, length);
+            const bool other = CoSyncFactions::LoadRecord(ser, type, version, length) ||
+                               CoSyncWorkshopAuthority::LoadRecord(ser, type, version, length);
             lk.lock();
             if (other)
                 continue;
@@ -1225,6 +1228,7 @@ namespace
     void OnRevert(const F4SESerializationInterface*)
     {
         CoSyncFactions::Revert();
+        CoSyncWorkshopAuthority::Revert();
         std::lock_guard<std::mutex> lk(s_mx);
         s_profiles.clear();
     }

@@ -351,6 +351,7 @@ exit /b 0
     <ClInclude Include="World\CoSyncSaveLoad.h" />
     <ClInclude Include="World\CoSyncFactions.h" />
     <ClInclude Include="World\CoSyncWorkshopEngine.h" />
+    <ClInclude Include="World\CoSyncWorkshopAuthority.h" />
     <ClInclude Include="Character\CoSyncProfiles.h" />
     <ClInclude Include="Character\CoSyncProxyLooks.h" />
     <ClInclude Include="Character\CoSyncCompanions.h" />
@@ -548,6 +549,7 @@ exit /b 0
     <ClCompile Include="World\CoSyncSaveLoad.cpp" />
     <ClCompile Include="World\CoSyncFactions.cpp" />
     <ClCompile Include="World\CoSyncWorkshopEngine.cpp" />
+    <ClCompile Include="World\CoSyncWorkshopAuthority.cpp" />
     <ClCompile Include="Character\CoSyncProfiles.cpp" />
     <ClCompile Include="Character\CoSyncProxyLooks.cpp" />
     <ClCompile Include="Character\CoSyncCompanions.cpp" />

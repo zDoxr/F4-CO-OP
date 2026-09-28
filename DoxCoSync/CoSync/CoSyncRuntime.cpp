@@ -6,6 +6,7 @@
 #include "CoSyncTransport.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncFactions.h"
+#include "CoSyncWorkshopAuthority.h"
 #include "CoSyncNet.h"
 #include "CoSyncLocalPlayer.h"
 #include "TickHook.h"
@@ -436,6 +437,11 @@ void CoSyncRuntime_TickGameThread()
     // authority and can manage their faction and territory offline.
     g_lastTickStep = "RTGT:CoSyncFactions::Tick";
     CoSyncFactions::Tick(now);
+
+    // Workshop authority: installs the verified workshop hooks once a world
+    // is loaded, then gates / replicates every build, move, scrap, repair.
+    g_lastTickStep = "RTGT:CoSyncWorkshopAuthority::Tick";
+    CoSyncWorkshopAuthority::Tick(now);
 
     g_lastTickStep = "RTGT:CoSyncNet::Tick";
     if (CoSyncNet::IsInitialized())

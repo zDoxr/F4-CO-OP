@@ -1285,6 +1285,16 @@ namespace CoSyncFactions
         return f ? f->id : 0u;
     }
 
+    std::vector<uint32_t> GetClaimedWorkshops()
+    {
+        std::lock_guard<std::recursive_mutex> lk(s_mx);
+        std::vector<uint32_t> out;
+        for (const auto& f : s_state.factions)
+            for (const auto& t : f.territories)
+                out.push_back(t.workshop);
+        return out;
+    }
+
     std::string GetFactionName(uint32_t factionId)
     {
         std::lock_guard<std::recursive_mutex> lk(s_mx);

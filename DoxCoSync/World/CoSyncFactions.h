@@ -103,6 +103,9 @@ namespace CoSyncFactions
 
     // 0 = unclaimed.
     uint32_t GetTerritoryOwner(uint32_t workshopFormID);
+
+    // Every claimed settlement's workbench (any faction).
+    std::vector<uint32_t> GetClaimedWorkshops();
     std::string GetFactionName(uint32_t factionId);
 
     Settings GetSettings();

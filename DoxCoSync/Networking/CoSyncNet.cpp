@@ -48,6 +48,7 @@
 #include "CoSyncCompanions.h"
 #include "CoSyncItemMods.h"
 #include "CoSyncFactions.h"
+#include "CoSyncWorkshopAuthority.h"
 
 #include <algorithm>
 #include "../Animations/CoSyncPlayerAnimation.h"
@@ -399,6 +400,7 @@ void CoSyncNet::Init(bool isHost)
     CoSyncWorkshopSync::Init();
     LOG_INFO("[CoSyncNet] Init() step: CoSyncWorkshopSync::Init done");
     CoSyncFactions::OnSessionStart(isHost);
+    CoSyncWorkshopAuthority::OnSessionStart(isHost);
     CoSyncTimeSync::Init();
     LOG_INFO("[CoSyncNet] Init() step: CoSyncTimeSync::Init done");
 
@@ -675,6 +677,7 @@ void CoSyncNet::Shutdown()
     CoSyncWorkshopSync::Shutdown();
     CoSyncTimeSync::Shutdown();
     CoSyncFactions::OnSessionEnd();
+    CoSyncWorkshopAuthority::OnSessionEnd();
 
     //UninstallEquipHook();
     UninstallWorkshopScrapHook();
@@ -1299,6 +1302,13 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
         CoSyncFactions::OnReceive(msg, conn, isHostRole);
         return;
     }
+    // Workshop: WKQ (request, host re-validates), WKA/WKV/WKX/WKR/WKC/WKN
+    // (host results).
+    if (CoSyncWorkshopAuthority::IsWorkshopMessage(msg))
+    {
+        CoSyncWorkshopAuthority::OnReceive(msg, conn, isHostRole);
+        return;
+    }
 
 
     if (CoSyncCompanionSync::IsCompanionRequest(msg))
@@ -1515,6 +1525,7 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
             // Factions and territory: the newcomer needs the whole state,
             // and everyone's online list changed.
             CoSyncFactions::HostOnPeerJoined(conn);
+            CoSyncWorkshopAuthority::HostOnPeerJoined(conn);
         }
 
         return;

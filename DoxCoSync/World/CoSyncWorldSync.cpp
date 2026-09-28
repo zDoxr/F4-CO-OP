@@ -24,6 +24,7 @@
 #include "PapyrusArgs.h"
 #include "PapyrusEvents.h"
 
+#include <atomic>
 #include <mutex>
 #include <vector>
 #include <unordered_map>
@@ -578,6 +579,8 @@ namespace
 
 
     bool s_hasRequestedState = false;
+
+    std::atomic<bool> s_legacyWorkshop{ true };
 }
 
 
@@ -1318,6 +1321,8 @@ __declspec(noinline) static void HostTickObjects_Impl(double now)
     // see HostTickObjects's call site comment above. The real crash all
     // night was CoSyncGameAPI::SpawnRemoteActor's broken DYNAMIC_CAST,
     // fixed at its source.
+    if (s_legacyWorkshop.load())
+    {
     for (UInt32 i = 0; i < cell->objectList.count; i++)
     {
         TESObjectREFR* ref = cell->objectList.entries[i];
@@ -1379,6 +1384,7 @@ __declspec(noinline) static void HostTickObjects_Impl(double now)
     }
 
     TickBuildMoves(cell, now);
+    }
 
 
     if ((now - s_lastObjPoll) < kObj_PollInterval)
@@ -2550,7 +2556,8 @@ void CoSyncWorldSync::Tick(double now)
 
         // Scrap/delete detection — role-independent for the same reason as
         // builds and explosions: the person swinging the hammer owns the event.
-        TickBuildDeletions(now);
+        if (s_legacyWorkshop.load())
+            TickBuildDeletions(now);
     }
 
     if (CoSyncNet::IsHost())
@@ -2630,7 +2637,8 @@ void CoSyncWorldSync::Tick(double now)
         // so the host (and other peers via relay) can disable them too.
         if (CoSyncNet::IsConnected())
         {
-            ClientTickBuildScan(now);
+            if (s_legacyWorkshop.load())
+                ClientTickBuildScan(now);
             ClientTickPickupScan(now);
         }
 
@@ -2699,8 +2707,21 @@ void CoSyncWorldSync::OnReceivePickup(const std::string& msg)
     s_broadcastPickups.insert(formID);
 }
 
+void CoSyncWorldSync::SetLegacyWorkshopSync(bool enabled)
+{
+    if (s_legacyWorkshop.exchange(enabled) != enabled)
+        LOG_INFO("[WorldSync] Legacy cell-scan workshop sync %s", enabled ? "ENABLED" : "DISABLED (CoSyncWorkshopAuthority owns workshop objects)");
+}
+
+bool CoSyncWorldSync::IsLegacyWorkshopSync()
+{
+    return s_legacyWorkshop.load();
+}
+
 void CoSyncWorldSync::OnReceiveWorkshopBuildFull(const WorkshopBuildFullPacket& p)
 {
+    if (!s_legacyWorkshop.load())
+        return;
     if (p.entityID == CoSyncNet::GetMyEntityID())
         return;
 
@@ -2866,6 +2887,8 @@ void CoSyncWorldSync::OnReceiveStateRequest()
 
 void CoSyncWorldSync::OnReceiveWorkshopScrapFull(const WorkshopScrapFullPacket& p)
 {
+    if (!s_legacyWorkshop.load())
+        return;
     if (p.entityID == CoSyncNet::GetMyEntityID())
         return;
 

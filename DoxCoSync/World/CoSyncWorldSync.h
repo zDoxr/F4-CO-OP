@@ -85,6 +85,14 @@ namespace CoSyncWorldSync
     void Init();
     void Shutdown();
 
+    // The cell-scan workshop mirroring (WBF/WDS: detect new 0xFF refs after
+    // the fact, peer-to-peer, no authority). Switched OFF once
+    // CoSyncWorkshopAuthority's verified engine hooks are live -- that
+    // system gates and replicates the real workshop operations instead.
+    // Debris (OBJ), pickups (PU) and furniture (FU) are not affected.
+    void SetLegacyWorkshopSync(bool enabled);
+    bool IsLegacyWorkshopSync();
+
 
     void Tick(double now);
 
