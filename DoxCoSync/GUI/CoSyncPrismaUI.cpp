@@ -16,10 +16,13 @@
 #include "CoSyncPlayerAnimation.h"
 #include "CoSyncWorldTransfer.h"
 #include "CoSyncProfiles.h"
+#include "CoSyncFactions.h"
+#include "CoSyncWorkshopAuthority.h"
 
 #include <ShlObj.h>
 
 #include <algorithm>
+#include <cctype>
 #include <atomic>
 #include "CoSyncThreadDiag.h"
 #include "CoSyncSteamLobby.h"
@@ -165,6 +168,53 @@ namespace
         if (!CoSyncTransport::IsInitialized())
             return "NONE";
         return CoSyncTransport::IsHost() ? "HOST" : "CLIENT";
+    }
+
+    // Custom faction banner images the player dropped into
+    // Data\PrismaUI_F4\views\DoxCoSync\banners\custom (file names only;
+    // the page loads them by relative path). Re-scanned every 5 s.
+    const std::vector<std::string>& CustomBanners()
+    {
+        static std::vector<std::string> s_list;
+        static uint64_t s_nextScan = 0;
+        const uint64_t now = GetTickCount64();
+        if (now < s_nextScan)
+            return s_list;
+        s_nextScan = now + 5000;
+        s_list.clear();
+
+        char exe[MAX_PATH] = {};
+        if (!GetModuleFileNameA(nullptr, exe, MAX_PATH))
+            return s_list;
+        std::string dir(exe);
+        dir = dir.substr(0, dir.find_last_of("\\/") + 1) + "Data\\PrismaUI_F4\\views\\DoxCoSync\\banners\\custom\\";
+        WIN32_FIND_DATAA fd{};
+        HANDLE h = FindFirstFileA((dir + "*").c_str(), &fd);
+        if (h == INVALID_HANDLE_VALUE)
+            return s_list;
+        do
+        {
+            if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+                continue;
+            const std::string name = fd.cFileName;
+            // Same rule as banners.js isFile: safe characters, image types.
+            bool ok = !name.empty() && name.size() <= 48;
+            for (char c : name)
+                if (!(isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '.' || c == '-'))
+                    ok = false;
+            std::string lower = name;
+            for (char& c : lower) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+            const auto ends = [&](const char* e) {
+                const size_t n = std::strlen(e);
+                return lower.size() > n && lower.compare(lower.size() - n, n, e) == 0;
+            };
+            ok = ok && (ends(".png") || ends(".jpg") || ends(".jpeg") || ends(".webp") || ends(".svg"));
+            if (ok && s_list.size() < 64)
+                s_list.push_back(name);
+        } while (FindNextFileA(h, &fd));
+        FindClose(h);
+        std::sort(s_list.begin(), s_list.end());
+        return s_list;
     }
 
     bool ViewIsLive()
@@ -316,6 +366,22 @@ namespace
             json += CoSyncProfiles::GetClientStatus();
             json += "\"";
         }
+
+        // Factions, territory and workshop rules (CoSyncFactions /
+        // CoSyncWorkshopAuthority -- the host's decisions, never UI-owned).
+        json += ",\"factions\":" + CoSyncFactions::BuildUiJson();
+        json += ",\"workshop\":" + CoSyncWorkshopAuthority::BuildUiJson();
+        json += ",\"customBanners\":[";
+        {
+            bool firstBanner = true;
+            for (const std::string& b : CustomBanners())
+            {
+                if (!firstBanner) json += ",";
+                firstBanner = false;
+                json += "\"" + JsonEscape(b.c_str()) + "\"";
+            }
+        }
+        json += "]";
 
         json += ",\"build\":" + std::to_string(myBuild);
         json += ",\"maxPlayers\":" + std::to_string(CoSyncSessionConfig::kMaxPlayers) + "}";
@@ -596,6 +662,13 @@ namespace
             else
                 LOG_WARN("[PrismaUI] Direct connect rejected: invalid address '%.40s'", arg.c_str());
             PushState();
+        }
+        else if (cmd.rfind("fac_", 0) == 0)
+        {
+            // Faction / territory / workshop-settings request. Queued for
+            // CoSync's tick; the authority (host or solo) decides and the
+            // answer comes back in the next state push.
+            CoSyncFactions::QueueUiCommand(cmd, arg);
         }
         else if (cmd == "controller_style")
         {
@@ -878,6 +951,13 @@ namespace CoSyncPrismaUI
             json += num;
             json += ",\"downed\":"; json += p.isDowned ? "true" : "false";
             json += ",\"hurt\":";   json += p.hurt ? "true" : "false";
+            CoSyncFactions::Badge badge;
+            if (CoSyncFactions::GetBadge(p.entityID, badge))
+            {
+                json += ",\"faction\":\"" + JsonEscape(badge.faction.c_str()) + "\"";
+                json += ",\"rank\":\"" + JsonEscape(badge.rank.c_str()) + "\"";
+                json += ",\"banner\":\"" + JsonEscape(badge.banner.c_str()) + "\"";
+            }
             json += "}";
         }
         json += "]}";

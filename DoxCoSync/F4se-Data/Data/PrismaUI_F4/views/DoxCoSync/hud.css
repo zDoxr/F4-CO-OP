@@ -88,3 +88,20 @@ html, body {
    slightly longer than the gap keeps regen continuous instead of stepped. */
 .bar .hp, .bar .rads, .ap .fill { transition: width 150ms linear; }
 .bar .hp { transition: width 150ms linear, background-color 120ms ease-out; }
+
+/* Faction badge: small pennant beside the name, rank and faction under the bars. */
+.banner { position: relative; display: inline-block; vertical-align: middle; }
+.banner .banner-svg, .banner .banner-img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.banner .banner-img { object-fit: cover; }
+.mate .who { display: flex; align-items: center; gap: 0.7vh; min-width: 0; }
+.mate .banner-hud { width: 1.8vh; height: 2.25vh; flex: none; }
+.mate .faction {
+  margin-top: 0.4vh;
+  font-size: 1.45vh;
+  letter-spacing: 0.04em;
+  color: var(--hud-55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mate .faction .rank { color: var(--hud); }

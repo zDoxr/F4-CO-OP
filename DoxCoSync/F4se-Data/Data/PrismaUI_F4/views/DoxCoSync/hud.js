@@ -1,7 +1,8 @@
 /*
  * CoSync teammate HUD. Passive: never takes input.
  *   C++ -> JS : window.cosyncHud(json)
- *     { hud:[r,g,b], players:[{ id, name, level, hp, maxHp, rads, ap, maxAp, downed, hurt }] }
+ *     { hud:[r,g,b], players:[{ id, name, level, hp, maxHp, rads, ap, maxAp, downed, hurt,
+ *                               faction, rank, banner }] }   (faction fields: CoSyncFactions)
  * Pushed by CoSyncPrismaUI::TickHud only when the data changed (<= 10 Hz);
  * senders stream their vitals at 10 Hz with a 1 s exact resync.
  *
@@ -44,14 +45,17 @@
   const createCard = () => {
     const root = el('div', 'mate');
     const top = el('div', 'top', root);
-    const name = el('span', 'name', top);
+    const who = el('span', 'who', top);
+    const flag = el('span', '', who);
+    const name = el('span', 'name', who);
     const right = el('span', '', top);
     const bar = el('div', 'bar', root);
     const hp = el('div', 'hp', bar);
     const rads = el('div', 'rads', bar);
     const apWrap = el('div', 'ap', root);
     const ap = el('div', 'fill', apWrap);
-    return { root, name, right, hp, rads, apWrap, ap };
+    const fac = el('div', 'faction', root);
+    return { root, flag, name, right, hp, rads, apWrap, ap, fac, bannerId: null, facText: null };
   };
 
   const setText = (node, text) => { if (node.textContent !== text) node.textContent = text; };
@@ -68,6 +72,24 @@
     c.root.classList.toggle('down', !!p.downed);
 
     setText(c.name, p.name);
+
+    // Faction badge: pennant + rank / faction. Rebuilt only when it changes.
+    const bannerId = p.faction ? (p.banner || '') : '';
+    if (bannerId !== c.bannerId) {
+      c.bannerId = bannerId;
+      c.flag.innerHTML = bannerId && window.CoSyncBanners ? window.CoSyncBanners.html(bannerId, 'banner-hud') : '';
+    }
+    const facText = p.faction ? (p.rank || '') + '|' + p.faction : '';
+    if (facText !== c.facText) {
+      c.facText = facText;
+      c.fac.innerHTML = '';
+      c.fac.style.display = p.faction ? '' : 'none';
+      if (p.faction) {
+        const r = el('span', 'rank', c.fac);
+        r.textContent = p.rank || '';
+        c.fac.appendChild(document.createTextNode((p.rank ? '  ·  ' : '') + p.faction));
+      }
+    }
     if (p.downed) {
       c.right.className = 'downed';
       setText(c.right, 'DOWNED');

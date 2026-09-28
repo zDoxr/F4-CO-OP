@@ -8,7 +8,9 @@
  *                  "host" | "stop" | "search_start" | "search_stop" |
  *                  "join|<sessionId>" | "direct|<ipv4>|<port>" |
  *                  "steam_host" | "steam_invite" | "steam_join|<lobbyHex>" |
- *                  "steam_browse|0|1")
+ *                  "steam_browse|0|1" |
+ *                  "fac_<op>|<args...>"   faction / territory / workshop-settings
+ *                                         requests (CoSyncFactions; the host decides))
  *   C++ -> JS  : window.cosyncState(json)   real state, pushed on demand
  *                window.cosyncOpen()        menu (re)opened: back to root
  *
@@ -37,6 +39,9 @@
     profile: '',
     build: 0,
     maxPlayers: 8,
+    factions: null,                 // CoSyncFactions::BuildUiJson
+    workshop: { hooks: false, counts: {} },
+    customBanners: [],              // files in banners/custom
   };
 
   const $ = id => document.getElementById(id);
@@ -102,8 +107,93 @@
   let lastJoin = null;
   const doJoin = cmd => { lastJoin = cmd; native(cmd); };
 
-  // Direct Connect form (kept between visits).
-  const direct = { address: '', port: '48000' };
+  // Text fields (Direct Connect, faction names, ...), kept between visits.
+  const form = { address: '', port: '48000' };
+  const direct = form;
+
+
+  // ── Factions / territory / workshop (state from CoSyncFactions) ────────
+  // Permission bits: CoSyncFactions::Perm.
+  const PERM = { build: 1, move: 2, scrap: 4, repair: 8, invite: 256, kick: 512, ban: 1024,
+                 promote: 2048, ranks: 4096, territory: 8192, edit: 16384 };
+  const PERM_LIST = [
+    ['build', 'Build'], ['move', 'Move Objects'], ['scrap', 'Scrap / Store'], ['repair', 'Repair'],
+    ['invite', 'Invite Players'], ['kick', 'Kick Members'], ['ban', 'Ban Players'],
+    ['promote', 'Promote / Demote'], ['ranks', 'Manage Ranks'], ['territory', 'Manage Territory'],
+    ['edit', 'Faction Name & Banner'],
+  ];
+  const FX = () => state.factions || { me: {}, factions: [], invites: [], online: [], nearest: {}, settings: {} };
+  const me = () => FX().me || {};
+  const myFaction = () => (FX().factions || []).find(f => f.id === me().faction) || null;
+  const factionById = id => (FX().factions || []).find(f => f.id === id) || null;
+  const can = bit => (me().perms & bit) !== 0;
+  const rankOf = (f, id) => (f && f.ranks.find(r => r.id === id)) || null;
+  const rankName = (f, id) => { const r = rankOf(f, id); return r ? r.name : '—'; };
+  const rankPrio = (f, id, key) => (f && key === f.leader) ? 1000 : ((rankOf(f, id) || {}).priority || 0);
+  const clean = v => String(v || '').replace(/[|%]/g, '').trim();
+  const fac = cmd => native('fac_' + cmd);
+  const hex = n => ('00000000' + (n >>> 0).toString(16).toUpperCase()).slice(-8);
+  const builtCount = ws => ((state.workshop || {}).counts || {})[String(ws)] || 0;
+
+  // The last answer to our own request, shown for a few seconds.
+  let resultSeen = '', resultUntil = 0;
+  const resultNotice = () => {
+    const r = FX().lastResult || '';
+    if (r && r !== resultSeen) { resultSeen = r; resultUntil = Date.now() + 6000; }
+    if (!r || Date.now() > resultUntil) return null;
+    const ok = r.charAt(0) === '1';
+    return { head: ok ? 'Done' : 'Refused', text: r.slice(2) };
+  };
+
+  const nearestRows = () => {
+    const n = FX().nearest || {};
+    if (!n.id) return [['Settlement Here', 'None nearby', 'dim']];
+    const rows = [['Settlement Here', n.owner ? (n.name || hex(n.id)) : 'Unclaimed (' + hex(n.id) + ')']];
+    if (n.owner) rows.push(['Controlled By', n.ownerName]);
+    const may = [n.build && 'Build', n.move && 'Move', n.scrap && 'Scrap', n.repair && 'Repair'].filter(Boolean);
+    rows.push(['You May Here', may.length ? may.join(' · ') : 'Nothing', may.length ? '' : 'bad']);
+    return rows;
+  };
+
+  // Banner editor draft (create / change banner).
+  const bannerDraft = { emblem: 0, color: 0, custom: -1 };
+  const loadBannerDraft = id => {
+    const b = window.CoSyncBanners.parse(id);
+    bannerDraft.emblem = Math.max(0, window.CoSyncBanners.EMBLEM_NAMES.indexOf(b.emblem));
+    bannerDraft.color = Math.max(0, window.CoSyncBanners.COLORS.indexOf(b.color));
+    bannerDraft.custom = (state.customBanners || []).indexOf(b.custom);
+  };
+  const draftBannerId = () => {
+    const B = window.CoSyncBanners, list = state.customBanners || [];
+    return B.make({ emblem: B.EMBLEM_NAMES[bannerDraft.emblem], color: B.COLORS[bannerDraft.color],
+                    custom: bannerDraft.custom >= 0 && bannerDraft.custom < list.length ? list[bannerDraft.custom] : '' });
+  };
+  const wrap = (v, n) => ((v % n) + n) % n;
+  const bannerItems = () => {
+    const B = window.CoSyncBanners, list = state.customBanners || [];
+    const col = B.COLORS[bannerDraft.color];
+    return [
+      { key: 'bn_emblem', label: 'Emblem', option: B.EMBLEM_NAMES[bannerDraft.emblem],
+        cycle: d => { bannerDraft.emblem = wrap(bannerDraft.emblem + d, B.EMBLEM_NAMES.length); },
+        desc: 'The symbol on the banner. Press ← / → to change.' },
+      { key: 'bn_color', label: 'Colour', option: B.COLOR_NAMES[col] || col,
+        cycle: d => { bannerDraft.color = wrap(bannerDraft.color + d, B.COLORS.length); },
+        desc: 'The banner cloth colour.' },
+      { key: 'bn_custom', label: 'Custom Image',
+        option: bannerDraft.custom >= 0 && bannerDraft.custom < list.length ? list[bannerDraft.custom] : 'None',
+        cycle: d => { bannerDraft.custom = list.length ? wrap(bannerDraft.custom + 1 + d, list.length + 1) - 1 : -1; },
+        desc: list.length
+          ? 'An image from Data\\PrismaUI_F4\\views\\DoxCoSync\\banners\\custom. Other players see it if they have the same file; otherwise they see the emblem.'
+          : 'Put PNG/JPG/WEBP/SVG files in Data\\PrismaUI_F4\\views\\DoxCoSync\\banners\\custom to use your own banner art.' },
+    ];
+  };
+
+  // Selections carried between faction screens.
+  const sel = { invite: 0, member: '', rank: 0, terr: 0, rankDraft: { perms: 0, target: 0 } };
+
+  // Workshop settings draft (host).
+  const wsDraft = { mode: 0, free: false, unclaimed: 0 };
+  const LIMIT_MODES = ['Fallout 4 Default', 'Custom Limit', 'Unlimited'];
 
   // ── Screens ─────────────────────────────────────────────────────────────
   // title, rows(), notice(), items(); live: re-render on every state push;
@@ -126,6 +216,14 @@
           list.push({ key: 'join', label: 'Join Game', go: 'join',
             desc: 'Join a Steam friend’s game or a game hosted on your network.' });
         }
+        list.push({ key: 'factions', label: 'Factions', go: 'factions', disabled: !inGame(),
+          desc: inGame() ? 'Your faction, its ranks, members and the settlements it controls.'
+                         : 'Load a save first. Factions and territory live in the game world.' });
+        if (inGame() && role() !== 'CLIENT')
+          list.push({ key: 'wsset', label: 'Workshop Settings', go: 'ws_settings',
+            enter: () => { const st = FX().settings || {}; wsDraft.mode = st.limitMode || 0; wsDraft.free = !!st.freeBuild;
+                           wsDraft.unclaimed = st.unclaimed || 0; form.wsLimit = String(st.customLimit || 1000); },
+            desc: 'Build limits and building rules for everyone in your game.' });
         list.push({ key: 'status', label: 'Network Status', go: 'status',
           desc: 'Connection details, for troubleshooting.' });
         list.push({ key: 'settings', label: 'Settings', go: 'settings',
@@ -365,6 +463,365 @@
       ],
     },
 
+    factions: {
+      title: () => 'Factions',
+      live: true,
+      banner: () => { const f = myFaction(); return f ? { id: f.banner, title: f.name, sub: rankName(f, me().rank) + (me().leader ? ' · Leader' : '') } : null; },
+      rows: () => {
+        const f = myFaction();
+        const rows = [];
+        if (!f) rows.push(['Faction', 'None', 'dim']);
+        else {
+          rows.push(['Leader', f.leaderName || '—']);
+          rows.push(['Members', String(f.members.length)]);
+          rows.push(['Territory', f.territories.length + (f.territories.length === 1 ? ' settlement' : ' settlements')]);
+        }
+        return rows.concat(nearestRows());
+      },
+      notice: () => {
+        const r = resultNotice();
+        if (r) return r;
+        if (!myFaction() && (FX().invites || []).length)
+          return { head: 'You have been invited', text: 'Open an invitation below to accept or decline it.' };
+        if (!state.workshop.hooks && inGame())
+          return { head: 'Workshop protection unavailable', text: 'The workshop hooks could not be installed on this game version, so building is not protected. See the CoSync log.' };
+        return null;
+      },
+      items: () => {
+        const f = myFaction();
+        const list = [];
+        if (!f) {
+          list.push({ key: 'create', label: 'Create Faction', go: 'fac_create',
+            enter: () => { form.facName = ''; loadBannerDraft(''); },
+            desc: 'Found a faction. You become its leader.' });
+          (FX().invites || []).forEach(inv => list.push({ key: 'inv' + inv.faction, label: 'Invitation: ' + inv.name,
+            meta: 'from ' + inv.by, go: 'fac_invitation', enter: () => { sel.invite = inv.faction; },
+            desc: inv.by + ' invited you to join ' + inv.name + '.' }));
+        } else {
+          list.push({ key: 'members', label: 'Members', meta: String(f.members.length), go: 'fac_members',
+            desc: 'Members, their ranks, and kick / ban / promote.' });
+          if (can(PERM.invite))
+            list.push({ key: 'invite', label: 'Invite Players', go: 'fac_invite', desc: 'Invite players in this game to join.' });
+          list.push({ key: 'ranks', label: 'Ranks', meta: String(f.ranks.length), go: 'fac_ranks',
+            desc: 'Rank names, order and what each rank may do.' });
+          list.push({ key: 'terr', label: 'Territory', meta: String(f.territories.length), go: 'fac_territory',
+            enter: () => { form.terrName = ''; },
+            desc: 'Claim and release settlements. Only your members with the right rank can build in them.' });
+          if (can(PERM.edit))
+            list.push({ key: 'banner', label: 'Banner', go: 'fac_banner', enter: () => loadBannerDraft(f.banner),
+              desc: 'Choose the faction banner shown on members in the HUD.' });
+          if (can(PERM.edit) || me().leader)
+            list.push({ key: 'fsettings', label: 'Faction Settings', go: 'fac_settings', enter: () => { form.facRename = f.name; },
+              desc: 'Rename or disband the faction.' });
+          list.push({ key: 'leave', label: 'Leave Faction', run: () => fac('leave'),
+            confirm: me().leader ? 'Press again to leave. Leadership passes to your highest-ranked member.' : 'Press again to leave the faction.',
+            desc: 'Leave ' + f.name + '.' });
+        }
+        list.push({ key: 'all', label: 'All Factions', meta: String((FX().factions || []).length), go: 'fac_list',
+          desc: 'Every faction in this world and the settlements they hold.' });
+        list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to the Multiplayer menu.' });
+        return list;
+      },
+    },
+
+    fac_create: {
+      title: () => 'Create Faction',
+      live: true,
+      banner: () => ({ id: draftBannerId(), title: clean(form.facName) || 'New Faction', sub: 'Banner preview' }),
+      notice: () => resultNotice(),
+      items: () => [
+        { key: 'name', label: 'Name', field: 'facName', maxlen: 24, placeholder: 'Minutemen Reborn',
+          desc: '3-24 characters. Must be unique in this world.' },
+      ].concat(bannerItems()).concat([
+        { key: 'go', label: 'Found Faction', disabled: clean(form.facName).length < 3,
+          run: () => fac('create|' + clean(form.facName) + '|' + draftBannerId()), after: 'back',
+          desc: 'Create the faction with this name and banner.' },
+        { key: 'back', label: 'Back', action: 'back', desc: 'Return to Factions.' },
+      ]),
+    },
+
+    fac_invitation: {
+      title: () => 'Invitation',
+      live: true,
+      banner: () => { const f = factionById(sel.invite); return f ? { id: f.banner, title: f.name, sub: f.members.length + ' members' } : null; },
+      rows: () => {
+        const inv = (FX().invites || []).find(i => i.faction === sel.invite);
+        return inv ? [['Faction', inv.name], ['Invited By', inv.by]] : [['Invitation', 'No longer valid', 'dim']];
+      },
+      items: () => [
+        { key: 'accept', label: 'Accept', run: () => fac('accept|' + sel.invite), after: 'back', desc: 'Join this faction at its lowest rank.' },
+        { key: 'decline', label: 'Decline', run: () => fac('decline|' + sel.invite), after: 'back', desc: 'Turn the invitation down.' },
+        { key: 'back', label: 'Back', action: 'back', desc: 'Decide later.' },
+      ],
+    },
+
+    fac_list: {
+      title: () => 'All Factions',
+      live: true,
+      rows: () => {
+        const fs = FX().factions || [];
+        if (!fs.length) return [['Factions', 'None yet', 'dim']];
+        const rows = [];
+        fs.forEach(f => {
+          rows.push([f.name, f.members.length + ' members · ' + f.territories.length + ' settlements', '', 'section']);
+          f.territories.forEach(t => rows.push(['  ' + t.name, hex(t.id), 'dim', 'player']));
+        });
+        return rows;
+      },
+      items: () => [{ key: 'back', label: 'Back', action: 'back', desc: 'Return to Factions.' }],
+    },
+
+    fac_members: {
+      title: () => 'Members',
+      live: true,
+      items: () => {
+        const f = myFaction();
+        if (!f) return [{ key: 'back', label: 'Back', action: 'back', desc: '' }];
+        const list = f.members.slice().sort((a, b) => rankPrio(f, b.rank, b.key) - rankPrio(f, a.rank, a.key)).map(m => ({
+          key: 'm:' + m.key, label: (m.online ? '● ' : '○ ') + m.name + (m.key === me().key ? ' (You)' : ''),
+          meta: m.key === f.leader ? 'Leader' : rankName(f, m.rank),
+          go: 'fac_member', enter: () => { sel.member = m.key; sel.rankDraft.target = m.rank; },
+          desc: (m.online ? 'Online.' : 'Offline.') + ' Rank: ' + rankName(f, m.rank) + '.' }));
+        if (can(PERM.ban))
+          list.push({ key: 'bans', label: 'Banned Players', meta: String(f.bans.length), go: 'fac_bans', desc: 'Players who cannot join until unbanned.' });
+        list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to Factions.' });
+        return list;
+      },
+    },
+
+    fac_member: {
+      title: () => 'Member',
+      live: true,
+      rows: () => {
+        const f = myFaction();
+        const m = f && f.members.find(x => x.key === sel.member);
+        if (!m) return [['Member', 'No longer in the faction', 'dim']];
+        return [['Name', m.name], ['Rank', m.key === f.leader ? 'Leader' : rankName(f, m.rank)], ['Status', m.online ? 'Online' : 'Offline', m.online ? '' : 'dim']];
+      },
+      notice: () => resultNotice(),
+      items: () => {
+        const f = myFaction();
+        const m = f && f.members.find(x => x.key === sel.member);
+        const list = [];
+        if (m && m.key !== me().key) {
+          const myP = rankPrio(f, me().rank, me().key);
+          const outranks = rankPrio(f, m.rank, m.key) < myP;
+          const choices = f.ranks.filter(r => r.id !== 1 && r.priority < myP).sort((a, b) => b.priority - a.priority);
+          if (can(PERM.promote) && outranks && choices.length) {
+            let i = Math.max(0, choices.findIndex(r => r.id === sel.rankDraft.target));
+            const cur = choices[i] || choices[0];
+            list.push({ key: 'rk', label: 'New Rank', option: cur.name,
+              cycle: d => { i = wrap(i + d, choices.length); sel.rankDraft.target = choices[i].id; },
+              desc: 'Choose a rank below your own, then Apply Rank.' });
+            list.push({ key: 'rkgo', label: 'Apply Rank', disabled: cur.id === m.rank,
+              run: () => fac('setrank|' + m.key + '|' + cur.id), desc: 'Promote or demote ' + m.name + ' to ' + cur.name + '.' });
+          }
+          if (can(PERM.kick) && outranks)
+            list.push({ key: 'kick', label: 'Kick', run: () => fac('kick|' + m.key), after: 'back',
+              confirm: 'Press again to remove ' + m.name + ' from the faction.', desc: 'Remove this member.' });
+          if (can(PERM.ban) && outranks)
+            list.push({ key: 'ban', label: 'Ban', run: () => fac('ban|' + m.key), after: 'back',
+              confirm: 'Press again to ban ' + m.name + '. They cannot rejoin until unbanned.', desc: 'Remove this member and stop them rejoining.' });
+          if (me().leader)
+            list.push({ key: 'lead', label: 'Make Leader', run: () => fac('transfer|' + m.key), after: 'back',
+              confirm: 'Press again to hand leadership to ' + m.name + '. You become their second-in-command.', desc: 'Transfer leadership.' });
+        }
+        list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to Members.' });
+        return list;
+      },
+    },
+
+    fac_bans: {
+      title: () => 'Banned Players',
+      live: true,
+      items: () => {
+        const f = myFaction();
+        const list = (f ? f.bans : []).map(b => ({ key: 'b:' + b.key, label: b.name, meta: 'Unban',
+          run: () => fac('unban|' + b.key), confirm: 'Press again to unban ' + b.name + '.', desc: 'Allow this player to be invited again.' }));
+        if (!list.length) list.push({ key: 'none', label: 'Nobody is banned', disabled: true, desc: '' });
+        list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to Members.' });
+        return list;
+      },
+    },
+
+    fac_invite: {
+      title: () => 'Invite Players',
+      live: true,
+      notice: () => resultNotice(),
+      items: () => {
+        const list = (FX().online || []).filter(o => !o.you && !o.faction).map(o => ({
+          key: 'i:' + o.key, label: o.name, meta: 'Invite', run: () => fac('invite|' + o.key),
+          desc: 'Send ' + o.name + ' an invitation. They answer from their Factions menu.' }));
+        if (!list.length) list.push({ key: 'none', label: 'No players without a faction', disabled: true,
+          desc: 'Only players who are online in this game and not in a faction can be invited.' });
+        list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to Factions.' });
+        return list;
+      },
+    },
+
+    fac_ranks: {
+      title: () => 'Ranks',
+      live: true,
+      items: () => {
+        const f = myFaction();
+        const list = (f ? f.ranks.slice().sort((a, b) => b.priority - a.priority) : []).map(r => ({
+          key: 'r:' + r.id, label: r.name, meta: r.id === 1 ? 'Leader' : 'Priority ' + r.priority,
+          go: 'fac_rank', enter: () => { sel.rank = r.id; form.rankName = r.name; form.rankPrio = String(r.priority); sel.rankDraft.perms = r.perms; },
+          desc: PERM_LIST.filter(p => r.id === 1 || (r.perms & PERM[p[0]])).map(p => p[1]).join(', ') || 'No permissions.' }));
+        if (can(PERM.ranks))
+          list.push({ key: 'new', label: 'New Rank', go: 'fac_rank',
+            enter: () => { sel.rank = 0; form.rankName = ''; form.rankPrio = '20'; sel.rankDraft.perms = 0; },
+            desc: 'Add a rank (at most 10).' });
+        list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to Factions.' });
+        return list;
+      },
+    },
+
+    fac_rank: {
+      title: () => sel.rank ? 'Edit Rank' : 'New Rank',
+      live: true,
+      notice: () => resultNotice() || (sel.rank === 1 ? { head: 'Leader rank', text: 'The leader always has every permission. Only its name can change.' } : null),
+      items: () => {
+        const f = myFaction();
+        const editable = can(PERM.ranks) && (sel.rank === 0 || (sel.rank !== 1 && rankPrio(f, sel.rank) < rankPrio(f, me().rank, me().key)));
+        const list = [
+          { key: 'nm', label: 'Name', field: 'rankName', maxlen: 20, placeholder: 'Knight', desc: 'Shown on members in the HUD.' },
+        ];
+        if (sel.rank !== 1) {
+          list.push({ key: 'pr', label: 'Priority', field: 'rankPrio', maxlen: 3, placeholder: '40',
+            desc: 'Higher ranks outrank lower ones. Must be below your own rank (' + rankPrio(f, me().rank, me().key) + ').' });
+          PERM_LIST.forEach(p => {
+            const bit = PERM[p[0]];
+            const on = (sel.rankDraft.perms & bit) !== 0;
+            list.push({ key: 'p:' + p[0], label: p[1], option: on ? 'Yes' : 'No', disabled: !editable || !can(bit),
+              cycle: () => { sel.rankDraft.perms ^= bit; },
+              desc: can(bit) ? 'Whether this rank may ' + p[1].toLowerCase() + '.' : 'You cannot grant a permission you do not have.' });
+          });
+        }
+        const nm = clean(form.rankName), prio = parseInt(form.rankPrio, 10) || 0;
+        if (sel.rank === 0)
+          list.push({ key: 'save', label: 'Create Rank', disabled: !editable || nm.length < 2,
+            run: () => fac('rank_add|' + nm + '|' + prio + '|' + sel.rankDraft.perms), after: 'back', desc: 'Add this rank.' });
+        else
+          list.push({ key: 'save', label: 'Save Rank', disabled: !(editable || (sel.rank === 1 && me().leader)) || nm.length < 2,
+            run: () => fac('rank_edit|' + sel.rank + '|' + nm + '|' + prio + '|' + sel.rankDraft.perms), after: 'back', desc: 'Save the changes.' });
+        if (sel.rank > 1 && editable)
+          list.push({ key: 'del', label: 'Delete Rank', run: () => fac('rank_del|' + sel.rank), after: 'back',
+            confirm: 'Press again to delete. Its members move to the lowest rank.', desc: 'Remove this rank.' });
+        list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to Ranks without saving.' });
+        return list;
+      },
+    },
+
+    fac_territory: {
+      title: () => 'Territory',
+      live: true,
+      rows: () => nearestRows(),
+      notice: () => resultNotice() || { head: 'How territory works',
+        text: 'In a settlement your faction holds, only your members whose rank allows it can build, move, scrap or repair. Everyone else is refused, by the host.' },
+      items: () => {
+        const f = myFaction(), n = FX().nearest || {};
+        const list = [];
+        if (can(PERM.territory)) {
+          list.push({ key: 'tn', label: 'Name', field: 'terrName', maxlen: 32, placeholder: 'Sanctuary Hills',
+            desc: 'A name for the settlement you are standing in, used when you claim it.' });
+          list.push({ key: 'claim', label: 'Claim This Settlement', disabled: !n.id || !!n.owner,
+            run: () => fac('claim|' + clean(form.terrName)),
+            desc: !n.id ? 'Stand in a settlement (near its workbench) to claim it.'
+                : (n.owner ? 'Already held by ' + n.ownerName + '.' : 'Claim ' + hex(n.id) + ' for ' + (f ? f.name : 'your faction') + '.') });
+        }
+        (f ? f.territories : []).forEach(t => list.push({ key: 't:' + t.id, label: t.name, meta: builtCount(t.id) + ' built',
+          go: 'fac_terr', enter: () => { sel.terr = t.id; form.terrRename = t.name; },
+          desc: 'Workbench ' + hex(t.id) + '. ' + builtCount(t.id) + ' objects built through CoSync.' }));
+        list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to Factions.' });
+        return list;
+      },
+    },
+
+    fac_terr: {
+      title: () => 'Settlement',
+      live: true,
+      rows: () => {
+        const f = myFaction();
+        const t = f && f.territories.find(x => x.id === sel.terr);
+        if (!t) return [['Settlement', 'No longer held', 'dim']];
+        const lim = (FX().settings || {}).limitMode === 1 ? ' / ' + FX().settings.customLimit : '';
+        return [['Name', t.name], ['Workbench', hex(t.id)], ['Objects Built', builtCount(t.id) + lim]];
+      },
+      notice: () => resultNotice(),
+      items: () => {
+        const list = [];
+        if (can(PERM.territory)) {
+          list.push({ key: 'rn', label: 'Name', field: 'terrRename', maxlen: 32, desc: 'Rename this settlement.' });
+          list.push({ key: 'rngo', label: 'Rename', disabled: !clean(form.terrRename),
+            run: () => fac('rename_terr|' + sel.terr + '|' + clean(form.terrRename)), desc: 'Save the new name.' });
+          list.push({ key: 'rel', label: 'Release Settlement', run: () => fac('release|' + sel.terr), after: 'back',
+            confirm: 'Press again to release it. Anyone may claim it afterwards.', desc: 'Give up control of this settlement.' });
+        }
+        list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to Territory.' });
+        return list;
+      },
+    },
+
+    fac_banner: {
+      title: () => 'Banner',
+      live: true,
+      banner: () => { const f = myFaction(); return { id: draftBannerId(), title: f ? f.name : '', sub: 'Preview' }; },
+      notice: () => resultNotice(),
+      items: () => bannerItems().concat([
+        { key: 'apply', label: 'Apply Banner', run: () => fac('banner|' + draftBannerId()), after: 'back',
+          desc: 'Use this banner for the faction.' },
+        { key: 'back', label: 'Back', action: 'back', desc: 'Return to Factions without changing it.' },
+      ]),
+    },
+
+    fac_settings: {
+      title: () => 'Faction Settings',
+      live: true,
+      notice: () => resultNotice(),
+      items: () => {
+        const list = [];
+        if (can(PERM.edit)) {
+          list.push({ key: 'nm', label: 'Name', field: 'facRename', maxlen: 24, desc: '3-24 characters, unique in this world.' });
+          list.push({ key: 'nmgo', label: 'Rename Faction', disabled: clean(form.facRename).length < 3,
+            run: () => fac('rename|' + clean(form.facRename)), desc: 'Save the new name.' });
+        }
+        if (me().leader)
+          list.push({ key: 'disband', label: 'Disband Faction', run: () => fac('disband'), after: 'back',
+            confirm: 'Press again to disband. Members are released and its settlements become unclaimed.', desc: 'End the faction.' });
+        list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to Factions.' });
+        return list;
+      },
+    },
+
+    ws_settings: {
+      title: () => 'Workshop Settings',
+      live: true,
+      rows: () => [
+        ['Workshop Protection', state.workshop.hooks ? 'Active' : 'Unavailable', state.workshop.hooks ? '' : 'bad'],
+        ['Current Build Limit', LIMIT_MODES[(FX().settings || {}).limitMode || 0] +
+          (((FX().settings || {}).limitMode === 1) ? ' (' + FX().settings.customLimit + ')' : '')],
+      ],
+      notice: () => resultNotice() || { head: 'Host rules',
+        text: 'These apply to everyone in your game. Removing world build restrictions lets people build anywhere, but faction territory still protects claimed settlements.' },
+      items: () => [
+        { key: 'mode', label: 'Build Limit', option: LIMIT_MODES[wsDraft.mode], cycle: d => { wsDraft.mode = wrap(wsDraft.mode + d, 3); },
+          desc: 'Fallout 4 Default keeps the normal size bar. Custom counts objects built per settlement. Unlimited removes the limit.' },
+        { key: 'lim', label: 'Custom Limit', field: 'wsLimit', maxlen: 6, placeholder: '1000', disabled: wsDraft.mode !== 1,
+          desc: 'Objects that may be built in one settlement (1-100000).' },
+        { key: 'free', label: 'World Build Limits', option: wsDraft.free ? 'Removed' : 'Normal',
+          cycle: () => { wsDraft.free = !wsDraft.free; },
+          desc: 'Removed: build outside settlement borders (objects belong to the nearest settlement). Claimed territory is still protected.' },
+        { key: 'unc', label: 'Unclaimed Settlements', option: wsDraft.unclaimed ? 'Claim Required' : 'Anyone Can Build',
+          cycle: () => { wsDraft.unclaimed = wsDraft.unclaimed ? 0 : 1; },
+          desc: 'Whether players may build in settlements no faction holds.' },
+        { key: 'apply', label: 'Apply', run: () => fac('settings|' + wsDraft.mode + '|' + (parseInt(form.wsLimit, 10) || 1000) + '|' +
+            (wsDraft.free ? 1 : 0) + '|' + wsDraft.unclaimed), desc: 'Save these rules for everyone.' },
+        { key: 'back', label: 'Back', action: 'back', desc: 'Return to the Multiplayer menu.' },
+      ],
+    },
+
+
     settings: {
       title: () => 'Settings',
       live: true,
@@ -388,6 +845,8 @@
   let index = 0;
   let open = true;
   let renderedKeys = '';
+  let armed = null;          // key of a confirm-item waiting for its second press
+  let armedTimer = 0;
   let selectedKey = null;   // key of the highlighted row, survives list rebuilds
   const current = () => screens[stack[stack.length - 1]];
   const currentItems = () => current().items();
@@ -401,6 +860,10 @@
     const n = scr.notice ? scr.notice() : null;
     $('notice').innerHTML = n ? '<span class="head">' + escapeHtml(n.head) + '</span>' + escapeHtml(n.text) : '';
     $('title').textContent = scr.title();
+    // Faction screens show their banner above the rows.
+    const bn = scr.banner ? scr.banner() : null;
+    $('bannerArea').innerHTML = bn ? window.CoSyncBanners.html(bn.id, 'banner-lg') +
+      '<span class="caption">' + escapeHtml(bn.title || '') + '<span class="sub">' + escapeHtml(bn.sub || '') + '</span></span>' : '';
   };
 
   const renderList = keepKey => {
@@ -418,8 +881,8 @@
       if (it.option) right = '<span class="opt">' + escapeHtml(it.option) + '</span>';
       else if (it.meta) right = '<span class="meta">' + escapeHtml(it.meta) + '</span>';
       else if (it.field) right = '<input class="field" data-field="' + it.field + '" maxlength="' +
-        (it.field === 'port' ? 5 : 15) + '" placeholder="' + escapeHtml(it.placeholder || '') +
-        '" value="' + escapeHtml(direct[it.field]) + '">';
+        (it.maxlen || (it.field === 'port' ? 5 : 15)) + '" placeholder="' + escapeHtml(it.placeholder || '') +
+        '" value="' + escapeHtml(form[it.field] || '') + '">';
       return '<div class="item' + (it.disabled ? ' disabled' : '') + '" data-i="' + i + '">' +
              '<span>' + escapeHtml(it.label) + '</span>' + right + '</div>';
     }).join('');
@@ -430,7 +893,7 @@
       el.addEventListener('click', () => { select(i); if (!currentItems()[i].field) activate(); });
     });
     Array.prototype.forEach.call(document.querySelectorAll('input.field'), inp => {
-      inp.addEventListener('input', () => { direct[inp.getAttribute('data-field')] = inp.value; });
+      inp.addEventListener('input', () => { form[inp.getAttribute('data-field')] = inp.value; });
     });
 
     renderedKeys = items.map(it => it.key + (it.disabled ? '!' : '') + (it.meta || '') + (it.option || '') + it.label).join('|');
@@ -513,7 +976,14 @@
     native('close');
   };
 
-  const cycleOption = it => {
+  const cycleOption = (it, dir) => {
+    if (typeof it.cycle === 'function') {
+      it.cycle(dir || 1);
+      sound('prevnext');
+      renderList(selectedKey);
+      renderRows();
+      return;
+    }
     if (it.toggle === 'controller_style') {
       native('controller_style|' + (state.controllerStyle === 1 ? '0' : '1'));
       sound('prevnext');
@@ -528,8 +998,25 @@
     if (!it) return;
     if (it.disabled) { sound('cancel'); return; }
     if (it.field) { move(+1); return; }          // Enter in a field: next row
-    if (it.toggle) { cycleOption(it); return; }
-    if (it.go) { sound('ok'); go(it.go); return; }
+    if (it.toggle || it.cycle) { cycleOption(it, 1); return; }
+    if (it.confirm && armed !== it.key) {
+      // Destructive: press again to confirm.
+      armed = it.key;
+      sound('focus');
+      $('desc').textContent = it.confirm;
+      clearTimeout(armedTimer);
+      armedTimer = setTimeout(() => { armed = null; }, 3000);
+      return;
+    }
+    armed = null;
+    if (typeof it.run === 'function') {
+      sound('ok');
+      it.run();
+      if (it.after) { if (it.after === 'back') back(); else go(it.after); }
+      else render(selectedKey);
+      return;
+    }
+    if (it.go) { sound('ok'); if (it.enter) it.enter(); go(it.go); return; }
     if (it.join || it.steamJoin) {
       sound('ok');
       doJoin(it.steamJoin ? 'steam_join|' + it.steamJoin : 'join|' + it.join);
@@ -583,7 +1070,7 @@
       case 'left':
       case 'right': {
         const it = currentItems()[index];
-        if (it && it.toggle && !it.disabled) cycleOption(it);
+        if (it && (it.toggle || it.cycle) && !it.disabled) cycleOption(it, action === 'left' ? -1 : 1);
         break;
       }
     }
