@@ -102,3 +102,14 @@ depends on it.
   workbench; the host's workbench is not debited for a client's build
   (container sync is a separate system).
 * Settler assignment / command mode are not covered by any permission.
+* Actor buildables (turrets, robots): PlaceCurrentReference places them too, but a
+  plain object spawn of an NPC base elsewhere is not a valid actor. They are gated,
+  not replicated as workshop objects; in a session only the host builds them.
+
+### New-vs-move test (verified)
+
+`sub_1403823D0(ref)` returns true when `GetLinkedRef(ref, WorkshopItemKeyword)` exists
+and has WorkshopKeyword (actors: only when the vfunc at +0x600 returns 0).
+PlaceCurrentReference links the item only when it is false, so a fresh placement
+preview is unlinked and an existing settlement object is linked. CoSync uses the same
+test to tell a move from a new build.

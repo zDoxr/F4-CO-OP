@@ -69,6 +69,7 @@ Enter workshop mode at the claimed settlement for each case.
 | B8 | X without Move | pick up an object and drop it | the drop is refused (object stays held); cancel puts it back; nothing changes on other machines |
 | B9 | X with Move | move an object | same final position/rotation everywhere |
 | B10 | X without Repair | repair a damaged object | refused |
+| B12 | client in a session | build a turret | refused: "Turrets, robots and other actors can only be built by the host in multiplayer." |
 | B11 | Forged request (host-side proof) | from B with a no-permission rank, run a debug build without the local gate, or change rank on the host between B's local check and the request | host log `[Workshop] DENIED P from conn=...`; B's predicted object is removed (WKN); nobody else ever sees it |
 
 ## 4. Synchronization
@@ -108,6 +109,10 @@ Enter workshop mode at the claimed settlement for each case.
 ## Known limitations (by design in 0.3.0; see the RE doc)
 
 - Wires are gated but not replicated (spline data).
+- Actor buildables (turrets, robots) are permission-gated; in a session only
+  the host may build them (clients are refused with a message). The host's
+  turrets reach clients through the save and the existing NPC sync, not as
+  workshop objects.
 - Component cost of a client's build is paid from that client's local
   workbench; the host's workbench is not debited. Items stored by a client
   are credited only in that client's local workshop.

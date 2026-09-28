@@ -269,6 +269,21 @@ namespace
         __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
     }
 
+    // Actor buildables (turrets, robots): permission-gated like everything
+    // else, but not replicated as workshop objects -- a plain object spawn of
+    // an NPC base would be a broken actor, and live actors are replicated by
+    // CoSyncNpcWorldSync. Only the host may build them in a session, so the
+    // host's saved world stays the authority for them.
+    __declspec(noinline) bool IsActorBase(uint32_t baseId)
+    {
+        __try
+        {
+            TESForm* f = LookupFormByID(baseId);
+            return f && f->formType == kFormType_NPC_;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
     TESObjectREFR* RefByID(uint32_t id)
     {
         if (id == 0) return nullptr;
@@ -372,6 +387,11 @@ namespace
             DenyNote(why);
             return false;
         }
+        if (op == WorkshopOp::Build && !AuthorityNow() && IsActorBase(c.base))
+        {
+            DenyNote("Turrets, robots and other actors can only be built by the host in multiplayer.");
+            return false;
+        }
         if (op == WorkshopOp::Build && s_limitMode.load() == static_cast<int>(CoSyncFactions::BuildLimitMode::Custom))
         {
             const uint32_t n = CountFor(c.ws), lim = s_customLimit.load();
@@ -406,9 +426,12 @@ namespace
         if (have)
         {
             c.ws = SafeFormID(ws);
+            // Same test PlaceCurrentReference uses (0x3823D0): an object whose
+            // WorkshopItemKeyword link points at a workbench already belongs to
+            // a settlement (a move); a fresh placement preview does not.
             TESObjectREFR* lw = GetLinkedWorkshop(item);
-            c.linkedWs = SafeFormID(lw);
-            c.isMove = lw != nullptr;
+            c.isMove = lw != nullptr && IsWorkshopRef(lw);
+            c.linkedWs = c.isMove ? SafeFormID(lw) : 0u;
             if (!GateLocal(c, c.isMove ? WorkshopOp::Move : WorkshopOp::Build))
                 return false;   // the engine's own "cannot place": the item stays in hand
         }
@@ -1061,9 +1084,9 @@ namespace
             Obj o = ObjFromCapture(c);
             o.placer = CoSyncProfiles::GetMyProfileKey();
             o.built = true;
-            if ((o.base & 0xFF000000u) == 0xFF000000u || IsSplineBase(o.base))
+            if ((o.base & 0xFF000000u) == 0xFF000000u || IsSplineBase(o.base) || IsActorBase(o.base))
             {
-                LOG_WARN("[Workshop] built base 0x%08X is a runtime form or a wire -- not replicated", o.base);
+                LOG_INFO("[Workshop] built base 0x%08X is a runtime form, a wire or an actor -- not replicated as a workshop object", o.base);
                 return;
             }
             Obj& r = RegAdd(o);
@@ -1214,6 +1237,8 @@ namespace
             o.built = true;
             if (!Finite(o.pos) || !Finite(o.rot)) return Deny(conn, 'P', cref, "Invalid placement.");
             if (!WorkshopByID(o.ws)) return Deny(conn, 'P', cref, "That is not a settlement.");
+            if (IsActorBase(o.base))
+                return Deny(conn, 'P', cref, "Turrets, robots and other actors can only be built by the host in multiplayer.");
             if ((o.base & 0xFF000000u) == 0xFF000000u || !LookupFormByID(o.base) ||
                 CoSyncWorldSync::IsKnownUnsafePlaceAtMeForm(o.base) || IsSplineBase(o.base))
                 return Deny(conn, 'P', cref, "That object cannot be built in multiplayer.");
