@@ -2,6 +2,24 @@
 
 ---
 
+## [0.3.0] — 2026-09-28
+
+### Factions, territory and authoritative, synchronized workshop building
+
+Built clean, deployed. **Not yet live-tested** -- test plan: `docs/FACTIONS_WORKSHOP_TESTPLAN.md`. Engine research: `docs/WORKSHOP_FACTIONS_RE.md`.
+
+- **Factions** (`World/CoSyncFactions`): create, invite / accept / decline, leave, kick, ban / unban, promote / demote, transfer leadership, rename, disband. Ranks are data (name, priority, permission bits) with a Fallout-style default set (General, Commander, Officer, Soldier, Recruit). The host decides every request from the sender's connection identity (the stable profile key); clients never change faction state. Saved in the host's co-save (`FACT`).
+- **Territory:** a faction claims a settlement (its workbench) while standing in it, and can rename or release it. Inside claimed territory only members whose rank allows it can build, move, scrap/store or repair.
+- **Authoritative workshop** (`World/CoSyncWorkshopAuthority`): the real workshop operations are hooked (PlaceCurrentReference, ScrapReference, Store, Repair, build area, budget; IDA + CommonLibF4/Address Library + F4SE verified). Each is gated before it runs. A client's operation is a request that the host re-validates (identity, real object, settlement, build area, every claimed territory at that position, build limit), applies to its own world and broadcasts. Refusals revert the requester. Objects have host network ids; late joiners get the state from the host's save plus anything still pending. Registry saved in the co-save (`WSHP`). Replaces the old after-the-fact cell-scan workshop mirroring (debris/pickup/furniture sync unchanged).
+- **Workshop Settings** (host): build limit (Fallout 4 default / custom object count / unlimited), remove world build restrictions (territory still enforced with the engine's real border test), unclaimed-settlement policy.
+- **Menu:** new Factions and Workshop Settings screens in the existing PrismaUI Multiplayer menu.
+- **Banners:** original emblems on a coloured pennant (SVG), or a custom image from `views/DoxCoSync/banners/custom` (only the file name is shared). The teammate HUD shows each player's banner, rank and faction.
+- Fixed on the way: the vendored `ThirdParty/Pap` workshop RVAs are 1.11.221 values. The new code uses verified 1.11.240 addresses.
+- Version 0.3.0 (network build 300): new messages FQ/FS/FR/FN and WKQ/WKA/WKV/WKX/WKR/WKC/WKN.
+- Known limits: wires are not replicated; a client's build cost is not debited from the host's workbench; the custom limit counts only CoSync-built objects.
+
+---
+
 ## [0.0.95] — 2026-09-26
 
 ### Client no longer inherits the host's Power Armor; host crash in outfit verify fixed
