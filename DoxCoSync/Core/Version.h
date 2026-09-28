@@ -10,9 +10,11 @@
 // 0.2.3 on 2026-09-26 at the user's request; the separate hand-kept network
 // build number (229/230 in CoSyncNet.cpp) was folded into COSYNC_VERSION.
 // 0.2.4 (2026-09-26): compact BONES wire format (N4).
+// 0.3.0 (2026-09-28): factions, territory and authoritative workshop sync
+//       (FQ/FS/FR/FN and WKQ/WKA/WKV/WKX/WKR/WKC/WKN messages).
 #define COSYNC_VERSION_MAJOR 0
-#define COSYNC_VERSION_MINOR 2
-#define COSYNC_VERSION_PATCH 4
+#define COSYNC_VERSION_MINOR 3
+#define COSYNC_VERSION_PATCH 0
 #define COSYNC_VERSION_TAG   ""
 
 // Numeric form used on the wire. MINOR and PATCH must stay below 100 for the
