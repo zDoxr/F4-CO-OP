@@ -47,6 +47,7 @@
 #include "CoSyncProxyLooks.h"
 #include "CoSyncCompanions.h"
 #include "CoSyncItemMods.h"
+#include "CoSyncFactions.h"
 
 #include <algorithm>
 #include "../Animations/CoSyncPlayerAnimation.h"
@@ -397,6 +398,7 @@ void CoSyncNet::Init(bool isHost)
     LOG_INFO("[CoSyncNet] Init() step: CoSyncWorldSync::Init done");
     CoSyncWorkshopSync::Init();
     LOG_INFO("[CoSyncNet] Init() step: CoSyncWorkshopSync::Init done");
+    CoSyncFactions::OnSessionStart(isHost);
     CoSyncTimeSync::Init();
     LOG_INFO("[CoSyncNet] Init() step: CoSyncTimeSync::Init done");
 
@@ -672,6 +674,7 @@ void CoSyncNet::Shutdown()
     CoSyncWorldSync::Shutdown();
     CoSyncWorkshopSync::Shutdown();
     CoSyncTimeSync::Shutdown();
+    CoSyncFactions::OnSessionEnd();
 
     //UninstallEquipHook();
     UninstallWorkshopScrapHook();
@@ -1289,6 +1292,13 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
         CoSyncProfiles::OnReceive(msg, conn, isHostRole);
         return;
     }
+    // Factions: FQ (request, host acts on the connection's identity only),
+    // FS/FR/FN (host -> clients).
+    if (CoSyncFactions::IsFactionMessage(msg))
+    {
+        CoSyncFactions::OnReceive(msg, conn, isHostRole);
+        return;
+    }
 
 
     if (CoSyncCompanionSync::IsCompanionRequest(msg))
@@ -1356,6 +1366,8 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
 
         LOG_INFO("[CoSyncNet] Peer left: '%s' sid=%llu (%zu remaining)",
             who.c_str(), (unsigned long long)sid, remaining);
+
+        CoSyncFactions::HostMarkDirty();
 
         // W2: the NPCs this player owned have no simulating owner any more.
         if (sid != 0)
@@ -1499,6 +1511,10 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
             // the host's journal immediately rather than drifting until the
             // 15s safety-net rebroadcast.
             CoSyncQuestSync::RequestFullStateBroadcast();
+
+            // Factions and territory: the newcomer needs the whole state,
+            // and everyone's online list changed.
+            CoSyncFactions::HostOnPeerJoined(conn);
         }
 
         return;
@@ -2472,6 +2488,15 @@ int CoSyncNet::GetJoiningCount()
     const int connected = GNS_Session::Get().GetConnectedClientCount();
     const int joining = connected - static_cast<int>(introduced);
     return joining > 0 ? joining : 0;
+}
+
+std::vector<CoSyncNet::PeerInfo> CoSyncNet::HostGetPeers()
+{
+    std::vector<PeerInfo> out;
+    std::lock_guard<std::mutex> lk(s_peerMutex);
+    for (const auto& kv : s_peers)
+        out.push_back({ kv.second.conn, kv.second.entityID, kv.second.username });
+    return out;
 }
 
 std::vector<uint32_t> CoSyncNet::GetConnectedPeerEntityIDs()

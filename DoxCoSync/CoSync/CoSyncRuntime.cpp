@@ -5,6 +5,7 @@
 #include "CoSyncWorld.h"
 #include "CoSyncTransport.h"
 #include "CoSyncPlayerManager.h"
+#include "CoSyncFactions.h"
 #include "CoSyncNet.h"
 #include "CoSyncLocalPlayer.h"
 #include "TickHook.h"
@@ -430,6 +431,11 @@ void CoSyncRuntime_TickGameThread()
     g_lastTickStep = "RTGT:ScheduleBoneTasks";
     TickHook_ScheduleBoneTasks();
 
+
+    // Factions run in and out of a session: a solo player is their own
+    // authority and can manage their faction and territory offline.
+    g_lastTickStep = "RTGT:CoSyncFactions::Tick";
+    CoSyncFactions::Tick(now);
 
     g_lastTickStep = "RTGT:CoSyncNet::Tick";
     if (CoSyncNet::IsInitialized())

@@ -1,4 +1,5 @@
 #include "CoSyncProfiles.h"
+#include "CoSyncFactions.h"
 
 #include "CoSyncWorldTransfer.h"
 #include "CoSyncTransport.h"
@@ -1152,32 +1153,45 @@ namespace
     // ── F4SE co-save ────────────────────────────────────────────────────────
     void OnSave(const F4SESerializationInterface* ser)
     {
-        std::lock_guard<std::mutex> lk(s_mx);
-        std::string blob;
-        for (const auto& kv : s_profiles)
         {
-            const uint32_t klen = static_cast<uint32_t>(kv.first.size());
-            const uint32_t vlen = static_cast<uint32_t>(kv.second.size());
-            blob.append(reinterpret_cast<const char*>(&klen), 4);
-            blob.append(kv.first);
-            blob.append(reinterpret_cast<const char*>(&vlen), 4);
-            blob.append(kv.second);
+            std::lock_guard<std::mutex> lk(s_mx);
+            std::string blob;
+            for (const auto& kv : s_profiles)
+            {
+                const uint32_t klen = static_cast<uint32_t>(kv.first.size());
+                const uint32_t vlen = static_cast<uint32_t>(kv.second.size());
+                blob.append(reinterpret_cast<const char*>(&klen), 4);
+                blob.append(kv.first);
+                blob.append(reinterpret_cast<const char*>(&vlen), 4);
+                blob.append(kv.second);
+            }
+            const uint32_t count = static_cast<uint32_t>(s_profiles.size());
+            ser->OpenRecord(kRecordType, kRecordVersion);
+            ser->WriteRecordData(&count, 4);
+            if (!blob.empty())
+                ser->WriteRecordData(blob.data(), static_cast<UInt32>(blob.size()));
+            LOG_INFO("[Profiles] Co-save: wrote %u player profile(s)", count);
         }
-        const uint32_t count = static_cast<uint32_t>(s_profiles.size());
-        ser->OpenRecord(kRecordType, kRecordVersion);
-        ser->WriteRecordData(&count, 4);
-        if (!blob.empty())
-            ser->WriteRecordData(blob.data(), static_cast<UInt32>(blob.size()));
-        LOG_INFO("[Profiles] Co-save: wrote %u player profile(s)", count);
+
+        // Other world state kept in the same co-save ('CSYN' has one set of
+        // callbacks per plugin). Outside s_mx: those modules call back into
+        // Profiles (HostGetConnKey) under their own locks.
+        CoSyncFactions::SaveRecord(ser);
     }
 
     void OnLoad(const F4SESerializationInterface* ser)
     {
-        std::lock_guard<std::mutex> lk(s_mx);
+        std::unique_lock<std::mutex> lk(s_mx);
         s_profiles.clear();
         UInt32 type = 0, version = 0, length = 0;
         while (ser->GetNextRecordInfo(&type, &version, &length))
         {
+            // Other modules' records are read without s_mx held (see OnSave).
+            lk.unlock();
+            const bool other = CoSyncFactions::LoadRecord(ser, type, version, length);
+            lk.lock();
+            if (other)
+                continue;
             if (type != kRecordType || version != kRecordVersion || length < 4)
                 continue;
             std::string buf(length, '\0');
@@ -1210,6 +1224,7 @@ namespace
 
     void OnRevert(const F4SESerializationInterface*)
     {
+        CoSyncFactions::Revert();
         std::lock_guard<std::mutex> lk(s_mx);
         s_profiles.clear();
     }
@@ -1260,6 +1275,13 @@ namespace CoSyncProfiles
         s_connKey[conn] = key;
         LOG_INFO("[Profiles] conn=%u is '%s' (key %s, %s)", conn, name.c_str(), key.c_str(),
             s_profiles.count(key) ? "returning" : "new");
+    }
+
+    std::string HostGetConnKey(uint32_t conn)
+    {
+        std::lock_guard<std::mutex> lk(s_mx);
+        auto it = s_connKey.find(conn);
+        return it == s_connKey.end() ? std::string() : it->second;
     }
 
     void HostBeforeWorldSave()

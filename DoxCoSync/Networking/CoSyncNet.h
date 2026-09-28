@@ -119,6 +119,15 @@ public:
     };
     static std::vector<RosterEntry> GetRoster();
 
+    // Host only: every client that has introduced itself (HELLO).
+    struct PeerInfo
+    {
+        HSteamNetConnection conn = 0;
+        uint32_t    entityID = 0;
+        std::string name;
+    };
+    static std::vector<PeerInfo> HostGetPeers();
+
     // Host only: clients that are connected at the transport level but have
     // not introduced themselves (HELLO) yet -- still loading their save.
     static int GetJoiningCount();
