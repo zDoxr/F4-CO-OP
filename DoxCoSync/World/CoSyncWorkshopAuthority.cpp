@@ -387,6 +387,15 @@ namespace
             DenyNote(why);
             return false;
         }
+        // Objects other machines cannot spawn would exist for one player
+        // only: refuse them in a session, for the host too.
+        if (op == WorkshopOp::Build && SessionLive() && CoSyncWorldSync::IsKnownUnsafePlaceAtMeForm(c.base))
+        {
+            char b[160];
+            std::snprintf(b, sizeof(b), "That object (0x%08X) is on CoSync's crash blocklist for remote spawning and cannot be built in multiplayer yet.", c.base);
+            DenyNote(b);
+            return false;
+        }
         if (op == WorkshopOp::Build && !AuthorityNow() && IsActorBase(c.base))
         {
             DenyNote("Turrets, robots and other actors can only be built by the host in multiplayer.");
@@ -1006,13 +1015,18 @@ namespace
             const bool exterior = j.o.space != 0;
             MoveRefrToPosition(ref, &nh, exterior ? nullptr : myCell, exterior ? myWS : nullptr, &pos, &rot);
             if (authority && j.hostApply && ws) DispatchItemMoved(ws, ref);
+            LOG_INFO("[Workshop] moved object %u (0x%08X) to (%.0f,%.0f,%.0f)", j.o.net, ref->formID, pos.x, pos.y, pos.z);
             return Apply::Done;
         }
         case 'X':
         {
             TESObjectREFR* ref = ResolveLocal(j.o, false);
             if (!ref)
+            {
+                // Already gone here (usually: we removed it ourselves).
                 return inRange ? (++j.inRangeMisses > 10 ? Apply::Done : Apply::Wait) : Apply::Wait;
+            }
+            uint32_t rewarded = 0;
             if (authority && j.hostApply)
             {
                 if (ws) DispatchItemDestroyed(ws, ref);
@@ -1021,12 +1035,16 @@ namespace
                 if (TESObjectREFR* box = ws ? GetWorkbenchContainer(ws) : nullptr)
                     for (uint32_t i = 0; i < j.nRewards; ++i)
                         if (TESForm* f = LookupFormByID(j.rewardForm[i]))
-                            if (f->formType == kFormType_MISC)
-                                CoSyncGameAPI::NativeAddItem(box, f, (std::min)(j.rewardCount[i], kMaxRewardEach));
+                            if (f->formType == kFormType_MISC &&
+                                CoSyncGameAPI::NativeAddItem(box, f, (std::min)(j.rewardCount[i], kMaxRewardEach)))
+                                ++rewarded;
             }
+            const uint32_t gone = ref->formID;
             SetLinkedWorkshop(ref, nullptr);
-            if (!authority) UnbindLocal(ref->formID);
+            if (!authority) UnbindLocal(gone);
             DeleteRef(ref);
+            LOG_INFO("[Workshop] removed object %u (0x%08X base 0x%08X)%s", j.o.net, gone, j.o.base,
+                rewarded ? Fmt(", %u reward stack(s) to the workbench", rewarded).c_str() : "");
             return Apply::Done;
         }
         case 'R':
@@ -1239,9 +1257,12 @@ namespace
             if (!WorkshopByID(o.ws)) return Deny(conn, 'P', cref, "That is not a settlement.");
             if (IsActorBase(o.base))
                 return Deny(conn, 'P', cref, "Turrets, robots and other actors can only be built by the host in multiplayer.");
-            if ((o.base & 0xFF000000u) == 0xFF000000u || !LookupFormByID(o.base) ||
-                CoSyncWorldSync::IsKnownUnsafePlaceAtMeForm(o.base) || IsSplineBase(o.base))
-                return Deny(conn, 'P', cref, "That object cannot be built in multiplayer.");
+            if ((o.base & 0xFF000000u) == 0xFF000000u || !LookupFormByID(o.base))
+                return Deny(conn, 'P', cref, Fmt("That object (0x%08X) is not in the host's game data (a mod the host does not have?).", o.base));
+            if (CoSyncWorldSync::IsKnownUnsafePlaceAtMeForm(o.base))
+                return Deny(conn, 'P', cref, Fmt("That object (0x%08X) is on CoSync's crash blocklist for remote spawning and cannot be built in multiplayer yet.", o.base));
+            if (IsSplineBase(o.base))
+                return Deny(conn, 'P', cref, "Wires are not shared in multiplayer yet.");
             if (!CheckAll(key, o.ws, 0, o.pos, WorkshopOp::Build, why)) return Deny(conn, 'P', cref, why);
             if (!s_freeBuild.load() && !OrigContains(o.ws, o.pos))
                 return Deny(conn, 'P', cref, "That spot is outside the settlement's build area.");
@@ -1286,6 +1307,8 @@ namespace
             o->rot = rot;
             AddJob('V', *o, true);
             BroadcastMove(*o);
+            LOG_INFO("[Workshop] accepted move %u (host 0x%08X base 0x%08X) to (%.0f,%.0f,%.0f) from conn=%u",
+                o->net, o->hostRef, o->base, pos.x, pos.y, pos.z, conn);
             return;
         }
 
@@ -1311,6 +1334,7 @@ namespace
             {
                 AddJob('R', *o, true);
                 BroadcastRepair(*o);
+                LOG_INFO("[Workshop] accepted repair %u (host 0x%08X) from conn=%u", o->net, o->hostRef, conn);
                 return;
             }
             Capture rewards;
@@ -1330,6 +1354,8 @@ namespace
             if (copy.hostRef)
                 AddJob('X', copy, true, &rewards);
             BroadcastRemove(copy);
+            LOG_INFO("[Workshop] accepted %s %u (host 0x%08X base 0x%08X, %u reward stack(s)) from conn=%u",
+                op == 'S' ? "scrap" : "store", copy.net, copy.hostRef, copy.base, rewards.nRewards, conn);
             return;
         }
     }

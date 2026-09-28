@@ -109,6 +109,11 @@ Enter workshop mode at the claimed settlement for each case.
 ## Known limitations (by design in 0.3.0; see the RE doc)
 
 - Wires are gated but not replicated (spline data).
+- Objects on CoSync's remote-spawn crash blocklist (`kWorkshopInternalHelperForms`)
+  cannot be built in a session by anyone. It includes 0x13FF17
+  `workshop_ShackPrefabCompleteSm01` (small prefab shack), blocked since a July
+  crash in the old PlaceAtMe_Native path; whether it still crashes with the
+  current spawn path is unproven (first 0.3.0 test, 2026-09-28).
 - Actor buildables (turrets, robots) are permission-gated; in a session only
   the host may build them (clients are refused with a message). The host's
   turrets reach clients through the save and the existing NPC sync, not as
