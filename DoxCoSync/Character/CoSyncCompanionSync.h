@@ -22,6 +22,5 @@ namespace CoSyncCompanionSync
 
     void FlushPendingCompanionOps();
 
-    void TickCompanionFollowNudge(double now);
 
 }

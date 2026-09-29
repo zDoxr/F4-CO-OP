@@ -470,17 +470,56 @@ void CoSyncPlayer::ApplyUpdate(const EntityUpdatePacket& u)
     if (m_hasAny && u.timestamp < m_lastHostTime)
         return;
 
+    // 0.3.3 (Stage 1): place each sample on the local timeline by the time
+    // the SENDER captured it, not by when it happened to arrive.
+    //
+    // The buffer used to stamp samples with their arrival time. EU travels
+    // unreliable and the relay batches, so two samples taken 66 ms apart can
+    // land 5 ms apart and the next one 130 ms later; interpolating on arrival
+    // time turns that delivery jitter straight into speed changes of the
+    // model (surging and stalling at a constant real walking speed).
+    //
+    // offset = arrival - senderStamp includes the (varying) network delay; the
+    // minimum over the last ~2 s is the least-delayed sample, so
+    // senderStamp + minOffset is the ideal arrival time of each sample.
+    // kInterpDelay then absorbs the jitter above that minimum. The offset
+    // follows the windowed minimum gradually so clock drift or a route change
+    // never makes the timeline jump.
+    const double arrival = NowSeconds();
+    double sampleOffset = arrival - u.timestamp;
+    if (u.timestamp <= 0.0)
+        sampleOffset = 0.0;                           // unstamped: fall back to arrival time
+    m_clockSamples[m_clockSampleNext] = sampleOffset;
+    m_clockSampleNext = (m_clockSampleNext + 1) % kClockSamples;
+    if (m_clockSampleCount < kClockSamples)
+        ++m_clockSampleCount;
+    double windowMin = m_clockSamples[0];
+    for (int i = 1; i < m_clockSampleCount; ++i)
+        if (m_clockSamples[i] < windowMin)
+            windowMin = m_clockSamples[i];
+    if (!m_clockOffsetValid || std::fabs(windowMin - m_clockOffset) > 1.0)
+    {
+        m_clockOffset      = windowMin;               // first sample, or a real clock jump
+        m_clockOffsetValid = true;
+    }
+    else
+    {
+        m_clockOffset += (windowMin - m_clockOffset) * 0.1;
+    }
+
     NetTransform tf{};
     tf.pos       = u.pos;
     tf.rot       = u.rot;
     tf.vel       = u.vel;
     tf.scale     = 1.0f;
     tf.hostTime  = u.timestamp;
-    tf.localTime = NowSeconds();
+    tf.localTime = (u.timestamp > 0.0) ? (u.timestamp + m_clockOffset) : arrival;
+    // Never earlier than the previous sample on the timeline.
+    if (!m_tfBuffer.empty() && tf.localTime < m_tfBuffer.back().localTime)
+        tf.localTime = m_tfBuffer.back().localTime;
 
     m_tfBuffer.push_back(tf);
     m_lastHostTime      = tf.hostTime;
-    m_lastRecvLocalTime = tf.localTime;
     m_hasAny = true;
 
     // Distinct from m_hasAny: ApplyPendingTransformIfAny SEEDS m_hasAny from

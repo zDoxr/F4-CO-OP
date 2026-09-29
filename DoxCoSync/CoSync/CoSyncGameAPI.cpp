@@ -595,6 +595,37 @@ namespace CoSyncGameAPI
         // [[project_cosync_crash_fixes]] round 24.
         constexpr double kCellResyncInterval = 1.0;
 
+        // 0.3.3 (Stage 1): is `cell` the cell the engine would file `pos` under?
+        //
+        // TESObjectCELL layout, verified in IDA 1.11.240 against the engine's
+        // own cell-name formatter sub_1404C5690 and the accessors
+        // sub_1404C5BE0 / sub_1404C5C00:
+        //   +0x40 byte bit0  interior flag
+        //   +0x50            exterior: EXTERIOR_DATA* ([+0] grid X, [+4] grid Y)
+        // 4096 units per exterior cell (Creation Engine grid size).
+        __declspec(noinline) bool CellHoldsPosition(TESObjectCELL* cell, TESObjectCELL* localCell,
+                                                    const NiPoint3& pos)
+        {
+            if (!cell)
+                return false;
+            __try
+            {
+                const uint8_t* c = reinterpret_cast<const uint8_t*>(cell);
+                if (c[0x40] & 1)                       // interior: must be the shared cell
+                    return cell == localCell;
+                const int32_t* ext = *reinterpret_cast<int32_t* const*>(c + 0x50);
+                if (!ext)
+                    return false;
+                const int32_t gx = static_cast<int32_t>(std::floor(pos.x / 4096.0f));
+                const int32_t gy = static_cast<int32_t>(std::floor(pos.y / 4096.0f));
+                return ext[0] == gx && ext[1] == gy;
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER)
+            {
+                return false;
+            }
+        }
+
         __declspec(noinline) void ResyncActorCellMembership_Impl(Actor* actor, const NiPoint3& pos, const NiPoint3& rot)
         {
             LOG_REQUIREMENT("CoSyncGameAPI::ResyncActorCellMembership_Impl", "Needs a valid player (checked, returns early if missing). Moves the actor using the game's own move function, which the caller wraps in a crash guard.");
@@ -604,12 +635,18 @@ namespace CoSyncGameAPI
 
             TESObjectREFR* pcRefr = reinterpret_cast<TESObjectREFR*>(pc);
 
-            // Only relocate when the proxy is actually in a DIFFERENT cell than the
-            // local player (null, or a stale exterior/interior cell). Same-cell
-            // proxies are kept smooth by the per-frame NiNode write in
-            // PositionRemoteActor, and a MoveRefrToPosition every interval would
-            // needlessly reset the havok controller.
-            if (actor->parentCell == pcRefr->parentCell)
+            // Only relocate when the proxy is filed under the WRONG cell for
+            // where it now stands (null, another interior, or a different
+            // exterior grid square).
+            //
+            // 0.3.3 (Stage 1): this used to compare against the LOCAL player's
+            // cell. A remote player standing one exterior cell away from us is
+            // correctly in a different cell, so the test never passed and the
+            // proxy got a full engine MoveRefrToPosition (havok controller
+            // reset, 3D update) once a second for as long as they stood there:
+            // a periodic hitch in the model. Compare against the cell the
+            // target position belongs to instead.
+            if (CellHoldsPosition(actor->parentCell, pcRefr->parentCell, pos))
                 return;
 
             // 0.3.1: the proxy is only ever moved inside the LOCAL world when
@@ -725,6 +762,28 @@ namespace CoSyncGameAPI
         }
     }
 
+    // 0.3.3 (Stage 1): Actor::SetPosition(pos, updateCharController), Actor
+    // vtable slot 0xCA = sub_140C60B50 (1.11.240, verified in IDA; the same
+    // slot SteerPuppetPosition already uses). With the flag set it writes the
+    // reference position (sub_140513DB0), moves the havok character
+    // controller to it (sub_141894C50), zeroes the controller velocity and
+    // updates the 3D root's translation.
+    __declspec(noinline) static void EngineSetActorPosition(Actor* actor, const NiPoint3& pos)
+    {
+        using SetPos_t = void(*)(Actor*, const NiPoint3*, bool);
+        __try
+        {
+            void** vtbl = *reinterpret_cast<void***>(actor);
+            if (vtbl && vtbl[0xCA])
+                reinterpret_cast<SetPos_t>(vtbl[0xCA])(actor, &pos, true);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            LOG_ERROR("[CoSyncGameAPI] SetPosition on a proxy crashed but was caught (actor=%p)",
+                static_cast<void*>(actor));
+        }
+    }
+
     void PositionRemoteActor(
         Actor* actor,
         const NiPoint3& pos,
@@ -734,7 +793,26 @@ namespace CoSyncGameAPI
         if (!actor)
             return;
 
-        // Sync game-world coordinates so any system reading actor->pos gets the right value
+        // 0.3.3 (Stage 1) -- ROOT CAUSE of the proxy model jitter/flicker.
+        //
+        // This used to write actor->pos directly and leave the havok character
+        // controller wherever the engine last put it. Every frame the engine
+        // job "ApplyActorFootIKResults" (job table entry sub_140BD5C40 ->
+        // sub_140DB3ED0 over the high process list -> sub_140E1BE80, IDA
+        // 1.11.240) reads the controller position and writes it back into the
+        // actor with SetPosition (blended toward it at min(15*dt,1) per frame).
+        // So each frame the engine pulled the proxy toward the stale controller
+        // spot and the CoSync tick pushed it back to the network position: two
+        // writers on one actor, and the model visibly alternated between them.
+        //
+        // Moving the controller with the engine's own SetPosition makes both
+        // writers agree: the engine's per-frame sync now reads back the network
+        // position. It also puts the collision capsule where the model stands,
+        // which is what hits and the HP relay need (previously only fixed up by
+        // the 1 Hz cell resync).
+        EngineSetActorPosition(actor, pos);
+
+        // Keep the fields in agreement for anything that reads them directly.
         actor->pos.x = pos.x;
         actor->pos.y = pos.y;
         actor->pos.z = pos.z;

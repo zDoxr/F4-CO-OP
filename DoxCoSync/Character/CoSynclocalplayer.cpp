@@ -152,56 +152,15 @@ namespace
     float s_movementThreshold = 0.01f;
     float s_rotationThreshold = 0.01f;
 
-    // Tether — keep P2 within the loaded exterior cell grid (~2 cells = 8192 units).
-    // Beyond this the other player's NPCs and terrain stop loading on the far end.
-    static constexpr float  kTetherMaxDist       = 8192.0f;
-    static constexpr float  kTetherMaxDistSq     = kTetherMaxDist * kTetherMaxDist;
-    // If raw distance exceeds this, assume different worldspace (interior vs exterior) and skip.
-    static constexpr float  kTetherWorldspaceSkipSq = 500000.0f * 500000.0f;
-    static constexpr double kTetherCheckInterval = 1.0;   // check every 1 s
-    static constexpr double kTetherCooldown      = 5.0;   // 5 s pause after each teleport
-
-    static double s_lastTetherCheck   = 0.0;
-    static double s_tetherCooldownEnd = 0.0;
-
-    void TickTether(double now, Actor* player, const NiPoint3& myPos)
-    {
-        LOG_REQUIREMENT("CoSyncLocalPlayer::TickTether", "Needs a valid player actor, an active client connection (not host), and a peer with a known position.");
-        if (now < s_tetherCooldownEnd)               return;
-        if (now - s_lastTetherCheck < kTetherCheckInterval) return;
-        s_lastTetherCheck = now;
-
-        if (!CoSyncNet::IsConnected() || CoSyncNet::IsHost()) return;
-
-        auto peers = CoSyncNet::GetConnectedPeerEntityIDs();
-        if (peers.empty()) return;
-
-        CoSyncPlayer* hostProxy = g_CoSyncPlayerManager.GetPlayerByEntityID(peers[0]);
-        if (!hostProxy) return;
-
-        const NiPoint3& hostPos = hostProxy->authoritativePos;
-        // authoritativePos starts at (0,0,0) before the first packet — skip until we have real data
-        if (fabsf(hostPos.x) < 1.0f && fabsf(hostPos.y) < 1.0f) return;
-
-        const float dx = myPos.x - hostPos.x;
-        const float dy = myPos.y - hostPos.y;
-        const float dz = myPos.z - hostPos.z;
-        const float distSq = dx*dx + dy*dy + dz*dz;
-
-        // Skip when clearly in a different worldspace (different interior/exterior)
-        if (distSq > kTetherWorldspaceSkipSq) return;
-        if (distSq <= kTetherMaxDistSq)        return;
-
-        // Place P2 at host position, 50 units above to clear terrain and hitbox overlap
-        NiPoint3 target(hostPos.x, hostPos.y, hostPos.z + 50.0f);
-        NiPoint3 rot(player->rot.x, player->rot.y, player->rot.z);
-
-        CoSyncGameAPI::PositionRemoteActor(player, target, rot);
-
-        s_tetherCooldownEnd = now + kTetherCooldown;
-        LOG_INFO("[Tether] P2 exceeded range (%.0f units) — pulled to host (%.1f,%.1f,%.1f)",
-            sqrtf(distSq), target.x, target.y, target.z);
-    }
+    // 0.3.3 (Stage 1): the client "tether" (TickTether) is gone. It
+    // teleported the CLIENT's own player to the host once they were
+    // more than 8192 units apart -- a host-position rule overriding a client's
+    // own authoritative movement (the reported "pulled back" tether). It
+    // never actually moved anyone only because it used the same raw
+    // actor->pos write the proxies used, which the engine's per-frame
+    // character-controller sync undid (0.3.2 logs: "[Tether] P2 exceeded range
+    // (107902 units)" every 5 s with the distance never changing). Distance
+    // between players is now handled by location identity + proxy visibility.
 
 
     double NowSeconds()
@@ -763,8 +722,6 @@ void CoSyncLocalPlayer::Tick(double now)
             }
         }
     }
-
-    TickTether(now, player, currentPos);
 
     // Capture local player skeleton every frame for animation testing
     // replication. Two independent gates feed the same capture: IsEnabled()

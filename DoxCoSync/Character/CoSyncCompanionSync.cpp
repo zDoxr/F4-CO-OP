@@ -76,9 +76,6 @@ namespace
     std::unordered_map<uint64_t, uint32_t> s_ownerBaseToComp;
 
 
-    double s_lastNudgeTime = 0.0;
-    static constexpr double kNudgeInterval  = 3.0;
-    static constexpr float  kFollowDistSq   = 1500.f * 1500.f;
 
 }
 
@@ -443,66 +440,3 @@ void CoSyncCompanionSync::FlushPendingCompanionOps()
     }
 }
 
-void CoSyncCompanionSync::TickCompanionFollowNudge(double now)
-{
-    LOG_REQUIREMENT("CoSyncCompanionSync::TickCompanionFollowNudge", "Needs to be the host and connected (both checked). Fetches each companion and owner safely, checking they actually exist before using them.");
-    if (!CoSyncNet::IsHost() || !CoSyncNet::IsConnected())
-        return;
-
-    if ((now - s_lastNudgeTime) < kNudgeInterval)
-        return;
-    s_lastNudgeTime = now;
-
-    const uint32_t myEID = CoSyncNet::GetMyEntityID();
-
-    for (const auto& kv : s_companionOwners)
-    {
-        const uint32_t compEID  = kv.first;
-        const uint32_t ownerEID = kv.second;
-
-
-        Actor* compActor = g_CoSyncEntities.GetActor(compEID);
-        if (!compActor)
-            continue;
-
-
-        NiPoint3 ownerPos{0.f, 0.f, 0.f};
-        NiPoint3 ownerRot{0.f, 0.f, 0.f};
-
-        if (ownerEID == myEID || ownerEID == 0)
-        {
-            PlayerCharacter* player = CoSyncGetPlayer();
-            if (!player) continue;
-            CoSyncGameAPI::GetActorWorldTransform(
-                reinterpret_cast<Actor*>(player), ownerPos, ownerRot);
-        }
-        else
-        {
-            Actor* ownerProxy = g_CoSyncEntities.GetActor(ownerEID);
-            if (!ownerProxy) continue;
-            CoSyncGameAPI::GetActorWorldTransform(ownerProxy, ownerPos, ownerRot);
-        }
-
-
-        NiPoint3 compPos{0.f, 0.f, 0.f}, compRot{0.f, 0.f, 0.f};
-        CoSyncGameAPI::GetActorWorldTransform(compActor, compPos, compRot);
-
-        const float dx = compPos.x - ownerPos.x;
-        const float dy = compPos.y - ownerPos.y;
-        const float dz = compPos.z - ownerPos.z;
-        const float distSq = dx * dx + dy * dy + dz * dz;
-
-        if (distSq > kFollowDistSq)
-        {
-
-            NiPoint3 nudgePos = ownerPos;
-            nudgePos.x -= 300.f * cosf(ownerRot.z);
-            nudgePos.y -= 300.f * sinf(ownerRot.z);
-
-            CoSyncGameAPI::PositionRemoteActor(compActor, nudgePos, ownerRot);
-
-            LOG_UPDATED("[CompanionSync] Nudged companion entity=%u back to owner=%u (dist=%.0f)",
-                compEID, ownerEID, sqrtf(distSq));
-        }
-    }
-}

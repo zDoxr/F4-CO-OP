@@ -1137,11 +1137,10 @@ void CoSyncNet::Tick(double now)
 
 
     g_lastTickStep = "FlushPendingCompanionOps";     CoSyncCompanionSync::FlushPendingCompanionOps();
-    if (s_isHost && s_connected)
-    {
-        g_lastTickStep = "TickCompanionFollowNudge";
-        CoSyncCompanionSync::TickCompanionFollowNudge(now);
-    }
+    // 0.3.3 (Stage 1): TickCompanionFollowNudge removed -- it teleported a
+    // companion 300 units behind its owner whenever it was >1500 away (a
+    // teleport loop, inert until now only because of the raw-position bug).
+    // Companions follow through their own AI; see Stage 4.
 
     g_lastTickStep = "Tick:end";
 }

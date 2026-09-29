@@ -158,6 +158,16 @@ public:
     double m_lastRecvLocalTime = 0.0;
     bool   m_hasAny = false;
 
+    // 0.3.3: sender-clock -> local-clock mapping for the interpolation
+    // timeline (see ApplyUpdate). offset = (local arrival - sender stamp);
+    // the smallest recent sample is the one with the least network delay.
+    static constexpr int kClockSamples = 32;
+    double m_clockSamples[kClockSamples] = {};
+    int    m_clockSampleCount = 0;
+    int    m_clockSampleNext  = 0;
+    double m_clockOffset      = 0.0;
+    bool   m_clockOffsetValid = false;
+
     // True only once a GENUINE peer transform has arrived. m_hasAny is ALSO
     // set by ApplyPendingTransformIfAny's seed (the proxy's own PlaceAtMe
     // position, i.e. right on top of the local player), so it cannot be used
