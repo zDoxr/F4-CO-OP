@@ -1058,6 +1058,34 @@ namespace CoSyncGameAPI
         }
     }
 
+    __declspec(noinline) void SetActorControllerVelocity(Actor* actor, const NiPoint3& velocity)
+    {
+        if (!actor || !IsFormStillLive(static_cast<TESForm*>(actor)))
+            return;
+        __try
+        {
+            const uint8_t* process = *reinterpret_cast<uint8_t* const*>(
+                reinterpret_cast<const uint8_t*>(actor) + 0x300);
+            if (!process) return;
+            const uint8_t* mh = *reinterpret_cast<uint8_t* const*>(process + 0x08);
+            if (!mh) return;
+            void* ctrl = *reinterpret_cast<void* const*>(mh + 0x3E0);
+            if (!ctrl) return;
+            void** vtbl = *reinterpret_cast<void***>(ctrl);
+            if (!vtbl || !vtbl[0x3A]) return;
+            // Havok units, same factor the engine uses for positions
+            // (sub_141894C50: game * 0.0142875).
+            alignas(16) float hk[4] = { velocity.x * 0.0142875f, velocity.y * 0.0142875f,
+                                        velocity.z * 0.0142875f, 0.0f };
+            using SetVel_t = void(__fastcall*)(void*, const float*);
+            reinterpret_cast<SetVel_t>(vtbl[0x3A])(ctrl, hk);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            LOG_ERROR("[Puppet] setting controller velocity crashed -- actor=%p", static_cast<void*>(actor));
+        }
+    }
+
     void SetActorAvoidanceDisabled(Actor* actor, bool disabled)
     {
         LOG_REQUIREMENT("CoSyncGameAPI::SetActorAvoidanceDisabled", "Needs a non-null, still-alive actor. Turns collision-avoidance on or off through the game's own function, wrapped in a crash guard.");

@@ -697,6 +697,15 @@ void CoSyncPlayer::ApplyProxyTransform(const NiPoint3& pos, const NiPoint3& rot)
                 sqrtf(dx * dx + dy * dy + dz * dz));
         }
         CoSyncGameAPI::SteerPuppetPosition(actorRef, pos, rot.z);
+        // 0.3.3: SetPosition zeroed the controller velocity (verified); hand
+        // the engine the owner's velocity instead, so the puppet is moving,
+        // not being slid while "standing", between network updates.
+        // Only while updates are fresh: a held position with a stale
+        // velocity would make the physics step push it forward every frame.
+        {
+            const bool fresh = (NowSeconds() - m_lastRecvLocalTime) < 0.25;
+            CoSyncGameAPI::SetActorControllerVelocity(actorRef, fresh ? m_lastVel : NiPoint3(0.f, 0.f, 0.f));
+        }
 
         // Re-neutralize every tick, not just at spawn: the puppet's local AI
         // (still fully alive by design) can decide to enter combat against

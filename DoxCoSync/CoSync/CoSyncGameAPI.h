@@ -85,6 +85,15 @@ namespace CoSyncGameAPI
     // NiNode write). headingZ is written to actor->rot.z (== GetHeading) first.
     void SteerPuppetPosition(Actor* actor, const NiPoint3& pos, float headingZ);
 
+    // 0.3.3: set the actor's Havok character-proxy linear velocity (game
+    // units/s). IDA 1.11.240: the controller is process(+0x300)->middleHigh
+    // (+0x08)->+0x3E0 (sub_140C5CD50 / sub_140D347C0); its vtable slot 0x3A
+    // (bhkCharProxyController sub_1418B7110) stores an hkVector4 at
+    // characterProxy(+0x470)+0xA0, slot 0x39 (sub_1418B70E0) reads it back.
+    // Actor::SetPosition(pos, true) passes the zero vector to this slot, so
+    // every steer used to leave the puppet "standing still" to the engine.
+    void SetActorControllerVelocity(Actor* actor, const NiPoint3& velocity);
+
     // Actor vtable slot 0xC8 — keeps an AI-alive puppet from side-stepping the
     // network-steered position. VERIFIED NO-OP in build 1.11.221.0 (checked
     // against Fallout4_disk.i64 and commonlibf4's own Actor.h, which declares

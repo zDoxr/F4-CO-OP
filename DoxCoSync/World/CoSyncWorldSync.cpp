@@ -663,6 +663,38 @@ static bool IsLocallyOwnedObject(uint32_t formID, double now)
     return (now - it->second) < kObj_ThrowTailSeconds;        // throw tail
 }
 
+// 0.3.3: ObjectReference.SetMotionType (vanilla Papyrus native; Motion_Fixed=0,
+// Motion_Dynamic=1, Motion_Keyframed=2). An object another machine is driving
+// is keyframed here: local Havok stops shoving and dropping it between that
+// machine's updates. It goes back to dynamic once the stream stops.
+static void SetRefMotionType(TESObjectREFR* ref, SInt32 motionType)
+{
+    if (!ref) return;
+    static const BSFixedString kSetMotionType("SetMotionType");
+    VMArray<VMVariable> args;
+    VMVariable vType; vType.Set(&motionType); args.Push(&vType);
+    bool allowActivate = true;
+    VMVariable vAct; vAct.Set(&allowActivate); args.Push(&vAct);
+    CallFunctionNoWait(ref, kSetMotionType, args);
+}
+
+// Remote-driven objects whose stream has ended: back to dynamic. Both roles.
+static void TickRemoteDrivenObjects(double now)
+{
+    for (auto it = s_objRemoteDrivenAt.begin(); it != s_objRemoteDrivenAt.end(); )
+    {
+        if (now - it->second < kObj_RemoteDrivenHold)
+        {
+            ++it;
+            continue;
+        }
+        if (TESObjectREFR* ref = FormToREFR(LookupFormByID(it->first)))
+            if (!(ref->flags & (TESObjectREFR::kFlag_IsDeleted | TESObjectREFR::kFlag_IsDisabled)))
+                SetRefMotionType(ref, 1);   // Motion_Dynamic
+        it = s_objRemoteDrivenAt.erase(it);
+    }
+}
+
 // Emit one OBJ packet for a ref, updating the last-sent baseline.
 static void SendObjMove(TESObjectREFR* ref, uint32_t fid)
 {
@@ -728,6 +760,8 @@ __declspec(noinline) static void TickGrabOwnership_Impl(double now)
 
         s_grabbedFormID    = ref->formID;
         s_lastGrabbedIndex = idx;
+        if (s_objRemoteDrivenAt.erase(ref->formID))
+            SetRefMotionType(ref, 1);   // it is ours now: back to normal physics
         s_hotObjects[s_grabbedFormID] = 0.0;   // held
         s_debrisDiag.grabResolved++;
         LOG_INFO("[DebrisSync] grabbed ref=0x%08X base=0x%08X (handleIdx=%u) — "
@@ -1425,13 +1459,8 @@ __declspec(noinline) static void HostTickObjects_Impl(double now)
         // third machine received two streams for one carried object and it
         // jumped between them.
         {
-            auto rd = s_objRemoteDrivenAt.find(fid);
-            if (rd != s_objRemoteDrivenAt.end())
-            {
-                if (now - rd->second < kObj_RemoteDrivenHold)
-                    continue;
-                s_objRemoteDrivenAt.erase(rd);
-            }
+            if (s_objRemoteDrivenAt.count(fid))
+                continue;   // TickRemoteDrivenObjects releases it
         }
 
         auto it = s_objLastSent.find(fid);
@@ -2227,6 +2256,8 @@ __declspec(noinline) static void ClientTickObjectMoves_Impl(const std::vector<Pe
 
         // The applied position is now the baseline, and the object is
         // remote-driven: our own change detection must not echo it.
+        if (s_objRemoteDrivenAt.find(m.refFormID) == s_objRemoteDrivenAt.end())
+            SetRefMotionType(ref, 2);   // Motion_Keyframed while someone else drives it
         s_objRemoteDrivenAt[m.refFormID] = nowApply;
         s_objLastSent[m.refFormID] = ObjState{ m.pos, m.rot };
 
@@ -2571,6 +2602,7 @@ void CoSyncWorldSync::Tick(double now)
     if (CoSyncNet::IsConnected())
     {
         TickPlayerDrivenObjects(now);
+        TickRemoteDrivenObjects(now);
         LogDebrisDiag(now);
 
         // Explosions are caused by whoever pulled the trigger, so like debris
