@@ -1,17 +1,22 @@
 /*
- * CoSync Multiplayer menu -- Fallout 4 visual language.
+ * CoSync Multiplayer menu -- 0.3.4 redesign: a RobCo-style terminal built
+ * into Fallout 4, not a web dashboard.
  *
- * Colour: everything derives from --hud-r/g/b, which the plugin sets from the
- * player's own vanilla HUD colour (Fallout4Prefs.ini iHUDColorR/G/B; game
- * default 18,255,21 = Pip-Boy green), exactly like vanilla menus follow it.
+ * Visual language taken from the game itself:
+ *   - Colour: everything derives from --hud-r/g/b, which the plugin sets from
+ *     the player's own vanilla HUD colour (Fallout4Prefs.ini iHUDColorR/G/B;
+ *     default 18,255,21 = Pip-Boy green), exactly like vanilla menus follow it.
+ *   - Type: Roboto Condensed is Fallout 4's $MAIN_Font / $MAIN_Font_Bold
+ *     (Interface\FontConfig.txt); Share Tech Mono stands in for its
+ *     $Terminal_Font. Both ship here under the SIL OFL (fonts/OFL-*.txt).
+ *   - Pip-Boy list selection (solid HUD bar, dark text), bracket corners,
+ *     tab underline with end ticks, dotted stat leaders, faint scanlines.
  *
- * Type: Roboto Condensed is Fallout 4's $MAIN_Font / $MAIN_Font_Bold
- * (Interface\FontConfig.txt); Share Tech Mono is its $Terminal_Font. Both are
- * shipped here under the SIL OFL (see fonts/OFL-*.txt).
- *
- * Sizes are in vh so the menu keeps its proportions at any window size.
- * Ultralight (CPU backend): no filters, no backdrop blur -- flat fills, lines
- * and text-shadow only, which is also what the vanilla menus use.
+ * Layout: menu list on the left, the selected screen's DATA on the right,
+ * help text and button hints in the footer, live link status in the header.
+ * Sizes are in vh so the menu keeps its proportions at any resolution.
+ * Ultralight (CPU backend): no filters or backdrop blur -- flat fills,
+ * gradients, lines and text-shadow only.
  */
 
 @font-face {
@@ -38,10 +43,11 @@
   --hud-35:     rgba(var(--hud-r), var(--hud-g), var(--hud-b), 0.35);
   --hud-12:     rgba(var(--hud-r), var(--hud-g), var(--hud-b), 0.12);
   --hud-glow:   rgba(var(--hud-r), var(--hud-g), var(--hud-b), 0.45);
-  --panel-bg:   rgba(4, 16, 6, 0.80);      /* stale green, translucent */
+  --panel-bg:   rgba(3, 12, 5, 0.88);      /* dark terminal glass */
   --ink:        rgba(2, 10, 3, 0.95);      /* text on a selected (filled) row */
-  --muted:      rgba(200, 214, 200, 0.62); /* secondary text */
+  --muted:      rgba(200, 214, 200, 0.64); /* secondary text */
   --bad:        #ff6a4d;
+  --warn:       #ffc34d;
 }
 
 * { box-sizing: border-box; }
@@ -60,15 +66,18 @@ html, body {
   cursor: default;
 }
 
-/* ── Panel: sits where the vanilla main-menu list lives (left, centred) ── */
+/* ── Terminal frame ──────────────────────────────────────────────────────── */
 .panel {
   position: absolute;
-  left: 7vh;
+  left: 50%;
   top: 50%;
-  transform: translateY(-50%);
-  width: 52vh;   /* 0.3.3: compact (was 64vh) */
-  padding: 2vh 2.4vh 1.8vh;
-  background: var(--panel-bg);
+  transform: translate(-50%, -50%);
+  width: 112vh;
+  max-width: 94vw;
+  padding: 1.6vh 2.4vh 1.4vh;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(var(--hud-r), var(--hud-g), var(--hud-b), 0.06), transparent 70%),
+    var(--panel-bg);
   border: 0.15vh solid var(--hud-35);
   text-shadow: 0 0 0.6vh var(--hud-glow);
   opacity: 0;
@@ -76,104 +85,172 @@ html, body {
 }
 .panel.shown { opacity: 1; }
 
-/* Fallout bracket corners (top-left / bottom-right), as on Pip-Boy panels. */
-.panel::before, .panel::after {
+/* Four bracket corners, as on Pip-Boy and terminal frames. */
+.panel::before, .panel::after,
+.panel-header::before, .panel-footer::after {
   content: "";
   position: absolute;
-  width: 3.2vh;
-  height: 3.2vh;
+  width: 3vh;
+  height: 3vh;
   border-color: var(--hud);
   border-style: solid;
+  pointer-events: none;
 }
-.panel::before { left: -0.15vh; top: -0.15vh; border-width: 0.3vh 0 0 0.3vh; }
-.panel::after  { right: -0.15vh; bottom: -0.15vh; border-width: 0 0.3vh 0.3vh 0; }
+.panel::before        { left: -0.15vh;  top: -0.15vh;    border-width: 0.3vh 0 0 0.3vh; }
+.panel::after         { right: -0.15vh; bottom: -0.15vh; border-width: 0 0.3vh 0.3vh 0; }
+.panel-header::before { right: -0.15vh; top: -0.15vh;    border-width: 0.3vh 0.3vh 0 0; }
+.panel-footer::after  { left: -0.15vh;  bottom: -0.15vh; border-width: 0 0 0.3vh 0.3vh; }
 
-/* ── Header ── */
+/* Faint CRT scanlines over the screen area. */
+.panel > .screen::after {
+  content: "";
+  pointer-events: none;
+  z-index: 2;
+  position: absolute;
+  left: 0; right: 0; top: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0,
+    rgba(0, 0, 0, 0) 0.35vh,
+    rgba(0, 0, 0, 0.10) 0.35vh,
+    rgba(0, 0, 0, 0.10) 0.5vh);
+}
+
+/* ── Header: brand block + live link status ──────────────────────────────── */
+.panel-header {
+  position: static;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 1vh;
+  border-bottom: 0.15vh solid var(--hud-35);
+}
+.brand { display: flex; align-items: center; gap: 1.2vh; }
+.brand-mark {
+  display: inline-block;
+  width: 4.2vh;
+  height: 4.2vh;
+  line-height: 3.9vh;
+  text-align: center;
+  font-size: 2.2vh;
+  letter-spacing: 0.04em;
+  border: 0.25vh solid var(--hud);
+}
+.brand-text { font-size: 2.6vh; letter-spacing: 0.14em; line-height: 1.05; }
+.brand-sub {
+  display: block;
+  font-family: "FO Terminal", "FO Main", monospace;
+  font-weight: 400;
+  font-size: 1.45vh;
+  letter-spacing: 0.22em;
+  color: var(--hud-55);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  font-family: "FO Terminal", "FO Main", monospace;
+  font-weight: 400;
+  font-size: 1.75vh;
+  letter-spacing: 0.1em;
+  color: var(--hud-80);
+}
+.status .seg { padding: 0 1.2vh; border-left: 0.15vh solid var(--hud-35); }
+.status .seg:first-child { border-left: 0; }
+.status .seg.state { color: var(--hud); }
+.status .seg.state.bad { color: var(--bad); }
+.status .seg.state.dim { color: var(--hud-55); }
+.led {
+  display: inline-block;
+  width: 1.2vh;
+  height: 1.2vh;
+  margin-right: 0.9vh;
+  vertical-align: -0.05vh;
+  border: 0.18vh solid var(--hud);
+  border-radius: 50%;
+}
+.led.on   { background: var(--hud); box-shadow: 0 0 0.8vh var(--hud-glow); }
+.led.wait { background: var(--hud); animation: blink 900ms steps(2, start) infinite; }
+.led.off  { border-color: var(--hud-35); }
+.led.bad  { background: var(--bad); border-color: var(--bad); }
+@keyframes blink { to { visibility: hidden; } }
+
+/* ── Title bar: breadcrumb + screen title with a tab underline ───────────── */
+.titlebar { padding: 1.2vh 0 0; }
 .crumb {
-  min-height: 1.9vh;
-  font-size: 1.7vh;
-  letter-spacing: 0.08em;
+  min-height: 1.8vh;
+  font-family: "FO Terminal", "FO Main", monospace;
+  font-weight: 400;
+  font-size: 1.6vh;
+  letter-spacing: 0.12em;
   color: var(--hud-55);
 }
 h1 {
-  margin: 0.2vh 0 0.9vh;
-  font-size: 3.4vh;
-  line-height: 1;
-  letter-spacing: 0.04em;
-}
-.rule {
   position: relative;
-  height: 0.3vh;
-  background: var(--hud);
-  margin-bottom: 1.3vh;
+  display: inline-block;
+  margin: 0.3vh 0 1.4vh;
+  padding: 0 1.2vh 0.5vh 0;
+  font-size: 3.6vh;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  border-bottom: 0.3vh solid var(--hud);
 }
-.rule::after {                     /* tick at the right end of the rule */
+h1::after {                          /* end tick of the tab underline */
   content: "";
   position: absolute;
   right: 0;
-  top: 0;
+  bottom: -0.3vh;
   width: 0.3vh;
   height: 1.2vh;
   background: var(--hud);
 }
 
-/* ── Screen content (fades between screens) ── */
-.screen { transition: opacity 110ms ease-out, transform 110ms ease-out; }
-.screen.leaving { opacity: 0; transform: translateX(-1.2vh); }
-
-/* Info rows: label left, value right, like the Pip-Boy STAT/DATA lists. */
-.rows:empty { display: none; }
-.rows { margin-bottom: 1.3vh; }
-.row {
+/* ── Two columns: menu list | data ───────────────────────────────────────── */
+.screen {
+  position: relative;
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 0.7vh 1.2vh;
-  margin-bottom: 0.4vh;
-  background: var(--hud-12);
-  font-size: 2vh;
+  align-items: stretch;
+  gap: 0;
+  min-height: 42vh;
+  transition: opacity 110ms ease-out, transform 110ms ease-out;
 }
-.row .label { color: var(--hud-80); font-weight: 400; letter-spacing: 0.05em; }
-.row .value { letter-spacing: 0.04em; text-align: right; }
-.row .value.bad { color: var(--bad); }
-.row .value.dim { color: var(--hud-55); }
-
-/* Notice box (e.g. empty game list), bordered like vanilla message boxes. */
-.notice:empty { display: none; }
-.notice {
-  margin-bottom: 1.8vh;
-  padding: 1.4vh 1.4vh;
-  border: 0.15vh solid var(--hud-35);
-  font-family: "FO Main", sans-serif;
-  font-weight: 400;
-  text-transform: none;
-  font-size: 1.9vh;
-  line-height: 1.35;
-  color: var(--hud-80);
+.screen.leaving { opacity: 0; transform: translateX(-1.2vh); }
+.col { position: relative; }
+.col-list {
+  flex: 0 0 44%;
+  padding-right: 2vh;
+  border-right: 0.15vh solid var(--hud-35);
 }
-.notice .head {
-  display: block;
-  margin-bottom: 0.6vh;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--hud);
-  letter-spacing: 0.05em;
+.col-data {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-left: 2.2vh;
+}
+.data-head {
+  display: inline-block;
+  margin-bottom: 1.1vh;
+  padding: 0.15vh 0.9vh;
+  font-size: 1.6vh;
+  letter-spacing: 0.2em;
+  color: var(--ink);
+  background: var(--hud-80);
+  text-shadow: none;
 }
 
-/* ── Menu list: vanilla selection = solid HUD-colour bar, dark text ── */
+/* ── Menu list: vanilla selection = solid HUD-colour bar, dark text ─────── */
 .list { display: flex; flex-direction: column; }
 .item {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   padding: 0.55vh 1.2vh;
-  margin: 0.2vh 0;
-  font-size: 2.5vh;
+  margin: 0.15vh 0;
+  font-size: 2.45vh;
   letter-spacing: 0.05em;
   color: var(--hud);
   border: 0.15vh solid transparent;
 }
-.item .opt { font-size: 2vh; color: var(--hud-80); }
+.item .opt { font-size: 1.95vh; color: var(--hud-80); }
 .item .opt::before { content: "\2039  "; }   /* ‹ value › like vanilla option rows */
 .item .opt::after  { content: "  \203A"; }
 .item.disabled { color: var(--hud-35); text-shadow: none; }
@@ -188,57 +265,10 @@ h1 {
   color: var(--hud-55);
   border-color: var(--hud-55);
 }
-
-/* ── Description line under the list (vanilla settings-style help text) ── */
-.desc {
-  min-height: 4.4vh;
-  margin-top: 1.6vh;
-  padding-top: 1.2vh;
-  border-top: 0.15vh solid var(--hud-35);
-  font-weight: 400;
-  text-transform: none;
-  font-size: 1.8vh;
-  line-height: 1.35;
-  color: var(--muted);
-  text-shadow: none;
-}
-
-/* ── Button hint bar, bottom centre, like BSButtonHintBar ── */
-.hints {
-  position: absolute;
-  left: 50%;
-  bottom: 4vh;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 3vh;
-  padding: 0.8vh 2vh;
-  background: var(--panel-bg);
-  border-top: 0.2vh solid var(--hud);
-  font-size: 2.2vh;
-  letter-spacing: 0.05em;
-  color: var(--hud);
-  text-shadow: 0 0 0.6vh var(--hud-glow);
-  opacity: 0;
-  transition: opacity 140ms ease-out;
-}
-.hints.shown { opacity: 1; }
-.hint { display: flex; align-items: center; gap: 0.9vh; }
-.key {
-  display: inline-block;
-  min-width: 2.8vh;
-  padding: 0.1vh 0.7vh;
-  border: 0.18vh solid var(--hud);
-  font-size: 1.8vh;
-  text-align: center;
-  line-height: 2.4vh;
-}
-.hint .glyph { display: inline-flex; height: 2.6vh; align-items: center; }
-
-/* Right-hand detail on a row (e.g. "3 / 8" on a found game). */
-.item .meta { font-size: 2vh; color: var(--hud-80); letter-spacing: 0.04em; }
+.item .meta { font-size: 1.95vh; color: var(--hud-80); letter-spacing: 0.04em; }
 .item.selected .meta { color: var(--ink); }
 
-/* Direct Connect text fields: underline only, like vanilla text entry. */
+/* Text fields (Direct Connect, names): underline only, like vanilla entry. */
 .item input.field {
   width: 55%;
   padding: 0.2vh 0.6vh;
@@ -247,7 +277,7 @@ h1 {
   border-bottom: 0.2vh solid var(--hud-55);
   outline: none;
   font-family: "FO Terminal", "FO Main", monospace;
-  font-size: 2.6vh;
+  font-size: 2.5vh;
   letter-spacing: 0.06em;
   color: var(--hud);
   text-align: right;
@@ -259,17 +289,104 @@ h1 {
 .item input.field::placeholder { color: var(--hud-35); }
 .item.selected input.field::placeholder { color: rgba(2, 10, 3, 0.45); }
 
-/* Lobby list. A section header row, then one row per player. */
-.row.section {
-  margin-top: 1.4vh;
-  background: transparent;
-  border-bottom: 0.15vh solid var(--hud-55);
-  padding-left: 0;
-  padding-right: 0;
+/* ── Data rows: label ........ value, like the Pip-Boy STAT/DATA lists ──── */
+.rows:empty { display: none; }
+.rows { margin-bottom: 1.2vh; }
+.row {
+  display: flex;
+  align-items: baseline;
+  padding: 0.45vh 0.2vh;
+  font-size: 1.95vh;
 }
-.row.section .label { color: var(--hud); font-weight: 700; }
-.row.player { background: transparent; padding-top: 0.45vh; padding-bottom: 0.45vh; }
-.row.player .label { color: var(--hud); font-weight: 700; letter-spacing: 0.03em; text-transform: none; }
+.row .label { flex: 0 0 auto; color: var(--hud-80); font-weight: 400; letter-spacing: 0.05em; }
+.row .lead {
+  flex: 1 1 auto;
+  min-width: 1.5vh;
+  margin: 0 0.9vh;
+  border-bottom: 0.2vh dotted var(--hud-35);
+  transform: translateY(-0.45vh);
+}
+.row .value { flex: 0 1 auto; letter-spacing: 0.04em; text-align: right; }
+.row .value.bad  { color: var(--bad); }
+.row .value.dim  { color: var(--hud-55); }
+.row .value.good { color: var(--hud); }
+.row .value.warn { color: var(--warn); }
+
+/* Section header rows (e.g. the player list) and player rows. */
+.row.section {
+  margin-top: 1.3vh;
+  padding-bottom: 0.35vh;
+  border-bottom: 0.15vh solid var(--hud-55);
+}
+.row.section .label { color: var(--hud); font-weight: 700; letter-spacing: 0.1em; }
+.row.section .lead  { border-bottom-color: transparent; }
+.row.player .label  { color: var(--hud); font-weight: 700; letter-spacing: 0.03em; text-transform: none; }
+
+/* ── Notice box, bracketed like a terminal message ───────────────────────── */
+.notice:empty { display: none; }
+.notice {
+  position: relative;
+  margin: 0.4vh 0 1.4vh;
+  padding: 1.3vh 1.5vh;
+  border: 0.15vh solid var(--hud-35);
+  border-left: 0.5vh solid var(--hud);
+  background: var(--hud-12);
+  font-weight: 400;
+  text-transform: none;
+  font-size: 1.85vh;
+  line-height: 1.38;
+  color: var(--hud-80);
+}
+.notice .head {
+  display: block;
+  margin-bottom: 0.5vh;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--hud);
+  letter-spacing: 0.06em;
+}
+
+/* ── Footer: help text on the left, button hints on the right ────────────── */
+.panel-footer {
+  position: static;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 3vh;
+  margin-top: 1.4vh;
+  padding-top: 1.1vh;
+  border-top: 0.15vh solid var(--hud-35);
+}
+.desc {
+  flex: 1 1 auto;
+  min-height: 4.4vh;
+  font-weight: 400;
+  text-transform: none;
+  font-size: 1.8vh;
+  line-height: 1.38;
+  color: var(--muted);
+  text-shadow: none;
+}
+.hints {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 2.4vh;
+  font-size: 2vh;
+  letter-spacing: 0.05em;
+  color: var(--hud);
+  opacity: 1;
+}
+.hint { display: flex; align-items: center; gap: 0.8vh; }
+.key {
+  display: inline-block;
+  min-width: 2.8vh;
+  padding: 0.1vh 0.7vh;
+  border: 0.18vh solid var(--hud);
+  font-size: 1.7vh;
+  text-align: center;
+  line-height: 2.3vh;
+}
+.hint .glyph { display: inline-flex; height: 2.6vh; align-items: center; }
 
 /* ── Faction banners (CoSyncBanners: SVG pennant, optional custom image) ── */
 .banner { position: relative; display: inline-block; vertical-align: middle; }
@@ -280,20 +397,19 @@ h1 {
   display: flex;
   align-items: center;
   gap: 1.8vh;
-  margin-bottom: 1.6vh;
+  margin-bottom: 1.4vh;
 }
-.banner-area .banner-lg { width: 8vh; height: 10vh; }
+.banner-area .banner-lg { width: 7.5vh; height: 9.4vh; }
 .banner-area .caption {
-  font-size: 2.6vh;
+  font-size: 2.5vh;
   letter-spacing: 0.05em;
   line-height: 1.2;
 }
 .banner-area .caption .sub {
   display: block;
-  font-size: 1.9vh;
+  font-size: 1.85vh;
   font-weight: 400;
   color: var(--hud-80);
   text-transform: none;
 }
 .item .meta .banner-sm { width: 2.2vh; height: 2.75vh; margin-left: 0.8vh; }
-.row .value.good { color: var(--hud); }

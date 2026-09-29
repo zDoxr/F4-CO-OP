@@ -66,12 +66,18 @@
 
   // Lobby: the live player list (from CoSync's roster, never UI-made).
   // Row = [label, value, valueCls, rowCls].
+  // 0.3.4: latency from GNS (host: each client's link; client: its link to
+  // the host). Coloured like the vanilla HUD's warning states.
+  const pingText = ms => (typeof ms === 'number' && ms >= 0) ? ms + ' ms' : '';
+  const pingCls = ms => (typeof ms !== 'number' || ms < 0) ? '' : (ms >= 250 ? 'bad' : (ms >= 120 ? 'warn' : ''));
   const rosterRows = () => {
     const rows = [['Players', state.net.players + ' / ' + state.maxPlayers, '', 'section']];
     state.roster.forEach(p => {
       const status = p.host ? 'Host' : (p.inGame ? 'In Game' : 'Loading');
       const mark = p.talking ? '▶  ' : '●  ';   // ▶ while talking on voice
-      rows.push([mark + p.name + (p.you ? '  (You)' : ''), status, p.inGame || p.host ? '' : 'dim', 'player']);
+      const ping = pingText(p.ping);
+      rows.push([mark + p.name + (p.you ? '  (You)' : ''), status + (ping ? '  ·  ' + ping : ''),
+                 pingCls(p.ping) || (p.inGame || p.host ? '' : 'dim'), 'player']);
     });
     if (state.joining > 0)
       rows.push(['○  Joining…', state.joining + (state.joining === 1 ? ' player' : ' players'), 'dim', 'player']);
@@ -923,17 +929,56 @@
   const current = () => screens[stack[stack.length - 1]];
   const currentItems = () => current().items();
 
+  // 0.3.4: screens without their own data (the root menu, settings lists)
+  // show the live session overview in the DATA pane instead of leaving it
+  // blank.
+  const overviewRows = () => {
+    const rows = [
+      ['Link', status(), statusCls(status())],
+      ['Role', role() === 'HOST' ? 'Host' : (role() === 'CLIENT' ? 'Client' : 'Not in a session'), role() === 'NONE' ? 'dim' : ''],
+      ['Network', steamSession() ? 'Steam (friends)' : networkLabel(), state.network.available || steamSession() ? '' : 'dim'],
+    ];
+    if (role() === 'CLIENT' && state.net.joinTarget) rows.push(['Host', state.net.joinTarget]);
+    if (role() === 'HOST' && !steamSession() && state.network.available && state.net.port)
+      rows.push(['Address', state.network.address + ' : ' + state.net.port]);
+    if (state.build) rows.push(['CoSync', String(Math.floor(state.build / 10000)) + '.' +
+                                String(Math.floor(state.build / 100) % 100) + '.' + String(state.build % 100), 'dim']);
+    return role() === 'NONE' ? rows : rows.concat(rosterRows());
+  };
+
+  // 0.3.4: header status strip -- the live link state at a glance.
+  const renderStatus = () => {
+    const st = status();
+    const led = FAILED.indexOf(st) >= 0 ? 'bad'
+      : (st === 'OFFLINE' ? 'off'
+      : (st === 'CONNECTED' || st === 'HOSTING' || st === 'WAITING FOR PLAYERS' ? 'on' : 'wait'));
+    const segs = ['<span class="seg state ' + statusCls(st) + '"><span class="led ' + led + '"></span>' + escapeHtml(st) + '</span>'];
+    if (role() !== 'NONE') {
+      segs.push('<span class="seg">' + (role() === 'HOST' ? 'HOST' : 'CLIENT') + '</span>');
+      segs.push('<span class="seg">' + state.net.players + ' / ' + state.maxPlayers + '</span>');
+      if (role() === 'CLIENT') {
+        const h = (state.roster || []).find(p => p.host);
+        const ping = h ? pingText(h.ping) : '';
+        if (ping) segs.push('<span class="seg">' + ping + '</span>');
+      }
+    }
+    $('status').innerHTML = segs.join('');
+  };
+
   const renderRows = () => {
     const scr = current();
-    const rows = scr.rows ? scr.rows() : [];
+    let rows = scr.rows ? scr.rows() : [];
+    const n = scr.notice ? scr.notice() : null;
+    const bn = scr.banner ? scr.banner() : null;
+    if (!rows.length && !n && !bn) rows = overviewRows();
     $('rows').innerHTML = rows.map(r =>
       '<div class="row' + (r[3] ? ' ' + r[3] : '') + '"><span class="label">' + escapeHtml(r[0]) + '</span>' +
+      '<span class="lead"></span>' +
       '<span class="value ' + (r[2] || '') + '">' + escapeHtml(r[1]) + '</span></div>').join('');
-    const n = scr.notice ? scr.notice() : null;
     $('notice').innerHTML = n ? '<span class="head">' + escapeHtml(n.head) + '</span>' + escapeHtml(n.text) : '';
     $('title').textContent = scr.title();
+    renderStatus();
     // Faction screens show their banner above the rows.
-    const bn = scr.banner ? scr.banner() : null;
     $('bannerArea').innerHTML = bn ? window.CoSyncBanners.html(bn.id, 'banner-lg') +
       '<span class="caption">' + escapeHtml(bn.title || '') + '<span class="sub">' + escapeHtml(bn.sub || '') + '</span></span>' : '';
   };
@@ -972,11 +1017,15 @@
     highlight();
   };
 
-  const render = keepKey => {
-    const scr = current();
+  const renderCrumb = () => {
     const crumbs = stack.slice(0, -1).map(id => screens[id].title());
     $('crumb').textContent = crumbs.length ? crumbs.join('  ›  ')
-      : (inGame() ? 'CoSync' : 'CoSync  ›  Main Menu');
+      : (inGame() ? 'CoSync  ›  In Game' : 'CoSync  ›  Main Menu');
+  };
+
+  const render = keepKey => {
+    const scr = current();
+    renderCrumb();
     renderRows();
     renderList(keepKey);
     renderHints();
@@ -1201,6 +1250,7 @@
     catch (e) { console.error('[CoSyncMP] bad state JSON'); return; }
     Object.assign(state, data);
     applyHud();
+    renderCrumb();
 
     // Screens that no longer apply to the current role go back to root.
     const top = stack[stack.length - 1];

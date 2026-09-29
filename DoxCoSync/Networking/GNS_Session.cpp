@@ -959,6 +959,21 @@ int GNS_Session::GetConnectedClientCount() const
     return static_cast<int>(m_clientConns.size());
 }
 
+int GNS_Session::GetPingMs(HSteamNetConnection conn) const
+{
+    auto* sock = gSockets();
+    if (!sock)
+        return -1;
+    if (conn == k_HSteamNetConnection_Invalid)
+        conn = m_serverConn;
+    if (conn == k_HSteamNetConnection_Invalid)
+        return -1;
+    SteamNetConnectionRealTimeStatus_t st{};
+    if (sock->GetConnectionRealTimeStatus(conn, &st, 0, nullptr) != k_EResultOK)
+        return -1;
+    return st.m_nPing >= 0 ? st.m_nPing : -1;
+}
+
 void GNS_Session::SendTextTo(HSteamNetConnection conn, const std::string& text, bool reliable)
 {
     auto* sock = gSockets();

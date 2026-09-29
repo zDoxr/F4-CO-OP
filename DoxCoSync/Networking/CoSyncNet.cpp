@@ -2573,6 +2573,22 @@ std::vector<CoSyncNet::RosterEntry> CoSyncNet::GetRoster()
         e.entityID = p->entityID;
         e.isHost   = !iAmHost && p->entityID == s_hostEntityID;
         e.inGame   = p->hasSpawned;
+        // Latency: the host measures each client's own connection; a client
+        // only has a connection to the host (other clients go through it).
+        if (iAmHost)
+        {
+            std::lock_guard<std::mutex> lk(s_peerMutex);
+            for (const auto& pk : s_peers)
+                if (pk.second.entityID == p->entityID)
+                {
+                    e.pingMs = GNS_Session::Get().GetPingMs(pk.second.conn);
+                    break;
+                }
+        }
+        else if (e.isHost)
+        {
+            e.pingMs = GNS_Session::Get().GetPingMs(k_HSteamNetConnection_Invalid);
+        }
         out.push_back(e);
     }
 

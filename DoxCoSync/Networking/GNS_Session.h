@@ -81,6 +81,11 @@ public:
     // FIRST HELLO (0 = no HELLO yet). Later HELLOs cannot change it.
     uint64_t GetPeerSteamID(HSteamNetConnection conn) const;
 
+    // 0.3.4: round-trip time in ms that GNS measures on a connection
+    // (SteamNetConnectionRealTimeStatus_t::m_nPing); -1 when unknown.
+    // Client: pass k_HSteamNetConnection_Invalid for the host connection.
+    int GetPingMs(HSteamNetConnection conn) const;
+
 
     std::string GetHostConnectString() const;
 

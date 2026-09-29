@@ -118,6 +118,7 @@ public:
         bool        isHost   = false;
         bool        isLocal  = false;
         bool        inGame   = false;   // spawned / world loaded
+        int         pingMs   = -1;      // 0.3.4: GNS round trip; -1 = not measured
     };
     static std::vector<RosterEntry> GetRoster();
 

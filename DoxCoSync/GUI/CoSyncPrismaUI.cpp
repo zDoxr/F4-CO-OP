@@ -456,6 +456,7 @@ namespace
             json += ",\"you\":";   json += e.isLocal ? "true" : "false";
             json += ",\"inGame\":"; json += e.inGame ? "true" : "false";
             json += ",\"talking\":"; json += CoSyncVoice::IsTalking(e.entityID) ? "true" : "false";
+            json += ",\"ping\":" + std::to_string(e.pingMs);
             json += "}";
         }
         json += "],\"joining\":" + std::to_string(joining);
