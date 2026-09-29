@@ -35,6 +35,8 @@ public:
 
 
     void TickAnimVars();
+    // AEV| replay (fire/reload/throw). Players via TickAnimVars; NPC puppets directly.
+    void ReplayDiscreteEvents();
 
     std::string GetAnimationState() const;
 

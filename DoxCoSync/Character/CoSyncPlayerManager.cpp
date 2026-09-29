@@ -934,6 +934,13 @@ void CoSyncPlayerManager::PumpDeferredSpawns()
     PumpDeferredSpawnsSafe(this, p);
 }
 
+static uint32_t GetEquippedWeaponFormID(Actor* actor);   // defined below
+
+uint32_t CoSyncPlayerManager::EquippedWeaponFormID(Actor* actor)
+{
+    return GetEquippedWeaponFormID(actor);
+}
+
 bool CoSyncPlayerManager::IsLocalLocation(uint32_t ws, uint32_t cell)
 {
     if (ws == 0xFFFFFFFFu)
@@ -1599,7 +1606,11 @@ void CoSyncPlayerManager::HostSendNpcUpdates_Impl(double now)
         // and anim vars for them only drags the remote corpse around.
         if (CoSyncNpcWorldSync::IsWorldActorEntityID(npc.entityID) &&
             CoSyncNpcWorldSync::IsEntityDead(npc.entityID))
+        {
+            // ...but the settled corpse position is reported once (K4).
+            CoSyncHealthSync::TickOwnedCorpse(npc.entityID, npc.actorRef, now);
             continue;
+        }
 
         NiPoint3 pos(0.f, 0.f, 0.f);
         NiPoint3 rot(0.f, 0.f, 0.f);
@@ -2231,6 +2242,13 @@ void CoSyncPlayerManager::Tick()
                 g_lastTickStep = "PlayerMgr:Tick:entity-loop:TickAnimVars";
                 ent.TickAnimVars();
             }
+            else
+            {
+                // Puppets still play the owner's shots, reloads and throws
+                // (AEV|); only the continuous graph-variable drive is skipped.
+                g_lastTickStep = "PlayerMgr:Tick:entity-loop:ReplayDiscreteEvents";
+                ent.ReplayDiscreteEvents();
+            }
         }
 
         g_lastTickStep = "PlayerMgr:Tick:entity-loop:WeaponChange";
@@ -2481,7 +2499,28 @@ void CoSyncPlayerManager::Tick()
         const bool combatStateEdge = (ent.m_pendingCombatActive != ent.m_lastCombatActive);
         const bool targetSwitched  = (ent.m_pendingCombatActive
                                       && ent.m_pendingCombatTarget != ent.m_lastCombatTarget);
-        if ((combatStateEdge || targetSwitched) && ent.actorRef
+
+        // K3 (0.3.1): an NPC puppet never runs its own combat AI. Its owner's
+        // real NPC is the only one that fights (its hits on player proxies are
+        // relayed as DMG), so a puppet in local combat would double every hit
+        // -- and CoSyncPlayer::ApplyProxyTransform stops puppet combat on every
+        // update anyway, so the StartCombat below only made the two fight.
+        // The puppet shows the fight instead: weapon drawn while its owner's
+        // NPC is in combat, facing from the owner's rotation, and the owner's
+        // attack/reload/hit/stagger events replayed (AEV| and AE|).
+        if (CoSyncGameAPI::PuppetModeEnabled() && ent.createType == CoSyncEntityType::NPC)
+        {
+            if (combatStateEdge && ent.actorRef)
+            {
+                CoSyncEquipHook::DrawWeaponEngine(ent.actorRef, ent.m_pendingCombatActive);
+                LOG_UPDATED("[PlayerMgr] puppet entity=%u %s weapon (owner combat %s, target=%u)",
+                    ent.entityID, ent.m_pendingCombatActive ? "draws" : "holsters",
+                    ent.m_pendingCombatActive ? "start" : "end", ent.m_pendingCombatTarget);
+            }
+            ent.m_lastCombatActive = ent.m_pendingCombatActive;
+            ent.m_lastCombatTarget = ent.m_pendingCombatTarget;
+        }
+        else if ((combatStateEdge || targetSwitched) && ent.actorRef
             && !s_badCombatActors.count(ent.actorRef))
         {
             ent.m_lastCombatActive = ent.m_pendingCombatActive;

@@ -685,6 +685,8 @@ void CoSyncHealthSync::TickDamageDetection(double now)
     }
 }
 
+static void ResetCorpses();   // corpse section below
+
 void CoSyncHealthSync::Reset()
 {
     LOG_REQUIREMENT("CoSyncHealthSync::Reset", "Just clears some internal lists. Doesn't touch the game at all.");
@@ -693,5 +695,93 @@ void CoSyncHealthSync::Reset()
         s_pendingOps.clear();
     }
     s_lastSeenHP.clear();
+    ResetCorpses();
     LOG_INFO("[HealthSync] Reset — baselines cleared for new session");
+}
+
+
+// ── Authoritative corpse (0.3.1, K4) ───────────────────────────────────────
+namespace
+{
+    struct CorpseTx { double deadSince = 0.0; bool sent = false; };
+    std::unordered_map<uint32_t, CorpseTx> s_corpseTx;          // owner side
+
+    struct CorpseRx { uint32_t entityID; NiPoint3 pos; NiPoint3 rot; };
+    std::mutex            s_corpseMx;
+    std::vector<CorpseRx> s_corpseRx;                            // receiver side
+
+    // How long the owner lets its ragdoll settle before reporting it.
+    // UNVERIFIED as "at rest": the engine's ragdoll-at-rest state has not been
+    // reverse-engineered, so this is a fixed delay (documented, not a guess
+    // dressed up as a signal).
+    constexpr double kCorpseSettleSeconds = 4.0;
+}
+
+bool CoSyncHealthSync::IsCorpse(const std::string& msg)
+{
+    return msg.rfind("CORPSE|", 0) == 0;
+}
+
+void CoSyncHealthSync::TickOwnedCorpse(uint32_t entityID, Actor* actor, double now)
+{
+    if (!actor || entityID == 0)
+        return;
+    CorpseTx& t = s_corpseTx[entityID];
+    if (t.sent)
+        return;
+    if (t.deadSince <= 0.0)
+    {
+        t.deadSince = now;
+        return;
+    }
+    if (now - t.deadSince < kCorpseSettleSeconds)
+        return;
+    NiPoint3 pos, rot;
+    if (!CoSyncGameAPI::GetActorWorldTransform(actor, pos, rot))
+        return;
+    t.sent = true;
+    char buf[160];
+    std::snprintf(buf, sizeof(buf), "CORPSE|%u|%.2f|%.2f|%.2f|%.4f|%.4f|%.4f",
+        entityID, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z);
+    CoSyncTransport::Send(std::string(buf));
+    LOG_UPDATED("[HealthSync] TX corpse entity=%u at (%.0f,%.0f,%.0f)", entityID, pos.x, pos.y, pos.z);
+}
+
+void CoSyncHealthSync::OnReceiveCorpse(const std::string& msg)
+{
+    CorpseRx r{};
+    if (std::sscanf(msg.c_str() + 7, "%u|%f|%f|%f|%f|%f|%f", &r.entityID,
+            &r.pos.x, &r.pos.y, &r.pos.z, &r.rot.x, &r.rot.y, &r.rot.z) != 7 || r.entityID == 0)
+        return;
+    if (!std::isfinite(r.pos.x) || !std::isfinite(r.pos.y) || !std::isfinite(r.pos.z))
+        return;
+    std::lock_guard<std::mutex> lk(s_corpseMx);
+    if (s_corpseRx.size() < 256)
+        s_corpseRx.push_back(r);
+}
+
+void CoSyncHealthSync::FlushPendingCorpses()
+{
+    std::vector<CorpseRx> todo;
+    {
+        std::lock_guard<std::mutex> lk(s_corpseMx);
+        todo.swap(s_corpseRx);
+    }
+    for (const CorpseRx& r : todo)
+    {
+        CoSyncPlayer* p = g_CoSyncPlayerManager.GetPlayerByEntityID(r.entityID);
+        if (!p || !p->actorRef || !p->hasSpawned)
+            continue;
+        // SnapActor honours location (never moves it into a world it is not in).
+        CoSyncGameAPI::SnapActor(p->actorRef, r.pos, r.rot);
+        LOG_UPDATED("[HealthSync] corpse entity=%u moved to its owner's corpse (%.0f,%.0f,%.0f)",
+            r.entityID, r.pos.x, r.pos.y, r.pos.z);
+    }
+}
+
+static void ResetCorpses()
+{
+    s_corpseTx.clear();
+    std::lock_guard<std::mutex> lk(s_corpseMx);
+    s_corpseRx.clear();
 }

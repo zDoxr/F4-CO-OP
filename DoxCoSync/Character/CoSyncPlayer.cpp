@@ -760,6 +760,69 @@ void CoSyncPlayer::TickSmoothing(double now)
     ApplyProxyTransform(pos, rot);
 }
 
+// Replays the owner's discrete animation events (AEV|: fire, reload, throw),
+// one per queued event. Players call it from TickAnimVars; NPC puppets (which
+// skip TickAnimVars so the engine animates their locomotion) call it directly
+// from PlayerManager -- before 0.3.1 puppets never played these at all, so an
+// NPC fighting on its owner's machine stood still everywhere else (K3).
+void CoSyncPlayer::ReplayDiscreteEvents()
+{
+    if (!actorRef)
+        return;
+
+    // Discrete anim events, one replay per queued event. Sender-side
+    // edge detection at frame rate (CoSyncNet::SendAnimEdges) is what
+    // makes rapid fire work: N shots on the shooter become N counts
+    // here. Draining with exchange(0) keeps a burst that arrived
+    // between ticks intact instead of collapsing it to one.
+    //
+    // Capped per tick so a flood (or a stuck sender) cannot spend the
+    // whole frame dispatching anim events.
+    constexpr int kMaxEventsPerTick = 8;
+
+    int fires = m_evFire.exchange(0);
+    if (fires > kMaxEventsPerTick) fires = kMaxEventsPerTick;
+    for (int i = 0; i < fires; ++i)
+    {
+        // Vanilla ordering: enter the attack state, then the shot,
+        // then the muzzle effect. attackStart on its own never plays
+        // a shot -- that was the "melee animates, shooting doesn't"
+        // bug.
+        PSC_SendAnimEvent(actorRef, CoSyncAnimUtils::Events::AttackStart);
+        PSC_SendAnimEvent(actorRef, CoSyncAnimUtils::Events::WeaponFire);
+        PSC_SendAnimEvent(actorRef, CoSyncAnimUtils::Events::WeaponFireEffect);
+    }
+    if (fires > 0)
+        LOG_UPDATED("[TickAnimVars] entity=%u weaponFire x%d", entityID, fires);
+
+    if (m_evReloadStart.exchange(0) > 0)
+    {
+        PSC_SendAnimEvent(actorRef, CoSyncAnimUtils::Events::ReloadStart);
+        LOG_UPDATED("[TickAnimVars] entity=%u reloadStart", entityID);
+    }
+    if (m_evReloadEnd.exchange(0) > 0)
+    {
+        PSC_SendAnimEvent(actorRef, CoSyncAnimUtils::Events::ReloadEnd);
+        LOG_UPDATED("[TickAnimVars] entity=%u reloadEnd", entityID);
+    }
+
+    if (m_evThrowGrenade.exchange(0) > 0)
+    {
+        PSC_SendAnimEvent(actorRef, CoSyncAnimUtils::Events::GrenadeThrowStart);
+        LOG_UPDATED("[TickAnimVars] entity=%u grenadeThrowStart", entityID);
+    }
+    if (m_evThrowMine.exchange(0) > 0)
+    {
+        PSC_SendAnimEvent(actorRef, CoSyncAnimUtils::Events::MineThrowStart);
+        LOG_UPDATED("[TickAnimVars] entity=%u mineThrowStart", entityID);
+    }
+    if (m_evThrowEnd.exchange(0) > 0)
+    {
+        PSC_SendAnimEvent(actorRef, CoSyncAnimUtils::Events::ThrowEnd);
+        LOG_UPDATED("[TickAnimVars] entity=%u throwEnd", entityID);
+    }
+}
+
 void CoSyncPlayer::TickAnimVars()
 {
     LOG_REQUIREMENT("CoSyncPlayer::TickAnimVars", "Needs the proxy spawned, its short settle delay after spawning to have passed, and its animation graph to report ready before writing any animation variables. Touching the graph too early has caused crashes in the past, so all of this is checked first.");
@@ -1663,59 +1726,7 @@ void CoSyncPlayer::TickAnimVars()
             // is equipped.
         }
 
-        {
-            // Discrete anim events, one replay per queued event. Sender-side
-            // edge detection at frame rate (CoSyncNet::SendAnimEdges) is what
-            // makes rapid fire work: N shots on the shooter become N counts
-            // here. Draining with exchange(0) keeps a burst that arrived
-            // between ticks intact instead of collapsing it to one.
-            //
-            // Capped per tick so a flood (or a stuck sender) cannot spend the
-            // whole frame dispatching anim events.
-            constexpr int kMaxEventsPerTick = 8;
-
-            int fires = m_evFire.exchange(0);
-            if (fires > kMaxEventsPerTick) fires = kMaxEventsPerTick;
-            for (int i = 0; i < fires; ++i)
-            {
-                // Vanilla ordering: enter the attack state, then the shot,
-                // then the muzzle effect. attackStart on its own never plays
-                // a shot -- that was the "melee animates, shooting doesn't"
-                // bug.
-                PSC_SendAnimEvent(actorRef, CoSyncAnimUtils::Events::AttackStart);
-                PSC_SendAnimEvent(actorRef, CoSyncAnimUtils::Events::WeaponFire);
-                PSC_SendAnimEvent(actorRef, CoSyncAnimUtils::Events::WeaponFireEffect);
-            }
-            if (fires > 0)
-                LOG_UPDATED("[TickAnimVars] entity=%u weaponFire x%d", entityID, fires);
-
-            if (m_evReloadStart.exchange(0) > 0)
-            {
-                PSC_SendAnimEvent(actorRef, CoSyncAnimUtils::Events::ReloadStart);
-                LOG_UPDATED("[TickAnimVars] entity=%u reloadStart", entityID);
-            }
-            if (m_evReloadEnd.exchange(0) > 0)
-            {
-                PSC_SendAnimEvent(actorRef, CoSyncAnimUtils::Events::ReloadEnd);
-                LOG_UPDATED("[TickAnimVars] entity=%u reloadEnd", entityID);
-            }
-
-            if (m_evThrowGrenade.exchange(0) > 0)
-            {
-                PSC_SendAnimEvent(actorRef, CoSyncAnimUtils::Events::GrenadeThrowStart);
-                LOG_UPDATED("[TickAnimVars] entity=%u grenadeThrowStart", entityID);
-            }
-            if (m_evThrowMine.exchange(0) > 0)
-            {
-                PSC_SendAnimEvent(actorRef, CoSyncAnimUtils::Events::MineThrowStart);
-                LOG_UPDATED("[TickAnimVars] entity=%u mineThrowStart", entityID);
-            }
-            if (m_evThrowEnd.exchange(0) > 0)
-            {
-                PSC_SendAnimEvent(actorRef, CoSyncAnimUtils::Events::ThrowEnd);
-                LOG_UPDATED("[TickAnimVars] entity=%u throwEnd", entityID);
-            }
-        }
+        ReplayDiscreteEvents();
 
         {
             // Round 138 (IDA-verified, GetAttackState fallback in

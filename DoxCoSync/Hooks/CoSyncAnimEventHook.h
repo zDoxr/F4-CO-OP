@@ -12,6 +12,13 @@ void UninstallAnimEventHook();
 // ReceiveEvent hook only enqueues (its thread is unverified), this does the Send.
 void DrainLocalPlayerAnimEvents();
 
+// GAME THREAD ONLY. Forwards the combat/animation graph events of the world
+// NPCs THIS machine simulates (AE|), so their puppets on every other machine
+// play the same hit reactions, staggers, melee attacks, sighted/ready states,
+// blocks and sneaks. The hook only enqueues (formID, tag); ownership is
+// checked here.
+void DrainNpcAnimEvents();
+
 
 namespace CoSyncAnimEventHook
 {

@@ -4,6 +4,7 @@
 #include "CoSyncTransport.h"
 #include "ConsoleLogger.h"
 #include "GameReferences.h"
+#include "GameObjects.h"
 #include "GameTypes.h"
 #include "CoSyncRequirementsLog.h"
 #include "CoSyncNpcWorldSync.h"
@@ -181,6 +182,35 @@ static const std::unordered_set<std::string> s_playerForwardEvents =
     "idleLoopingStart", "panicStart", "cowerStart", "cowerStop",
 };
 
+// NPC event forwarding set (0.3.1, K3): the owner's NPC graph events that make
+// its puppets elsewhere look like they are fighting. Disjoint from what AEV|
+// already replays for NPCs (attackStart for guns, weaponFire, reloadStart/End,
+// throws) and from KILL (death), so nothing double-fires. Names come from the
+// same verified human-graph event tables as s_playerForwardEvents; a creature
+// graph without an event simply ignores it (SendEvent returns false).
+// "attackStart" is forwarded only for MELEE weapons (see DrainNpcAnimEvents):
+// for guns AEV| fire already sends it.
+static const std::unordered_set<std::string> s_npcForwardEvents =
+{
+    "sneakStart", "sneakStop",
+    "sightedStateEnter", "sightedStateExit",
+    "readyStateEnter",   "readyStateExit",
+    "gunDownStateEnter", "gunDownStateExit",
+    "combatStateStart",  "combatStateStop",
+    "hitReactionStart",  "hitReactionStop",
+    "hitFlinchStart",    "hitFlinchStop",
+    "attackStateEnter",  "attackStateExit",
+    "attackRelease",     "chargeRelease",
+    "attackStart",
+    "meleeattackStart",  "meleeattackPowerStart", "meleeattackSneakStart",
+    "blockStart",        "blockStop",
+    "staggerStart",      "staggerStop", "staggerExit",
+    "stumbleStart",      "stumbleStop",
+    "recoilStop",        "recoilExit",
+    "jumpStart",         "jumpLand",
+    "idleLoopingStart",  "panicStart", "cowerStart", "cowerStop",
+};
+
 using ReceiveEventFn = int(__fastcall*)(void* thisPtr,
                                         BSAnimationGraphEvent* evnt,
                                         void*                  dispatcher);
@@ -272,6 +302,20 @@ static void TryForwardEvent(Actor* actor, const char* tag)
 static std::mutex               s_playerTagMutex;
 static std::vector<std::string> s_pendingPlayerTags;
 
+struct NpcTag
+{
+    uint32_t formID;
+    char     tag[40];
+};
+static std::mutex          s_npcTagMutex;
+static std::vector<NpcTag> s_pendingNpcTags;
+
+__declspec(noinline) static uint32_t SafeActorFormID(Actor* actor)
+{
+    __try { return actor ? actor->formID : 0u; }
+    __except (EXCEPTION_EXECUTE_HANDLER) { return 0u; }
+}
+
 static void EnqueuePlayerTag(const char* tag)
 {
     std::lock_guard<std::mutex> lk(s_playerTagMutex);
@@ -312,6 +356,56 @@ void DrainLocalPlayerAnimEvents()
     }
 }
 
+void DrainNpcAnimEvents()
+{
+    std::vector<NpcTag> tags;
+    {
+        std::lock_guard<std::mutex> lk(s_npcTagMutex);
+        if (s_pendingNpcTags.empty())
+            return;
+        tags.swap(s_pendingNpcTags);
+    }
+    if (!CoSyncNet::IsConnected())
+        return;
+
+    // Per-entity budget: 20 events per second at most.
+    static std::unordered_map<uint32_t, std::pair<double, int>> s_budget;
+    const double now = static_cast<double>(GetTickCount64()) / 1000.0;
+
+    for (const NpcTag& t : tags)
+    {
+        TESForm* f = LookupFormByID(t.formID);
+        if (!f || f->formType != kFormType_ACHR)
+            continue;
+        Actor* actor = static_cast<Actor*>(f);
+        const uint32_t eid = CoSyncNpcWorldSync::GetEntityIDForActor(actor);
+        if (eid == 0 || !LocallyDrivesEntity(eid))
+            continue;
+
+        if (std::strcmp(t.tag, "attackStart") == 0)
+        {
+            // Guns: AEV| fire already replays attackStart. Only melee here.
+            TESForm* w = LookupFormByID(CoSyncPlayerManager::EquippedWeaponFormID(actor));
+            const bool melee = !w || w->formType != kFormType_WEAP ||
+                               static_cast<TESObjectWEAP*>(w)->weapData.ammo == nullptr;
+            if (!melee)
+                continue;
+        }
+
+        auto& b = s_budget[eid];
+        if (now - b.first >= 1.0) { b.first = now; b.second = 0; }
+        if (++b.second > 20)
+            continue;
+
+        char buf[96];
+        std::snprintf(buf, sizeof(buf), "AE|%u|%s", eid, t.tag);
+        CoSyncTransport::Send(std::string(buf));
+        const uint32_t n = ++s_fwdCount;
+        if (n <= 30 || n % 300 == 0)
+            LOG_UPDATED("[AnimEventHook] NPC TX '%s' entity=%u fwd#%u", t.tag, eid, n);
+    }
+}
+
 static int __fastcall HookedReceiveEvent(
     void*                  thisPtr,
     BSAnimationGraphEvent* evnt,
@@ -345,6 +439,27 @@ static int __fastcall HookedReceiveEvent(
             {
                 // Enqueue only -- the Send happens on the game thread.
                 EnqueuePlayerTag(tag);
+            }
+        }
+        else
+        {
+            // World NPCs: enqueue (formID, tag) for allowlisted tags only;
+            // ownership is decided on the game thread (DrainNpcAnimEvents).
+            char tag[64];
+            if (SafeCopyTag(evnt, tag, sizeof(tag)) && s_npcForwardEvents.count(tag) != 0)
+            {
+                const uint32_t fid = SafeActorFormID(actor);
+                if (fid != 0)
+                {
+                    std::lock_guard<std::mutex> lk(s_npcTagMutex);
+                    if (s_pendingNpcTags.size() < 256)
+                    {
+                        NpcTag t{};
+                        t.formID = fid;
+                        strncpy_s(t.tag, sizeof(t.tag), tag, _TRUNCATE);
+                        s_pendingNpcTags.push_back(t);
+                    }
+                }
             }
         }
     }

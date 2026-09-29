@@ -4,6 +4,7 @@
 #include <cstdint>
 
 class ActorValueInfo;
+class Actor;
 
 namespace CoSyncHealthSync
 {
@@ -40,6 +41,19 @@ namespace CoSyncHealthSync
     // owner of that entity takes the damage for real. This is what makes
     // "host shoots P2's proxy -> P2 loses health" (and vice versa) work.
     void TickDamageDetection(double now);
+
+    // ── Authoritative corpse (0.3.1, K4) ──────────────────────────────────
+    // After an NPC dies every machine ragdolls its own copy, so corpses ended
+    // up in different places. The NPC's owner (the only simulation that
+    // counts) sends its corpse's settled transform once:
+    //   CORPSE|entityID|x|y|z|rx|ry|rz
+    // and every other machine moves its dead puppet there.
+    bool IsCorpse(const std::string& msg);
+    void OnReceiveCorpse(const std::string& msg);
+    // Owner: called for every dead NPC this machine owns (HostSendNpcUpdates).
+    void TickOwnedCorpse(uint32_t entityID, Actor* actor, double now);
+    // Game thread: applies received corpse transforms.
+    void FlushPendingCorpses();
 
     // Session teardown — clears baselines so a reconnect starts fresh.
     void Reset();

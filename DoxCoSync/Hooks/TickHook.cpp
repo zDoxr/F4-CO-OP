@@ -713,6 +713,7 @@ void TickHook_CaptureLocalAnimVars()
     // Game thread: flush any local-player anim events the ReceiveEvent hook
     // enqueued off-thread since last frame (see CoSyncAnimEventHook).
     DrainLocalPlayerAnimEvents();
+    DrainNpcAnimEvents();
 
     PlayerCharacter* pc = CoSyncGetPlayer();
     if (!pc)

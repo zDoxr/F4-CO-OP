@@ -244,7 +244,7 @@ static const char* SelfStateType(const std::string& msg)
     static const char* const kTypes[] = {
         "HP", "INV", "OUTFIT", "EQUIP", "IMODS", "LOOKS", "DOWN",
         "PA", "PAI", "PAMODS", "SPEC", "AE", "AEV", "SW", "PB",
-        "CONS", "SPELL", "THRP", "THRM", "THRX", "VATS_ENTER", "VATS_EXIT", "VER", "WS",
+        "CONS", "SPELL", "THRP", "THRM", "THRX", "VATS_ENTER", "VATS_EXIT", "VER", "WS", "CORPSE",
     };
     const size_t bar = msg.find('|');
     if (bar == std::string::npos)
@@ -1114,6 +1114,7 @@ void CoSyncNet::Tick(double now)
     g_lastTickStep = "FlushPendingSceneOps";         CoSyncSceneSync::FlushPendingSceneOps();
 
     g_lastTickStep = "FlushPendingHealthOps";        CoSyncHealthSync::FlushPendingHealthOps();
+    g_lastTickStep = "FlushPendingCorpses";          CoSyncHealthSync::FlushPendingCorpses();
     g_lastTickStep = "TickDamageDetection";          CoSyncHealthSync::TickDamageDetection(now);
     g_lastTickStep = "FlushPendingReviveOps";        CoSyncReviveSync::FlushPendingReviveOps();
     g_lastTickStep = "TickReviveChannel";            CoSyncReviveSync::TickReviveChannel(now);
@@ -1706,6 +1707,16 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
         if (isHostRole)
             CoSyncTransport::Send(msg);
         CoSyncHealthSync::OnReceiveKill(msg);
+        return;
+    }
+
+    // Authoritative corpse transform from the NPC's owner (sender-checked as
+    // self-state: only the owner may speak for it).
+    if (CoSyncHealthSync::IsCorpse(msg))
+    {
+        if (isHostRole)
+            CoSyncTransport::SendExcept(msg, conn);
+        CoSyncHealthSync::OnReceiveCorpse(msg);
         return;
     }
 

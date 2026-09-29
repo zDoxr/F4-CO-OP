@@ -65,6 +65,9 @@ public:
     // (callers keep their old behaviour until a location is known).
     static bool IsLocalLocation(uint32_t ws, uint32_t cell);
 
+    // Form ID of the weapon an actor has equipped (0 = none). SEH-guarded.
+    static uint32_t EquippedWeaponFormID(Actor* actor);
+
     // Reverse lookup for the revive-activate hook (CoSyncDoorHook), which only
     // has the activated ref's formID off the engine's Activate worker. Linear
     // scan -- no reverse actor->entityID index exists, but session player
