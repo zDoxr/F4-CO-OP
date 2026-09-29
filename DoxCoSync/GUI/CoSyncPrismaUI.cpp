@@ -31,6 +31,7 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <unordered_map>
 
 namespace
 {
@@ -174,49 +175,156 @@ namespace
 
     // Custom faction banner images the player dropped into
     // Data\PrismaUI_F4\views\DoxCoSync\banners\custom (file names only;
-    // the page loads them by relative path). Re-scanned every 5 s.
-    const std::vector<std::string>& CustomBanners()
+    // the page loads them by relative path). Re-scanned every 5 s. Files that
+    // cannot be used are listed with the reason, so the Banner screen can say
+    // why an image is missing instead of silently skipping it.
+    struct BannerReject { std::string file; std::string why; };
+    std::vector<std::string>  s_bannerList;
+    std::vector<BannerReject> s_bannerRejects;
+
+    // What the first bytes say the file is: "png", "jpg", "webp", "svg", ""
+    // (none of them) or "?" (could not open).
+    std::string SniffImage(const std::string& path)
     {
-        static std::vector<std::string> s_list;
+        HANDLE f = CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                               OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (f == INVALID_HANDLE_VALUE)
+            return "?";
+        unsigned char b[4096] = {};
+        DWORD got = 0;
+        ReadFile(f, b, sizeof(b), &got, nullptr);
+        CloseHandle(f);
+        static const unsigned char kPng[8] = { 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A };
+        if (got >= 8 && std::memcmp(b, kPng, 8) == 0) return "png";
+        if (got >= 3 && b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF) return "jpg";
+        if (got >= 12 && std::memcmp(b, "RIFF", 4) == 0 && std::memcmp(b + 8, "WEBP", 4) == 0) return "webp";
+        std::string head(reinterpret_cast<const char*>(b), got);
+        for (char& c : head) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+        if (head.find("<svg") != std::string::npos) return "svg";
+        return "";
+    }
+
+    // FNV-1a of the whole file, cached by name + size + write time.
+    uint64_t HashFile(const std::string& path, const std::string& cacheKey)
+    {
+        static std::unordered_map<std::string, uint64_t> s_cache;
+        auto it = s_cache.find(cacheKey);
+        if (it != s_cache.end())
+            return it->second;
+        uint64_t h = 1469598103934665603ull;
+        HANDLE f = CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                               OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (f != INVALID_HANDLE_VALUE)
+        {
+            static unsigned char buf[65536];
+            DWORD got = 0;
+            while (ReadFile(f, buf, sizeof(buf), &got, nullptr) && got > 0)
+                for (DWORD i = 0; i < got; ++i) { h ^= buf[i]; h *= 1099511628211ull; }
+            CloseHandle(f);
+        }
+        if (s_cache.size() > 512) s_cache.clear();
+        s_cache[cacheKey] = h;
+        return h;
+    }
+
+    void ScanCustomBanners()
+    {
         static uint64_t s_nextScan = 0;
         const uint64_t now = GetTickCount64();
         if (now < s_nextScan)
-            return s_list;
+            return;
         s_nextScan = now + 5000;
-        s_list.clear();
+        s_bannerList.clear();
+        s_bannerRejects.clear();
 
         char exe[MAX_PATH] = {};
         if (!GetModuleFileNameA(nullptr, exe, MAX_PATH))
-            return s_list;
+            return;
         std::string dir(exe);
         dir = dir.substr(0, dir.find_last_of("\\/") + 1) + "Data\\PrismaUI_F4\\views\\DoxCoSync\\banners\\custom\\";
+
+        struct Found { std::string name; uint64_t size; FILETIME mtime; };
+        std::vector<Found> files;
         WIN32_FIND_DATAA fd{};
         HANDLE h = FindFirstFileA((dir + "*").c_str(), &fd);
         if (h == INVALID_HANDLE_VALUE)
-            return s_list;
+            return;
         do
         {
-            if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-                continue;
-            const std::string name = fd.cFileName;
-            // Same rule as banners.js isFile: safe characters, image types.
-            bool ok = !name.empty() && name.size() <= 48;
-            for (char c : name)
-                if (!(isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '.' || c == '-'))
-                    ok = false;
+            if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+                files.push_back({ fd.cFileName, (static_cast<uint64_t>(fd.nFileSizeHigh) << 32) | fd.nFileSizeLow, fd.ftLastWriteTime });
+        } while (FindNextFileA(h, &fd) && files.size() < 256);
+        FindClose(h);
+        std::sort(files.begin(), files.end(), [](const Found& a, const Found& b) { return a.name < b.name; });
+
+        std::unordered_map<uint64_t, std::string> seen;   // content hash -> first file with it
+        for (const Found& f : files)
+        {
+            const std::string& name = f.name;
             std::string lower = name;
             for (char& c : lower) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
-            const auto ends = [&](const char* e) {
-                const size_t n = std::strlen(e);
-                return lower.size() > n && lower.compare(lower.size() - n, n, e) == 0;
-            };
-            ok = ok && (ends(".png") || ends(".jpg") || ends(".jpeg") || ends(".webp") || ends(".svg"));
-            if (ok && s_list.size() < 64)
-                s_list.push_back(name);
-        } while (FindNextFileA(h, &fd));
-        FindClose(h);
-        std::sort(s_list.begin(), s_list.end());
-        return s_list;
+            const size_t dot = lower.find_last_of('.');
+            const std::string ext = dot == std::string::npos ? "" : lower.substr(dot + 1);
+            const bool supported = ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "webp" || ext == "svg";
+            if (!supported)
+            {
+                static const char* const kOtherImages[] = { "gif", "bmp", "tga", "dds", "tif", "tiff", "avif", "heic", "ico", "jfif" };
+                for (const char* e : kOtherImages)
+                    if (ext == e)
+                        s_bannerRejects.push_back({ name, "." + ext + " is not supported. Save it as PNG, JPG, WEBP or SVG." });
+                continue;   // README.txt and other non-images: not banners, not errors
+            }
+            auto reject = [&](const std::string& why) { s_bannerRejects.push_back({ name, why }); };
+
+            bool badChar = false, space = false;
+            std::string suggest;
+            for (char c : name)
+            {
+                const bool ok = isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '.' || c == '-';
+                if (c == ' ') space = true;
+                else if (!ok) badChar = true;
+                suggest += ok ? c : '_';
+            }
+            if (space || badChar)
+            {
+                reject(std::string(space ? "Spaces are" : "Some characters are") + " not allowed in the name. Rename it to " +
+                       (suggest.size() <= 48 ? suggest : std::string("a shorter name")) + ".");
+                continue;
+            }
+            if (name.size() > 48)            { reject("The name is longer than 48 characters."); continue; }
+            if (f.size == 0)                 { reject("The file is empty."); continue; }
+            if (f.size > 8ull * 1024 * 1024) { reject("The file is larger than 8 MB."); continue; }
+
+            const std::string want = ext == "jpeg" ? "jpg" : ext;
+            const std::string real = SniffImage(dir + name);
+            if (real == "?") { reject("The file could not be opened."); continue; }
+            if (real != want)
+            {
+                if (!real.empty())
+                    reject("This is really a " + real + " image. Rename it to end in ." + real + ".");
+                else
+                    reject("Not a valid " + want + " image (damaged, or the wrong extension).");
+                continue;
+            }
+
+            const std::string key = name + "|" + std::to_string(f.size) + "|" +
+                std::to_string((static_cast<uint64_t>(f.mtime.dwHighDateTime) << 32) | f.mtime.dwLowDateTime);
+            const uint64_t hash = HashFile(dir + name, key);
+            auto dup = seen.find(hash);
+            if (dup != seen.end()) { reject("The same image as " + dup->second + "."); continue; }
+            seen.emplace(hash, name);
+
+            if (s_bannerList.size() < 64)
+                s_bannerList.push_back(name);
+            else
+                reject("Too many custom images (64 at most).");
+        }
+    }
+
+    const std::vector<std::string>& CustomBanners()
+    {
+        ScanCustomBanners();
+        return s_bannerList;
     }
 
     bool ViewIsLive()
@@ -383,6 +491,13 @@ namespace
                 firstBanner = false;
                 json += "\"" + JsonEscape(b.c_str()) + "\"";
             }
+        }
+        json += "],\"bannerRejects\":[";
+        for (size_t i = 0; i < s_bannerRejects.size(); ++i)
+        {
+            if (i) json += ",";
+            json += "{\"file\":\"" + JsonEscape(s_bannerRejects[i].file.c_str()) + "\",\"why\":\"" +
+                    JsonEscape(s_bannerRejects[i].why.c_str()) + "\"}";
         }
         json += "]";
 

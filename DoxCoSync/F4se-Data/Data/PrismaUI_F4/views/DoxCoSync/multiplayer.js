@@ -174,7 +174,7 @@
     const B = window.CoSyncBanners, list = state.customBanners || [];
     const col = B.COLORS[bannerDraft.color];
     return [
-      { key: 'bn_emblem', label: 'Emblem', option: B.EMBLEM_NAMES[bannerDraft.emblem],
+      { key: 'bn_emblem', label: 'Emblem', option: B.emblemLabel(B.EMBLEM_NAMES[bannerDraft.emblem]),
         cycle: d => { bannerDraft.emblem = wrap(bannerDraft.emblem + d, B.EMBLEM_NAMES.length); },
         desc: 'The symbol on the banner. Press ← / → to change.' },
       { key: 'bn_color', label: 'Colour', option: B.COLOR_NAMES[col] || col,
@@ -183,10 +183,23 @@
       { key: 'bn_custom', label: 'Custom Image',
         option: bannerDraft.custom >= 0 && bannerDraft.custom < list.length ? list[bannerDraft.custom] : 'None',
         cycle: d => { bannerDraft.custom = list.length ? wrap(bannerDraft.custom + 1 + d, list.length + 1) - 1 : -1; },
-        desc: list.length
-          ? 'An image from Data\\PrismaUI_F4\\views\\DoxCoSync\\banners\\custom. Other players see it if they have the same file; otherwise they see the emblem.'
-          : 'Put PNG/JPG/WEBP/SVG files in Data\\PrismaUI_F4\\views\\DoxCoSync\\banners\\custom to use your own banner art.' },
+        desc: (() => {
+          const f = bannerDraft.custom >= 0 && bannerDraft.custom < list.length ? list[bannerDraft.custom] : '';
+          if (f && B.isBroken(f)) return f + ' could not be displayed (the image data is damaged). Pick another or re-save it.';
+          const bad = (state.bannerRejects || []).length;
+          const note = bad ? '  ' + bad + (bad === 1 ? ' file' : ' files') + ' in the folder cannot be used; see the list above.' : '';
+          return (list.length
+            ? 'An image from Data\\PrismaUI_F4\\views\\DoxCoSync\\banners\\custom. Other players see it if they have the same file; otherwise they see the emblem.'
+            : 'Put PNG/JPG/WEBP/SVG files in Data\\PrismaUI_F4\\views\\DoxCoSync\\banners\\custom to use your own banner art.') + note;
+        })() },
     ];
+  };
+  // Custom images the plugin could not use, with the reason (rows).
+  const bannerRejectRows = () => {
+    const bad = state.bannerRejects || [];
+    if (!bad.length) return [];
+    return [['Unusable Images', String(bad.length), 'bad', 'section']].concat(
+      bad.slice(0, 8).map(r => [r.file, r.why, 'bad', 'player']));
   };
 
   // Selections carried between faction screens.
@@ -529,6 +542,7 @@
       title: () => 'Create Faction',
       live: true,
       banner: () => ({ id: draftBannerId(), title: clean(form.facName) || 'New Faction', sub: 'Banner preview' }),
+      rows: () => bannerRejectRows(),
       notice: () => resultNotice(),
       items: () => [
         { key: 'name', label: 'Name', field: 'facName', maxlen: 24, placeholder: 'Minutemen Reborn',
@@ -768,6 +782,7 @@
       title: () => 'Banner',
       live: true,
       banner: () => { const f = myFaction(); return { id: draftBannerId(), title: f ? f.name : '', sub: 'Preview' }; },
+      rows: () => bannerRejectRows(),
       notice: () => resultNotice(),
       items: () => bannerItems().concat([
         { key: 'apply', label: 'Apply Banner', run: () => fac('banner|' + draftBannerId()), after: 'back',
