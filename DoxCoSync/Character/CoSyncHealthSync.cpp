@@ -686,8 +686,17 @@ void CoSyncHealthSync::TickDamageDetection(double now)
             continue;
         }
 
-        const float drop = it->second - cur;
+        const float prev = it->second;
+        const float drop = prev - cur;
         it->second = cur;
+
+        // 0.3.4: a player proxy already at 0 HP mirrors an owner who is down
+        // (the owner reports 0 while in bleedout). Anything that keeps
+        // "hitting" it here is not new damage to that player: the 0.3.3 host
+        // log relayed "hp 0.0->-5.3" 272 times in a row to a downed client,
+        // several per second, on top of its revive.
+        if (!isWorldNpc && prev <= 0.f)
+            continue;
 
         if (drop >= 1.0f)
         {

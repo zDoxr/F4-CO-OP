@@ -32,6 +32,22 @@ namespace CoSyncGameAPI
     // (fast travel, door, teleport), which per-frame steering can't follow.
     void SnapActor(Actor* actor, const NiPoint3& pos, const NiPoint3& rot);
 
+    // 0.3.4: re-file a proxy that is filed under the wrong cell for where it
+    // stands (e.g. spawned while the local player was in another interior),
+    // through the same engine MoveRefrToPosition path as the per-update cell
+    // resync. No-op when its cell already holds its position, when its entity
+    // is not in the local world, and at most once a second per actor.
+    void RefileMisplacedActor(Actor* actor);
+
+    // 0.3.4: death authority for NPC puppets. Sets/clears the actor's RUNTIME
+    // essential bit (uiFlags 0x40000). With it set, the engine's SetLifeState
+    // turns a lethal Dying transition into essential-down (life state 7)
+    // instead of death (IDA-verified 2026-08-18, SetLifeState vtable 0x105),
+    // so a machine that does not own the NPC can knock it down but never kill
+    // it; KillPuppet clears the bit when the owner's KILL arrives. No-op on an
+    // actor that is already dead or dying.
+    void SetRuntimeEssential(Actor* actor, bool essential);
+
     void PositionRemoteActor(
         Actor* actor,
         const NiPoint3& pos,

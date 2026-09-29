@@ -725,6 +725,15 @@ namespace CoSyncGameAPI
         }
     }
 
+    void RefileMisplacedActor(Actor* actor)
+    {
+        if (!actor || !IsFormStillLive(static_cast<TESForm*>(actor)))
+            return;
+        const NiPoint3 pos(actor->pos.x, actor->pos.y, actor->pos.z);
+        const NiPoint3 rot(actor->rot.x, actor->rot.y, actor->rot.z);
+        ResyncActorCellMembership(actor, pos, rot);
+    }
+
     __declspec(noinline) static void SnapActor_Impl(Actor* actor, const NiPoint3& pos, const NiPoint3& rot)
     {
         PlayerCharacter* pc = CoSyncGetPlayer();
@@ -1217,6 +1226,23 @@ namespace CoSyncGameAPI
     {
         const int ls = GetLifeState(actor);
         return ls == 1 || ls == 2;
+    }
+
+    __declspec(noinline) void SetRuntimeEssential(Actor* actor, bool essential)
+    {
+        if (!actor || !IsFormStillLive(static_cast<TESForm*>(actor)) || IsDeadOrDying(actor))
+            return;
+        __try
+        {
+            const uint32_t cur  = actor->uiFlags;
+            const uint32_t next = essential ? (cur | kUiFlag_RuntimeEssential)
+                                            : (cur & ~kUiFlag_RuntimeEssential);
+            if (next != cur)
+                actor->uiFlags = next;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+        }
     }
 
     void KillPuppet(Actor* actor)

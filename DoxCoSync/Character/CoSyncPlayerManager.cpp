@@ -2255,6 +2255,19 @@ void CoSyncPlayerManager::Tick()
                 isMyOwnRealActor = true;
         }
 
+        // 0.3.4: death is the owner's decision. A world NPC this machine does
+        // not own carries the engine's runtime essential bit, so damage dealt
+        // here can down it but never kill it locally (it used to die on this
+        // machine while alive on its owner's); the owner's KILL clears the bit
+        // (KillPuppet). A puppet this machine takes ownership of gets the bit
+        // cleared so it can die for real. Real actors this machine never
+        // spawned as proxies are never touched.
+        if (ent.actorRef && CoSyncNpcWorldSync::IsWorldActorEntityID(ent.entityID) &&
+            IsRegisteredRemoteActor(ent.actorRef))
+        {
+            CoSyncGameAPI::SetRuntimeEssential(ent.actorRef, !isMyOwnRealActor);
+        }
+
         if (!isMyOwnRealActor)
         {
             g_lastTickStep = "PlayerMgr:Tick:entity-loop:ApplyPendingTransform";
@@ -2537,6 +2550,12 @@ void CoSyncPlayerManager::Tick()
         // attack/reload/hit/stagger events replayed (AEV| and AE|).
         if (CoSyncGameAPI::PuppetModeEnabled() && ent.createType == CoSyncEntityType::NPC)
         {
+            // 0.3.4: the owner's combat state is this puppet's replicated
+            // weapon state. The puppet's own AI (its combat is stopped every
+            // update) otherwise holsters the weapon drawn below a moment later
+            // -- the engine's idle-holster rule, see CoSyncProxyWeaponAuthority.
+            if (ent.actorRef && !isMyOwnRealActor)
+                CoSyncProxyWeaponAuthority::SetReplicatedDrawn(ent.actorRef, ent.m_pendingCombatActive);
             if (combatStateEdge && ent.actorRef)
             {
                 CoSyncEquipHook::DrawWeaponEngine(ent.actorRef, ent.m_pendingCombatActive);

@@ -26,6 +26,9 @@ class CoSyncPlayer;
 void InstallRemoteActorHook(Actor* actor);
 void RegisterRemoteActor  (Actor* actor, CoSyncPlayer* player);
 void UnregisterRemoteActor(Actor* actor);
+// 0.3.4: true for actors CoSync spawned as proxies (registered above) -- never
+// for a machine's own real NPCs or its own player.
+bool IsRegisteredRemoteActor(Actor* actor);
 
 // 2026-08-20: true once InstallRemoteActorHook has successfully patched the
 // remote-actor vtable slot (or found it already shared with the local

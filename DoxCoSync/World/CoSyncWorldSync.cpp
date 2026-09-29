@@ -9,6 +9,7 @@
 #include "CoSyncTransport.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncPlayer.h"
+#include "TickHook.h"
 #include "CoSyncGameAPI.h"
 #include "CoSyncExplosionSync.h"
 #include "CoSyncThrowableSync.h"
@@ -2472,12 +2473,32 @@ __declspec(noinline) static void TickProxyCellVisibility_Impl()
     s_lastLocalWSID   = myWSID;
     s_lastLocalCellID = myCellID;
 
+    // 0.3.4: re-file misplaced proxies. A proxy is created in the cell the
+    // LOCAL player is in at that moment, and puppets/players are then moved
+    // with SetPosition, which never changes cell; the cell resync only runs
+    // when a transform update arrives. So an NPC proxy spawned while this
+    // player was elsewhere (0.3.3 client log: entities 65536/65538 spawned at
+    // 23:45:21 while the client was in the Vault 111 editor cell) stayed filed
+    // in that interior at exterior coordinates, never got 3D, and read STUCK
+    // for the whole session. Every visible proxy is checked on a local
+    // transition and every 2 s (cheap: a cell/grid compare; the engine move
+    // only runs when the cell is wrong).
+    static ULONGLONG s_nextRefileMs = 0;
+    const ULONGLONG nowMs = GetTickCount64();
+    const bool refileDue = localTransitioned || nowMs >= s_nextRefileMs;
+    if (refileDue)
+        s_nextRefileMs = nowMs + 2000;
+
     const auto& players = g_CoSyncPlayerManager.GetAllPlayers();
     for (const auto& kv : players)
     {
         CoSyncPlayer* proxy = kv.second.get();
         if (!proxy || proxy->isLocalPlayer)           continue;
         if (!proxy->actorRef || !proxy->hasSpawned)   continue;
+
+        if (refileDue && !proxy->m_proxyHiddenForCell && !proxy->m_awaitingFirstTransform &&
+            IsRegisteredRemoteActor(proxy->actorRef))
+            CoSyncGameAPI::RefileMisplacedActor(proxy->actorRef);
 
         if (localTransitioned && !proxy->m_proxyHiddenForCell)
         {

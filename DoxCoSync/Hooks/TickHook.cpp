@@ -600,6 +600,14 @@ void UnregisterRemoteActor(Actor* actor)
         LOG_INFO("[TickHook] Unregistered remote actor %p", (void*)actor);
 }
 
+bool IsRegisteredRemoteActor(Actor* actor)
+{
+    if (!actor)
+        return false;
+    std::lock_guard<std::mutex> lk(s_remoteActorMutex);
+    return s_remoteActors.find(actor) != s_remoteActors.end();
+}
+
 void InstallTickHook()
 {
     LOG_REQUIREMENT("InstallTickHook", "Needs a real, loaded-in player character to hook onto.");
