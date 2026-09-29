@@ -358,7 +358,9 @@ namespace
     // Client-side: local dynamic creatures already reported to the host, so a
     // client doesn't re-broadcast the same CSEEN every scan. Keyed by the
     // client's own (session-relative) refFormID.
-    std::unordered_set<uint32_t>           s_reportedLocalRefs;
+    // Dynamic ref -> when it was last reported (re-reported every 10 s so a
+    // released NPC can be claimed again; the host de-duplicates).
+    std::unordered_map<uint32_t, double>   s_reportedLocalRefs;
 
     // Quantize a world position + base form into a coarse spatial key. 512 units
     // (~1/8 of an exterior cell) tolerates the drift between two engines'
@@ -493,6 +495,7 @@ namespace
 
 namespace CoSyncNpcWorldSync
 {
+static bool IsHandoffHeld(uint32_t refFormID, uint32_t baseFormID, const NiPoint3& pos);   // dynamic ownership, below
 
 // How far apart the host's reported position and this client's own copy of an
 // NPC may be before a bind is refused.
@@ -739,8 +742,12 @@ __declspec(noinline) static void TickScanWorldActors_Impl(double now)
             // Dedup FF reports client-side so we don't re-broadcast the same
             // encounter creature every 1s scan (non-FF refs are cheap for the
             // host to dedup by ref, so those keep the old re-report behaviour).
-            if (isDynamic && s_reportedLocalRefs.count(actor->formID))
-                continue;
+            if (isDynamic)
+            {
+                auto rep = s_reportedLocalRefs.find(actor->formID);
+                if (rep != s_reportedLocalRefs.end() && NpcNowSeconds() - rep->second < 10.0)
+                    continue;
+            }
 
             // Host already told us this placed actor is dead in its world;
             // our local Kill() is queued -- don't keep reporting it alive.
@@ -775,7 +782,7 @@ __declspec(noinline) static void TickScanWorldActors_Impl(double now)
             CoSyncTransport::Send(std::string(buf));
 
             if (isDynamic)
-                s_reportedLocalRefs.insert(actor->formID);
+                s_reportedLocalRefs[actor->formID] = NpcNowSeconds();
             continue;
         }
 
@@ -832,6 +839,11 @@ __declspec(noinline) static void TickScanWorldActors_Impl(double now)
                 continue;
             }
         }
+
+        // Just handed to a player who is near it (HostTickOwnershipHandoff):
+        // the host's wide scan must not grab it straight back.
+        if (IsHandoffHeld(actor->formID, baseFormID, spawnPos))
+            continue;
 
         uint32_t eid = AllocateEntityID();
         if (eid == 0)
@@ -2577,6 +2589,143 @@ bool IsWorldActorWanted(uint32_t entityID)
 {
     LOG_REQUIREMENT("CoSyncNpcWorldSync::IsWorldActorWanted", "Doesn't touch the game — just checks our own internal tracking maps. Both are only ever changed on the game thread, so no locking is needed here.");
     return s_spawnFallback.count(entityID) != 0 || s_eidToActor.count(entityID) != 0;
+}
+
+// ── Dynamic ownership (0.3.1) ───────────────────────────────────────────────
+namespace
+{
+    constexpr double kHandoffInterval  = 2.0;
+    constexpr double kHandoffCooldown  = 15.0;    // per NPC, against ping-pong
+    constexpr double kHandoffHoldSecs  = 30.0;    // host scan keeps its hands off
+    constexpr float  kOwnerKeepDist    = 12000.f; // owner still simulating it
+    constexpr float  kClaimantDist     = 8000.f;  // someone near enough to take it
+
+    std::unordered_map<uint32_t, double> s_handoffHoldRef;      // static ref -> until
+    std::unordered_map<uint64_t, double> s_handoffHoldSpatial;  // spatial key -> until (dynamic refs)
+    std::unordered_map<uint32_t, double> s_ownershipSince;      // entity -> last create/transfer
+}
+
+static bool IsHandoffHeld(uint32_t refFormID, uint32_t baseFormID, const NiPoint3& pos)
+{
+    const double now = NpcNowSeconds();
+    if ((refFormID & 0xFF000000u) != 0xFF000000u)
+    {
+        auto it = s_handoffHoldRef.find(refFormID);
+        return it != s_handoffHoldRef.end() && now < it->second;
+    }
+    auto it = s_handoffHoldSpatial.find(MakeSpatialKey(baseFormID, pos));
+    return it != s_handoffHoldSpatial.end() && now < it->second;
+}
+
+void HostTickOwnershipHandoff(double now)
+{
+    if (!CoSyncNet::IsHost() || !CoSyncNet::IsConnected())
+        return;
+    static double s_next = 0.0;
+    if (now < s_next)
+        return;
+    s_next = now + kHandoffInterval;
+
+    struct Who { uint32_t eid; uint32_t ws; uint32_t cell; NiPoint3 pos; };
+    std::vector<Who> players;
+    const uint32_t hostEid = g_CoSyncPlayerManager.GetLocalEntityID();
+    if (PlayerCharacter* lp = CoSyncGetPlayer())
+    {
+        Who w{ hostEid, 0xFFFFFFFFu, 0, reinterpret_cast<TESObjectREFR*>(lp)->pos };
+        if (g_CoSyncPlayerManager.GetEntityLocation(hostEid, w.ws, w.cell))
+            players.push_back(w);
+    }
+    for (const auto& kv : g_CoSyncPlayerManager.GetAllPlayers())
+    {
+        const CoSyncPlayer* p = kv.second.get();
+        if (!p || p->createType != CoSyncEntityType::Player || p->entityID == hostEid)
+            continue;
+        Who w{ p->entityID, 0xFFFFFFFFu, 0, p->authoritativePos };
+        if (g_CoSyncPlayerManager.GetEntityLocation(p->entityID, w.ws, w.cell))
+            players.push_back(w);
+    }
+    auto find = [&](uint32_t eid) -> const Who* {
+        for (const Who& w : players) if (w.eid == eid) return &w;
+        return nullptr;
+    };
+    auto dist2 = [](const NiPoint3& a, const NiPoint3& b) {
+        const float dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+        return dx * dx + dy * dy + dz * dz;
+    };
+
+    struct Release { uint32_t eid; uint32_t ref; uint32_t base; NiPoint3 pos; uint32_t to; uint32_t from; };
+    std::vector<Release> releases;
+
+    for (const auto& kv : g_CoSyncPlayerManager.GetStates())
+    {
+        const uint32_t eid = kv.first;
+        const CoSyncEntityState& st = kv.second;
+        if (!IsWorldActorEntityID(eid) || !st.hasCreate || IsEntityDead(eid))
+            continue;
+        const EntityCreatePacket& c = st.lastCreate;
+        if (c.locWS == 0xFFFFFFFFu)
+            continue;   // old-style entity without a location: leave it alone
+
+        double& since = s_ownershipSince[eid];
+        if (since == 0.0) since = now;
+        if (now - since < kHandoffCooldown)
+            continue;
+
+        // Where the NPC is now: its streamed position if we have one.
+        NiPoint3 npcPos = c.spawnPos;
+        if (const CoSyncPlayer* np = g_CoSyncPlayerManager.GetPlayerByEntityID(eid))
+            if (np->authoritativePos.x != 0.f || np->authoritativePos.y != 0.f || np->authoritativePos.z != 0.f)
+                npcPos = np->authoritativePos;
+
+        const uint32_t owner = c.ownerEntityID ? c.ownerEntityID : hostEid;
+        const Who* o = find(owner);
+        const auto sameLoc = [&](const Who& w) {
+            return c.locWS != 0 ? w.ws == c.locWS : (w.ws == 0 && w.cell == c.locCell);
+        };
+        const bool ownerHere = o && sameLoc(*o) && dist2(o->pos, npcPos) <= kOwnerKeepDist * kOwnerKeepDist;
+        if (ownerHere)
+            continue;
+
+        const Who* best = nullptr;
+        float bestD = kClaimantDist * kClaimantDist;
+        for (const Who& w : players)
+        {
+            if (w.eid == owner || !sameLoc(w)) continue;
+            const float d = dist2(w.pos, npcPos);
+            if (d < bestD) { bestD = d; best = &w; }
+        }
+        if (!best)
+            continue;   // nobody near it: nothing gained by moving it
+        releases.push_back({ eid, c.reserved0, c.baseFormID, npcPos, best->eid, owner });
+    }
+
+    for (const Release& r : releases)
+    {
+        // Hold it from the host's own scan unless the host IS the new owner.
+        if (r.to != hostEid)
+        {
+            if (r.ref != 0 && (r.ref & 0xFF000000u) != 0xFF000000u)
+                s_handoffHoldRef[r.ref] = now + kHandoffHoldSecs;
+            else
+                s_handoffHoldSpatial[MakeSpatialKey(r.base, r.pos)] = now + kHandoffHoldSecs;
+        }
+        EntityDestroyPacket d{};
+        d.entityID    = r.eid;
+        d.reasonFlags = 0;
+        CoSyncTransport::Send(SerializeEntityDestroy(d));
+        ClientUnbindWorldActor(r.eid, 0);
+        s_ownershipSince.erase(r.eid);
+        LOG_UPDATED("[NpcWorldSync] Handoff: entity=%u ref=0x%08X released by %u (away) -- %u is near it and takes it over",
+            r.eid, r.ref, r.from, r.to);
+    }
+
+    // Forget holds and timers that expired / belong to gone entities.
+    for (auto it = s_handoffHoldRef.begin(); it != s_handoffHoldRef.end(); )
+        it = (now >= it->second) ? s_handoffHoldRef.erase(it) : std::next(it);
+    for (auto it = s_handoffHoldSpatial.begin(); it != s_handoffHoldSpatial.end(); )
+        it = (now >= it->second) ? s_handoffHoldSpatial.erase(it) : std::next(it);
+    for (auto it = s_ownershipSince.begin(); it != s_ownershipSince.end(); )
+        it = g_CoSyncPlayerManager.GetStates().count(it->first) ? std::next(it) : s_ownershipSince.erase(it);
 }
 
 void HostReleaseEntitiesOwnedBy(uint32_t ownerEntityID)

@@ -1034,6 +1034,11 @@ void CoSyncNet::Tick(double now)
     {
         g_lastTickStep = "TickScanWorldActors";
         CoSyncNpcWorldSync::TickScanWorldActors(now);
+        if (s_isHost)
+        {
+            g_lastTickStep = "HostTickOwnershipHandoff";
+            CoSyncNpcWorldSync::HostTickOwnershipHandoff(now);
+        }
     }
 
     if (s_connected)

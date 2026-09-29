@@ -63,6 +63,13 @@ namespace CoSyncNpcWorldSync
     // frozen puppets with the host's own originals hidden (bug W2). Game thread.
     void HostReleaseEntitiesOwnedBy(uint32_t ownerEntityID);
 
+    // Host, every tick (throttled to 2 s): dynamic ownership. An NPC whose
+    // owner is in another place or far away (its game has unloaded the NPC and
+    // stopped streaming it -- the frozen "standing puppet") is released the
+    // same way as when its owner leaves, as soon as another player is near it;
+    // that player's own scan then reports it and becomes its owner. GAME THREAD.
+    void HostTickOwnershipHandoff(double now);
+
     // Fix #2 (spawn/despawn race, proven 2026-08-02): true while a world-actor
     // entity is still pending a proxy spawn (s_spawnFallback) or already bound
     // (s_eidToActor). The async clone-spawn task calls this on completion — a
