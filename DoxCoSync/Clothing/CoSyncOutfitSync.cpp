@@ -162,6 +162,45 @@ __declspec(noinline) static bool SafeFindInProxyInventory(Actor* actor, uint32_t
     }
 }
 
+// 0.3.3 (Stage 3): every ARMO the ENGINE currently has equipped on a proxy.
+// Same liveness + SEH rules as SafeFindInProxyInventory; fixed-size output
+// because a __try body cannot own objects that need unwinding.
+static constexpr uint32_t kMaxWornArmor = 64;
+__declspec(noinline) static uint32_t SafeListEquippedArmor(Actor* actor, uint32_t out[kMaxWornArmor])
+{
+    if (!actor || !CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(actor)))
+        return 0;
+    uint32_t n = 0;
+    __try
+    {
+        BGSInventoryList* inv = actor->inventoryList;
+        if (!inv)
+            return 0;
+        for (UInt32 k = 0; k < inv->items.count && n < kMaxWornArmor; ++k)
+        {
+            const BGSInventoryItem& item = inv->items[k];
+            if (!item.form || item.form->formType != kFormType_ARMO)
+                continue;
+            for (BGSInventoryItem::Stack* st = item.stack; st; st = st->next)
+                if (st->flags & BGSInventoryItem::Stack::kFlagEquipped)
+                {
+                    out[n++] = item.form->formID;
+                    break;
+                }
+        }
+        return n;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return 0;
+    }
+}
+
+// Proxies whose last equip/unequip happened while they had no middle-high
+// process data, so the engine dropped its own model-update request (see
+// CoSyncGameAPI::RequestActorModelUpdate). Re-issued once it can stick.
+static std::unordered_set<uint32_t> s_modelUpdatePending;
+
 bool CoSyncOutfitSync::IsOutfit(const std::string& msg)
 {
     LOG_REQUIREMENT("CoSyncOutfitSync::IsOutfit", "Doesn't touch the game -- just needs a valid message string.");
@@ -366,13 +405,30 @@ void CoSyncOutfitSync::FlushPendingOutfitOps()
         auto& applied  = s_appliedOutfits[op.entityID];
         auto& inFlight = s_inFlightOutfits[op.entityID];
 
+        // 0.3.3 (Stage 3): reconcile against what the ENGINE has equipped on
+        // the proxy, not against our own record of what we once equipped.
+        //
+        // The old test ("applied.count(fid) -> skip") trusted bookkeeping: once
+        // a piece had verified as equipped it was never looked at again, so if
+        // anything later took it off the proxy (a slot conflict, a 3D reload,
+        // a proxy rebuild) the 10 s re-broadcast was a no-op and the piece
+        // stayed missing until the real player unequipped and re-equipped it
+        // -- the reported "only shows after re-equipping". Every OUTFIT
+        // (including the periodic one) now converges the proxy's worn set to
+        // the sender's.
         for (uint32_t fid : received)
         {
-            // Confirmed-equipped or already mid-verification — don't
-            // re-send. Anything that FAILED verification was removed from
-            // inFlight without being added to applied (see verify pass), so
-            // it naturally falls through and gets retried here.
-            if (applied.count(fid) || inFlight.count(fid)) continue;
+            if (inFlight.count(fid)) continue;     // mid equip/verify
+            {
+                bool present = false, equipped = false;
+                UInt32 invCount = 0;
+                if (SafeFindInProxyInventory(actor, fid, present, equipped, invCount) && equipped)
+                {
+                    applied.insert(fid);
+                    continue;                      // already worn: nothing to do
+                }
+                applied.erase(fid);                // our record was stale
+            }
 
             TESForm* form = SafeLookupForm(fid);
             if (!form) { LOG_UPDATED_WARN("[OutfitSync FLUSH] armorFormID=0x%08X not found", fid); continue; }
@@ -396,14 +452,24 @@ void CoSyncOutfitSync::FlushPendingOutfitOps()
         }
 
 
-        for (uint32_t fid : applied)
+        // Take off anything the proxy wears that the sender does not
+        // (including pieces the engine put on by itself, e.g. the proxy base's
+        // default outfit after a 3D reload). In-flight pieces are left to
+        // their own verify pass.
+        // Power Armor sync puts the PA pieces on this same actor; leave a
+        // proxy in PA to it (Stage 5).
+        if (!(proxy && proxy->m_isInPowerArmor))
         {
-            if (received.count(fid)) continue;
-
-            TESForm* form = SafeLookupForm(fid);
-            if (!form) continue;
-
+            uint32_t worn[kMaxWornArmor];
+            const uint32_t wornCount = SafeListEquippedArmor(actor, worn);
+            for (uint32_t w = 0; w < wornCount; ++w)
             {
+                const uint32_t fid = worn[w];
+                if (received.count(fid) || inFlight.count(fid)) continue;
+
+                TESForm* form = SafeLookupForm(fid);
+                if (!form) continue;
+
                 const bool directOk = CoSyncEquipHook::UnequipItemDirect(actor, form);
                 if (!directOk)
                 {
@@ -415,9 +481,11 @@ void CoSyncOutfitSync::FlushPendingOutfitOps()
                     VMVariable vS; vS.Set(&sil);  unArgs.Push(&vS);
                     CallFunctionNoWait(actor, kUnequipItem, unArgs);
                 }
-            }
+                if (!CoSyncGameAPI::HasMiddleHighProcess(actor))
+                    s_modelUpdatePending.insert(op.entityID);
 
-            LOG_UPDATED("[OutfitSync APPLY] Unequipped entity=%u armor=0x%08X", op.entityID, fid);
+                LOG_UPDATED("[OutfitSync APPLY] Unequipped entity=%u armor=0x%08X", op.entityID, fid);
+            }
         }
 
         // Only DROP confirmed-applied pieces that are no longer in the
@@ -493,6 +561,9 @@ void CoSyncOutfitSync::FlushPendingOutfitOps()
                     directOk ? "DIRECT" : "PAPYRUS", deEntityID, deFormID,
                     itemInInventory ? 1 : 0);
 
+                if (!CoSyncGameAPI::HasMiddleHighProcess(actor))
+                    s_modelUpdatePending.insert(deEntityID);
+
                 s_pendingVerifies.push_back({ deEntityID, deFormID, now + 2.0 });
             }
         }
@@ -555,49 +626,16 @@ void CoSyncOutfitSync::FlushPendingOutfitOps()
                 LOG_UPDATED_WARN("[OutfitSync VERIFY] entity=%u armor=0x%08X FAILED verification -- will retry on next outfit packet",
                     pv.entityID, pv.formID);
 
-            // Last pending verify for this entity → one Disable+Enable cycle
-            // so the engine rebuilds the biped with the new gear (same fix
-            // that solved invisible-skeleton spawns). Throttled per entity.
-            bool moreForEntity = false;
-            for (size_t m = 0; m < s_pendingVerifies.size(); ++m)
-                if (m != i && s_pendingVerifies[m].entityID == pv.entityID)
-                    { moreForEntity = true; break; }
-            if (!moreForEntity && equipped)
-            {
-                // 2026-08-26: shared throttle (CoSyncGameAPI::TryRefreshActor3DThrottled)
-                // instead of this file's own separate s_lastRefreshAt map -- a live
-                // test session showed this and CoSyncPlayerManager's own independent
-                // 5s throttle both firing RefreshActor3D on the same proxy within
-                // seconds of each other, racing two full Disable+Enable rebuilds
-                // (and the weapon re-equip each one schedules) against each other.
-                if (CoSyncGameAPI::TryRefreshActor3DThrottled(pv.entityID, actor))
-                {
-                    LOG_UPDATED("[OutfitSync VERIFY] entity=%u RefreshActor3D queued (biped rebuild)", pv.entityID);
-
-                    // 2026-08-26: this call site was the one place in the codebase
-                    // that fired RefreshActor3D without the weapon-survival
-                    // follow-up -- Enable() is ALREADY established elsewhere in
-                    // this exact codebase (WEAPON VERIFY's own RefreshActor3D call,
-                    // CoSyncPlayer.h's m_revealReEquipDelay/m_postRefreshWeaponDelay
-                    // comments) to re-attach ARMOR via the biped system but DROP any
-                    // individually-equipped weapon with nothing re-equipping it. An
-                    // outfit change on a proxy that's currently holding a weapon was
-                    // therefore silently disarming it every ~5s-throttled rebuild --
-                    // easy to misread live as "the weapon didn't update" or "the
-                    // armor needs a second action" when the real symptom was the
-                    // WEAPON vanishing out from under an in-progress armor sync.
-                    // Reuses the exact same re-equip pattern as the WEAPON VERIFY
-                    // path (ProcessWeaponVerifyQueue in CoSyncPlayerManager.cpp).
-                    CoSyncPlayer* pl = g_CoSyncPlayerManager.GetPlayerByEntityID(pv.entityID);
-                    if (pl && pl->m_lastEquippedWeaponFormID != 0)
-                    {
-                        pl->m_postRefreshWeaponDelay  = 60;
-                        pl->m_postRefreshWeaponFormID = pl->m_lastEquippedWeaponFormID;
-                        LOG_UPDATED("[OutfitSync VERIFY] entity=%u weapon=0x%08X re-equip queued post-refresh",
-                            pv.entityID, pl->m_lastEquippedWeaponFormID);
-                    }
-                }
-            }
+            // 0.3.3 (Stage 3): the Disable+Enable "biped rebuild" that used to
+            // follow here is gone. The engine rebuilds the worn 3D by itself
+            // after an equip (AddWornItem -> update3DModel -> Actor::Update,
+            // see CoSyncGameAPI::RequestActorModelUpdate), and the rebuild had
+            // proven side effects: the proxy blinked out and back in, and
+            // Enable() dropped the equipped weapon, which then had to be
+            // re-equipped a second later (the same self-inflicted cycle the
+            // weapon verify's own rebuild was removed for on 2026-08-26). The
+            // one case the engine misses (no middle-high process data at equip
+            // time) is handled by s_modelUpdatePending below.
         }
         else
         {
@@ -608,6 +646,26 @@ void CoSyncOutfitSync::FlushPendingOutfitOps()
 
         s_pendingVerifies[i] = s_pendingVerifies.back();
         s_pendingVerifies.pop_back();
+    }
+
+    // Re-issue the engine's model-update request for proxies whose equip
+    // request was dropped, as soon as it can stick (middle-high process data
+    // and 3D present). Forget entities that are gone.
+    for (auto it = s_modelUpdatePending.begin(); it != s_modelUpdatePending.end(); )
+    {
+        Actor* actor = g_CoSyncEntities.GetActor(*it);
+        if (!actor || !CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(actor)))
+        {
+            it = s_modelUpdatePending.erase(it);
+            continue;
+        }
+        if (CoSyncGameAPI::RequestActorModelUpdate(actor))
+        {
+            LOG_UPDATED("[OutfitSync] entity=%u worn 3D update re-requested (equip landed without middle-high process)", *it);
+            it = s_modelUpdatePending.erase(it);
+            continue;
+        }
+        ++it;
     }
 }
 

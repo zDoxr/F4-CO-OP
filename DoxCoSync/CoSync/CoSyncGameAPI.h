@@ -148,6 +148,27 @@ namespace CoSyncGameAPI
     // only, same as RefreshActor3D itself.
     bool TryRefreshActor3DThrottled(uint32_t entityID, Actor* actor, double cooldownSeconds = 5.0);
 
+    // 0.3.3 (Stage 3): the engine's own "rebuild this actor's worn 3D"
+    // request. IDA 1.11.240: Actor::AddWornItem (Actor vtable 0x6F,
+    // sub_140CAEBC0) ends an armor equip with sub_140D363C0(process, 1) and
+    // (process, 0x10), which OR the flags into the middle-high process data
+    // (process+0x08)->update3DModel (+0x496). Actor::Update (vtable 0x13,
+    // sub_140C8B5A0) consumes them next frame through sub_140D02600 ->
+    // sub_140D27280 when the actor has 3D. sub_140D363C0 silently does
+    // nothing when process+0x08 is null (actor not in middle/high process),
+    // which is how an equip can land in the inventory with no visual change.
+    //
+    // HasMiddleHighProcess: would an equip's model-update request stick now?
+    // RequestActorModelUpdate: issue that same request (flags 0x11); returns
+    //   false (and does nothing) when it would be dropped.
+    bool HasMiddleHighProcess(Actor* actor);
+
+    // Is formID in the actor's inventory, and is any stack of it equipped?
+    // Liveness-checked and SEH-guarded (a rebuilt proxy leaves stale actor
+    // pointers behind). Returns false if the actor could not be read.
+    bool GetInventoryEquipState(Actor* actor, uint32_t formID, bool& present, bool& equipped);
+    bool RequestActorModelUpdate(Actor* actor);
+
     // Queues SetEssential(false), SetProtected(false), and
     // SendAnimationEvent("IdleForceDefaultState") on an NPC proxy actor.
     // Call after RefreshActor3D — VM queue ordering ensures these fire after

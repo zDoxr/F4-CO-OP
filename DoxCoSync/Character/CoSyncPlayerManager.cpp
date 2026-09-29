@@ -117,32 +117,13 @@ static void ProcessWeaponVerifyQueue()
         if (now < pending.at) { ++vi; continue; }
 
         CoSyncPlayer* vProxy = g_CoSyncPlayerManager.GetPlayerByEntityID(pending.entityID);
-        if (vProxy && vProxy->actorRef)
+        if (vProxy && vProxy->actorRef &&
+            CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(vProxy->actorRef)))
         {
+            // 0.3.3: guarded read (the unguarded inventory walk here is the
+            // stale-proxy crash pattern OutfitSync hit on 2026-09-26).
             bool present = false, equipped = false;
-            BGSInventoryList* invList = vProxy->actorRef->inventoryList;
-            if (invList)
-            {
-                for (UInt32 k = 0; k < invList->items.count; ++k)
-                {
-                    const BGSInventoryItem& item = invList->items[k];
-                    if (!item.form || item.form->formID != pending.formID)
-                        continue;
-                    present = true;
-                    if (item.stack)
-                    {
-                        item.stack->Visit([&equipped](BGSInventoryItem::Stack* s) {
-                            if (s->flags & BGSInventoryItem::Stack::kFlagEquipped)
-                            {
-                                equipped = true;
-                                return false;
-                            }
-                            return true;
-                        });
-                    }
-                    break;
-                }
-            }
+            CoSyncGameAPI::GetInventoryEquipState(vProxy->actorRef, pending.formID, present, equipped);
             LOG_UPDATED("[PlayerMgr] WEAPON VERIFY entity=%u weapon=0x%08X present=%d equipped=%d",
                 pending.entityID, pending.formID, present ? 1 : 0, equipped ? 1 : 0);
 
@@ -170,20 +151,9 @@ static void ProcessWeaponVerifyQueue()
             if (!present)
             {
                 TESForm* resolvedForm = LookupFormByID(pending.formID);
-                LOG_UPDATED_WARN("[PlayerMgr] WEAPON VERIFY MISS entity=%u formID=0x%08X resolvedFormType=%d invCount=%u",
+                LOG_UPDATED_WARN("[PlayerMgr] WEAPON VERIFY MISS entity=%u formID=0x%08X resolvedFormType=%d",
                     pending.entityID, pending.formID,
-                    resolvedForm ? (int)resolvedForm->formType : -1,
-                    invList ? (unsigned)invList->items.count : 0u);
-                if (invList)
-                {
-                    UInt32 dumpCount = invList->items.count < 15 ? invList->items.count : 15;
-                    for (UInt32 k = 0; k < dumpCount; ++k)
-                    {
-                        const BGSInventoryItem& item = invList->items[k];
-                        LOG_UPDATED_WARN("[PlayerMgr]   inv[%u] formID=0x%08X formType=%d",
-                            k, item.form ? item.form->formID : 0u, item.form ? (int)item.form->formType : -1);
-                    }
-                }
+                    resolvedForm ? (int)resolvedForm->formType : -1);
             }
 
             // Round 143: this is what CoSyncPlayer::ApplyUpdate's periodic

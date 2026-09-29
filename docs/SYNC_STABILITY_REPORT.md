@@ -246,3 +246,104 @@ TEST PLAN:  Client disconnects and reconnects; NPC ownership handoff (walk
 
 * Host revive state loop: "[LocalPlayer] Gave up (revive timeout)" logged 1502 times, twice per frame, from 21:44:24 on (Stage 6).
 * Outfit sync re-sends the whole outfit every 10 s and the receiver's verify step ends in `RefreshActor3D` (Disable + Enable) plus a weapon re-equip (Stage 3).
+
+---
+
+## Stage 3 — clothing / armor / weapon desynchronization
+
+### Engine mechanism (VERIFIED, IDA 1.11.240)
+
+```text
+Function:  ActorEquipManager::EquipObject     RVA 0xCE5E20 (manager 0x31EE428)
+           forceEquip=1 skips the "play an equip animation, equip later"
+           branch (sub_140CFAE10) and calls the worker sub_140CE7FB0.
+Function:  equip worker                        sub_140CE7FB0
+           -> sub_140CAD0A0 (switch on form type; ARMO = 29 = 0x1D)
+           -> Actor vtable+0x378 (slot 0x6F) = AddWornItem sub_140CAEBC0
+Function:  Actor::AddWornItem                  sub_140CAEBC0
+           unequips whatever holds the same biped slots (UnequipObject
+           0xCE62C0), adds the item to the biped, and for ARMO calls
+           sub_140D363C0(process, 1) and sub_140D363C0(process, 0x10).
+Function:  sub_140D363C0(process, flags)        (process = Actor+0x300)
+           if (process+0x08) (middle-high data) != null:
+               *(uint16*)(mh+0x496) |= flags     -- "update3DModel"
+           otherwise does NOTHING.
+Consumer:  Actor::Update = Actor vtable slot 0x13 = sub_140C8B5A0
+           if update3DModel != 0: actor has 3D -> sub_140D02600 ->
+           sub_140D27280 (rebuild the worn 3D), else the flags are cleared
+           (a later Load3D builds the biped from the worn items anyway).
+Other readers/writers of +0x496: sub_140D31670, sub_140D363E0 (clear bits),
+           sub_140D36400 (clear all), sub_140D36420/sub_140D36440 (read),
+           sub_140D3FBC0.
+```
+
+So the engine rebuilds the visible gear by itself on the next actor update. The one way an equip can land in the inventory with no visual change is an actor without middle-high process data at equip time: the request is silently dropped.
+
+### S3-A. Outfit reconciled against bookkeeping, never against the engine
+
+```text
+BUG:        A peer's armor/clothing sometimes never appears until they
+            unequip and re-equip it.
+Severity:   High
+ROOT CAUSE: The receiver deduplicated every OUTFIT (including the 10 s
+            re-broadcast meant to self-heal) against s_appliedOutfits, its
+            own record of pieces it had once verified. If anything later took
+            a piece off the proxy (slot conflict, 3D reload, the proxy base's
+            default outfit coming back after Disable/Enable), the record still
+            said "applied" and nothing ever re-equipped it -- until the sender
+            removed and re-added it, which is the only thing that changed the
+            record. Unequips likewise only touched recorded pieces.
+FIX:        Every OUTFIT converges the proxy to the sender's list using the
+            ENGINE's equipped flags: received pieces not engine-equipped are
+            injected + equipped; engine-equipped ARMO not in the list is
+            unequipped (not while the proxy is in Power Armor -- PA sync owns
+            those pieces until Stage 5).
+FILES:      Clothing/CoSyncOutfitSync.cpp (FlushPendingOutfitOps,
+            SafeListEquippedArmor)
+```
+
+### S3-B. Disable+Enable "biped rebuild" after every verified armor change
+
+```text
+BUG:        After an armor change the proxy blinks out and back in, and its
+            weapon disappears for about a second.
+Severity:   High (model flicker; forced re-equip loop)
+ROOT CAUSE: The verify pass ended with RefreshActor3D (Disable + Enable) on
+            the assumption that equipping does not update the model. It does
+            (above). Enable() drops individually equipped weapons, so each
+            armor change also scheduled a weapon re-equip 60 ticks later --
+            the same self-inflicted cycle already proven and removed for the
+            weapon verify on 2026-08-26.
+FIX:        Removed. If an equip or unequip happened while the proxy had no
+            middle-high process data, the entity is remembered and the
+            engine's own request (sub_140D363C0(process, 0x11), wrapped as
+            CoSyncGameAPI::RequestActorModelUpdate) is re-issued once it can
+            take effect.
+REGRESSION RISK: if some other, unidentified condition also blocks the
+            model rebuild, gear would stay invisible where the Disable/Enable
+            used to force it. The log line "[OutfitSync] ... worn 3D update
+            re-requested" and the VERIFY lines show which path ran.
+```
+
+### S3-C. Weapon retry trusted a flag instead of the engine
+
+```text
+BUG:        A proxy that lost its weapon (e.g. after a rebuild) stayed
+            unarmed until the real player switched weapons.
+ROOT CAUSE: The 10 s weapon retry in CoSyncPlayer::ApplyUpdate ran only while
+            m_weaponConfirmedEquipped was false; once verified it never
+            looked again.
+FIX:        Every 10 s the wire weapon is checked against the engine's
+            equipped flag on the proxy and re-queued if missing.
+```
+
+### S3-D. Unguarded inventory walk in the weapon verify (crash)
+
+ProcessWeaponVerifyQueue walked `actorRef->inventoryList` (and dumped 15 entries on a miss) with no liveness check or SEH -- the pattern that crashed the host in OutfitSync on 2026-09-26 when a rebuilt proxy left a stale pointer. Now uses `CoSyncGameAPI::GetInventoryEquipState` (IsFormStillLive + SEH) and skips a dead actor.
+
+### TEST PLAN (Stage 3)
+
+1. Host and client in one place. Client equips / unequips a hat, a chest piece, gloves, a full outfit, one at a time, then several at once: the host sees each change within ~1 s, with no blink of the model and the weapon staying in hand.
+2. Client changes clothes while the host is far away (proxy in low process), then the host walks back: the gear is right when the proxy comes into view (look for "worn 3D update re-requested").
+3. Client swaps weapons (pistol, rifle, melee, unarmed): the proxy follows; holster/draw still animate.
+4. Teleport / load door / fast travel together: gear and weapon survive the proxy's re-show.

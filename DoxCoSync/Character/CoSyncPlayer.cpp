@@ -432,12 +432,27 @@ void CoSyncPlayer::ApplyUpdate(const EntityUpdatePacket& u)
     // weapons again, since the edge-trigger above only fires on a VALUE
     // change. Same self-healing property OutfitSync already had via its
     // periodic 10s re-broadcast.
-    else if (u.equippedWeaponFormID != 0 && !m_weaponConfirmedEquipped &&
+    // 0.3.3 (Stage 3): every 10 s, compare the wire weapon with what the
+    // ENGINE has equipped on the proxy, not with m_weaponConfirmedEquipped.
+    // That flag stays true after a successful verify even if something later
+    // takes the weapon off the proxy (a 3D rebuild, a slot conflict), and the
+    // proxy then stayed unarmed until the real player switched weapons.
+    else if (u.equippedWeaponFormID != 0 &&
              (NowSeconds() - m_lastWeaponRetryTime) > 10.0)
     {
-        m_pendingWeaponFormID  = u.equippedWeaponFormID;
-        m_pendingWeaponChange  = true;
-        m_lastWeaponRetryTime  = NowSeconds();
+        m_lastWeaponRetryTime = NowSeconds();
+        bool present = false, equipped = false;
+        const bool readOk = hasSpawned && actorRef &&
+            CoSyncGameAPI::GetInventoryEquipState(actorRef, u.equippedWeaponFormID, present, equipped);
+        if (!m_weaponConfirmedEquipped || (readOk && !equipped))
+        {
+            if (m_weaponConfirmedEquipped)
+                LOG_UPDATED("[CoSyncPlayer] entity=%u weapon 0x%08X no longer equipped on the proxy -- re-equipping",
+                    entityID, u.equippedWeaponFormID);
+            m_pendingWeaponFormID     = u.equippedWeaponFormID;
+            m_pendingWeaponChange     = true;
+            m_weaponConfirmedEquipped = false;
+        }
     }
 
 

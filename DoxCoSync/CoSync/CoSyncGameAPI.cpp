@@ -1096,6 +1096,79 @@ namespace CoSyncGameAPI
         }
     }
 
+    // See the header. Offsets: Actor+0x300 = process (the same field
+    // Actor::SetPosition / GetCharController read), process+0x08 = middle-high
+    // data, +0x496 = update3DModel flags.
+    __declspec(noinline) bool HasMiddleHighProcess(Actor* actor)
+    {
+        if (!actor)
+            return false;
+        __try
+        {
+            const uint8_t* process = *reinterpret_cast<uint8_t* const*>(
+                reinterpret_cast<const uint8_t*>(actor) + 0x300);
+            return process && *reinterpret_cast<void* const*>(process + 0x08) != nullptr;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+    }
+
+    __declspec(noinline) bool GetInventoryEquipState(Actor* actor, uint32_t formID, bool& present, bool& equipped)
+    {
+        present = false;
+        equipped = false;
+        if (!actor || !IsFormStillLive(static_cast<TESForm*>(actor)))
+            return false;
+        __try
+        {
+            BGSInventoryList* inv = actor->inventoryList;
+            if (!inv)
+                return true;
+            for (UInt32 k = 0; k < inv->items.count; ++k)
+            {
+                const BGSInventoryItem& item = inv->items[k];
+                if (!item.form || item.form->formID != formID)
+                    continue;
+                present = true;
+                for (BGSInventoryItem::Stack* st = item.stack; st; st = st->next)
+                    if (st->flags & BGSInventoryItem::Stack::kFlagEquipped) { equipped = true; break; }
+                break;
+            }
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            present = false;
+            equipped = false;
+            return false;
+        }
+    }
+
+    __declspec(noinline) bool RequestActorModelUpdate(Actor* actor)
+    {
+        if (!actor || !IsFormStillLive(static_cast<TESForm*>(actor)))
+            return false;
+        if (!HasMiddleHighProcess(actor) || !actor->GetObjectRootNode())
+            return false;
+        using SetUpdate3DFlags_t = void(__fastcall*)(void* process, uint16_t flags);
+        static const uintptr_t kRVA_SetUpdate3DFlags = 0x00D363C0;   // sub_140D363C0
+        __try
+        {
+            void* process = *reinterpret_cast<void**>(reinterpret_cast<uint8_t*>(actor) + 0x300);
+            const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandleA(nullptr));
+            reinterpret_cast<SetUpdate3DFlags_t>(base + kRVA_SetUpdate3DFlags)(process, 0x11);
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            LOG_ERROR("[CoSyncGameAPI] model update request crashed but was caught (actor=%p)",
+                static_cast<void*>(actor));
+            return false;
+        }
+    }
+
     __declspec(noinline) int GetLifeState(Actor* actor)
     {
         if (!actor)
