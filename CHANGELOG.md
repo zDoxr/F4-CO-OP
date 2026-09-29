@@ -16,6 +16,15 @@ Built clean, deployed. **Not yet live-tested.**
 - Version 0.3.2 (network build 302): new messages VOICE / VOICEM.
 - Known limits: no left/right panning yet (volume only); the default microphone and speakers are used (Windows default devices).
 
+### Also in 0.3.2
+
+- **Overhead nameplates** (`GUI/CoSyncNameplates`, `views/DoxCoSync/nameplates.*`): name, level, rank and faction above other players, with the talking mark. Projected every frame through the engine's own world-to-screen (RVA 0xA37C90, F4SE + IDA verified) and pushed to PrismaUI only when something changed. Shown only for players in your location, in front of the camera and within `[Nameplates] fMaxDistance` (3500); hidden while menus, the Multiplayer menu or the character editor are open. Not hidden behind walls yet (no verified line-of-sight call).
+- **Faction-style emblems:** Minutemen, Brotherhood, Railroad and Institute style emblems (original art).
+- **Custom banners explained:** files that cannot be used are listed on the Banner / Create Faction screens with the reason and the fix (spaces or bad characters with a suggested name, .gif/.bmp etc., empty, over 8 MB, contents not matching the extension, duplicate image, over 64 files, or an image the page cannot draw).
+- **Fixed:** banners repainted each other (a `<style>` block inside an inline SVG is page-wide, so the last banner's colours won).
+- **Network audit:** WM/WD are sender-checked and no longer echoed back to their sender (U7). Log volume cut: high-rate traffic is summarised every 10 s (1 in 50 EU kept in full), per-frame diagnostics throttled.
+- `docs/TESTING_MATRIX.md`: test plan for everything since 0.3.0.
+
 ---
 
 ## [0.3.1] — 2026-09-28

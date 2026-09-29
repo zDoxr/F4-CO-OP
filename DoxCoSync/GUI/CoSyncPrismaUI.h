@@ -50,4 +50,8 @@ namespace CoSyncPrismaUI
     // takes keyboard focus while typing. Any thread.
     void RequestOpenChat();
     bool IsChatOpen();
+
+    // Overhead name / faction / level tags (views/DoxCoSync/nameplates.html,
+    // CoSyncNameplates). CoSync tick, every frame; pushes only on change.
+    void TickNameplates();
 }

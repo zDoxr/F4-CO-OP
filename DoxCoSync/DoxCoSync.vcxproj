@@ -354,6 +354,7 @@ exit /b 0
     <ClInclude Include="World\CoSyncWorkshopAuthority.h" />
     <ClInclude Include="Networking\CoSyncChat.h" />
     <ClInclude Include="Networking\CoSyncVoice.h" />
+    <ClInclude Include="GUI\CoSyncNameplates.h" />
     <ClInclude Include="Character\CoSyncProfiles.h" />
     <ClInclude Include="Character\CoSyncProxyLooks.h" />
     <ClInclude Include="Character\CoSyncCompanions.h" />
@@ -554,6 +555,7 @@ exit /b 0
     <ClCompile Include="World\CoSyncWorkshopAuthority.cpp" />
     <ClCompile Include="Networking\CoSyncChat.cpp" />
     <ClCompile Include="Networking\CoSyncVoice.cpp" />
+    <ClCompile Include="GUI\CoSyncNameplates.cpp" />
     <ClCompile Include="Character\CoSyncProfiles.cpp" />
     <ClCompile Include="Character\CoSyncProxyLooks.cpp" />
     <ClCompile Include="Character\CoSyncCompanions.cpp" />

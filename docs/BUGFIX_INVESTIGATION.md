@@ -302,3 +302,10 @@ names for puppet playback, "ragdoll at rest" state.
 Measured on the 0.3.0 host log (CoSyncUpdated_2272.log, 45 MB / 28 min). Top lines by count: ForwardMessage EU 74k, transport SEND debug 88k, "Drained N" debug 45k, ForwardMessage BONES 22k, FPGraph pose 24k, AnimUtils live 24k, ForwardMessage HP 7.7k, PlayerMarker liveness 6.2k, LocalPlayer sent UPDATE 4.5k.
 
 Now: EU / BONES / HP / VOICE arrivals and all sends are counted and summarised every 10 s (`[Transport] Last 10 s: rx EU=... | tx ...`), with every 50th EU still logged in full for the jitter measurement; the per-frame diagnostics go through `LOG_EVERY_MS` (2-15 s). Every other message type is still logged on arrival. Expected: roughly a quarter of the old volume (UNVERIFIED until the next session log).
+
+
+## Overhead nameplates: world-to-screen (RE, 0.3.2)
+
+- `WorldToScreen(NiPoint3* in, NiPoint3* out)`, 1.11.240 RVA **0xA37C90**. Source: F4SE 0.7.9 `f4se/NiObjects.cpp` (`WorldToScreen_Internal`; F4SE 0.7.9 targets 1.11.240). IDA: returns at once unless the camera is set up (byte 0x3279FC0), takes its own spin lock (0x3279FD0/0x3279FD4), projects through the global camera matrix / viewport (0x3279F80 / 0x3279FD8) via 0x16D2440.
+- Output meaning, from its only caller (HUD marker routine 0x9CC840): `out.x` 0..1 from the left, `1 - out.y` 0..1 from the top, `out.z >= 0` in front of the camera. That caller also rescales x for Scaleform's 16:9 stage when the aspect ratio is 2:1 or wider; the PrismaUI view covers the whole window, so CoSync uses x unscaled.
+- **UNVERIFIED / not done:** hiding tags behind walls. It needs an engine line-of-sight query that has not been verified yet; tags are culled by location, distance, camera direction and open menus only.

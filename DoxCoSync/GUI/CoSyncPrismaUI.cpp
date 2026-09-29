@@ -20,12 +20,14 @@
 #include "CoSyncWorkshopAuthority.h"
 #include "CoSyncChat.h"
 #include "CoSyncVoice.h"
+#include "CoSyncNameplates.h"
 
 #include <ShlObj.h>
 
 #include <algorithm>
 #include <cctype>
 #include <atomic>
+#include <mutex>
 #include "CoSyncThreadDiag.h"
 #include "CoSyncSteamLobby.h"
 #include <cstdio>
@@ -1214,6 +1216,96 @@ namespace CoSyncPrismaUI
             s_hudLastJson = json;
             s_api->InteropCall(s_hud, "cosyncHud", json.c_str());
         }
+    }
+
+    // ── Overhead nameplates (PrismaUI's game thread) ───────────────────────
+    constexpr const char* kPlatesViewPath = "DoxCoSync/nameplates.html";
+    PrismaView        s_plates = 0;
+    std::atomic<bool> s_platesDomReady{ false };
+    std::atomic<bool> s_platesPending{ false };
+    bool              s_platesShown = false;
+    std::mutex        s_platesMx;
+    std::string       s_platesJson = "[]";
+
+    void PlatesOnGameThread(void*)
+    {
+        s_platesPending.store(false);
+        if (!s_api)
+            return;
+        std::string json;
+        {
+            std::lock_guard<std::mutex> lk(s_platesMx);
+            json = s_platesJson;
+        }
+        const bool any = json != "[]";
+        if (!any)
+        {
+            // Nothing to draw: hide the view instead of rendering an empty page.
+            if (s_platesShown && s_plates != 0 && s_api->IsValid(s_plates))
+            {
+                if (s_platesDomReady.load())
+                    s_api->InteropCall(s_plates, "cosyncPlates", "[]");
+                s_api->Hide(s_plates);
+            }
+            s_platesShown = false;
+            return;
+        }
+        if (s_plates == 0 || !s_api->IsValid(s_plates))
+        {
+            s_platesDomReady.store(false);
+            s_plates = s_api->CreateView(kPlatesViewPath, [](PrismaView v)
+            {
+                s_platesDomReady.store(true);
+                LOG_INFO("[PrismaUI] Nameplates view %llu DOM ready", (unsigned long long)v);
+            });
+            if (s_plates == 0)
+            {
+                LOG_ERROR("[PrismaUI] CreateView('%s') failed", kPlatesViewPath);
+                return;
+            }
+            s_api->SetViewRole(s_plates, PRISMA_UI_API::ViewRole::kWidget);
+            s_api->RegisterConsoleCallback(s_plates, OnConsoleMessage);
+            LOG_INFO("[PrismaUI] Created nameplates view %llu", (unsigned long long)s_plates);
+        }
+        if (!s_platesShown)
+        {
+            s_api->Show(s_plates);
+            s_platesShown = true;
+        }
+        if (!s_platesDomReady.load())
+            return;
+        static uint64_t s_nextColorMs = 0;
+        const uint64_t nowMs = GetTickCount64();
+        if (nowMs >= s_nextColorMs)
+        {
+            s_nextColorMs = nowMs + 5000;
+            int r, g, b;
+            ReadHudColor(r, g, b);
+            const std::string rgb = "[" + std::to_string(r) + "," + std::to_string(g) + "," + std::to_string(b) + "]";
+            s_api->InteropCall(s_plates, "cosyncPlatesHud", rgb.c_str());
+        }
+        s_api->InteropCall(s_plates, "cosyncPlates", json.c_str());
+    }
+
+    void TickNameplates()
+    {
+        LOG_REQUIREMENT("CoSyncPrismaUI::TickNameplates", "CoSync tick, every frame. Projection on the tick; view work on PrismaUI's game thread, one update in flight.");
+        if (!s_api)
+            return;
+        std::string json;
+        const bool live = CoSyncTransport::IsInitialized() && CoSyncNet::IsConnected();
+        const bool changed = CoSyncNameplates::Build(live, json);
+        // Until the page is ready, keep re-sending so the first frame lands.
+        if (!changed && s_platesDomReady.load())
+            return;
+        {
+            std::lock_guard<std::mutex> lk(s_platesMx);
+            s_platesJson = json;
+        }
+        if (s_platesPending.exchange(true))
+            return;
+        if (!s_api->DispatchToGameThread(PlatesOnGameThread, nullptr))
+            s_platesPending.store(false);
     }
 
     void RequestOpenChat()

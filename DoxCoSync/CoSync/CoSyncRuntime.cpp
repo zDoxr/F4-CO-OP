@@ -389,6 +389,8 @@ void CoSyncRuntime_TickGameThread()
     CoSyncTeleport::PollHotkeys();
     g_lastTickStep = "RTGT:PrismaHud";
     CoSyncPrismaUI::TickHud();
+    g_lastTickStep = "RTGT:Nameplates";
+    CoSyncPrismaUI::TickNameplates();
 
     // Shared host save: stream the world to joining clients (host) and
     // apply / upload this player's character (client).

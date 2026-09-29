@@ -76,6 +76,19 @@ voice mode `U`.
 | 6.9 | Background noise opens the mic | Raise `fThreshold`, retest |  |
 | 6.10 | 4P / 8P: everyone talks at once | Audio stays clear; no growing delay |  |
 
+## 6b. Overhead nameplates (2P, then 3P)
+
+| # | Step | Expect |
+|---|------|--------|
+| 6b.1 | Stand near C1 | Name, LVL, and rank · faction (if any) float above C1's head and follow it smoothly |
+| 6b.2 | Walk away | Tag shrinks and fades; gone beyond ~3500 units |
+| 6b.3 | Turn away from C1 | Tag disappears (no mirrored tag behind you) |
+| 6b.4 | C1 in another interior / exterior | No tag |
+| 6b.5 | Open the Pip-Boy, pause menu, Multiplayer menu | Tags hidden, back when closed |
+| 6b.6 | C1 talks on voice | Speaker mark on C1's tag |
+| 6b.7 | Ultrawide (21:9) screen | Tag stays centred over the head (x is not rescaled) |
+| 6b.8 | C1 behind a wall | Tag still shows (known limit: no line-of-sight check yet) |
+
 ## 7. Scale (4P, 8P)
 
 | # | Step | Expect |
@@ -87,4 +100,4 @@ voice mode `U`.
 ## Known limits (not failures)
 
 - Voice has no left/right panning yet, and uses the Windows default devices.
-- Overhead name / faction / level tags are not built yet (they need the camera projection reverse-engineered first).
+- Nameplates are not hidden behind walls yet (no verified engine line-of-sight call).
