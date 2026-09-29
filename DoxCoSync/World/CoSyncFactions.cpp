@@ -1295,6 +1295,34 @@ namespace CoSyncFactions
         return out;
     }
 
+    bool GetFactionAudience(const std::string& playerKey, std::vector<uint32_t>& conns, std::string& factionName)
+    {
+        std::lock_guard<std::recursive_mutex> lk(s_mx);
+        conns.clear();
+        if (AuthorityNow() && CoSyncTransport::IsInitialized())
+            RebuildOnline();
+        const Faction* f = FactionOfKey(playerKey);
+        if (!f)
+            return false;
+        factionName = f->name;
+        const std::string me = MyKey();
+        for (const auto& m : f->members)
+        {
+            if (m.key == me) { conns.push_back(0); continue; }
+            if (const Online* o = OnlineByKey(m.key))
+                if (o->conn != 0)
+                    conns.push_back(o->conn);
+        }
+        return true;
+    }
+
+    std::string FactionNameOfKey(const std::string& playerKey)
+    {
+        std::lock_guard<std::recursive_mutex> lk(s_mx);
+        const Faction* f = FactionOfKey(playerKey);
+        return f ? f->name : std::string();
+    }
+
     std::string GetFactionName(uint32_t factionId)
     {
         std::lock_guard<std::recursive_mutex> lk(s_mx);

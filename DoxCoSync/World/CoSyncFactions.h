@@ -106,6 +106,13 @@ namespace CoSyncFactions
 
     // Every claimed settlement's workbench (any faction).
     std::vector<uint32_t> GetClaimedWorkshops();
+
+    // Host: who a faction chat message from `playerKey` reaches -- the
+    // connections of that faction's ONLINE members (0 = the host itself).
+    // false if the player is in no faction.
+    bool GetFactionAudience(const std::string& playerKey, std::vector<uint32_t>& conns, std::string& factionName);
+    // "" if the player is in no faction.
+    std::string FactionNameOfKey(const std::string& playerKey);
     std::string GetFactionName(uint32_t factionId);
 
     Settings GetSettings();

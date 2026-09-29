@@ -45,4 +45,9 @@ namespace CoSyncPrismaUI
     // Teammate HUD (health / AP / rads). Call every frame from the main-thread
     // tick; throttles itself and only pushes to the page when data changed.
     void TickHud();
+
+    // Text chat box (views/DoxCoSync/chat.html): shown during a session,
+    // takes keyboard focus while typing. Any thread.
+    void RequestOpenChat();
+    bool IsChatOpen();
 }

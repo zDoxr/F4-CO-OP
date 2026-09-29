@@ -18,6 +18,7 @@
 #include "CoSyncProfiles.h"
 #include "CoSyncFactions.h"
 #include "CoSyncWorkshopAuthority.h"
+#include "CoSyncChat.h"
 
 #include <ShlObj.h>
 
@@ -875,12 +876,112 @@ namespace CoSyncPrismaUI
     std::atomic<bool> s_hudSessionLive{ false };
     std::atomic<bool> s_hudUpdatePending{ false };
 
+    // ── Chat box (PrismaUI's game thread) ──────────────────────────────────
+    constexpr const char* kChatViewPath = "DoxCoSync/chat.html";
+    PrismaView        s_chat = 0;
+    std::atomic<bool> s_chatDomReady{ false };
+    std::atomic<bool> s_chatOpen{ false };
+    bool              s_chatShown = false;
+    uint64_t          s_chatLastSeq = 0;
+    uint64_t          s_chatNextColorMs = 0;
+
+    void CloseChat()
+    {
+        if (!s_chatOpen.exchange(false))
+            return;
+        if (s_chat != 0 && s_api->IsValid(s_chat))
+        {
+            s_api->Unfocus(s_chat);
+            s_api->SetViewRole(s_chat, PRISMA_UI_API::ViewRole::kWidget);
+        }
+        LOG_INFO("[PrismaUI] Chat closed");
+    }
+
+    // JS -> C++ (game thread): "send|G|text", "send|F|text", "close".
+    void OnChatCommand(const char* argument, void*)
+    {
+        const std::string a = argument ? argument : "";
+        if (a.rfind("send|", 0) == 0 && a.size() > 7 && (a[5] == 'G' || a[5] == 'F') && a[6] == '|')
+            CoSyncChat::QueueSend(a[5], a.substr(7));
+        else if (a == "close")
+            CloseChat();
+    }
+
+    // Keeps the chat view alive during a session and pushes new messages.
+    void ChatUpdateOnGameThread(bool sessionLive)
+    {
+        if (!sessionLive)
+        {
+            CloseChat();
+            if (s_chatShown && s_chat != 0 && s_api->IsValid(s_chat))
+                s_api->Hide(s_chat);
+            s_chatShown = false;
+            return;
+        }
+        if (s_chat == 0 || !s_api->IsValid(s_chat))
+        {
+            s_chatDomReady.store(false);
+            s_chatLastSeq = 0;
+            s_chat = s_api->CreateView(kChatViewPath, [](PrismaView v)
+            {
+                s_chatDomReady.store(true);
+                LOG_INFO("[PrismaUI] Chat view %llu DOM ready", (unsigned long long)v);
+            });
+            if (s_chat == 0)
+            {
+                LOG_ERROR("[PrismaUI] CreateView('%s') failed", kChatViewPath);
+                return;
+            }
+            s_api->SetViewRole(s_chat, PRISMA_UI_API::ViewRole::kWidget);
+            s_api->RegisterConsoleCallback(s_chat, OnConsoleMessage);
+            s_api->BindGameThreadUIEvent(s_chat, "cosync_chat", OnChatCommand, nullptr);
+            LOG_INFO("[PrismaUI] Created chat view %llu", (unsigned long long)s_chat);
+        }
+        if (!s_chatShown)
+        {
+            s_api->Show(s_chat);
+            s_chatShown = true;
+        }
+        if (!s_chatDomReady.load())
+            return;
+        const uint64_t nowMs = GetTickCount64();
+        if (nowMs >= s_chatNextColorMs)
+        {
+            s_chatNextColorMs = nowMs + 5000;
+            int r, g, b;
+            ReadHudColor(r, g, b);
+            const std::string rgb = "[" + std::to_string(r) + "," + std::to_string(g) + "," + std::to_string(b) + "]";
+            s_api->InteropCall(s_chat, "cosyncChatHud", rgb.c_str());
+        }
+        // Push only when something new arrived (no polling in the page).
+        if (CoSyncChat::LatestSeq() != s_chatLastSeq)
+        {
+            const std::string json = CoSyncChat::BuildJson(s_chatLastSeq);
+            s_chatLastSeq = CoSyncChat::LatestSeq();
+            s_api->InteropCall(s_chat, "cosyncChat", json.c_str());
+        }
+    }
+
+    void OpenChatOnGameThread(void*)
+    {
+        if (!s_api || s_chat == 0 || !s_api->IsValid(s_chat) || !s_chatDomReady.load())
+        {
+            s_chatOpen.store(false);
+            return;
+        }
+        s_api->SetViewRole(s_chat, PRISMA_UI_API::ViewRole::kPanel);
+        const bool focused = s_api->Focus(s_chat, false, false);
+        s_api->InteropCall(s_chat, "cosyncChatOpen", "G");
+        LOG_INFO("[PrismaUI] Chat opened (focus=%d)", focused ? 1 : 0);
+    }
+
     // PrismaUI's game thread only (all view calls below).
     void HudUpdateOnGameThread(void*)
     {
         s_hudUpdatePending.store(false);
         if (!s_api)
             return;
+        ChatUpdateOnGameThread(s_hudSessionLive.load());
         const uint64_t nowMs = GetTickCount64();
 
         // Teammates only: the vanilla HUD already shows your own bars.
@@ -975,6 +1076,19 @@ namespace CoSyncPrismaUI
     // whenever the two differed, so the teammate HUD switched itself off on
     // the first in-game tick ("TickHud called off PrismaUI's game thread")
     // and never showed. The update now goes to PrismaUI's thread.
+    void RequestOpenChat()
+    {
+        if (!s_api || s_chatOpen.exchange(true))
+            return;
+        if (!s_api->DispatchToGameThread(OpenChatOnGameThread, nullptr))
+            s_chatOpen.store(false);
+    }
+
+    bool IsChatOpen()
+    {
+        return s_chatOpen.load();
+    }
+
     void TickHud()
     {
         LOG_REQUIREMENT("CoSyncPrismaUI::TickHud", "CoSync tick. Throttled to 10 Hz; the view work runs on PrismaUI's game thread and pushes to the page only when the data changed.");

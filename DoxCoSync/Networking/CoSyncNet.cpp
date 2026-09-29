@@ -48,6 +48,7 @@
 #include "CoSyncCompanions.h"
 #include "CoSyncItemMods.h"
 #include "CoSyncFactions.h"
+#include "CoSyncChat.h"
 #include "CoSyncWorkshopAuthority.h"
 
 #include <algorithm>
@@ -401,6 +402,7 @@ void CoSyncNet::Init(bool isHost)
     LOG_INFO("[CoSyncNet] Init() step: CoSyncWorkshopSync::Init done");
     CoSyncFactions::OnSessionStart(isHost);
     CoSyncWorkshopAuthority::OnSessionStart(isHost);
+    CoSyncChat::OnSessionStart();
     CoSyncTimeSync::Init();
     LOG_INFO("[CoSyncNet] Init() step: CoSyncTimeSync::Init done");
 
@@ -678,6 +680,7 @@ void CoSyncNet::Shutdown()
     CoSyncTimeSync::Shutdown();
     CoSyncFactions::OnSessionEnd();
     CoSyncWorkshopAuthority::OnSessionEnd();
+    CoSyncChat::OnSessionEnd();
 
     //UninstallEquipHook();
     UninstallWorkshopScrapHook();
@@ -1120,6 +1123,7 @@ void CoSyncNet::Tick(double now)
 
     g_lastTickStep = "FlushPendingHealthOps";        CoSyncHealthSync::FlushPendingHealthOps();
     g_lastTickStep = "FlushPendingCorpses";          CoSyncHealthSync::FlushPendingCorpses();
+    g_lastTickStep = "CoSyncChat::Tick";             CoSyncChat::Tick(now);
     g_lastTickStep = "TickDamageDetection";          CoSyncHealthSync::TickDamageDetection(now);
     g_lastTickStep = "FlushPendingReviveOps";        CoSyncReviveSync::FlushPendingReviveOps();
     g_lastTickStep = "TickReviveChannel";            CoSyncReviveSync::TickReviveChannel(now);
@@ -1318,6 +1322,13 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
     if (CoSyncWorkshopAuthority::IsWorkshopMessage(msg))
     {
         CoSyncWorkshopAuthority::OnReceive(msg, conn, isHostRole);
+        return;
+    }
+    // Text chat: CHAT (request; the host validates and picks recipients),
+    // CHATM (host -> recipient).
+    if (CoSyncChat::IsChatMessage(msg))
+    {
+        CoSyncChat::OnReceive(msg, conn, isHostRole);
         return;
     }
 

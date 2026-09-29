@@ -4,12 +4,54 @@
 #include "ConsoleLogger.h"
 #include "CoSyncRequirementsLog.h"
 #include "CoSyncThreadDiag.h"
+#include "CoSyncTransport.h"
+#include "CoSyncNet.h"
 
 #include <Windows.h>
+#include <string>
+
+extern bool CoSyncRuntime_IsMenuOpen(const char* menuName);
 
 namespace
 {
     HWND    g_hWnd = nullptr;
+
+    // [Chat] iOpenKey (virtual-key code) from Data\F4SE\Plugins\CoSync.ini.
+    int ChatKey()
+    {
+        static int s_key = -1;
+        if (s_key >= 0)
+            return s_key;
+        char exe[MAX_PATH] = {};
+        std::string ini;
+        if (GetModuleFileNameA(nullptr, exe, MAX_PATH))
+        {
+            ini = exe;
+            ini = ini.substr(0, ini.find_last_of("\\/") + 1) + "Data\\F4SE\\Plugins\\CoSync.ini";
+        }
+        s_key = static_cast<int>(GetPrivateProfileIntA("Chat", "iOpenKey", 0x59, ini.c_str()));
+        if (s_key <= 0 || s_key > 0xFE)
+            s_key = 0x59;
+        return s_key;
+    }
+
+    bool CanOpenChat()
+    {
+        if (!CoSyncTransport::IsInitialized() || !CoSyncNet::IsConnected())
+            return false;
+        if (CoSyncPrismaUI::IsMultiplayerOpen() || CoSyncPrismaUI::IsChatOpen())
+            return false;
+        static const char* const kBlocking[] = {
+            "PipboyMenu", "PauseMenu", "Console", "LooksMenu", "WorkshopMenu", "ContainerMenu",
+            "BarterMenu", "DialogueMenu", "MainMenu", "LoadingMenu", "TerminalMenu", "ExamineMenu",
+            "FavoritesMenu", "LockpickingMenu", "BookMenu", "SleepWaitMenu", "VATSMenu", "CookingMenu",
+            "LevelUpMenu", "MessageBoxMenu", "PowerArmorModMenu", "SPECIALMenu", "CreditsMenu",
+        };
+        for (const char* m : kBlocking)
+            if (CoSyncRuntime_IsMenuOpen(m))
+                return false;
+        return true;
+    }
     WNDPROC g_origWndProc = nullptr;
 
     LRESULT CALLBACK HookedWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -44,6 +86,17 @@ namespace
             }
             if (msg == WM_SYSKEYDOWN || msg == WM_KEYDOWN || msg == WM_SYSKEYUP || msg == WM_KEYUP)
                 return 0;
+        }
+
+        // Chat key (default Y, [Chat] iOpenKey in CoSync.ini): opens the chat
+        // box during a session, in game, when no game menu or other panel has
+        // the input. While the box is open it owns the keyboard (PrismaUI
+        // focus), so typing Y there never lands here.
+        if (msg == WM_KEYDOWN && !(lParam & (1 << 30)) && static_cast<int>(wParam) == ChatKey() &&
+            CanOpenChat())
+        {
+            CoSyncPrismaUI::RequestOpenChat();
+            return 0;
         }
 
         // Window closing (Alt+F4 etc.) while the PrismaUI menu holds focus:

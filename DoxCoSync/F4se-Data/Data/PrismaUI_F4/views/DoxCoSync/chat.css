@@ -1,0 +1,107 @@
+/*
+ * CoSync chat -- Fallout 4 HUD language (same palette and type as hud.css):
+ * HUD-colour text with a soft glow, no panels while just reading; a thin
+ * framed entry line while typing. Sits left, above the teammate HUD.
+ */
+
+@font-face {
+  font-family: "FO Main";
+  src: url("fonts/RobotoCondensed-400.ttf") format("truetype");
+  font-weight: 400;
+}
+@font-face {
+  font-family: "FO Main";
+  src: url("fonts/RobotoCondensed-700.ttf") format("truetype");
+  font-weight: 700;
+}
+
+:root {
+  --hud:      rgb(18, 255, 21);
+  --hud-80:   rgba(18, 255, 21, 0.80);
+  --hud-55:   rgba(18, 255, 21, 0.55);
+  --hud-25:   rgba(18, 255, 21, 0.25);
+  --hud-glow: rgba(18, 255, 21, 0.45);
+  --faction:  rgb(230, 190, 90);
+  --system:   rgba(200, 214, 200, 0.75);
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font-family: "FO Main", "Roboto Condensed", "Arial Narrow", sans-serif;
+  color: var(--hud);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.chat {
+  position: absolute;
+  left: 3.6vh;
+  bottom: 44vh;
+  width: 52vh;
+  text-shadow: 0 0 0.5vh var(--hud-glow);
+}
+
+.log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35vh;
+  max-height: 26vh;
+  overflow: hidden;
+}
+
+.line {
+  font-size: 1.9vh;
+  font-weight: 400;
+  line-height: 1.3;
+  word-wrap: break-word;
+  transition: opacity 600ms ease-out;
+}
+.line.faded { opacity: 0; }
+.line .who { font-weight: 700; letter-spacing: 0.03em; }
+.line .tag { font-weight: 700; color: var(--hud-55); margin-right: 0.6vh; }
+.line.f .tag, .line.f .who { color: var(--faction); text-shadow: 0 0 0.5vh rgba(230, 190, 90, 0.45); }
+.line.s { color: var(--system); font-style: italic; text-shadow: none; }
+.line.me .who { text-decoration: underline; text-decoration-color: var(--hud-25); }
+
+/* While typing: every line visible, framed entry line + hint. */
+.chat.open .line.faded { opacity: 1; }
+.entry, .hint { display: none; }
+.chat.open .entry { display: flex; }
+.chat.open .hint { display: block; }
+
+.entry {
+  align-items: center;
+  gap: 1vh;
+  margin-top: 0.9vh;
+  padding: 0.5vh 0.9vh;
+  border: 0.15vh solid var(--hud-55);
+  background: rgba(4, 16, 6, 0.70);
+}
+.scope {
+  font-weight: 700;
+  font-size: 1.8vh;
+  letter-spacing: 0.08em;
+  min-width: 8vh;
+}
+.scope.f { color: var(--faction); }
+.input {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-family: "FO Main", sans-serif;
+  font-size: 2vh;
+  color: var(--hud);
+  -webkit-user-select: text;
+  user-select: text;
+}
+.hint {
+  margin-top: 0.5vh;
+  font-size: 1.45vh;
+  letter-spacing: 0.05em;
+  color: var(--hud-55);
+  text-shadow: none;
+}
