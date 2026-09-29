@@ -1,4 +1,5 @@
 #include "CoSyncTransport.h"
+#include "CoSyncFormIdMap.h"
 
 #include "Logger.h"
 #include "ConsoleLogger.h"
@@ -129,6 +130,14 @@ void CoSyncTransport::Send(const std::string& msg, bool reliable)
         return;
     }
 
+    // 0.3.3: clients put FormIDs into the host's load-order space.
+    if (CoSyncFormIdMap::IsActive() && !IsHost())
+    {
+        GNS_Session::Get().SendText(CoSyncFormIdMap::Outbound(msg), reliable);
+        (reliable ? s_txReliable : s_txUnreliable).fetch_add(1, std::memory_order_relaxed);
+        s_txBytes.fetch_add(msg.size(), std::memory_order_relaxed);
+        return;
+    }
     GNS_Session::Get().SendText(msg, reliable);
     (reliable ? s_txReliable : s_txUnreliable).fetch_add(1, std::memory_order_relaxed);
     s_txBytes.fetch_add(msg.size(), std::memory_order_relaxed);
@@ -138,14 +147,14 @@ void CoSyncTransport::SendTo(HSteamNetConnection conn, const std::string& msg, b
 {
     if (!s_initialized)
         return;
-    GNS_Session::Get().SendTextTo(conn, msg, reliable);
+    GNS_Session::Get().SendTextTo(conn, (CoSyncFormIdMap::IsActive() && !IsHost()) ? CoSyncFormIdMap::Outbound(msg) : msg, reliable);
 }
 
 void CoSyncTransport::SendExcept(const std::string& msg, HSteamNetConnection except, bool reliable)
 {
     if (!s_initialized)
         return;
-    GNS_Session::Get().SendTextExcept(msg, except, reliable);
+    GNS_Session::Get().SendTextExcept((CoSyncFormIdMap::IsActive() && !IsHost()) ? CoSyncFormIdMap::Outbound(msg) : msg, except, reliable);
 }
 
 void CoSyncTransport::ForwardMessage(const std::string& msg, HSteamNetConnection conn)

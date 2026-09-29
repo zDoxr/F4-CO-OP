@@ -17,7 +17,8 @@ Built clean, deployed. **Not yet live-tested.** Full evidence, engine RE and tes
 - **Revive:** "Revive" prompt instead of "Talk"; revive restores health immediately; downed players keep streaming (others see the downed pose); getting up on your own clears everyone's UI; the give-up loop (twice per frame) is fixed; revive no longer lowers max health; revive messages are sender-checked.
 - **Carry/debris:** the host no longer re-broadcasts a stale copy of an object another player is carrying.
 - **UI:** MULTIPLAYER entry in the Pause menu (F10 stays as a shortcut); new Voice & Audio screen (microphone and output device, mic volume, input sensitivity, voice volume, mute); voice range stays a host rule; smaller panel.
-- **Mods:** the active load order is compared at join and every difference is reported (FormIDs depend on it).
+- **Mods:** the active load order is compared at join; FormIDs are translated between the host's and each client's load order (same mods in a different order now sync correctly; only plugins one side lacks are reported).
+- **Follow-up:** NPC/companion puppets get the owner's velocity instead of zero; objects someone else carries are keyframed on your side; Power Armor syncs piece condition (broken pieces fall off), fusion-core charge and repairs on frames, and paint/upgrades on the wearer; no Disable/Enable after entering PA.
 - Version 0.3.3 (network 303).
 
 ---

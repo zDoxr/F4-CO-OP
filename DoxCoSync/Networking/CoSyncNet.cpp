@@ -70,6 +70,7 @@
 #include "CoSyncMusicChangerCellTeardownGuard.h"
 #include "CoSyncActorAudioScaleGuard.h"
 #include "CoSyncModSync.h"
+#include "CoSyncFormIdMap.h"
 #include "CoSyncModEventBus.h"
 #include "CoSyncModEventHook.h"
 #include "CoSyncQuestHook.h"
@@ -580,6 +581,7 @@ void CoSyncNet::Init(bool isHost)
     CoSyncHealthSync::Reset();
     CoSyncReviveSync::Reset();
     CoSyncOutfitSync::Reset();
+    CoSyncFormIdMap::Reset();
     CoSyncOverlay_ClearLobby();
 
     LOG_INFO("[CoSyncNet] Init host=%d localEID=%u",
@@ -1251,10 +1253,16 @@ void CoSyncNet::HostSpawnNpc(
     g_CoSyncPlayerManager.EnqueueEntityCreate(p);
 }
 
-void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnection conn)
+void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnection conn)
 {
 
     const bool isHostRole = s_isHost || (s_pendingInit && s_pendingHostFlag);
+    // 0.3.3: a client maps FormIDs from the host's load-order space to its own
+    // before anything reads them (CoSyncFormIdMap; identity = no copy).
+    std::string translated;
+    if (!isHostRole && CoSyncFormIdMap::IsActive())
+        translated = CoSyncFormIdMap::Inbound(rawMsg);
+    const std::string& msg = translated.empty() ? rawMsg : translated;
     // Remote client messages are checked (P5/N7); conn==Invalid is a local
     // GNS notice (PEERLEFT) and clients trust everything from the host.
     const bool checkSender = isHostRole && conn != k_HSteamNetConnection_Invalid;

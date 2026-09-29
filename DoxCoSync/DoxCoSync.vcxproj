@@ -561,6 +561,7 @@ exit /b 0
     <ClCompile Include="Character\CoSyncCompanions.cpp" />
     <ClCompile Include="Character\CoSyncItemMods.cpp" />
     <ClCompile Include="Networking\CoSyncModSync.cpp" />
+    <ClCompile Include="Networking\CoSyncFormIdMap.cpp" />
     <ClCompile Include="Networking\CoSyncModEventBus.cpp" />
     <ClCompile Include="Core\Heap.cpp" />
     <ClCompile Include="Core\IniReader.cpp" />

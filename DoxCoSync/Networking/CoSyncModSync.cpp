@@ -3,6 +3,7 @@
 #include <Windows.h>
 
 #include "CoSyncModSync.h"
+#include "CoSyncFormIdMap.h"
 #include "CoSyncGameAPI.h"
 #include "GameData.h"
 
@@ -353,6 +354,8 @@ namespace CoSyncModSync
                 return;
             const std::string clientLo = msg.substr(10);
             const std::string hostLo = BuildLoadOrder();
+            // 0.3.3: the client translates FormIDs against this list.
+            CoSyncTransport::SendTo(conn, "LOADORDERHOST|" + hostLo);
             int count = 0;
             const std::string diff = DiffLoadOrders(hostLo, clientLo, count);
             if (count == 0)
@@ -364,10 +367,19 @@ namespace CoSyncModSync
             CoSyncTransport::SendTo(conn, "LOADORDERBAD|" + std::to_string(count) + "|" + diff);
             LOG_WARN("[ModSync] %s: load order differs from the host's (%d): %s",
                 senderName.c_str(), count, diff.c_str());
-            char note[200];
-            std::snprintf(note, sizeof(note), "%s has a different load order -- modded items may not sync",
-                senderName.empty() ? "A player" : senderName.c_str());
-            CoSyncGameAPI::QueueNotification(note);
+            if (diff.find("missing") != std::string::npos || diff.find("extra") != std::string::npos)
+            {
+                char note[200];
+                std::snprintf(note, sizeof(note), "%s has different mods -- items from mods only one of you has will not sync",
+                    senderName.empty() ? "A player" : senderName.c_str());
+                CoSyncGameAPI::QueueNotification(note);
+            }
+            return;
+        }
+        if (msg.rfind("LOADORDERHOST|", 0) == 0)
+        {
+            if (!isHostRole)
+                CoSyncFormIdMap::SetHostLoadOrder(msg.substr(14));
             return;
         }
         if (msg == "LOADORDEROK")
@@ -382,7 +394,10 @@ namespace CoSyncModSync
             const std::string n = rest.substr(0, bar);
             const std::string what = (bar == std::string::npos) ? std::string() : rest.substr(bar + 1);
             LOG_WARN("[ModSync] Your load order differs from the host's (%s difference(s)): %s", n.c_str(), what.c_str());
-            CoSyncGameAPI::QueueNotification("Your load order differs from the host's. Items, NPCs and places from those mods will not sync correctly -- see the CoSync log.");
+            // Order differences are translated (CoSyncFormIdMap); only plugins
+            // one side lacks remain a real problem.
+            if (what.find("missing") != std::string::npos || what.find("extra") != std::string::npos)
+                CoSyncGameAPI::QueueNotification("Your mods differ from the host's. Items, NPCs and places from mods only one of you has will not sync -- see the CoSync log.");
         }
     }
 }

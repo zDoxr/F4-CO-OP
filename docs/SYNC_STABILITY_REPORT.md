@@ -709,3 +709,58 @@ The handshake already gives each machine both load orders. The next step is a tr
 1. Same load order on both machines: client log "Host confirmed: same load order"; host log "... load order matches the host's".
 2. Move one plugin in the client's order: client sees the warning; host log lists "order differs from slot N (name)".
 3. Disable a plugin on the client: "missing name" reported.
+
+---
+
+## Follow-up pass — the items left open above
+
+### F1. Companion / NPC puppet movement (Stage 4 open item)
+
+```text
+ENGINE (VERIFIED, IDA 1.11.240): the actor's character controller is
+  process(+0x300) -> middleHigh(+0x08) -> +0x3E0. Its full vtable is
+  bhkCharProxyController's second table (0x26B2E90; the first label is a
+  13-entry base table):
+    slot 0x34 sub_1418B6AC0  set position  (characterProxy(+0x470)+0x70)
+    slot 0x35 sub_1418B6C40  get position
+    slot 0x39 sub_1418B70E0  get linear velocity (characterProxy+0xA0)
+    slot 0x3A sub_1418B7110  set linear velocity (characterProxy+0xA0)
+  Actor::SetPosition(pos, true) passes the all-zero vector 0x142F3C550 to
+  slot 0x3A, i.e. it zeroes the velocity.
+FIX:  after every puppet steer, CoSyncGameAPI::SetActorControllerVelocity
+  gives the controller the owner's velocity (havok units, x0.0142875), or
+  zero once updates are more than 0.25 s old (a held position with a stale
+  velocity would be pushed forward every physics step).
+UNVERIFIED: which engine consumer turns controller velocity into the walk /
+  run blend. The fix removes a verified wrong input (always zero); whether
+  it alone makes the locomotion animation right needs the in-game test.
+```
+
+### F2. Carried objects (Stage 7 open item)
+
+Objects another machine is driving are now `Motion_Keyframed` (vanilla `SetMotionType`) while their stream is live, and go back to `Motion_Dynamic` 1.5 s after it stops, or at once when the local player grabs one. The earlier worry (a keyframed body pushing the carrier's proxy) no longer applies: since S1-A the proxy's position and controller are re-set from the network every frame after the engine's own controller sync.
+
+### F3. Power Armor (Stage 5 open items)
+
+* **Item condition (VERIFIED):** `ExtraHealth`, extra type 0x25, float at +0x18, −1 when absent (= full), read by `sub_1402800C0` — the end of the vanilla `GetItemHealthPercent` native (`sub_1411814A0` → `sub_140561720`) and called by the engine's PA code (`SwitchToPowerArmor` 0x989D90, 0x98C920, 0x98DD40, …). PA piece condition and fusion-core charge are this value; F4SE 0.7.9's `ExtraHealth::Create` (vtable 0x2468160, built for 1.11.240) adds it where missing.
+* **Disable+Enable after entering removed:** replaced by the engine's worn-3D rebuild request (`sub_140D363C0`, Stage 3). The forced unequip→re-equip of every piece (on enter and on every piece update) is replaced by equipping only what the engine has not equipped, and unequipping pieces that left the set.
+* **Piece damage / breaking / repair (worn):** `PA|` now carries each piece's condition. A broken piece (0) is shown off the wearer's proxy (the engine shows the frame there); a piece breaking or being repaired re-sends the state.
+* **Fusion core, damage and repair on frames (unworn), station work:** `PAI|` entries are per stack with condition (`fid:count:condition`), so fusion-core swaps and charge, damaged and repaired pieces, and pieces swapped at a station reach everyone's copy of the frame. Station mods/paint were already synced (`PAMODS`); on enter, the proxy's spawned chassis now copies the piece mods of this machine's copy of the real frame, so paint and upgrades show on the wearer too.
+* Limits: a merged multi-item stack whose items have different conditions on the sender cannot be split on the receiver (logged and left as is); the Disable+Enable on **exit** is unchanged (it restores the human skeleton after the PA race; not verified yet that SwitchFromPowerArmor alone does).
+
+### F4. Load-order-independent FormIDs (Stage 9, S9-B built)
+
+`Networking/CoSyncFormIdMap` implements the design above. The host answers `LOADORDER|` with `LOADORDERHOST|<its list>`; the client builds full (8-bit) and light (12-bit) index tables both ways. Clients translate outgoing messages in `CoSyncTransport::Send/SendTo/SendExcept` (local → host) and incoming messages at the top of `CoSyncNet::OnReceive` (host → local); the host never translates. Fallout4.esm (index 0) and dynamic 0xFF IDs pass through; a form from a plugin the other side lacks becomes 0 and is rejected by the receiver instead of resolving to the wrong object. Identical load orders: tables are identity and translation is skipped.
+
+Schema (every rule read off the message's serializer): EC, EU (from the end: weapon −8, throwable −4, since the anim block is optional), WS, WBF, WDS, FU, OBJ, PU, DOOR, LOCK, MM, WX, NPCSEEN, NPCDEAD, QS / QS_ST / QS_DONE / QS_OBJ_ALL / QS_OBJ_SET / QS_OBJ_DISP / QS_TRK, WM, WD, CTR, CTRD, CONS, SPELL, DROPCREATE, DROPSEEN, INV, EQUIP, OUTFIT, SPEC, ACT, DLG (L), COMP_REQ, COMPOWN, IMODS and PAMODS (hex item:mod lists), LOOKS (profile text keys race/skin/hair/facetex/heads/perks/items/equip/comps/mods/pos), EXP, THRP, THRM, THRX, PA, PAI, WKA, WKV, WKX, WKR, WKN, WKQ (P / M / S / T / R; a network id `N|n` is left alone), WKC, FS (territory lines), FQ (claim / release / rename_terr). Not translated on purpose: PROFILEUP (the client's own profile, only read back by that client), chat and mod-event free text. Messages sent before `LOADORDERHOST` arrives (HELLO and the client's own first CREATE) go out untranslated.
+
+Verified offline: `CoSyncFormIdMap.cpp` compiled standalone with stub headers and run against two different load orders — 26/26 cases pass (index remap both ways, light plugins, missing plugins → 0, Fallout4.esm/dynamic unchanged, and the real shapes of EU with and without the anim block, EC, INV, OUTFIT, IMODS, PA, PAI, WKQ M/S, FS, LOOKS, FQ, WKC, chat).
+
+The join warning now only fires for plugins one side lacks; a pure order difference is handled.
+
+### TEST PLAN (follow-up)
+
+1. NPC/companion following the owner at walk, run and sprint: legs animate instead of sliding (F1).
+2. Carry and throw a box with another player watching: no wobble; the carrier's proxy does not get pushed (F2).
+3. Enter a painted / upgraded frame: others see the paint; break a piece in a fight: it falls off on others' screens; repair it at a station: it is back for everyone; swap the fusion core of a parked frame: the other player sees the new core and its charge (F3).
+4. Same mods, different order on the client (move one plugin): join, pick up / equip / drop a modded item, see a modded NPC: both sides agree; log shows "Translating FormIDs ..." (F4).
