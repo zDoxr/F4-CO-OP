@@ -586,3 +586,48 @@ Any client could mark any player down or revived. The host now requires: DOWN ab
 1. Get the client downed near the host: host sees the client's bleedout pose (not standing), prompt reads "Revive". Revive with a Stimpak: the client stands up about a second after the channel ends, prompt returns to "Talk"/normal, both UIs clear the DOWNED tag. Client's max HP unchanged (check Pip-Boy).
 2. Let the timeout expire (60 s default): one "Gave up" line in the client log; client stands up via vanilla recovery; host's UI clears the tag ("back on their feet").
 3. Try reviving while the downed player is still: no "moved out of range" cancellation.
+
+---
+
+## Stage 7 — pickup / carry / debris physics
+
+### Authority model (as built, written down)
+
+| Question | Answer |
+|---|---|
+| Who owns a carried object? | The machine whose player grabbed it (grab handle at PlayerCharacter+0xB5C, from the engine's GetPlayerGrabbedRef console command), and for 5 s after release (throw tail). |
+| Who controls its transform / simulates it? | That machine's own Havok (the vanilla grab). |
+| Who broadcasts it? | That machine only: `OBJ|` at 20 Hz with a 0.5-unit deadzone. Idle debris is reported by the host's 2 Hz cell walk (5-unit deadzone). |
+| Who applies? | Everyone else, via MoveRefrToPosition; the owner ignores OBJ for objects it owns. |
+| After release? | The owner keeps streaming the flight for the 5 s tail; afterwards the object is idle debris again. |
+
+### S7-A. The host echoed objects that another player was carrying
+
+```text
+BUG:        A carried/thrown object jitters for other players.
+Severity:   High
+ROOT CAUSE: When a client carries an object, the host applies its OBJ| and
+            relays it to everyone. The host's own 2 Hz cell walk then saw the
+            object "moved" (its s_objLastSent baseline was never updated by the
+            apply) and broadcast its own copy of the position -- up to 0.5 s
+            old. Every machine other than the carrier received two streams for
+            the same object and it jumped between them.
+FIX:        Applying an OBJ| updates the baseline and marks the object
+            remote-driven for 1.5 s; the host's walk skips remote-driven objects.
+            The relay already delivers the carrier's stream to everyone, so
+            nothing is lost; REQSTATE replay now also has the carrier's final
+            position.
+FILES:      World/CoSyncWorldSync.cpp (HostTickObjects_Impl,
+            ClientTickObjectMoves_Impl)
+```
+
+### Findings not changed (need a test to decide)
+
+* On the receivers the object stays a **dynamic** Havok body that is teleported 20 times a second; between teleports local gravity pulls it, so it can still wobble. The engine offers `ObjectReference.SetMotionType` (vanilla Papyrus: Motion_Fixed=0, Motion_Dynamic=1, Motion_Keyframed=2; native registered from sub_14115F4A0). Making remote-driven objects keyframed would stop the wobble, **but** a keyframed body right in front of the carrier's proxy would push that proxy's character controller every frame -- turning object jitter into carrier jitter. Which of the two the engine does was not verifiable offline, so it is left as the next step for a test session.
+* The carrier's proxy jitter reported by the user is covered by S1-A (proxy positioned through the engine, so its capsule no longer fights the engine's controller sync).
+
+### TEST PLAN (Stage 7)
+
+1. Three machines if possible (host + 2 clients): client A picks up a box and walks around, then throws it. Host and client B see the box follow smoothly and land in the same spot.
+2. Two machines: client carries a box; host sees the carrier walk without jitter. Repeat with the host carrying.
+3. Join late after throwing things around: objects are where the thrower left them.

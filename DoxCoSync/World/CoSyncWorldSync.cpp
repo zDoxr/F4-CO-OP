@@ -512,6 +512,12 @@ namespace
     };
 
     std::unordered_map<uint32_t, ObjState> s_objLastSent;
+
+    // 0.3.3 (Stage 7): objects another machine is driving right now (formID ->
+    // time we last applied its OBJ). The machine whose player holds/threw an
+    // object is its only transform source; everyone else only applies.
+    std::unordered_map<uint32_t, double> s_objRemoteDrivenAt;
+    constexpr double kObj_RemoteDrivenHold = 1.5;   // s after its last OBJ
     bool   s_objBaselineBuilt = false;
 
     // Baseline cadence for ordinary, untouched debris: a full cell->objectList
@@ -1413,6 +1419,21 @@ __declspec(noinline) static void HostTickObjects_Impl(double now)
         // re-sending a stale position between fast ticks.
         if (IsLocallyOwnedObject(fid, now)) continue;
 
+        // 0.3.3 (Stage 7): never re-broadcast an object someone else is
+        // driving. The host applied the carrier's OBJ and this 2 Hz walk then
+        // saw it "moved" and sent the (by then stale) position back out, so a
+        // third machine received two streams for one carried object and it
+        // jumped between them.
+        {
+            auto rd = s_objRemoteDrivenAt.find(fid);
+            if (rd != s_objRemoteDrivenAt.end())
+            {
+                if (now - rd->second < kObj_RemoteDrivenHold)
+                    continue;
+                s_objRemoteDrivenAt.erase(rd);
+            }
+        }
+
         auto it = s_objLastSent.find(fid);
         if (it == s_objLastSent.end())
         {
@@ -2203,6 +2224,11 @@ __declspec(noinline) static void ClientTickObjectMoves_Impl(const std::vector<Pe
 
         MoveRefrToPosition(ref, &nh, myCell, myWS, &pos, &rot);
         s_debrisDiag.applied++;
+
+        // The applied position is now the baseline, and the object is
+        // remote-driven: our own change detection must not echo it.
+        s_objRemoteDrivenAt[m.refFormID] = nowApply;
+        s_objLastSent[m.refFormID] = ObjState{ m.pos, m.rot };
 
         LOG_UPDATED("[DebrisSync] OBJ applied: ref=0x%08X pos=(%.0f,%.0f,%.0f)",
             m.refFormID, pos.x, pos.y, pos.z);
