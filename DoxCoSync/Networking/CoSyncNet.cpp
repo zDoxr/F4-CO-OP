@@ -1,5 +1,6 @@
 ﻿
 #include "CoSyncNet.h"
+#include "CoSyncCombatAuthority.h"
 #include "Version.h"
 
 #include "ConsoleLogger.h"
@@ -249,6 +250,7 @@ static const char* SelfStateType(const std::string& msg)
         "HP", "INV", "OUTFIT", "EQUIP", "IMODS", "LOOKS", "DOWN",
         "PA", "PAI", "PAMODS", "SPEC", "AE", "AEV", "SW", "PB",
         "CONS", "SPELL", "THRP", "THRM", "THRX", "VATS_ENTER", "VATS_EXIT", "VER", "WS", "CORPSE",
+        "SHOT",   // 0.3.5: the shooter must be the sender's own player or an NPC it owns
         "WM", "WD",   // U7: workshop-mode / legacy scrap notices name their sender too
     };
     const size_t bar = msg.find('|');
@@ -681,6 +683,7 @@ void CoSyncNet::Shutdown()
     // every airborne projectile) would otherwise leave grenade models frozen
     // in mid-air in the player's solo game.
     CoSyncThrowableSync::Reset();
+    CoSyncCombatAuthority::Reset();
 
     CoSyncWorldSync::Shutdown();
     CoSyncWorkshopSync::Shutdown();
@@ -919,16 +922,13 @@ void CoSyncNet::SendAnimEdges(Actor* actor, uint32_t entityID, AnimEdgeState& st
     // iSyncFireState really does tick per round on this runtime; if it turns
     // out not to, the fallback is the equipped weapon's ammo count, which
     // decrements exactly once per shot.
-    const bool startedFiring   = firing && !state.prevFiring;
-    const bool subsequentShot  = firing && state.prevFiring
-                                        && fireState != state.prevFireState;
-    if (startedFiring || subsequentShot)
-    {
-        send(kAnimEv_Fire);
-        LOG_UPDATED("[AnimEdge] entity=%u FIRE (%s fireState %d->%d)",
-            entityID, startedFiring ? "start" : "subsequent",
-            state.prevFireState, fireState);
-    }
+    // 0.3.5: shots are no longer inferred from these graph variables. They
+    // never changed for NPC graphs (0 fire events in 298 NPC AEVs, client log
+    // 2026-09-29), and the engine's own TESObjectWEAP::Fire is now hooked
+    // (CoSyncCombatAuthority): one SHOT per real shot, players and NPCs alike.
+    // Sending AEV fire as well would replay every player shot twice.
+    (void)firing;
+    (void)fireState;
 
     if (reloading != state.prevReloading)
     {
@@ -2128,6 +2128,15 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
         if (isHostRole)
             CoSyncTransport::Send(msg);
         CoSyncExplosionSync::OnReceiveExplosion(msg);
+        return;
+    }
+
+    // A shot, decided on the machine that simulates the shooter (0.3.5).
+    if (CoSyncCombatAuthority::IsShot(msg))
+    {
+        if (isHostRole)
+            CoSyncTransport::Send(msg);
+        CoSyncCombatAuthority::OnReceiveShot(msg);
         return;
     }
 

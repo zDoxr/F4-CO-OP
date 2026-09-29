@@ -20,6 +20,8 @@
 #include "CoSyncMenuInject.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncPlayer.h"
+#include "CoSyncGameAPI.h"
+#include "CoSyncCombatAuthority.h"
 #include "CoSyncSpawnTasks.h"
 #include "CoSyncRuntime.h"
 #include "CoSyncWorldSync.h"
@@ -459,6 +461,13 @@ static bool IsCoSyncProxyRef(TESObjectREFR* ref)
 {
     if (!ref || (ref->formID >> 24) != 0xFF)
         return false;
+    // An item copy CoSync spawned that is in no cell and no worldspace would
+    // crash the engine's save writer (2026-09-28, Fallout4+0xBF74BD).
+    if (CoSyncGameAPI::IsDetachedCoSyncItem(ref))
+    {
+        LOG_UPDATED("[SaveLoad] item ref 0x%08X (CoSync-spawned) is in no cell -- kept out of this save", ref->formID);
+        return true;
+    }
     for (const auto& kv : g_CoSyncPlayerManager.GetAllPlayers())
     {
         const CoSyncPlayer* p = kv.second.get();
@@ -591,6 +600,7 @@ bool F4SEPlugin_Load(const F4SEInterface* f4se)
     // A proxy's own AI must not holster/draw against the owner's replicated
     // weapon state (fixed-address hook, same load-time safety as above).
     CoSyncProxyWeaponAuthority::Install();
+    CoSyncCombatAuthority::Install();
 
     // (No DX11 Present hook any more: the ImGui overlay was retired in favour
     // of PrismaUI. The game-window hook is installed from the main-thread

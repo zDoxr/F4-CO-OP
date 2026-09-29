@@ -1,4 +1,5 @@
 #include "CoSyncWorldSync.h"
+#include "CoSyncCombatAuthority.h"
 #include "CoSyncContainerSync.h"
 
 #include <Windows.h>
@@ -2638,6 +2639,10 @@ void CoSyncWorldSync::Tick(double now)
         // 20Hz THRM updates, and throttling it would put the stutter back.
         CoSyncThrowableSync::Tick(now);
         CoSyncThrowableSync::FlushPendingThrowables(now);
+
+        // Shots: sent by the machine that simulates the shooter, replayed
+        // through the engine's own Fire everywhere else (0.3.5).
+        CoSyncCombatAuthority::Tick(now);
 
         // Scrap/delete detection — role-independent for the same reason as
         // builds and explosions: the person swinging the hammer owns the event.

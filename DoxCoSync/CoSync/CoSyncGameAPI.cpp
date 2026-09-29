@@ -19,6 +19,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <unordered_map>
+#include <unordered_set>
 #include <cmath>
 #include <mutex>
 #include <vector>
@@ -496,6 +497,10 @@ namespace CoSyncGameAPI
         return actor;
     }
 
+    // Item refs created by SpawnItemAtPosition (formIDs), for the save guard.
+    static std::mutex                   s_spawnedItemMx;
+    static std::unordered_set<uint32_t> s_spawnedItemRefs;
+
     TESObjectREFR* SpawnItemAtPosition(TESForm* itemBase, const NiPoint3& pos, const NiPoint3& rot)
     {
         LOG_REQUIREMENT("CoSyncGameAPI::SpawnItemAtPosition", "Needs a non-null item form and a valid player (used to figure out which cell/worldspace to spawn into) — both are checked. Uses the same reference-creation method as SpawnRemoteActor, just without the actor-only setup steps.");
@@ -562,7 +567,32 @@ namespace CoSyncGameAPI
 
         LOG_INFO("[CoSyncGameAPI] SpawnItemAtPosition: spawned ref=0x%08X base=0x%08X position=(%.1f,%.1f,%.1f) rotation=(%.3f,%.3f,%.3f)",
             refr->formID, itemBase->formID, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z);
+        {
+            std::lock_guard<std::mutex> lk(s_spawnedItemMx);
+            s_spawnedItemRefs.insert(refr->formID);
+        }
         return refr;
+    }
+
+    __declspec(noinline) static TESWorldSpace* SafeRefWorldspace(TESObjectREFR* ref)
+    {
+        __try { return CALL_MEMBER_FN(ref, GetWorldspace)(); }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return nullptr; }
+    }
+
+    // Save guard for item refs CoSync created (see header).
+    bool IsDetachedCoSyncItem(TESObjectREFR* ref)
+    {
+        if (!ref || (ref->formID >> 24) != 0xFF)
+            return false;
+        {
+            std::lock_guard<std::mutex> lk(s_spawnedItemMx);
+            if (!s_spawnedItemRefs.count(ref->formID))
+                return false;
+        }
+        if (ref->parentCell)
+            return false;
+        return SafeRefWorldspace(ref) == nullptr;
     }
 
     namespace

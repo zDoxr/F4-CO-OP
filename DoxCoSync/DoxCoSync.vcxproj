@@ -336,6 +336,7 @@ exit /b 0
     <ClInclude Include="Weapons\CoSyncExplosionSync.h" />
     <ClInclude Include="Weapons\CoSyncThrowableSync.h" />
     <ClInclude Include="Weapons\CoSyncProxyWeaponAuthority.h" />
+    <ClInclude Include="Weapons\CoSyncCombatAuthority.h" />
     <ClInclude Include="World\CoSyncNpcWorldSync.h" />
     <ClInclude Include="Dialog\CoSyncDialogSync.h" />
     <ClInclude Include="Items\CoSyncLootSync.h" />
@@ -536,6 +537,7 @@ exit /b 0
     <ClCompile Include="Weapons\CoSyncExplosionSync.cpp" />
     <ClCompile Include="Weapons\CoSyncThrowableSync.cpp" />
     <ClCompile Include="Weapons\CoSyncProxyWeaponAuthority.cpp" />
+    <ClCompile Include="Weapons\CoSyncCombatAuthority.cpp" />
     <ClCompile Include="World\CoSyncNpcWorldSync.cpp" />
     <ClCompile Include="Dialog\CoSyncDialogSync.cpp" />
     <ClCompile Include="Items\CoSyncLootSync.cpp" />

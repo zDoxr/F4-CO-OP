@@ -278,6 +278,14 @@ namespace CoSyncGameAPI
     // MAIN THREAD.
     TBO_InstanceData* BindWeaponInstanceToStack(TESObjectREFR* ref, TESForm* weapon);
 
+    // True for an item ref CoSync spawned (SpawnItemAtPosition) that now has
+    // neither a worldspace nor a parent cell. The engine's save writer
+    // (sub_140BF72F0, location cases 4-6) reads ->formID of
+    // sub_140BF82F0(ref) = worldspace ?: parentCell with no null check: the
+    // 0.3.0 host crash at Fallout4+0xBF74BD on 2026-09-28 (ref 0xFF000EC8, a
+    // CoSync item copy). The save filter keeps such refs out of the save.
+    bool IsDetachedCoSyncItem(TESObjectREFR* ref);
+
     // The engine's own AddItem (what Papyrus AddItem runs), called directly --
     // works on refs without a script object (proxies). Synchronous. MAIN THREAD.
     bool NativeAddItem(TESObjectREFR* target, TESForm* item, UInt32 count);
