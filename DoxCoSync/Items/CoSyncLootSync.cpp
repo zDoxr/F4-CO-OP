@@ -263,6 +263,32 @@ void CoSyncLootSync::OnReceivePersonalLoot(const std::string& msg)
 // UPDATE 2026-06-20 (round 41 audit): same unguarded peer-controlled
 // item.formID -> LookupFormByID crash pattern fixed elsewhere this session.
 // SEH-wrapped, noinline (load-bearing under /GL+/LTCG).
+// Total count of `form` already in `ref`'s inventory (all stacks), read under
+// the inventory read lock. -1 when the list can't be read.
+__declspec(noinline) static int CountHeld_Impl(TESObjectREFR* ref, TESForm* form)
+{
+    BGSInventoryList* inv = ref->inventoryList;
+    if (!inv)
+        return 0;
+    int total = 0;
+    BSReadLocker lock(&inv->inventoryLock);
+    for (UInt32 i = 0; i < inv->items.count; ++i)
+    {
+        const BGSInventoryItem& e = inv->items.entries[i];
+        if (e.form != form)
+            continue;
+        for (BGSInventoryItem::Stack* s = e.stack; s; s = s->next)
+            total += s->count;
+    }
+    return total;
+}
+
+static int CountHeld(TESObjectREFR* ref, TESForm* form)
+{
+    __try { return CountHeld_Impl(ref, form); }
+    __except (EXCEPTION_EXECUTE_HANDLER) { return -1; }
+}
+
 __declspec(noinline) static TESForm* SafeLookupForm(uint32_t formID)
 {
     LOG_REQUIREMENT("CoSyncLootSync::SafeLookupForm", "Needs the form lookup function to be ready. Wrapped in a safety net so a bad form ID returns nothing instead of crashing.");
@@ -308,9 +334,18 @@ void CoSyncLootSync::FlushPendingLootOps()
                 continue;
             }
 
+            // Reconcile, don't stack: the corpse already carries what the NPC
+            // had (its gun above all). Adding the full personal roll on top
+            // doubled those items -- and a second copy of the NPC's weapon is
+            // what set up the 2026-09-29 equip crash. Add only the missing part.
+            const int held = CountHeld(actor, form);
+            const int missing = (held < 0) ? item.count : item.count - held;
+            if (missing <= 0)
+                continue;
+
             VMArray<VMVariable> addArgs;
             VMVariable vF; vF.Set(&form); addArgs.Push(&vF);
-            SInt32 cnt = static_cast<SInt32>(item.count);
+            SInt32 cnt = static_cast<SInt32>(missing);
             VMVariable vC; vC.Set(&cnt);  addArgs.Push(&vC);
             bool sil = true;
             VMVariable vS; vS.Set(&sil);  addArgs.Push(&vS);

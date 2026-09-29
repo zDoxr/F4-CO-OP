@@ -379,19 +379,62 @@ static LONG WINAPI CoSync_VEH(EXCEPTION_POINTERS* ep)
     // (The round-82 "already diagnosed, skip the minidump" RVAs 0xCC934D and
     // 0x256B80 were removed 2026-09-26: on 1.11.240 they are mid-function /
     // padding, so they matched nothing.)
+    // 0.3.5: one dump per process, named after the pid like the log
+    // (CoSyncUpdated_<pid>.log <-> CoSync_crash_<pid>.dmp). The single fixed
+    // name let the next crash overwrite the last one: the two 2026-09-28
+    // crashes survived only as log text. IndirectlyReferencedMemory adds the
+    // memory around every pointer found on the stacks and in registers, so the
+    // objects a crash touched (the actor, its inventory list) are readable in
+    // the dump -- the 2026-09-29 dump had stacks only. Only the newest five
+    // crash dumps are kept.
     static bool s_minidumpWritten = false;
     if (!s_minidumpWritten)
     {
-        HANDLE hFile = CreateFileA(
-            "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Fallout 4\\Data\\F4SE\\Plugins\\CoSync_crash.dmp",
-            GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        char dir[MAX_PATH] = {};
+        const DWORD n = GetModuleFileNameA(nullptr, dir, MAX_PATH);
+        char* cut = (n > 0 && n < MAX_PATH) ? strrchr(dir, '\\') : nullptr;
+        if (cut)
+            cut[1] = '\0';
+        else
+            strcpy_s(dir, "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Fallout 4\\");
+        strcat_s(dir, "Data\\F4SE\\Plugins\\");
+
+        char pattern[MAX_PATH];
+        sprintf_s(pattern, "%sCoSync_crash_*.dmp", dir);
+        struct Old { FILETIME t; char name[MAX_PATH]; };
+        Old olds[64]; int nOld = 0;
+        WIN32_FIND_DATAA fd;
+        HANDLE hFind = FindFirstFileA(pattern, &fd);
+        if (hFind != INVALID_HANDLE_VALUE)
+        {
+            do
+            {
+                if (nOld < 64) { olds[nOld].t = fd.ftLastWriteTime; strcpy_s(olds[nOld].name, fd.cFileName); ++nOld; }
+            } while (FindNextFileA(hFind, &fd));
+            FindClose(hFind);
+        }
+        while (nOld >= 5)   // make room: drop the oldest until four remain
+        {
+            int oldest = 0;
+            for (int i = 1; i < nOld; ++i)
+                if (CompareFileTime(&olds[i].t, &olds[oldest].t) < 0) oldest = i;
+            char victim[MAX_PATH];
+            sprintf_s(victim, "%s%s", dir, olds[oldest].name);
+            DeleteFileA(victim);
+            olds[oldest] = olds[--nOld];
+        }
+
+        char dumpPath[MAX_PATH];
+        sprintf_s(dumpPath, "%sCoSync_crash_%lu.dmp", dir, GetCurrentProcessId());
+        HANDLE hFile = CreateFileA(dumpPath, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
         if (hFile != INVALID_HANDLE_VALUE)
         {
             MINIDUMP_EXCEPTION_INFORMATION mei{ GetCurrentThreadId(), ep, FALSE };
             MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile,
-                MiniDumpWithDataSegs, &mei, nullptr, nullptr);
+                static_cast<MINIDUMP_TYPE>(MiniDumpWithDataSegs | MiniDumpWithIndirectlyReferencedMemory | MiniDumpWithThreadInfo),
+                &mei, nullptr, nullptr);
             CloseHandle(hFile);
-            LOG_ERROR("[CoSync-VEH] Minidump -> CoSync_crash.dmp");
+            LOG_ERROR("[CoSync-VEH] Minidump -> %s", dumpPath);
             s_minidumpWritten = true;
         }
     }

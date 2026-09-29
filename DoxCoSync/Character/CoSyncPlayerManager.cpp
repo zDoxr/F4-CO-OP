@@ -2296,6 +2296,23 @@ void CoSyncPlayerManager::Tick()
         // entity, so the equippedWeaponFormID the host already streams for
         // enemies was never applied -- NPC proxies animated firing with empty
         // hands. Only real actors this machine drives are excluded now.
+        // A dead body never gets weapons equipped. Death unequips the weapon
+        // (the engine's own death handling), the owner's last EU still names
+        // it, and re-equipping it on the corpse is what walked straight into
+        // the 2026-09-29 equip crash (KILL -> PLOOT added a second copy ->
+        // re-equip -> stack split). Death is authoritative and final here;
+        // pending weapon work for this entity is dropped.
+        const bool entDead = ent.actorRef &&
+            (CoSyncGameAPI::IsDeadOrDying(ent.actorRef) ||
+             (CoSyncNpcWorldSync::IsWorldActorEntityID(ent.entityID) &&
+              CoSyncNpcWorldSync::IsEntityDead(ent.entityID)));
+        if (entDead && (ent.m_pendingWeaponChange || ent.m_weaponEquipDelay > 0))
+        {
+            LOG_UPDATED("[PlayerMgr] entity=%u is dead -- pending weapon equip dropped", ent.entityID);
+            ent.m_pendingWeaponChange = false;
+            ent.m_weaponEquipDelay = 0;
+        }
+
         if (isMyOwnRealActor)
         {
             ent.m_pendingWeaponChange = false;

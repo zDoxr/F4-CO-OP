@@ -439,7 +439,8 @@ void CoSyncPlayer::ApplyUpdate(const EntityUpdatePacket& u)
     // takes the weapon off the proxy (a 3D rebuild, a slot conflict), and the
     // proxy then stayed unarmed until the real player switched weapons.
     else if (u.equippedWeaponFormID != 0 &&
-             (NowSeconds() - m_lastWeaponRetryTime) > 10.0)
+             (NowSeconds() - m_lastWeaponRetryTime) > 10.0 &&
+             !(actorRef && CoSyncGameAPI::IsDeadOrDying(actorRef)))   // a corpse is never re-armed
     {
         m_lastWeaponRetryTime = NowSeconds();
         bool present = false, equipped = false;

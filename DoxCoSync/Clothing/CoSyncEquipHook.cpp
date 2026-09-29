@@ -558,45 +558,43 @@ bool CoSyncEquipHook::EquipItemDirect(Actor* actor, TESForm* form)
     if (!mgr || !g_origEquip || !actor || !form)
         return false;
 
-    // BGSObjectInstance is 16 bytes: {TESForm* object, TBO_InstanceData* instanceData}.
-    // For weapons, passing null instanceData causes GAMES to skip geometry assembly
-    // on fully-modular weapons → weapon attaches to skeleton but has no mesh.
-    // Call TESBoundObject::CloneInstanceData(nullptr) (vtable[0x56]) to get a
-    // fresh base-config TBO_InstanceData* so GAMES assembles at least the default
-    // weapon geometry. SEH-wrapped; null fall-through keeps old behaviour.
-    TBO_InstanceData* idata = nullptr;
-    if (form->formType == kFormType_WEAP)
-    {
-        using CloneFn = TBO_InstanceData*(__fastcall*)(TESForm*, TBO_InstanceData*);
-        __try
-        {
-            CloneFn fn = reinterpret_cast<CloneFn>((*reinterpret_cast<void***>(form))[0x56]);
-            if (fn) idata = fn(form, nullptr);
-        }
-        __except (EXCEPTION_EXECUTE_HANDLER) { idata = nullptr; }
-
-        if (idata)
-            LOG_UPDATED("[EquipHook] Equipping weapon=0x%08X with a cloned instance %p",
-                form->formID, static_cast<void*>(idata));
-        else
-            LOG_UPDATED_WARN("[EquipHook] Equipping weapon=0x%08X with no instance data — using the base form",
-                form->formID);
-    }
-
     // E1 (2026-09-26): the engine's EquipObject walks every stack of this
     // item and reads each stack's ExtraDataList without a null check, but the
     // engine creates lists lazily, so a plain stack can have none (client crash,
     // Fallout4+0x165940F reading 0x20). Satisfy that precondition first.
     CoSyncGameAPI::EnsureStackExtraLists(actor, form);
 
-    // Ownership of the cloned instance (IDA 1.11.240, 2026-09-26): the WEAP
-    // clone (vtable 0x56 = sub_140478100 -> ctor sub_140473990) is returned
-    // with refcount 0 (+0x08). The engine's equip copies the pair (AddRef) and
-    // releases its copy before returning (sub_140CDFCD0), so a floating object
-    // could be destroyed while the call is still using it. Hold a reference
-    // for the call, then release it the engine's way: whoever drops the last
-    // reference destroys it -- the engine if it kept the weapon equipped, us
-    // if it didn't. Freed exactly once, never early, never leaked.
+    // BGSObjectInstance is 16 bytes: {TESForm* object, TBO_InstanceData* instanceData}.
+    // Weapons need instance data (a null one leaves modular weapons with no
+    // mesh), and it must be the instance THE STACK owns. 0.3.4 equipped a
+    // freshly cloned instance no stack owned; EquipObject then found no stack
+    // (sub_140CAD0A0 -> stack index -1, list null) and
+    // BGSInventoryItem::SetWorn (sub_14034AF10) split a count>1 stack into a
+    // new stack with a NULL list, which the next stack walk dereferenced: the
+    // same Fallout4+0x165940F crash (client, 2026-09-29, a killed NPC whose
+    // loot had just added a second copy of its gun). IDA trace in
+    // docs/NPC_COMBAT_WORLD_REPORT.md. The instance now lives on the first
+    // stack's list, so the engine matches that stack and any split shares
+    // its (non-null) list.
+    TBO_InstanceData* idata = nullptr;
+    if (form->formType == kFormType_WEAP)
+    {
+        idata = CoSyncGameAPI::BindWeaponInstanceToStack(actor, form);
+        if (!idata)
+        {
+            // Without an owned instance the equip can hit the split above.
+            // Refuse it; the weapon watchdog retries on its own schedule.
+            LOG_UPDATED_WARN("[EquipHook] weapon=0x%08X: no stack-owned instance on actor %p -- equip skipped (would risk a list-less stack split)",
+                form->formID, static_cast<void*>(actor));
+            return true;
+        }
+        LOG_UPDATED("[EquipHook] Equipping weapon=0x%08X with its stack's instance %p",
+            form->formID, static_cast<void*>(idata));
+    }
+
+    // Hold a reference across the call (the engine copies the pair, AddRefs,
+    // and releases its copy before returning, sub_140CDFCD0). The stack's list
+    // keeps its own reference, so our release never destroys it.
     auto addRef = [](void* obj)
     {
         _InterlockedIncrement(reinterpret_cast<volatile long*>(static_cast<uint8_t*>(obj) + 0x08));

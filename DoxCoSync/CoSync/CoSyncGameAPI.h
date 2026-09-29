@@ -264,6 +264,20 @@ namespace CoSyncGameAPI
     // usable. MAIN THREAD.
     int EnsureStackExtraLists(TESObjectREFR* ref, TESForm* item);
 
+    // Makes the FIRST inventory stack of a weapon carry its instance data, the
+    // engine's own way, and returns that instance (owned by the stack's list;
+    // not AddRef'd). Equipping with {form, this instance} lets EquipObject
+    // find the stack. Equipping with an instance no stack owns makes
+    // BGSInventoryItem::SetWorn (sub_14034AF10) split a count>1 stack into a
+    // new stack with a NULL ExtraDataList, which EquipObject's next stack walk
+    // (sub_140CDFCD0 -> sub_14027F090) dereferences: the client crash at
+    // Fallout4+0x165940F on 2026-09-29 (IDA-verified, see
+    // docs/NPC_COMBAT_WORLD_REPORT.md). Uses ExtraDataList::GetInstanceData
+    // (sub_14027F090) and ::SetInstanceData (sub_14027F120). Needs
+    // EnsureStackExtraLists first. Returns nullptr if anything is unusable.
+    // MAIN THREAD.
+    TBO_InstanceData* BindWeaponInstanceToStack(TESObjectREFR* ref, TESForm* weapon);
+
     // The engine's own AddItem (what Papyrus AddItem runs), called directly --
     // works on refs without a script object (proxies). Synchronous. MAIN THREAD.
     bool NativeAddItem(TESObjectREFR* target, TESForm* item, UInt32 count);

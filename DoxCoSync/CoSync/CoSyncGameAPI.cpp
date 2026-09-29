@@ -1811,6 +1811,91 @@ namespace CoSyncGameAPI
         return created;
     }
 
+    // ExtraDataList::GetInstanceData / ::SetInstanceData (IDA 1.11.240,
+    // 2026-09-29). Get: read-locks the list (+0x20), returns the
+    // ExtraInstanceData (type 0xBA) instance or null. Set(list, instance,
+    // baseForm): write-locks the list, replaces the instance of an existing
+    // ExtraInstanceData (refcounts handled) or allocates a new one
+    // (ctor sub_1402B2060, vtable 0x24720D0) and links it with sub_1402726A0.
+    // The engine's own inventory code (sub_140349670, sub_14034A700) calls Set.
+    typedef TBO_InstanceData* (*_ExtraListGetInstance)(ExtraDataList* list);
+    typedef void (*_ExtraListSetInstance)(ExtraDataList* list, TBO_InstanceData* inst, TESForm* baseForm);
+    static RelocAddr<_ExtraListGetInstance> g_ExtraListGetInstance(0x27F090);
+    static RelocAddr<_ExtraListSetInstance> g_ExtraListSetInstance(0x27F120);
+    static constexpr uint8_t kExtraListGetInstancePrologue[19] =
+        { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x48, 0x89, 0x74, 0x24, 0x10, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x48, 0x8D, 0x59, 0x20 };
+    static constexpr uint8_t kExtraListSetInstancePrologue[20] =
+        { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x48, 0x89, 0x6C, 0x24, 0x10, 0x48, 0x89, 0x74, 0x24, 0x18, 0x57, 0x41, 0x56, 0x41, 0x57 };
+
+    __declspec(noinline) static TBO_InstanceData* BindWeaponInstance_Impl(BGSInventoryList* inv, TESForm* weapon, bool& cloned)
+    {
+        cloned = false;
+        BSWriteLocker lock(&inv->inventoryLock);
+        for (UInt32 i = 0; i < inv->items.count; ++i)
+        {
+            BGSInventoryItem& entry = inv->items.entries[i];
+            if (entry.form != weapon)
+                continue;
+            BGSInventoryItem::Stack* first = entry.stack;
+            if (!first || !first->extraData)
+                return nullptr;   // EnsureStackExtraLists not run / failed
+            TBO_InstanceData* inst = g_ExtraListGetInstance(first->extraData);
+            if (inst)
+                return inst;
+            // TESBoundObject::CloneInstanceData(nullptr) = vtable 0x56
+            // (sub_140478100 for WEAP): a base-configuration instance, refcount 0.
+            using CloneFn = TBO_InstanceData*(__fastcall*)(TESForm*, TBO_InstanceData*);
+            CloneFn clone = reinterpret_cast<CloneFn>((*reinterpret_cast<void***>(weapon))[0x56]);
+            inst = clone ? clone(weapon, nullptr) : nullptr;
+            if (!inst)
+                return nullptr;
+            g_ExtraListSetInstance(first->extraData, inst, weapon);   // list now holds the reference
+            cloned = true;
+            return g_ExtraListGetInstance(first->extraData);
+        }
+        return nullptr;
+    }
+
+    TBO_InstanceData* BindWeaponInstanceToStack(TESObjectREFR* ref, TESForm* weapon)
+    {
+        LOG_REQUIREMENT("CoSyncGameAPI::BindWeaponInstanceToStack", "Main thread. Needs a live ref, a WEAP form already in its inventory, and EnsureStackExtraLists run first. Uses the engine's own ExtraDataList instance getter/setter under the inventory write lock.");
+        if (!ref || !weapon || weapon->formType != kFormType_WEAP || !IsFormStillLive(static_cast<TESForm*>(ref)))
+            return nullptr;
+
+        static int s_ok = -1;
+        if (s_ok < 0)
+        {
+            s_ok = (std::memcmp(reinterpret_cast<const void*>(g_ExtraListGetInstance.GetUIntPtr()),
+                        kExtraListGetInstancePrologue, sizeof(kExtraListGetInstancePrologue)) == 0 &&
+                    std::memcmp(reinterpret_cast<const void*>(g_ExtraListSetInstance.GetUIntPtr()),
+                        kExtraListSetInstancePrologue, sizeof(kExtraListSetInstancePrologue)) == 0) ? 1 : 0;
+            if (!s_ok)
+                LOG_ERROR("[GameAPI] ExtraDataList instance get/set bytes don't match 1.11.240 -- weapon stacks won't get instance data");
+        }
+        if (!s_ok)
+            return nullptr;
+
+        BGSInventoryList* inv = SafeReadInventoryList(ref);
+        if (!inv)
+            return nullptr;
+
+        bool cloned = false;
+        TBO_InstanceData* inst = nullptr;
+        __try
+        {
+            inst = BindWeaponInstance_Impl(inv, weapon, cloned);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            LOG_ERROR("[GameAPI] binding an instance to weapon 0x%08X on ref 0x%08X crashed -- caught", weapon->formID, ref->formID);
+            return nullptr;
+        }
+        if (cloned)
+            LOG_UPDATED("[GameAPI] weapon 0x%08X on ref 0x%08X: first stack given its instance data %p (equip will match the stack)",
+                weapon->formID, ref->formID, static_cast<void*>(inst));
+        return inst;
+    }
+
     bool DirectInjectInventoryItem(TESObjectREFR* actor, TESForm* form)
     {
         if (!actor || !form) return false;
