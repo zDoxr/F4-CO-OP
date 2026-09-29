@@ -6,6 +6,15 @@ void InstallAnimEventHook();
 
 void UninstallAnimEventHook();
 
+// 0.3.5: captures the animation events the ENGINE sends into the graphs of
+// non-player actors (Actor holder vtable slot 1) and feeds the accepted,
+// gameplay-relevant ones into the NPC forwarding queue (DrainNpcAnimEvents).
+// Idempotent. Safe at plugin load.
+void InstallNpcGraphInputCapture();
+
+// 10 s summary of the capture above (game thread).
+void LogNpcGraphInputCaptureStats();
+
 
 // GAME THREAD ONLY. Drains queued local-player animation events and forwards
 // them to the network. Call once per frame from the game-thread tick -- the

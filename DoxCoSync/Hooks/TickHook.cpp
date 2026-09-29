@@ -722,6 +722,15 @@ void TickHook_CaptureLocalAnimVars()
     // enqueued off-thread since last frame (see CoSyncAnimEventHook).
     DrainLocalPlayerAnimEvents();
     DrainNpcAnimEvents();
+    {
+        static ULONGLONG s_lastInputStats = 0;
+        const ULONGLONG nowMs = GetTickCount64();
+        if (nowMs - s_lastInputStats >= 10000)
+        {
+            s_lastInputStats = nowMs;
+            LogNpcGraphInputCaptureStats();
+        }
+    }
 
     PlayerCharacter* pc = CoSyncGetPlayer();
     if (!pc)

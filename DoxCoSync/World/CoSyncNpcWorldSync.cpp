@@ -2706,6 +2706,22 @@ void HostTickOwnershipHandoff(double now)
         const auto sameLoc = [&](const Who& w) {
             return c.locWS != 0 ? w.ws == c.locWS : (w.ws == 0 && w.cell == c.locCell);
         };
+
+        // 0.3.5: the host is the authority for every NPC it can simulate. A
+        // client owns an NPC only while the host's game does not have it
+        // loaded (the engine simulates actors only in the cells around each
+        // player -- a client exploring far from the host has to run the NPCs
+        // around it itself). The moment the host is near enough, it takes the
+        // NPC back, however close the client still is.
+        if (owner != hostEid)
+        {
+            const Who* h = find(hostEid);
+            if (h && sameLoc(*h) && dist2(h->pos, npcPos) <= kClaimantDist * kClaimantDist)
+            {
+                releases.push_back({ eid, c.reserved0, c.baseFormID, npcPos, hostEid, owner });
+                continue;
+            }
+        }
         const bool ownerHere = o && sameLoc(*o) && dist2(o->pos, npcPos) <= kOwnerKeepDist * kOwnerKeepDist;
         if (ownerHere)
             continue;

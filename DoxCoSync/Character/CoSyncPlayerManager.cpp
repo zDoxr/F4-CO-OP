@@ -574,6 +574,20 @@ void CoSyncPlayerManager::ProcessEntityUpdate(const EntityUpdatePacket& u)
         && !(CoSyncNpcWorldSync::IsWorldActorEntityID(u.entityID) && st.lastCreate.ownerEntityID != 0))
         return;
 
+    // Death is final and ordered: KILL is reliable, EU is not, so an EU the
+    // owner sent just before the NPC died can land after the KILL. It must not
+    // steer (or, through a later re-spawn path, revive) the body. The corpse's
+    // resting place arrives separately (CORPSE).
+    if (CoSyncNpcWorldSync::IsWorldActorEntityID(u.entityID) &&
+        CoSyncNpcWorldSync::IsEntityDead(u.entityID))
+    {
+        static uint32_t s_deadDrops = 0;
+        if (++s_deadDrops <= 5 || s_deadDrops % 200 == 0)
+            LOG_UPDATED("[PlayerMgr] EU for dead entity=%u dropped (stale, sent before its death) [#%u]",
+                u.entityID, s_deadDrops);
+        return;
+    }
+
     CoSyncPlayer& player = GetOrCreateByEntityID(u.entityID);
     player.ApplyUpdate(u);
 }
@@ -2701,6 +2715,13 @@ void CoSyncPlayerManager::Tick()
         auto it = m_statesByEntityID.find(ent.entityID);
         if (it != m_statesByEntityID.end() && it->second.hasCreate &&
             it->second.lastCreate.type == CoSyncEntityType::Companion)
+            continue;
+
+        // A dead world NPC is a ragdoll: re-applying its last buffered
+        // pre-death position every frame would pin the body in mid-fall.
+        if (CoSyncNpcWorldSync::IsWorldActorEntityID(ent.entityID) &&
+            (CoSyncNpcWorldSync::IsEntityDead(ent.entityID) ||
+             (ent.actorRef && CoSyncGameAPI::IsDeadOrDying(ent.actorRef))))
             continue;
 
         g_lastTickStep = "PlayerMgr:Tick:entity-loop:TickSmoothing";

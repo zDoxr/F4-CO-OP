@@ -22,6 +22,7 @@
 #include "CoSyncPlayer.h"
 #include "CoSyncGameAPI.h"
 #include "CoSyncCombatAuthority.h"
+#include "CoSyncAnimEventHook.h"
 #include "CoSyncSpawnTasks.h"
 #include "CoSyncRuntime.h"
 #include "CoSyncWorldSync.h"
@@ -601,6 +602,7 @@ bool F4SEPlugin_Load(const F4SEInterface* f4se)
     // weapon state (fixed-address hook, same load-time safety as above).
     CoSyncProxyWeaponAuthority::Install();
     CoSyncCombatAuthority::Install();
+    InstallNpcGraphInputCapture();
 
     // (No DX11 Present hook any more: the ImGui overlay was retired in favour
     // of PrismaUI. The game-window hook is installed from the main-thread

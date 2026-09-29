@@ -10,6 +10,7 @@
 #include "CoSyncNpcWorldSync.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncEntityState.h"
+#include "CoSyncGameAPI.h"
 
 #include "MinHook.h"
 
@@ -182,34 +183,10 @@ static const std::unordered_set<std::string> s_playerForwardEvents =
     "idleLoopingStart", "panicStart", "cowerStart", "cowerStop",
 };
 
-// NPC event forwarding set (0.3.1, K3): the owner's NPC graph events that make
-// its puppets elsewhere look like they are fighting. Disjoint from what AEV|
-// already replays for NPCs (attackStart for guns, weaponFire, reloadStart/End,
-// throws) and from KILL (death), so nothing double-fires. Names come from the
-// same verified human-graph event tables as s_playerForwardEvents; a creature
-// graph without an event simply ignores it (SendEvent returns false).
-// "attackStart" is forwarded only for MELEE weapons (see DrainNpcAnimEvents):
-// for guns AEV| fire already sends it.
-static const std::unordered_set<std::string> s_npcForwardEvents =
-{
-    "sneakStart", "sneakStop",
-    "sightedStateEnter", "sightedStateExit",
-    "readyStateEnter",   "readyStateExit",
-    "gunDownStateEnter", "gunDownStateExit",
-    "combatStateStart",  "combatStateStop",
-    "hitReactionStart",  "hitReactionStop",
-    "hitFlinchStart",    "hitFlinchStop",
-    "attackStateEnter",  "attackStateExit",
-    "attackRelease",     "chargeRelease",
-    "attackStart",
-    "meleeattackStart",  "meleeattackPowerStart", "meleeattackSneakStart",
-    "blockStart",        "blockStop",
-    "staggerStart",      "staggerStop", "staggerExit",
-    "stumbleStart",      "stumbleStop",
-    "recoilStop",        "recoilExit",
-    "jumpStart",         "jumpLand",
-    "idleLoopingStart",  "panicStart", "cowerStart", "cowerStop",
-};
+// (0.3.5) The old NPC OUTPUT-event set that lived here is gone: its names are
+// what a graph emits, and a puppet's graph accepted none of them (0 of 828,
+// 2026-09-29). NPC events are captured on the input side now
+// (Detour_ActorNotifyGraph, IsForwardableNpcInput).
 
 using ReceiveEventFn = int(__fastcall*)(void* thisPtr,
                                         BSAnimationGraphEvent* evnt,
@@ -244,6 +221,24 @@ __declspec(noinline) static bool SafeCopyTag(const BSAnimationGraphEvent* evnt,
         if (!evnt)
             return false;
         const char* tag = evnt->tag.c_str();
+        if (!tag || tag[0] == '\0')
+            return false;
+        strncpy_s(out, outSize, tag, _TRUNCATE);
+        return true;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return false;
+    }
+}
+
+__declspec(noinline) static bool SafeCopyTagString(const BSFixedString* ev, char* out, size_t outSize)
+{
+    __try
+    {
+        if (!ev)
+            return false;
+        const char* tag = ev->c_str();
         if (!tag || tag[0] == '\0')
             return false;
         strncpy_s(out, outSize, tag, _TRUNCATE);
@@ -382,9 +377,15 @@ void DrainNpcAnimEvents()
         if (eid == 0 || !LocallyDrivesEntity(eid))
             continue;
 
+        // A dead NPC's graph still receives engine events (death, ragdoll
+        // cleanup); nothing it does after death is replicated as an action.
+        if (CoSyncGameAPI::IsDeadOrDying(actor))
+            continue;
+
         if (std::strcmp(t.tag, "attackStart") == 0)
         {
-            // Guns: AEV| fire already replays attackStart. Only melee here.
+            // Guns: the SHOT replay (CoSyncCombatAuthority) sends attackStart
+            // with the engine shot. Only melee here.
             TESForm* w = LookupFormByID(CoSyncPlayerManager::EquippedWeaponFormID(actor));
             const bool melee = !w || w->formType != kFormType_WEAP ||
                                static_cast<TESObjectWEAP*>(w)->weapData.ammo == nullptr;
@@ -404,6 +405,117 @@ void DrainNpcAnimEvents()
         if (n <= 30 || n % 300 == 0)
             LOG_UPDATED("[AnimEventHook] NPC TX '%s' entity=%u fwd#%u", t.tag, eid, n);
     }
+}
+
+// ── NPC graph INPUT capture (0.3.5) ─────────────────────────────────────────
+// IDA 1.11.240 (2026-09-29): an actor's animation events enter its graph
+// through IAnimationGraphManagerHolder::NotifyAnimationGraphImpl, slot 1 of the
+// holder subobject vtable at actor+0x48 (Actor: 0x2568DB0, a thunk to
+// sub_140819E60, which calls BSAnimationGraphManager::NotifyAnimationGraph
+// sub_14130EED0 and returns whether the graph took the event).
+// PlayerCharacter has its own holder vtable (0x256D358), so swapping this slot
+// touches non-player actors only, with no code patched. Every event the
+// engine (AI, combat, actions, hits, staggers) sends an NPC's graph passes
+// here; what the OWNER's graph accepted is exactly what a puppet elsewhere
+// needs to receive to play the same action. CoSync's own sends onto proxies
+// (CoSyncAnimUtils::SendEvent, same slot) are excluded by the echo guard.
+namespace
+{
+    constexpr uintptr_t kRVA_ActorHolderVtbl   = 0x02568DB0;
+    constexpr uintptr_t kRVA_HolderNotifyThunk = 0x00CB2D90;
+    using HolderNotify_t = bool(__fastcall*)(void* holder, BSFixedString* ev);
+    HolderNotify_t        s_origHolderNotify = nullptr;
+    std::atomic<bool>     s_inputCaptureOn{ false };
+    std::atomic<uint32_t> s_inputSeen{ 0 };
+    std::atomic<uint32_t> s_inputQueued{ 0 };
+
+    // Gameplay actions a remote copy must show. Matched on the lower-cased
+    // name: first a deny list (states a puppet reaches through its own
+    // replicated state -- movement, weapon draw, death, furniture, dialogue --
+    // or must never enter from a bare event), then the categories.
+    bool IsForwardableNpcInput(const char* name)
+    {
+        char lc[64];
+        size_t n = 0;
+        for (; name[n] && n < sizeof(lc) - 1; ++n)
+            lc[n] = static_cast<char>((name[n] >= 'A' && name[n] <= 'Z') ? name[n] + 32 : name[n]);
+        lc[n] = '\0';
+        static const char* const kDeny[] = {
+            "death", "ragdoll", "bleedout", "killmove", "paired", "furniture", "sit", "getup",
+            "weapdraw", "weapondraw", "weaponsheathe", "weapequip", "unequip", "equip",
+            "dialogue", "initiate", "powerarmor", "graphdeleting", "idleforcedefault",
+            "movestart", "movestop", "turn", "sprint", "walk", "footleft", "footright",
+        };
+        for (const char* d : kDeny)
+            if (std::strstr(lc, d)) return false;
+        static const char* const kAllow[] = {
+            "attack", "bash", "block", "reload", "stagger", "recoil", "hitreact", "flinch",
+            "sighted", "aim", "ready", "gundown", "throw", "grenade", "mine", "jump", "sneak",
+            "dodge", "cower", "panic", "stumble", "melee", "charge", "surrender", "combat",
+        };
+        for (const char* a : kAllow)
+            if (std::strstr(lc, a)) return true;
+        return false;
+    }
+
+    bool __fastcall Detour_ActorNotifyGraph(void* holder, BSFixedString* ev)
+    {
+        const bool accepted = s_origHolderNotify ? s_origHolderNotify(holder, ev) : false;
+        if (!accepted || tls_cs_anim_applying || !s_inputCaptureOn.load(std::memory_order_relaxed))
+            return accepted;
+        ++s_inputSeen;
+        char tag[40];
+        if (!SafeCopyTagString(ev, tag, sizeof(tag)) || !IsForwardableNpcInput(tag))
+            return accepted;
+        Actor* actor = reinterpret_cast<Actor*>(reinterpret_cast<uintptr_t>(holder) - 0x48);
+        const uint32_t fid = SafeActorFormID(actor);
+        if (fid == 0)
+            return accepted;
+        std::lock_guard<std::mutex> lk(s_npcTagMutex);
+        if (s_pendingNpcTags.size() < 256)
+        {
+            NpcTag t{};
+            t.formID = fid;
+            strncpy_s(t.tag, sizeof(t.tag), tag, _TRUNCATE);
+            s_pendingNpcTags.push_back(t);
+            ++s_inputQueued;
+        }
+        return accepted;
+    }
+}
+
+void InstallNpcGraphInputCapture()
+{
+    LOG_REQUIREMENT("InstallNpcGraphInputCapture", "Plugin load or later. Swaps one verified vtable slot (Actor's animation-graph holder, slot 1) after checking it still points at the 1.11.240 thunk.");
+    if (s_origHolderNotify)
+        return;
+    const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandle(NULL));
+    void** slot = reinterpret_cast<void**>(base + kRVA_ActorHolderVtbl + 1 * sizeof(void*));
+    if (reinterpret_cast<uintptr_t>(*slot) != base + kRVA_HolderNotifyThunk)
+    {
+        LOG_ERROR("[AnimEventHook] Actor holder slot 1 = %p, expected base+0x%llX -- NPC input capture NOT installed",
+            *slot, (unsigned long long)kRVA_HolderNotifyThunk);
+        return;
+    }
+    DWORD oldProt = 0;
+    if (!VirtualProtect(slot, sizeof(void*), PAGE_READWRITE, &oldProt))
+    {
+        LOG_ERROR("[AnimEventHook] VirtualProtect on the Actor holder vtable failed (%lu)", GetLastError());
+        return;
+    }
+    s_origHolderNotify = reinterpret_cast<HolderNotify_t>(*slot);
+    *slot = reinterpret_cast<void*>(&Detour_ActorNotifyGraph);
+    VirtualProtect(slot, sizeof(void*), oldProt, &oldProt);
+    s_inputCaptureOn.store(true);
+    LOG_INFO("[AnimEventHook] NPC graph INPUT capture installed (Actor holder vtable base+0x%llX slot 1)",
+        (unsigned long long)kRVA_ActorHolderVtbl);
+}
+
+void LogNpcGraphInputCaptureStats()
+{
+    const uint32_t seen = s_inputSeen.exchange(0), queued = s_inputQueued.exchange(0);
+    if (seen || queued)
+        LOG_UPDATED("[AnimEventHook] NPC graph inputs last 10 s: accepted by graphs here=%u, forwardable queued=%u", seen, queued);
 }
 
 static int __fastcall HookedReceiveEvent(
@@ -441,27 +553,12 @@ static int __fastcall HookedReceiveEvent(
                 EnqueuePlayerTag(tag);
             }
         }
-        else
-        {
-            // World NPCs: enqueue (formID, tag) for allowlisted tags only;
-            // ownership is decided on the game thread (DrainNpcAnimEvents).
-            char tag[64];
-            if (SafeCopyTag(evnt, tag, sizeof(tag)) && s_npcForwardEvents.count(tag) != 0)
-            {
-                const uint32_t fid = SafeActorFormID(actor);
-                if (fid != 0)
-                {
-                    std::lock_guard<std::mutex> lk(s_npcTagMutex);
-                    if (s_pendingNpcTags.size() < 256)
-                    {
-                        NpcTag t{};
-                        t.formID = fid;
-                        strncpy_s(t.tag, sizeof(t.tag), tag, _TRUNCATE);
-                        s_pendingNpcTags.push_back(t);
-                    }
-                }
-            }
-        }
+        // World NPCs are no longer captured here. This sink sees what a graph
+        // EMITS (attackStateEnter, sightedStateExit, ...); replayed as input on
+        // a puppet, the graph has no transition for them: 0 of 828 NPC events
+        // were accepted on the client (log 2026-09-29). NPCs are now captured on
+        // the INPUT side, where the engine drives the graph (see
+        // Detour_ActorNotifyGraph).
     }
 
     return s_origReceiveEvent
