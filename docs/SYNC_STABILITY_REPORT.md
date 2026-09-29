@@ -664,3 +664,48 @@ FILES:      World/CoSyncWorldSync.cpp (HostTickObjects_Impl,
 2. Voice & Audio: switch microphone and output device during a session -- voice keeps working (log: "Audio devices changed -- voice restarted"); settings persist after restarting the game (CoSync.ini).
 3. Sensitivity: at 10 whispering transmits, at 0 only loud speech does. Mic/voice volume change is heard at once.
 4. Panel fits and reads well at 1080p and ultrawide.
+
+---
+
+## Stage 9 — mod compatibility
+
+### The one rule every synced mod depends on
+
+Everything CoSync sends identifies game objects by **runtime FormID**: a full plugin's forms are `modIndex << 24 | localID`, a light plugin's are `0xFE000000 | lightIndex << 12 | localID`. The index is the plugin's position in the **active load order** of that machine. The joining client loads the host's save, but the engine remaps it into the *client's* load order. So the same ID means the same object on both machines only if both load orders are identical. With a different order, a modded rifle sent as `0x0A001234` is whatever form sits at slot 0x0A on the other machine -- wrong items, wrong NPCs, silent corruption.
+
+What existed: `MODLIST` compared the *files present* in `Data\` (and can push small plugins to the client). It never compared what the engine actually loaded, or the order.
+
+### Built: load-order check at join (S9-A)
+
+`LOADORDER|F:a.esm,F:b.esp,...;L:c.esl,...` (from F4SE's `DataHandler::modList.loadedMods` / `lightMods`, lower case, in engine order) is sent by the client after HELLO. The host compares it with its own and answers that client only: `LOADORDEROK`, or `LOADORDERBAD|<count>|<summary>` listing missing / extra plugins and the first slot where the order diverges (full and light separately). Both sides log the exact differences; the client gets an on-screen warning; the host is told which player differs. It warns rather than refusing the connection -- blocking would lock out current test setups before anyone has seen what their differences are. (Protocol: new message family LOADORDER*, client -> host, not relayed.)
+
+### What is already automatic (no per-mod code), given matching load orders
+
+CoSync's sync paths are data-driven by form type, not by lists of vanilla IDs:
+
+* **NPCs / creatures / companions** from mods: world actors are discovered by scanning the process lists and replicated by base form + owner stream (NPC puppets); a modded companion recruited by a client goes through the same COMPOWN path.
+* **Weapons / armor / clothing** from mods: equip replication sends the form (and weapon instance data / object mods via CoSyncItemMods); melee vs ranged is decided from the weapon's ammo, throwables from the projectile record, so modded ones classify correctly.
+* **Containers, items, loot, doors, locks, workshop objects** from mods: synced by ref/base FormID, with form-type checks on receipt (bad or unknown IDs are rejected safely -- peer-supplied FormID lookups are SEH-guarded).
+
+### Designed, not built: load-order-independent FormIDs (S9-B)
+
+The handshake already gives each machine both load orders. The next step is a translation table at the serialization boundary: all traffic goes through the host, so the host's index space is canonical. A client maps its local plugin index to the host's index before sending (`TranslateOut`), and back on receive (`TranslateIn`); dynamic `0xFF` IDs pass through unchanged (they are handled by the entity system, not by FormID); a form from a plugin the other side lacks becomes 0 (dropped, never mis-resolved). With that in place a differing *order* stops mattering; only *missing* plugins remain a real incompatibility. Cost: every serializer/deserializer that carries a FormID must call the translator (about 40 message types) -- mechanical but wide, and it deserves its own pass and test.
+
+### What cannot be made multiplayer-safe automatically
+
+* **Scripted mods (Papyrus).** Each machine runs its own script VM; quest stages, timers, random rolls and script variables diverge. CoSync syncs quest stages/objectives and specific effects, not arbitrary script state.
+* **Custom animations / behaviour graphs / meshes / textures.** Assets are not transferable; both machines must have them installed. A proxy on a machine missing them cannot animate or render them.
+* **Leveled lists.** Rolled independently on each machine. CoSync mitigates this for NPCs (one owner simulates, others show a puppet of *that* actor) but not for every container or vendor.
+* **Custom worldspaces / cells.** Work if installed on both sides with the same load order (location identity uses worldspace/cell FormIDs).
+* **Other F4SE (DLL) plugins** that change engine behaviour act per machine and can conflict with CoSync's own hooks.
+
+### Safety proposals (not built)
+
+* `[ModCompat]` in CoSync.ini: per-plugin policy (`sync`, `ignore` = never send or apply its forms, `warn`) so a known single-player-only mod cannot inject state into the session.
+* A refuse-on-mismatch host option (`bRequireMatchingLoadOrder`) once S9-B exists and a mismatch means "missing plugin" rather than "different order".
+
+### TEST PLAN (Stage 9)
+
+1. Same load order on both machines: client log "Host confirmed: same load order"; host log "... load order matches the host's".
+2. Move one plugin in the client's order: client sees the warning; host log lists "order differs from slot N (name)".
+3. Disable a plugin on the client: "missing name" reported.

@@ -2340,6 +2340,16 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
         return;
     }
 
+    if (CoSyncModSync::IsLoadOrderMessage(msg))
+    {
+        std::string who;
+        if (isHostRole)
+            for (const RosterEntry& e : GetRoster())
+                if (e.entityID == senderEid) { who = e.name; break; }
+        CoSyncModSync::OnReceiveLoadOrderMessage(msg, conn, isHostRole, who);
+        return;
+    }
+
     if (CoSyncModSync::IsModList(msg))
     {
         if (isHostRole)
@@ -2514,6 +2524,8 @@ void CoSyncNet::TrySendHello()
 
     // Send our plugin list so host can push any missing mods before we load
     CoSyncModSync::ClientSendModList();
+    // 0.3.3 (Stage 9): and the ACTIVE load order, which FormIDs depend on.
+    CoSyncModSync::ClientSendLoadOrder();
 
     CoSyncOverlay_ShowLoadingScreen(true);
 

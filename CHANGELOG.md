@@ -2,6 +2,26 @@
 
 ---
 
+## [0.3.3] — 2026-09-28
+
+### Sync-stability directive: bug fixes before features
+
+Built clean, deployed. **Not yet live-tested.** Full evidence, engine RE and test plans: `docs/SYNC_STABILITY_REPORT.md`.
+
+- **Player model jitter/flicker (root cause):** proxies were positioned with a raw write while the engine's per-frame "ApplyActorFootIKResults" job put them back at their stale Havok controller position. Proxies now move through the engine's own `Actor::SetPosition` (controller included). A remote player one exterior cell away no longer gets a full engine relocation every second. Interpolation follows the sender's clock instead of packet arrival times.
+- **Removed teleport loops** the jitter fix would have activated: the client "tether" and the companion 300-unit nudge.
+- **Entity lifecycle:** corpses no longer re-die every 5 s (KILL is idempotent against the engine life state); a late position update can no longer resurrect a destroyed entity.
+- **Equipment:** a peer's gear is reconciled against what the engine really has equipped on the proxy (fixes "shows only after re-equipping"); no more Disable/Enable "biped rebuild" after armor changes (the model blink and dropped weapon); weapon retries check the engine too.
+- **Companions:** a companion can no longer be handed to another player by the NPC ownership handoff (it vanished for everyone); a client re-announces its companion if the host lost it.
+- **Power Armor:** PA is replicated as state (repeated every 5 s, idempotent), so late joiners and rebuilt proxies see it; no orphaned frames when a PA player leaves.
+- **Revive:** "Revive" prompt instead of "Talk"; revive restores health immediately; downed players keep streaming (others see the downed pose); getting up on your own clears everyone's UI; the give-up loop (twice per frame) is fixed; revive no longer lowers max health; revive messages are sender-checked.
+- **Carry/debris:** the host no longer re-broadcasts a stale copy of an object another player is carrying.
+- **UI:** MULTIPLAYER entry in the Pause menu (F10 stays as a shortcut); new Voice & Audio screen (microphone and output device, mic volume, input sensitivity, voice volume, mute); voice range stays a host rule; smaller panel.
+- **Mods:** the active load order is compared at join and every difference is reported (FormIDs depend on it).
+- Version 0.3.3 (network 303).
+
+---
+
 ## [0.3.2] — 2026-09-28
 
 ### Voice chat: proximity and faction, no Steam needed
