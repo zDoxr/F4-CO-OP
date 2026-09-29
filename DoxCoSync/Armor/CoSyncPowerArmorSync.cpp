@@ -694,7 +694,13 @@ namespace
         uint32_t entityID     = 0;
         int      attemptsLeft = 10;
         double   nextAttemptAt = 0.0;
+        // 0.3.4: when the native eject was last called. The engine's exit is
+        // a sequence (animation, then the marker/race change), so the retry
+        // loop now WAITS for it and only re-issues the eject after
+        // kPaEjectReissueSec with no progress, instead of every second.
+        double   lastEjectAt  = 0.0;
     };
+    constexpr double kPaEjectReissueSec = 5.0;
     std::vector<PaExitRetry> s_pendingExitRetries;
 }
 
@@ -784,6 +790,19 @@ static void FinishPaExit(CoSyncPlayer* proxy, uint32_t senderEntityID)
 // merged into is worse than leaving the old state alone a little longer).
 static void TryPaExit(CoSyncPlayer* proxy, uint32_t senderEntityID)
 {
+    // 0.3.4: an exit for a proxy that is not in Power Armor is a no-op. The
+    // sender can report one exit twice (a fallback and the real Papyrus
+    // event), and each used to end in FinishPaExit's full 3D rebuild of a
+    // proxy that was already out (0.3.3 host log 23:52:36.682:
+    // "ExtraPowerArmor 0 -> 0" followed by a rebuild).
+    if (!proxy->m_isInPowerArmor && proxy->m_paSpawnedChassisRefFormID == 0 &&
+        CoSyncGameAPI::GetActorPowerArmorExtraState(proxy->actorRef) != 1)
+    {
+        LOG_UPDATED("[PASync] Exit PA entity=%u: proxy is already out of Power Armor -- nothing to do",
+            senderEntityID);
+        return;
+    }
+
     const int paBefore = CoSyncGameAPI::GetActorPowerArmorExtraState(proxy->actorRef);
     const bool ejected = SafeSwitchFromPowerArmorNative(proxy->actorRef);
     const int paAfter  = CoSyncGameAPI::GetActorPowerArmorExtraState(proxy->actorRef);
@@ -813,10 +832,11 @@ static void TryPaExit(CoSyncPlayer* proxy, uint32_t senderEntityID)
             // restart the attempt budget rather than stacking two chains.
             r.attemptsLeft  = 10;
             r.nextAttemptAt = PaDiagNowSeconds() + 1.0;
+            r.lastEjectAt   = PaDiagNowSeconds();
             return;
         }
     }
-    s_pendingExitRetries.push_back(PaExitRetry{ senderEntityID, 10, PaDiagNowSeconds() + 1.0 });
+    s_pendingExitRetries.push_back(PaExitRetry{ senderEntityID, 10, PaDiagNowSeconds() + 1.0, PaDiagNowSeconds() });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -878,6 +898,11 @@ namespace
     double   s_fbLastPoll        = 0.0;
     double   s_fbPendingSince    = 0.0;
     bool     s_fbLoggedNoChassis = false;
+    // 0.3.4: the race has been seen as PowerArmorRace during the current
+    // known-in-PA session. Until then the player is still ENTERING: the
+    // enter notification fires when they sit in the frame, the race swaps
+    // only when the enter animation completes.
+    bool     s_fbRaceConfirmed   = false;
 
     double   s_lastFrameInvPoll  = 0.0;
     std::unordered_map<uint32_t, std::vector<PaInvItem>> s_frameLastSig;   // local ref -> last seen/applied
@@ -1207,11 +1232,35 @@ static void TickLocalPowerArmorFallback()
     const bool inPA  = SafeActorInPowerArmorByRace(me);
     const bool known = CoSyncPowerArmorSync::IsActorKnownInPowerArmor(me->formID);
 
+    if (!known)
+        s_fbRaceConfirmed = false;
+    else if (inPA)
+        s_fbRaceConfirmed = true;
+
     if (inPA == known)
     {
         s_fbPendingSince    = 0.0;
         s_fbLoggedNoChassis = false;
         return;
+    }
+
+    // 0.3.4 -- ROOT CAUSE of "Power Armor drops off for everyone ~2 s after
+    // entering" (0.3.3 client log 23:52:22.048 enter -> 23:52:23.801 "FALLBACK
+    // exit detected via PowerArmorRace", while the player was still in the
+    // frame; the real exit came at 23:52:36 through Papyrus). The enter
+    // notification marks us known-in-PA as soon as we sit in the frame, but
+    // the race only becomes PowerArmorRace when the enter animation finishes,
+    // so for the whole animation "known but not the race" looked like a missed
+    // exit. A missed exit can only be claimed once the race HAS been seen in
+    // this session and the engine's own ExtraPowerArmor marker on the player
+    // is gone too.
+    if (known && !inPA)
+    {
+        if (!s_fbRaceConfirmed || CoSyncGameAPI::GetActorPowerArmorExtraState(me) == 1)
+        {
+            s_fbPendingSince = 0.0;
+            return;
+        }
     }
     if (s_fbPendingSince == 0.0)
     {
@@ -1701,6 +1750,7 @@ void CoSyncPowerArmorSync::Reset()
     s_fbLastPoll        = 0.0;
     s_fbPendingSince    = 0.0;
     s_fbLoggedNoChassis = false;
+    s_fbRaceConfirmed   = false;
     s_lastFrameInvPoll  = 0.0;
     s_frameLastSig.clear();
     s_frameSuppressUntil.clear();
@@ -1822,10 +1872,18 @@ void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
                 continue;
             }
 
-            const bool ejected = SafeSwitchFromPowerArmorNative(proxy->actorRef);
+            // Still inside the engine's own exit sequence: wait, do not
+            // restart it. Re-issue the eject only after a stretch with no
+            // progress.
+            bool ejected = false;
+            if (now - r.lastEjectAt >= kPaEjectReissueSec)
+            {
+                ejected = SafeSwitchFromPowerArmorNative(proxy->actorRef);
+                r.lastEjectAt = now;
+            }
             const int  paAfter = CoSyncGameAPI::GetActorPowerArmorExtraState(proxy->actorRef);
-            LOG_UPDATED("[PASync] Exit PA retry entity=%u (attemptsLeft=%d): native eject called=%d, ExtraPowerArmor now=%d",
-                r.entityID, r.attemptsLeft, ejected ? 1 : 0, paAfter);
+            LOG_UPDATED("[PASync] Exit PA retry entity=%u (attemptsLeft=%d): native eject %s, ExtraPowerArmor now=%d",
+                r.entityID, r.attemptsLeft, ejected ? "re-issued" : "not re-issued (waiting for the engine's exit)", paAfter);
             if (paAfter != 1)
             {
                 FinishPaExit(proxy, r.entityID);
