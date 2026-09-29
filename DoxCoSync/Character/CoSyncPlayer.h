@@ -367,6 +367,9 @@ public:
     // The receiving client almost never has the host's chassis, so we spawn a
     // fresh frame at the proxy and delete it again on PA exit.
     uint32_t m_paSpawnedChassisRefFormID = 0;
+    // 0.3.3 (Stage 5): the six PA piece formIDs last applied to this proxy,
+    // so a repeated PA state message with the same pieces is a no-op.
+    uint32_t m_paAppliedPieces[6] = {};
 
     // 2026-08-26: this client's OWN local ref for the REAL chassis the sender
     // entered/exited (0 = not found on this client, e.g. too far away to be

@@ -176,8 +176,18 @@ static void TickLocalPowerArmorPieces()
     uint32_t pieces[6] = {};
     ScanActorEquippedPAPieces(me, pieces);
 
-    if (memcmp(pieces, s_lastPieces, sizeof(pieces)) == 0)
-        return;   // nothing changed
+    // 0.3.3 (Stage 5): Power Armor is STATE, not just an event. PA| used to
+    // go out only on enter, exit and piece changes, so a player who joined
+    // (or whose proxy of us was freed and rebuilt) after we got in never
+    // learned we were in Power Armor and saw a normal body. Re-send the
+    // current state every 5 s while worn; receivers ignore an unchanged
+    // repeat (FlushPendingPowerArmorOps).
+    static double s_lastStateSend = 0.0;
+    const bool changed   = memcmp(pieces, s_lastPieces, sizeof(pieces)) != 0;
+    const bool keepAlive = (now - s_lastStateSend) >= 5.0;
+    if (!changed && !keepAlive)
+        return;
+    s_lastStateSend = now;
 
     memcpy(s_lastPieces, pieces, sizeof(pieces));
 
@@ -192,13 +202,16 @@ static void TickLocalPowerArmorPieces()
         pieces,
         s_localChassisPos);
 
-    LOG_UPDATED("[PASync] local PA pieces changed while worn — re-broadcast "
-                "[%08X %08X %08X %08X %08X %08X]",
-        pieces[0], pieces[1], pieces[2], pieces[3], pieces[4], pieces[5]);
+    if (changed)
+        LOG_UPDATED("[PASync] local PA pieces changed while worn — re-broadcast "
+                    "[%08X %08X %08X %08X %08X %08X]",
+            pieces[0], pieces[1], pieces[2], pieces[3], pieces[4], pieces[5]);
 }
 
 // ── Engine SwitchFromPowerArmor (native) ────────────────────────────────────
-// RVA 0x0098BB30, IDA-verified 2026-08-05. Derived by finding the
+// RVA 0x0098BE40 on 1.11.240 (re-checked 2026-09-28: the "SwitchFromPowerArmor"
+// string 0x0252B6E8 is referenced at 0x98C371 inside it; 0x0098BB30 was the
+// 1.11.221 figure). IDA-verified 2026-08-05. Derived by finding the
 // "SwitchFromPowerArmor" string (0x02523678), which this very function hands to
 // the engine logger together with its source line (0x5E5) at 0x0098C061 -- the
 // function literally names itself. Entry rva confirmed 0x0098BB30, ONE argument
@@ -707,6 +720,7 @@ static void FinishPaExit(CoSyncPlayer* proxy, uint32_t senderEntityID)
     proxy->m_isInPowerArmor     = false;
     proxy->m_paChassisRefFormID = 0;
     proxy->m_paBehaviorEntered  = false;
+    memset(proxy->m_paAppliedPieces, 0, sizeof(proxy->m_paAppliedPieces));
 
     CoSyncGameAPI::RefreshActor3D(proxy->actorRef);
 
@@ -825,7 +839,8 @@ namespace
     bool     s_fbLoggedNoChassis = false;
 
     double   s_lastFrameInvPoll  = 0.0;
-    std::unordered_map<uint32_t, std::vector<PaInvItem>> s_frameLastSig;   // local ref -> last seen/applied
+    std::unordered_map<uint32_t, std::vector<PaInvItem>> s_frameLastSig;   // local ref -> last seen/applied
+
     std::unordered_map<uint32_t, std::string> s_frameLastMods;   // frame ref -> last piece-mod text (PAMODS)
     std::unordered_map<uint32_t, double>                 s_frameSuppressUntil;
 
@@ -1665,9 +1680,16 @@ void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
         CoSyncPlayer* proxy = g_CoSyncPlayerManager.GetPlayerByEntityID(op.senderEntityID);
         if (!proxy || !proxy->actorRef || !proxy->hasSpawned)
         {
-            LOG_UPDATED_WARN("[PASync] No spawned proxy for sender=%u", op.senderEntityID);
+            // The sender repeats its PA state every 5 s, so this is picked up
+            // once the proxy exists; no need to hold the op.
+            LOG_EVERY_MS(10000, LOG_UPDATED_WARN("[PASync] No spawned proxy for sender=%u (PA state applies once it spawns)",
+                op.senderEntityID));
             continue;
         }
+        // A proxy hidden because its player is in another location gets its
+        // PA from a later repeat, once it is shown here.
+        if (op.entering && !proxy->m_isInPowerArmor && proxy->m_proxyHiddenForCell)
+            continue;
 
         TESForm* chassisBaseForm = SafeLookupForm(op.chassisBaseFormID);
         if (!chassisBaseForm)
@@ -1701,9 +1723,17 @@ void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
             // exit -- repeated real merges into different frames in rapid
             // succession, not a single clean enter-then-exit. Apply the new
             // pieces to the EXISTING chassis instead.
+            // 0.3.3 (Stage 5): the sender now repeats its PA state every 5 s.
+            // An unchanged piece set must not touch the proxy -- this branch
+            // unequips and re-equips every piece, which would rebuild the
+            // armor every 5 s.
+            if (memcmp(op.pieceFormIDs, proxy->m_paAppliedPieces, sizeof(op.pieceFormIDs)) == 0)
+                continue;
+
             TESObjectREFR* existingChassis = SafeLookupAndCastRefr(proxy->m_paSpawnedChassisRefFormID);
             if (existingChassis)
             {
+                memcpy(proxy->m_paAppliedPieces, op.pieceFormIDs, sizeof(op.pieceFormIDs));
                 int piecesApplied = 0;
                 for (int pi = 0; pi < 6; ++pi)
                 {
@@ -1943,6 +1973,7 @@ void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
             proxy->m_isInPowerArmor     = true;
             proxy->m_paChassisRefFormID = op.chassisRefFormID;
             proxy->m_paBehaviorEntered  = false;
+            memcpy(proxy->m_paAppliedPieces, op.pieceFormIDs, sizeof(op.pieceFormIDs));
 
             // Weapon draw after PA enter: SwitchToPowerArmor is async (Papyrus
             // VM queue), so DrawWeaponMagicHands must fire after the PA
@@ -1995,6 +2026,42 @@ void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
     }
 }
 
+
+// 0.3.3 (Stage 5): a proxy that is removed while in Power Armor (its player
+// disconnected in PA, or the proxy was freed and is being rebuilt) used to
+// leave its spawned chassis standing in the world for good, and the real frame
+// it had hidden stayed hidden. Delete the one and re-show the other. The
+// proxy's own actor is being torn down, so no eject / 3D rebuild here.
+void CoSyncPowerArmorSync::OnProxyRemoved(CoSyncPlayer* proxy)
+{
+    if (!proxy)
+        return;
+    static const BSFixedString kDelete("Delete");
+    if (proxy->m_paSpawnedChassisRefFormID != 0)
+    {
+        if (TESObjectREFR* spawned = SafeLookupAndCastRefr(proxy->m_paSpawnedChassisRefFormID))
+        {
+            CoSyncGameAPI::DisableWorldActor(spawned);
+            VMArray<VMVariable> delArgs;
+            CallFunctionNoWait(spawned, kDelete, delArgs);
+            LOG_UPDATED("[PASync] Proxy entity=%u removed while in PA: deleted its chassis=0x%08X",
+                proxy->entityID, proxy->m_paSpawnedChassisRefFormID);
+        }
+        proxy->m_paSpawnedChassisRefFormID = 0;
+    }
+    if (proxy->m_paRealFrameRefFormID != 0)
+    {
+        if (TESObjectREFR* realFrame = SafeLookupAndCastRefr(proxy->m_paRealFrameRefFormID))
+        {
+            CoSyncGameAPI::EnableWorldActor(realFrame);
+            LOG_UPDATED("[PASync] Proxy entity=%u removed while in PA: re-showed real frame 0x%08X",
+                proxy->entityID, proxy->m_paRealFrameRefFormID);
+        }
+        proxy->m_paRealFrameRefFormID = 0;
+    }
+    proxy->m_isInPowerArmor = false;
+    memset(proxy->m_paAppliedPieces, 0, sizeof(proxy->m_paAppliedPieces));
+}
 
 // -- Shared host save: the host's Power Armor on a joining client --------------
 // A client plays in a copy of the HOST's save. If the host was wearing Power

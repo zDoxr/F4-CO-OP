@@ -26,6 +26,7 @@
 #include "CoSyncTeleport.h"
 #include "CoSyncConsumableSync.h"
 #include "CoSyncOutfitSync.h"
+#include "CoSyncPowerArmorSync.h"
 #include "TickHook.h"
 #include "CoSyncPlayerAnimation.h"
 #include "CoSyncBehaviorGraph.h"
@@ -681,6 +682,8 @@ void CoSyncPlayerManager::DespawnEntity(uint32_t entityID, const char* reason)
         CoSyncPlayer* proxy = itPlayer->second.get();
         LOG_UPDATED("[PlayerMgr] Despawn entity=%u actor=%p (%s)",
             entityID, static_cast<void*>(proxy ? proxy->actorRef : nullptr), reason);
+
+        CoSyncPowerArmorSync::OnProxyRemoved(proxy);   // 0.3.3 (Stage 5)
 
         if (proxy && proxy->actorRef &&
             proxy->createType == CoSyncEntityType::Companion &&
@@ -2133,6 +2136,9 @@ bool CoSyncPlayerManager::ReleaseIfFreed(CoSyncPlayer& ent)
         // (confirmed: FLUSH kept logging "confirmed" with a visibly
         // bare proxy after a reload rebuilt it).
         CoSyncOutfitSync::ClearAppliedOutfits(ent.entityID);
+        // 0.3.3 (Stage 5): its PA chassis/hidden frame must not outlive it;
+        // the rebuilt proxy re-enters PA from the sender's 5 s PA state.
+        CoSyncPowerArmorSync::OnProxyRemoved(&ent);
         if (CoSyncNpcWorldSync::IsWorldActorEntityID(ent.entityID))
         {
             auto stIt = m_statesByEntityID.find(ent.entityID);

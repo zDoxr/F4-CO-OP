@@ -4,6 +4,8 @@
 #include <cstdint>
 #include "NiTypes.h"
 
+class CoSyncPlayer;
+
 namespace CoSyncPowerArmorSync
 {
 
@@ -83,5 +85,6 @@ namespace CoSyncPowerArmorSync
     void OnReceivePowerArmorInventory(const std::string& msg);
 
     // Clears session state (frame signatures, pending ops, fallback timers).
+    void OnProxyRemoved(::CoSyncPlayer* proxy);
     void Reset();
 }

@@ -409,3 +409,73 @@ FIX:        The client re-announces a companion that has no bound entity 15 s
 1. Host with Dogmeat/Piper; client nearby: client sees the companion follow the host; host goes through a load door and back -- the companion stays visible to the client the whole time.
 2. Client recruits a companion (same one the host has, e.g. both have Piper): both Pipers visible to both players, each following her own player; client walks through doors / fast travels -- the host keeps seeing the client's Piper.
 3. Host quits to menu and hosts again with the client rejoining: the client's companion reappears for the host within ~15 s.
+
+---
+
+## Stage 5 — Power Armor
+
+### How the engine does it (VERIFIED unless marked)
+
+```text
+Enter:   Papyrus Actor.SwitchToPowerArmor native (sub_1410FBF90) -> engine
+         SwitchToPowerArmor sub_140989D90 (8 callers). Needs a PA frame
+         FURNITURE ref; merges the frame into the actor (PowerArmorRace,
+         ExtraPowerArmor) and equips each piece through
+         ActorEquipManager::EquipObject with applyNow=0 -> AddWornItem ->
+         update3DModel flags -> Actor::Update rebuilds the 3D (Stage 3 path;
+         player proxies have AI enabled, so this runs).
+Exit:    SwitchFromPowerArmor sub_14098BE40 (1 argument, the actor; its own
+         name string 0x0252B6E8 is referenced at 0x98C371 inside it).
+State:   in-PA = ExtraPowerArmor on the actor / PowerArmorRace
+         (CoSyncGameAPI::GetActorPowerArmorExtraState, SafeActorInPowerArmorByRace).
+Frame:   a FURN ref with the PA keyword; its pieces live in the frame's
+         inventory while unworn, in the wearer's while worn.
+```
+
+### How CoSync replicates it (as found)
+
+Sender: Papyrus OnSit/OnGetUp (plus a race-based fallback) -> `PA|sender|chassisBase|chassisRef|pos|1|p0..p5` on enter, `...|0` on exit, re-sent on a piece change. Receiver: spawns its own chassis from the base form at the proxy, injects the pieces, calls the native enter, force re-equips the pieces, hides its local copy of the sender's real frame; exit = native eject (with retries), delete the spawned chassis, re-show the real frame, 3D rebuild. Unworn frames' inventories are synced separately (`PAI`/frame mods).
+
+### S5-A. PA was replicated as events only
+
+```text
+BUG:        A player who joins while someone is in Power Armor -- or whose
+            proxy of them was freed and rebuilt (cell change, reload) -- sees
+            them as a normal human.
+Severity:   High (permanent desync until the wearer gets out and back in)
+ROOT CAUSE: PA| is sent only on enter, exit and piece change; an op that
+            arrives while the proxy is not spawned is dropped.
+FIX:        The wearer repeats its current PA state every 5 s
+            (TickLocalPowerArmorPieces). The receiver treats a repeat with an
+            unchanged piece set as a no-op (new CoSyncPlayer::m_paAppliedPieces);
+            before, every such message unequipped and re-equipped all six
+            pieces. A proxy hidden for being in another location is skipped
+            and picks the state up from a later repeat.
+PROTOCOL:   unchanged (same PA| message, sent more often while worn).
+```
+
+### S5-B. Orphaned chassis / permanently hidden frame
+
+```text
+BUG:        A player who disconnects (or whose proxy is freed) while in PA
+            leaves an extra PA frame standing in everyone else's world, and
+            the real frame the proxy had hidden never comes back.
+ROOT CAUSE: m_paSpawnedChassisRefFormID / m_paRealFrameRefFormID were cleaned
+            up only by the exit path; DespawnEntity and ReleaseIfFreed never
+            looked at them.
+FIX:        CoSyncPowerArmorSync::OnProxyRemoved, called from both: deletes the
+            spawned chassis, re-enables the hidden real frame, clears the state.
+```
+
+### Not reworked in this pass (needs in-game data first)
+
+* **No PA session exists in any log on disk** (all 7 current logs), so the live behaviour of the enter/exit path could not be checked. Everything above is from code + IDA.
+* The post-enter `RefreshActor3D` (Disable+Enable 1.2 s after entering) and the unequip+re-equip "edge" loop are the same kind of symptom patch Stage 3 removed for normal armor. With the engine path now understood (deferred equips are applied by Actor::Update on an AI-enabled actor) they are probably unnecessary, but removing them without a PA test log would be a guess.
+* Not replicated at all today: fusion core charge, per-piece condition/damage and repair, PA station interactions, moving/transferring a frame between players. Piece condition is stored per inventory stack (extra data) -- the exact field is UNVERIFIED and needs RE before designing its sync.
+
+### TEST PLAN (Stage 5)
+
+1. Host enters a frame; client joins afterwards: the client sees the host in PA within 5 s.
+2. Client in PA walks through a load door with the host: the host's proxy of the client is back in PA within 5 s of reappearing.
+3. Client disconnects while in PA: no stray frame left on the host, and if the client had entered a world frame, that frame is visible again on the host.
+4. Swap a helmet while in PA: the change shows once; no armor flicker every 5 s afterwards.
