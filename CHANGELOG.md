@@ -2,6 +2,23 @@
 
 ---
 
+## [0.3.4] — 2026-09-29
+
+### Sync rework: remote animation, weapons, Power Armor, NPC authority, terminal UI
+
+Built clean, deployed. **Not yet live-tested.** Root causes, IDA evidence, authority model and test matrix: `docs/SYNC_REWORK_REPORT.md`.
+
+- **"The host slides, no walk, actions don't play" (as seen by the client):** the proxy bone cache only noticed a new skeleton when the 3D root pointer changed. After the host's proxy was hidden and re-shown (the client passing through the character editor) the freed root's address was reused, and every bone write for the rest of the session went into the old, detached skeleton. The root is now pinned, the cached skeleton must still hang off the current root, and the skeleton is re-counted every second (the host also cached a half-loaded skeleton, 59 of ~98 bones). Player proxies also get the owner's velocity back after the engine positioning zeroes it (legs of a first-person sender).
+- **Weapon shows for a few seconds, then vanishes:** the engine's own AI holsters the drawn weapon of any idle non-player actor, and a holstered weapon has no model. Proxies' weapon state is now the owner's: the AI's holster/draw calls that contradict it are refused (hook on `Actor::DrawWeaponMagicHands`), and the drawn state is re-checked continuously instead of only on changes. Enemy puppets keep their weapons out while their owner's NPC fights.
+- **Power Armor dropped off for everyone ~2 s after entering:** the sender's race-based fallback read the enter animation as a missed exit. Exits are no longer claimed until the race has actually changed and the engine's own PA marker is gone. A repeated exit no longer rebuilds a proxy that is already out, and the proxy exit waits for the engine's exit sequence instead of re-ejecting every second.
+- **NPCs:** NPC copies spawned while you were somewhere else (e.g. the character editor) are moved into the right cell, so they appear. A client can knock down an NPC it does not own but no longer kill it locally; death comes from the owner (no more dead-here, alive-there).
+- **Downed players:** the host no longer relays "damage" to a downed player's proxy several times a second.
+- **Crash (caught) fixed:** a Power Armor diagnostic that read the PA graph's internal tables.
+- **Multiplayer menu redesigned** as a RobCo-style terminal: live link status (LED, role, players, ping), menu on the left and data on the right, per-player ping in the player list.
+- Version 0.3.4 (network 304).
+
+---
+
 ## [0.3.3] — 2026-09-28
 
 ### Sync-stability directive: bug fixes before features
