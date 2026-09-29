@@ -19,6 +19,7 @@
 #include "GameData.h"
 #include "GameObjects.h"
 #include "GameFormComponents.h"
+#include "GameExtraData.h"
 #include "PapyrusVM.h"
 #include "PapyrusArgs.h"
 #include "PapyrusEvents.h"
@@ -26,6 +27,8 @@
 #include "GameHandle.h"
 
 #include <mutex>
+#include <cmath>
+#include <algorithm>
 #include <vector>
 #include <sstream>
 #include <cstdlib>
@@ -108,6 +111,9 @@ static TESObjectREFR* SpawnChassisAtProxy(TESForm* base, TESObjectREFR* atRef)
     return CoSyncGameAPI::SpawnItemAtPosition(base, pos, rot);
 }
 
+__declspec(noinline) static float SafeEquippedItemHealth(Actor* actor, uint32_t fid);   // below
+static bool IsBrokenPiece(float health) { return health >= 0.f && health <= 0.001f; }
+
 static double NowSecondsPA()
 {
     LARGE_INTEGER f{}, c{};
@@ -183,7 +189,14 @@ static void TickLocalPowerArmorPieces()
     // current state every 5 s while worn; receivers ignore an unchanged
     // repeat (FlushPendingPowerArmorOps).
     static double s_lastStateSend = 0.0;
-    const bool changed   = memcmp(pieces, s_lastPieces, sizeof(pieces)) != 0;
+    // A piece breaking or being repaired changes what others must see.
+    static int s_lastBroken[6] = {};
+    int broken[6] = {};
+    for (int i = 0; i < 6; ++i)
+        broken[i] = (pieces[i] && IsBrokenPiece(SafeEquippedItemHealth(me, pieces[i]))) ? 1 : 0;
+    const bool changed   = memcmp(pieces, s_lastPieces, sizeof(pieces)) != 0 ||
+                           memcmp(broken, s_lastBroken, sizeof(broken)) != 0;
+    memcpy(s_lastBroken, broken, sizeof(broken));
     const bool keepAlive = (now - s_lastStateSend) >= 5.0;
     if (!changed && !keepAlive)
         return;
@@ -252,6 +265,9 @@ namespace
         // 0 = slot empty. Embedded in the PA| enter packet so they arrive
         // atomically — no PAI| race with FlushPendingPowerArmorOps.
         uint32_t pieceFormIDs[6]   = {};
+        // 0.3.3: condition of each piece (-1 = full); a broken piece (0) is
+        // shown off the wearer, as the engine shows a broken piece.
+        float    pieceHealth[6]    = { -1.f, -1.f, -1.f, -1.f, -1.f, -1.f };
         // The REAL chassis ref's world position at the moment of this event
         // (see NotifyPowerArmor's header comment) -- used to locate this
         // client's own local representation of that frame, not the fake
@@ -310,12 +326,20 @@ std::string CoSyncPowerArmorSync::SerializePowerArmor(
         // Enter packet carries 6 piece slots so they arrive atomically with
         // the PA state change — no separate PAI| packet race.
         const uint32_t* p = pieceFormIDs;
-        char buf[320];
-        std::snprintf(buf, sizeof(buf), "PA|%u|%u|%u|%.2f|%.2f|%.2f|1|%u|%u|%u|%u|%u|%u",
+        char buf[400];
+        // 0.3.3: + the condition of each piece (-1 = full), read off the
+        // sender's own equipped stacks.
+        float h[6] = { -1.f, -1.f, -1.f, -1.f, -1.f, -1.f };
+        if (p)
+            if (PlayerCharacter* pc = CoSyncGetPlayer())
+                for (int i = 0; i < 6; ++i)
+                    if (p[i]) h[i] = SafeEquippedItemHealth(reinterpret_cast<Actor*>(pc), p[i]);
+        std::snprintf(buf, sizeof(buf), "PA|%u|%u|%u|%.2f|%.2f|%.2f|1|%u|%u|%u|%u|%u|%u|%.3f|%.3f|%.3f|%.3f|%.3f|%.3f",
             senderEntityID, chassisBaseFormID, chassisRefFormID,
             chassisPos.x, chassisPos.y, chassisPos.z,
             p ? p[0] : 0u, p ? p[1] : 0u, p ? p[2] : 0u,
-            p ? p[3] : 0u, p ? p[4] : 0u, p ? p[5] : 0u);
+            p ? p[3] : 0u, p ? p[4] : 0u, p ? p[5] : 0u,
+            h[0], h[1], h[2], h[3], h[4], h[5]);
         return std::string(buf);
     }
     char buf[160];
@@ -331,8 +355,10 @@ static bool ParsePowerArmor(const std::string& msg,
     uint32_t& outRefFormID,
     bool&     outEntering,
     uint32_t  outPieces[6],
-    NiPoint3& outChassisPos)
+    NiPoint3& outChassisPos,
+    float     outHealth[6])
 {
+    for (int i = 0; i < 6; ++i) outHealth[i] = -1.f;
     LOG_REQUIREMENT("CoSyncPowerArmorSync::ParsePowerArmor", "Reads power armor info back out of text. Just needs a real message and somewhere to write the result.");
     memset(outPieces, 0, 6 * sizeof(uint32_t));
     outChassisPos = NiPoint3();
@@ -372,6 +398,13 @@ static bool ParsePowerArmor(const std::string& msg,
         {
             if (!std::getline(ss, tok, '|') || tok.empty()) break;
             outPieces[i] = static_cast<uint32_t>(std::strtoul(tok.c_str(), nullptr, 10));
+        }
+        // 0.3.3: optional piece conditions (absent from older senders).
+        for (int i = 0; i < 6; ++i)
+        {
+            if (!std::getline(ss, tok, '|') || tok.empty()) break;
+            const float h = std::strtof(tok.c_str(), nullptr);
+            outHealth[i] = (std::isfinite(h) && h >= 0.f && h <= 1.f) ? h : -1.f;
         }
     }
 
@@ -425,8 +458,9 @@ void CoSyncPowerArmorSync::OnReceivePowerArmor(const std::string& msg)
 
     LOG_REQUIREMENT("CoSyncPowerArmorSync::OnReceivePowerArmor", "Needs to know our own player ID so it can tell a genuine message apart from our own message bouncing back.");
     uint32_t pieces[6] = {};
+    float    pieceHealth[6];
     NiPoint3 chassisPos;
-    if (!ParsePowerArmor(msg, senderEntityID, chassisBaseFormID, chassisRefFormID, entering, pieces, chassisPos))
+    if (!ParsePowerArmor(msg, senderEntityID, chassisBaseFormID, chassisRefFormID, entering, pieces, chassisPos, pieceHealth))
     {
         LOG_UPDATED_WARN("[PASync] Malformed PA packet: %s", msg.c_str());
         return;
@@ -449,6 +483,12 @@ void CoSyncPowerArmorSync::OnReceivePowerArmor(const std::string& msg)
     op.entering          = entering;
     op.chassisPos        = chassisPos;
     memcpy(op.pieceFormIDs, pieces, sizeof(pieces));
+    memcpy(op.pieceHealth, pieceHealth, sizeof(pieceHealth));
+    // A broken piece (condition 0) is not worn visibly: the engine shows the
+    // frame there. Treat it as an empty slot on the proxy.
+    for (int i = 0; i < 6; ++i)
+        if (op.pieceFormIDs[i] && IsBrokenPiece(op.pieceHealth[i]))
+            op.pieceFormIDs[i] = 0;
     s_pending.push_back(op);
 }
 
@@ -820,6 +860,7 @@ namespace
     {
         uint32_t formID = 0;
         int32_t  count  = 0;
+        float    health = -1.f;   // 0.3.3: ExtraHealth of this stack, -1 = full / none
     };
 
     struct PaInvOp
@@ -848,6 +889,78 @@ namespace
 }
 
 // ── SEH leaf helpers (POD-only bodies, no C2712) ────────────────────────────
+
+// 0.3.3: item condition. IDA 1.11.240: sub_1402800C0(ExtraDataList*) =
+// GetByType(0x25 ExtraHealth) -> float at +0x18, or -1.0 when absent (= full);
+// the vanilla GetItemHealthPercent native (sub_1411814A0 -> sub_140561720)
+// ends in it, and the engine's own Power Armor code (SwitchToPowerArmor
+// sub_140989D90, sub_14098C920, sub_14098DD40 ...) calls it. PA piece
+// condition and fusion-core charge are both this value.
+__declspec(noinline) static float SafeStackHealth(BGSInventoryItem::Stack* st)
+{
+    __try
+    {
+        if (!st || !st->extraData) return -1.f;
+        ExtraHealth* h = static_cast<ExtraHealth*>(st->extraData->GetByType(kExtraData_Health));
+        return h ? h->health : -1.f;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) { return -1.f; }
+}
+
+// Health of the equipped stack of `fid` on an actor (-1 = full / none).
+__declspec(noinline) static float SafeEquippedItemHealth(Actor* actor, uint32_t fid)
+{
+    __try
+    {
+        if (!actor || !actor->inventoryList || !fid) return -1.f;
+        BGSInventoryList* inv = actor->inventoryList;
+        for (UInt32 i = 0; i < inv->items.count; ++i)
+        {
+            const BGSInventoryItem& item = inv->items[i];
+            if (!item.form || item.form->formID != fid) continue;
+            for (BGSInventoryItem::Stack* st = item.stack; st; st = st->next)
+                if (st->flags & BGSInventoryItem::Stack::kFlagEquipped)
+                    return SafeStackHealth(st);
+        }
+        return -1.f;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) { return -1.f; }
+}
+
+// Set (or add) ExtraHealth on one stack. health < 0 means "full": the value
+// is set to 1.0 rather than removing the extra (removal would need the
+// engine's extra-data free path).
+__declspec(noinline) static bool SafeSetStackHealth(BGSInventoryItem::Stack* st, float health)
+{
+    __try
+    {
+        if (!st || !st->extraData) return false;
+        const float v = (health < 0.f) ? 1.f : health;
+        ExtraHealth* h = static_cast<ExtraHealth*>(st->extraData->GetByType(kExtraData_Health));
+        if (h) { h->health = v; return true; }
+        ExtraHealth* nh = ExtraHealth::Create(v);
+        return nh && st->extraData->Add(kExtraData_Health, nh);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+}
+
+// All stacks of `form` in a ref's inventory (SEH leaf, fixed-size output).
+__declspec(noinline) static int SafeCollectStacks(TESObjectREFR* ref, TESForm* form,
+                                                  BGSInventoryItem::Stack** out, int cap)
+{
+    int n = 0;
+    __try
+    {
+        BGSInventoryList* inv = ref ? ref->inventoryList : nullptr;
+        for (UInt32 i = 0; inv && i < inv->items.count; ++i)
+            if (inv->items[i].form == form)
+                for (BGSInventoryItem::Stack* st = inv->items[i].stack; st && n < cap; st = st->next)
+                    out[n++] = st;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) { n = 0; }
+    return n;
+}
+
 
 __declspec(noinline) static bool SafeKeywordFormHas(const BGSKeywordForm* kf, uint32_t kwFormID)
 {
@@ -1002,13 +1115,20 @@ __declspec(noinline) static void GatherFrameSignature(TESObjectREFR* frame, std:
             if (!item.form) continue;
             const UInt8 ft = item.form->formType;
             if (ft != kFormType_ARMO && ft != kFormType_AMMO) continue;
-            int32_t total = 0;
+            // 0.3.3: one entry per stack, with its condition (fusion-core
+            // charge, piece damage/repair), instead of one total per form.
             BGSInventoryItem::Stack* s = item.stack;
             int guard = 0;
-            while (s && guard++ < 64) { total += s->count; s = s->next; }
-            if (total <= 0) continue;
-            PaInvItem it; it.formID = item.form->formID; it.count = total;
-            out.push_back(it);
+            while (s && guard++ < 64)
+            {
+                if (s->count > 0)
+                {
+                    PaInvItem it; it.formID = item.form->formID; it.count = s->count;
+                    it.health = SafeStackHealth(s);
+                    out.push_back(it);
+                }
+                s = s->next;
+            }
         }
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
@@ -1017,13 +1137,22 @@ __declspec(noinline) static void GatherFrameSignature(TESObjectREFR* frame, std:
     }
 }
 
+// Health rounded to 1% for comparing and merging (float noise must not look
+// like a change).
+static int HealthKey(float h) { return h < 0.f ? -1 : static_cast<int>(h * 100.f + 0.5f); }
+
 static void NormalizeSignature(std::vector<PaInvItem>& sig)
 {
-    std::sort(sig.begin(), sig.end(), [](const PaInvItem& a, const PaInvItem& b) { return a.formID < b.formID; });
+    std::sort(sig.begin(), sig.end(), [](const PaInvItem& a, const PaInvItem& b)
+    {
+        if (a.formID != b.formID) return a.formID < b.formID;
+        return HealthKey(a.health) < HealthKey(b.health);
+    });
     std::vector<PaInvItem> merged;
     for (const PaInvItem& it : sig)
     {
-        if (!merged.empty() && merged.back().formID == it.formID)
+        if (!merged.empty() && merged.back().formID == it.formID &&
+            HealthKey(merged.back().health) == HealthKey(it.health))
             merged.back().count += it.count;
         else
             merged.push_back(it);
@@ -1035,7 +1164,8 @@ static bool SignatureEquals(const std::vector<PaInvItem>& a, const std::vector<P
 {
     if (a.size() != b.size()) return false;
     for (size_t i = 0; i < a.size(); ++i)
-        if (a[i].formID != b[i].formID || a[i].count != b[i].count) return false;
+        if (a[i].formID != b[i].formID || a[i].count != b[i].count ||
+            HealthKey(a[i].health) != HealthKey(b[i].health)) return false;
     return true;
 }
 
@@ -1169,6 +1299,8 @@ static std::string SerializeFrameInventory(uint32_t sender, uint32_t refFormID, 
     {
         if (i) ss << ",";
         ss << items[i].formID << ":" << items[i].count;
+        if (items[i].health >= 0.f)
+            ss << ":" << items[i].health;   // 0.3.3; absent = full (old peers ignore it)
     }
     return ss.str();
 }
@@ -1191,6 +1323,12 @@ static bool ParseFrameInventory(const std::string& msg, PaInvOp& op)
         if (!e || *e != ':') break;
         s = e + 1;
         it.count = static_cast<int32_t>(std::strtol(s, &e, 10));
+        if (e && *e == ':')
+        {
+            s = e + 1;
+            const float h = std::strtof(s, &e);
+            if (std::isfinite(h) && h >= 0.f && h <= 1.f) it.health = h;
+        }
         if (it.formID != 0 && it.count > 0)
             op.items.push_back(it);
         if (!e || *e != ',') break;
@@ -1470,40 +1608,73 @@ static void ApplyFrameInventoryOp(const PaInvOp& op, double now)
     GatherFrameSignature(frame, local);
     NormalizeSignature(local);
 
-    int adds = 0, removes = 0;
+    int adds = 0, removes = 0, healthFixes = 0;
 
-    for (const PaInvItem& r : op.items)
+    // Counts per form first (entries are per stack/condition since 0.3.3).
+    auto total = [](const std::vector<PaInvItem>& v, uint32_t fid)
     {
-        int32_t have = 0;
-        for (const PaInvItem& l : local) if (l.formID == r.formID) { have = l.count; break; }
-        if (have == r.count) continue;
+        int32_t t = 0;
+        for (const PaInvItem& x : v) if (x.formID == fid) t += x.count;
+        return t;
+    };
+    std::vector<uint32_t> forms;
+    for (const PaInvItem& r : op.items) if (std::find(forms.begin(), forms.end(), r.formID) == forms.end()) forms.push_back(r.formID);
+    for (const PaInvItem& l : local)    if (std::find(forms.begin(), forms.end(), l.formID) == forms.end()) forms.push_back(l.formID);
 
-        TESForm* form = SafeLookupForm(r.formID);
+    for (uint32_t fid : forms)
+    {
+        const int32_t want = total(op.items, fid);
+        const int32_t have = total(local, fid);
+        if (want == have) continue;
+        TESForm* form = SafeLookupForm(fid);
         if (!form) continue;
         const UInt8 ft = form->formType;
         if (ft != kFormType_ARMO && ft != kFormType_AMMO) continue;
-
-        if (r.count > have) { PaFrameAddItem(frame, form, r.count - have); ++adds; }
-        else                { PaFrameRemoveItem(frame, form, have - r.count); ++removes; }
+        if (want > have) { PaFrameAddItem(frame, form, want - have); ++adds; }
+        else             { PaFrameRemoveItem(frame, form, have - want); ++removes; }
     }
 
-    for (const PaInvItem& l : local)
+    // 0.3.3: then condition, stack by stack. PA pieces and partly used fusion
+    // cores are single-item stacks; assign the sender's conditions to ours in
+    // sorted order. A merged multi-item stack with mixed conditions on the
+    // sender cannot be split here and is left as it is.
+    for (uint32_t fid : forms)
     {
-        bool present = false;
-        for (const PaInvItem& r : op.items) if (r.formID == l.formID) { present = true; break; }
-        if (present) continue;
-        TESForm* form = SafeLookupForm(l.formID);
+        std::vector<float> want;
+        for (const PaInvItem& r : op.items)
+            if (r.formID == fid)
+                for (int32_t k = 0; k < r.count && want.size() < 32; ++k) want.push_back(r.health);
+        bool anyDamaged = false;
+        for (float h : want) if (h >= 0.f) anyDamaged = true;
+        if (!anyDamaged)
+            continue;   // all full: nothing to set
+        TESForm* form = SafeLookupForm(fid);
         if (!form) continue;
-        PaFrameRemoveItem(frame, form, l.count);
-        ++removes;
+        CoSyncGameAPI::EnsureStackExtraLists(frame, form);
+        BGSInventoryItem::Stack* stackBuf[32];
+        const int nStacks = SafeCollectStacks(frame, form, stackBuf, 32);
+        std::vector<BGSInventoryItem::Stack*> stacks(stackBuf, stackBuf + nStacks);
+        bool allSingles = !stacks.empty() && stacks.size() == want.size();
+        for (BGSInventoryItem::Stack* st : stacks) if (!st || st->count != 1) allSingles = false;
+        if (!allSingles)
+        {
+            LOG_UPDATED("[PASync] PAI: condition of form 0x%08X on frame 0x%08X not applied (stacks merged)", fid, lid);
+            continue;
+        }
+        std::sort(want.begin(), want.end());
+        std::sort(stacks.begin(), stacks.end(), [](BGSInventoryItem::Stack* a, BGSInventoryItem::Stack* b)
+        { return SafeStackHealth(a) < SafeStackHealth(b); });
+        for (size_t k = 0; k < stacks.size(); ++k)
+            if (HealthKey(SafeStackHealth(stacks[k])) != HealthKey(want[k]) && SafeSetStackHealth(stacks[k], want[k]))
+                ++healthFixes;
     }
 
     s_frameLastSig[lid]       = op.items;
     s_frameSuppressUntil[lid] = now + kFrameInvEchoSuppressSec;
 
-    if (adds || removes)
-        LOG_UPDATED("[PASync] PAI applied to frame=0x%08X (remote ref=0x%08X): +%d/-%d ops",
-            lid, op.refFormID, adds, removes);
+    if (adds || removes || healthFixes)
+        LOG_UPDATED("[PASync] PAI applied to frame=0x%08X (remote ref=0x%08X): +%d/-%d ops, %d condition(s) set",
+            lid, op.refFormID, adds, removes, healthFixes);
 }
 
 static void FlushPendingFrameInventoryOps()
@@ -1593,9 +1764,11 @@ void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
             TESForm* actorForm = SafeLookupForm(chk.actorFormID);
             if (actorForm && actorForm->formType == kFormType_ACHR)
             {
-                CoSyncGameAPI::RefreshActor3D(static_cast<Actor*>(actorForm));
-                LOG_UPDATED("[PASync] Post-enter actor 3D refresh: RefreshActor3D on actor=0x%08X",
-                    chk.actorFormID);
+                // 0.3.3: the engine's own worn-3D rebuild request instead of a
+                // Disable+Enable (which drops the weapon and blinks the model).
+                const bool ok = CoSyncGameAPI::RequestActorModelUpdate(static_cast<Actor*>(actorForm));
+                LOG_UPDATED("[PASync] Post-enter model update requested on actor=0x%08X (%s)",
+                    chk.actorFormID, ok ? "queued" : "no middle-high process yet");
             }
             else
             {
@@ -1733,6 +1906,8 @@ void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
             TESObjectREFR* existingChassis = SafeLookupAndCastRefr(proxy->m_paSpawnedChassisRefFormID);
             if (existingChassis)
             {
+                uint32_t oldPieces[6];
+                memcpy(oldPieces, proxy->m_paAppliedPieces, sizeof(oldPieces));
                 memcpy(proxy->m_paAppliedPieces, op.pieceFormIDs, sizeof(op.pieceFormIDs));
                 int piecesApplied = 0;
                 for (int pi = 0; pi < 6; ++pi)
@@ -1741,13 +1916,25 @@ void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
                     TESForm* pieceForm = SafeLookupForm(op.pieceFormIDs[pi]);
                     if (!pieceForm) continue;
                     CoSyncGameAPI::DirectInjectInventoryItem(existingChassis, pieceForm);
-                    // See the fresh-enter path's comment: force a real
-                    // unequip->equip state edge, not a redundant same-state
-                    // EquipObject call that may silently no-op.
-                    CoSyncEquipHook::UnequipItemDirect(proxy->actorRef, pieceForm);
-                    if (CoSyncEquipHook::EquipItemDirect(proxy->actorRef, pieceForm))
+                    // 0.3.3: equip only what the engine does not already
+                    // have equipped (the old forced unequip->equip edge
+                    // rebuilt every piece on every update).
+                    bool present = false, equipped = false;
+                    CoSyncGameAPI::GetInventoryEquipState(proxy->actorRef, op.pieceFormIDs[pi], present, equipped);
+                    if (!equipped && CoSyncEquipHook::EquipItemDirect(proxy->actorRef, pieceForm))
                         ++piecesApplied;
                 }
+                for (int pi = 0; pi < 6; ++pi)
+                {
+                    const uint32_t oldFid = oldPieces[pi];
+                    if (!oldFid) continue;
+                    bool still = false;
+                    for (int k = 0; k < 6; ++k) if (op.pieceFormIDs[k] == oldFid) still = true;
+                    if (still) continue;
+                    if (TESForm* oldForm = SafeLookupForm(oldFid))
+                        CoSyncEquipHook::UnequipItemDirect(proxy->actorRef, oldForm);
+                }
+                CoSyncGameAPI::RequestActorModelUpdate(proxy->actorRef);
                 LOG_UPDATED("[PASync] Piece update: %d piece(s) applied to existing chassis=0x%08X entity=%u",
                     piecesApplied, existingChassis->formID, op.senderEntityID);
 
@@ -1760,11 +1947,8 @@ void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
                 // Whatever it does, it was never even attempted here. Same
                 // 1.2s delay, same reasoning: give the immediate EquipItemDirect
                 // call above time to settle before forcing the rebuild.
-                if (piecesApplied > 0 && proxy->actorRef)
-                {
-                    s_pendingActorRefresh.push_back(PaActorRefreshCheck{
-                        proxy->actorRef->formID, PaDiagNowSeconds() + 1.2 });
-                }
+                // 0.3.3: no Disable+Enable rebuild here any more; the engine
+                // rebuilds the worn 3D itself (RequestActorModelUpdate above).
             }
             else
             {
@@ -1879,6 +2063,22 @@ void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
                     LOG_UPDATED("[PASync] PA pieces: injected %d piece(s) directly into chassis entity=%u",
                         piecesAdded, op.senderEntityID);
 
+                // 0.3.3: the pieces just injected are bare base forms. If this
+                // machine has its copy of the sender's real frame (kept in sync
+                // by PAMODS), copy its piece mods -- paint, armor upgrades,
+                // station work -- onto the spawned chassis before entering, so
+                // the proxy wears what the sender wears.
+                if (TESObjectREFR* realCopy = FindLocalChassisInCell(op.chassisBaseFormID, op.chassisPos, chassis->formID))
+                {
+                    const std::string mods = CoSyncItemMods::DescribeMods(realCopy, false);
+                    if (!mods.empty())
+                    {
+                        const int missing = CoSyncItemMods::ApplyMods(chassis, mods, chassis->formID);
+                        LOG_UPDATED("[PASync] Enter PA: copied piece mods from frame 0x%08X to chassis 0x%08X (%d missing)",
+                            realCopy->formID, chassis->formID, missing);
+                    }
+                }
+
                 // Native enter first. The Papyrus wrapper this used to call has
                 // three refusal paths that log to the PAPYRUS log only, and the
                 // call itself is a form-argument CallFunctionNoWait on a proxy
@@ -1941,8 +2141,13 @@ void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
                         if (op.pieceFormIDs[pi] == 0) continue;
                         TESForm* pieceForm = SafeLookupForm(op.pieceFormIDs[pi]);
                         if (!pieceForm) continue;
-                        CoSyncEquipHook::UnequipItemDirect(proxy->actorRef, pieceForm);
-                        if (CoSyncEquipHook::EquipItemDirect(proxy->actorRef, pieceForm))
+                        // 0.3.3: the engine's deferred PA equip (applyNow=0)
+                        // is applied by Actor::Update through update3DModel
+                        // on this AI-enabled proxy; equip here only what it
+                        // did not equip.
+                        bool present = false, equipped = false;
+                        CoSyncGameAPI::GetInventoryEquipState(proxy->actorRef, op.pieceFormIDs[pi], present, equipped);
+                        if (!equipped && CoSyncEquipHook::EquipItemDirect(proxy->actorRef, pieceForm))
                             ++piecesReapplied;
                     }
                     if (piecesReapplied > 0)
