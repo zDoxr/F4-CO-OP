@@ -53,6 +53,7 @@ namespace
         uint32_t base = 0;
         bool     made = false;       // SetCompanion issued
         bool     announced = false;  // COMPOWN sent
+        double   announcedAt = 0.0;
         double   readyAt = 0.0;
     };
     std::vector<Mine>            s_mine;        // client: its own companion copies
@@ -349,6 +350,18 @@ namespace CoSyncCompanions
                 MakeCompanion(a);
                 it->made = true;
             }
+            // 0.3.3 (Stage 4): COMPOWN used to be sent once, ever. If the
+            // host's entity for this companion goes away (host session
+            // restart, a DESTROY), nothing re-announced it and the companion
+            // stayed invisible to everyone else. Re-announce when the host has
+            // not bound an entity to it within 15 s of the last announcement.
+            if (it->announced && g_CoSyncEntities.GetEntityID(a) == 0 &&
+                now - it->announcedAt > 15.0)
+            {
+                it->announced = false;
+                LOG_INFO("[Companions] My companion base=0x%08X ref=0x%08X has no network entity -- re-announcing",
+                    it->base, it->ref);
+            }
             if (it->made && !it->announced && myEid && CoSyncNet::IsConnected())
             {
                 char buf[160];
@@ -356,6 +369,7 @@ namespace CoSyncCompanions
                     it->base, it->ref, a->pos.x, a->pos.y, a->pos.z, myEid);
                 CoSyncTransport::Send(buf);
                 it->announced = true;
+                it->announcedAt = now;
             }
             ++it;
         }

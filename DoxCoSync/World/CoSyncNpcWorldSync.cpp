@@ -287,6 +287,11 @@ namespace
     // Client: world-actor proxies a KILL has been applied to.
     std::unordered_set<uint32_t>           s_killedEntities;
 
+    // 0.3.3 (Stage 4), host: entities that are a player's companion -- the
+    // client-owned copies registered through COMPOWN. (The host's own
+    // followers are recognised live via IsPlayerTeammate on its actor.)
+    std::unordered_set<uint32_t>           s_companionEntities;
+
     // Host: per-ref throttle for NPCDEAD replies to NPCSEEN reports.
     std::unordered_map<uint32_t, double>   s_npcDeadSentAt;
 
@@ -1558,6 +1563,7 @@ uint32_t HostRegisterClientOwnedActor(uint32_t baseFormID, uint32_t refFormID, c
     state.isLocallyOwned    = false;
     state.lastCreate        = cp;
 
+    s_companionEntities.insert(eid);
     CoSyncTransport::Send(SerializeEntityCreate(cp));
     LOG_UPDATED("[NpcWorldSync] Companion entity=%u owned by %u base=0x%08X ref=0x%08X",
         eid, ownerEid, baseFormID, refFormID);
@@ -1729,6 +1735,7 @@ void Reset()
     s_reportedLocalRefs.clear();
     s_deadEntities.clear();
     s_killedEntities.clear();
+    s_companionEntities.clear();
     s_npcDeadSentAt.clear();
     s_knownDeadRefs.clear();
     {
@@ -2665,6 +2672,23 @@ void HostTickOwnershipHandoff(double now)
         const EntityCreatePacket& c = st.lastCreate;
         if (c.locWS == 0xFFFFFFFFu)
             continue;   // old-style entity without a location: leave it alone
+
+        // 0.3.3 (Stage 4): never hand a companion to another player. A
+        // companion is simulated by the machine of the player it follows --
+        // on anyone else's machine its follow package targets THAT player.
+        // A client's companion copy exists only on that client, so releasing
+        // it destroyed it for everyone else with nobody able to re-claim it;
+        // the host's follower, released to a client whose copy is disabled
+        // (CoSyncCompanions HandBack), vanished for everyone for the 30 s hold.
+        if (s_companionEntities.count(eid))
+            continue;
+        {
+            auto ait = s_eidToActor.find(eid);
+            if (ait != s_eidToActor.end() && ait->second &&
+                CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(ait->second)) &&
+                ait->second->IsPlayerTeammate())
+                continue;
+        }
 
         double& since = s_ownershipSince[eid];
         if (since == 0.0) since = now;

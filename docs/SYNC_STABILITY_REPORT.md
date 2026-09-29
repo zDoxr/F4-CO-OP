@@ -347,3 +347,65 @@ ProcessWeaponVerifyQueue walked `actorRef->inventoryList` (and dumped 15 entries
 2. Client changes clothes while the host is far away (proxy in low process), then the host walks back: the gear is right when the proxy comes into view (look for "worn 3D update re-requested").
 3. Client swaps weapons (pistol, rifle, melee, unarmed): the proxy follows; holster/draw still animate.
 4. Teleport / load door / fast travel together: gear and weapon survive the proxy's re-show.
+
+---
+
+## Stage 4 — companions
+
+### What "ownership" means in CoSync (as built, now written down)
+
+| Concept | Meaning | Where it lives |
+|---|---|---|
+| **FO4 companion relationship** | The vanilla Followers quest alias + teammate flag on *one machine's* actor. On each machine the "player" is that machine's own player. | engine, per machine |
+| **Multiplayer owner** | The player whose companion it is. | `CREATE.ownerEntityID` (host: 0 = host) |
+| **Network authority / controller** | The machine that runs the companion's AI and streams it (`EU`/`AEV`). Always the owner's machine: that is the only machine where its follow package targets the right player. | NpcWorldSync binding (`isLocallyOwned`) |
+| **Visibility** | Everyone in the same location sees it: non-owners get a puppet driven by the owner's stream. | NpcWorldSync puppet |
+
+**Several players can have the same companion.** Each player's companion is their own instance: the host's follower is its real world actor; a client who recruits someone gets its own copy (`CoSyncCompanions::SpawnMine`) that takes over its local Followers quest, announced with `COMPOWN` and shown to everyone as a puppet. Two players can both travel with Piper; each Piper follows, fights for and is controlled by her own player. Followers that came with the host's save are handed back on clients (disabled locally) because the host's stream already shows them. A single actor following two players at once is not possible with the vanilla Followers quest (one alias, one "player" per machine), so it is not attempted.
+
+### S4-A. Companions were eligible for NPC ownership handoff
+
+```text
+BUG:        A player's companion can disappear for the other players.
+Severity:   Critical (entity lost / wrong authority)
+ROOT CAUSE: HostTickOwnershipHandoff (0.3.1) releases any world actor whose
+            owner is away (other location or >12000 units) to a nearby player.
+            It did not exclude companions:
+            * a client's companion copy exists only on that client. Releasing
+              it sent DESTROY; no other machine has that actor, so nobody can
+              re-claim it, and the client sent COMPOWN only once -- the
+              companion was gone for everyone else for the rest of the session.
+            * the host's follower released to a client: the client's copy is
+              disabled (HandBack) and teammates are skipped by the client scan,
+              so it vanished for everyone until the host's 30 s hold expired.
+            Both can trigger during any load-door / fast-travel transition,
+            where the companion's streamed location briefly differs from its
+            owner's.
+FIX:        The handoff skips companion entities: COMPOWN-registered entities
+            (s_companionEntities) and entities whose host actor is a player
+            teammate.
+FILES:      World/CoSyncNpcWorldSync.cpp (HostTickOwnershipHandoff,
+            HostRegisterClientOwnedActor, Reset)
+```
+
+### S4-B. COMPOWN was one-shot
+
+```text
+BUG:        A client's companion never comes back for others once its network
+            entity is gone (host restart, DESTROY).
+FIX:        The client re-announces a companion that has no bound entity 15 s
+            after its last announcement (CoSyncCompanions::Tick).
+```
+
+### Companion animation — findings (not changed)
+
+* Companion puppets are AI-alive clones steered every tick with `Actor::SetPosition(pos, true)` (vtable 0xCA). VERIFIED: that call passes the zero vector (bytes at 0x142F3C550 are all 0) to the character controller's virtual at +0x1D0 and clears two controller state fields, i.e. it resets the controller's motion state every tick.
+* The puppet's locomotion is animated by its own engine AI (TickAnimVars is skipped for puppets), and that AI has no idea the puppet is moving along the owner's path. That is the most likely reason walk/run on companions "is not perfect".
+* **UNVERIFIED, so not built:** that controller slot 0x3A (+0x1D0) is a plain linear-velocity setter taking an hkVector4 (on bhkCharProxyController it resolves to sub_1418B4030, whose second argument is dereferenced like an object, not a vector). The fix that follows from this -- give the engine the owner's velocity instead of zero, or drive the puppet's Speed/Direction graph variables from it -- needs this confirmed first.
+* Combat, weapon draw and discrete events (fire/reload/throw) already come from the owner (K3, 0.3.1).
+
+### TEST PLAN (Stage 4)
+
+1. Host with Dogmeat/Piper; client nearby: client sees the companion follow the host; host goes through a load door and back -- the companion stays visible to the client the whole time.
+2. Client recruits a companion (same one the host has, e.g. both have Piper): both Pipers visible to both players, each following her own player; client walks through doors / fast travels -- the host keeps seeing the client's Piper.
+3. Host quits to menu and hosts again with the client rejoining: the client's companion reappears for the host within ~15 s.
