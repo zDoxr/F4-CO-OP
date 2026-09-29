@@ -969,10 +969,10 @@ void CoSyncLocalPlayer::Tick(double now)
 
     if (hasMoved || hasRotated)
     {
-        LOG_DEBUG("[LocalPlayer] Sent UPDATE entity=%u pos=(%.2f,%.2f,%.2f) vel=(%.2f,%.2f,%.2f)",
+        LOG_EVERY_MS(2000, LOG_DEBUG("[LocalPlayer] Sent UPDATE entity=%u pos=(%.2f,%.2f,%.2f) vel=(%.2f,%.2f,%.2f)",
             myEntityID,
             currentPos.x, currentPos.y, currentPos.z,
-            velocity.x, velocity.y, velocity.z);
+            velocity.x, velocity.y, velocity.z));
     }
 }
 

@@ -522,8 +522,8 @@ void CoSyncPlayerMarker::Tick(double now)
 
     // Throttled liveness proof (LOG_TRACE compiles out in Release, which is
     // why an earlier run's "0 MoveTo lines" proved nothing).
-    static uint32_t s_tickCount = 0;
-    if ((s_tickCount++ % 30) == 0)
+    static uint64_t s_nextLivenessMs = 0;
+    if (GetTickCount64() >= s_nextLivenessMs && (s_nextLivenessMs = GetTickCount64() + 15000) != 0)
     {
         for (const MarkerSlot& sl : s_slots)
         {

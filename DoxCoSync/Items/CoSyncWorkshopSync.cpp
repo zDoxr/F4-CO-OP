@@ -171,10 +171,7 @@ void CoSyncWorkshopSync::OnReceiveWorkshopMode(const std::string& msg)
     }
 
 
-    if (CoSyncNet::IsHost())
-        CoSyncTransport::Send(msg);
-
-
+    // The host's relay (to everyone but the sender) is in CoSyncNet's dispatch.
     if (entityID == CoSyncNet::GetMyEntityID())
         return;
 
@@ -195,9 +192,7 @@ void CoSyncWorkshopSync::OnReceiveWorkshopDestroy(const std::string& msg)
         return;
     }
 
-    if (CoSyncNet::IsHost())
-        CoSyncTransport::Send(msg);
-
+    // The host's relay (to everyone but the sender) is in CoSyncNet's dispatch.
     if (entityID == CoSyncNet::GetMyEntityID())
         return;
 

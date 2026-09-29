@@ -1376,12 +1376,12 @@ namespace
             GraphPose pose;
             if (!ReadGraphPose(reinterpret_cast<uint8_t*>(g), pose))
             {
-                LOG_INFO("[FPGraph] [pose] inFP=%d graph%u%s STOPPED at '%s' | "
+                LOG_EVERY_MS(5000, LOG_INFO("[FPGraph] [pose] inFP=%d graph%u%s STOPPED at '%s' | "
                          "graph=%p char=%p genOut=%p tracks=%p numTracks=%d "
                          "flags=0x%X numData=%d dataOff=%d",
                     inFP, idx, (idx == activeIdx) ? "(ACTIVE)" : "        ",
                     pose.stopped, g, pose.charPtr, pose.genOut, pose.tracks,
-                    pose.numTracks, pose.flags, pose.numData, pose.dataOff);
+                    pose.numTracks, pose.flags, pose.numData, pose.dataOff));
                 continue;
             }
 
@@ -1390,10 +1390,10 @@ namespace
             if (PoseBoneRot(pose, BONE_RLEG_THIGH, leg))    FormatQuat(leg, legBuf, sizeof(legBuf));
             if (PoseBoneRot(pose, BONE_LARM_UPPERARM, arm)) FormatQuat(arm, armBuf, sizeof(armBuf));
 
-            LOG_INFO("[FPGraph] [pose] inFP=%d graph%u%s bones=%d "
+            LOG_EVERY_MS(5000, LOG_INFO("[FPGraph] [pose] inFP=%d graph%u%s bones=%d "
                      "RLeg_Thigh=%s LArm_UpperArm=%s",
                 inFP, idx, (idx == activeIdx) ? "(ACTIVE)" : "        ", pose.count,
-                legBuf, armBuf);
+                legBuf, armBuf));
         }
     }
 

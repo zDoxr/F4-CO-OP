@@ -341,10 +341,10 @@ static void PollAndPrintAnimDiagnostics()
     {
         s_lastSeenOp = op;
         s_lastSeenVarName = varName;
-        LOG_DEBUG("[AnimUtils live] op=%s var=%s actor=%p",
+        LOG_EVERY_MS(5000, LOG_DEBUG("[AnimUtils live] op=%s var=%s actor=%p",
             op ? op : "<null>",
             varName ? varName : "<null>",
-            (void*)g_animUtils_lastActor);
+            (void*)g_animUtils_lastActor));
     }
 }
 

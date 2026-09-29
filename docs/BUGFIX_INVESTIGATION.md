@@ -219,7 +219,7 @@ game camera's projection must be reverse-engineered first (UNVERIFIED).
 | U4 | Puppet AEV counters accumulate forever (never drained on the puppet path). | K3(b) | Low |
 | U5 | The spawn watchdog re-creates a freed player proxy at the HELLO position (stale), not the last known position. | host log 16:50:18.948 | Medium |
 | U6 | docs/WORKSHOP_FACTIONS_RE.md wrongly says CoSyncWorkshopSync reads 1.11.221 workshop RVAs; the project compiles F4SE 0.7.9's GameWorkshop.cpp (1.11.240). Documentation error, no code impact. | DoxCoSync.vcxproj line 428 | Doc |
-| U7 | The legacy `WD|`/`WM|` handlers relay every message from any client without a sender check (left open in P5/N7). | CoSyncNet.cpp WM/WD dispatch | Low |
+| U7 | The legacy `WD|`/`WM|` handlers relay every message from any client without a sender check (left open in P5/N7). | CoSyncNet.cpp WM/WD dispatch | Low. **Fixed (0.3.2):** WM/WD are sender-checked (SelfStateType) and relayed to everyone but the sender. |
 
 Not yet audited in depth for this report (planned in the implementation phase):
 packet sequencing beyond BONES, reconnect flows, per-peer memory in long
@@ -295,3 +295,10 @@ names for puppet playback, "ragdoll at rest" state.
    or move ALL NPC AI to the host (simpler authority, but NPCs near a client far
    from the host would not be simulated at all)? My recommendation: keep
    per-NPC ownership with host arbitration + handoff.
+
+
+## Log volume (network audit, 0.3.2)
+
+Measured on the 0.3.0 host log (CoSyncUpdated_2272.log, 45 MB / 28 min). Top lines by count: ForwardMessage EU 74k, transport SEND debug 88k, "Drained N" debug 45k, ForwardMessage BONES 22k, FPGraph pose 24k, AnimUtils live 24k, ForwardMessage HP 7.7k, PlayerMarker liveness 6.2k, LocalPlayer sent UPDATE 4.5k.
+
+Now: EU / BONES / HP / VOICE arrivals and all sends are counted and summarised every 10 s (`[Transport] Last 10 s: rx EU=... | tx ...`), with every 50th EU still logged in full for the jitter measurement; the per-frame diagnostics go through `LOG_EVERY_MS` (2-15 s). Every other message type is still logged on arrival. Expected: roughly a quarter of the old volume (UNVERIFIED until the next session log).

@@ -383,6 +383,18 @@ inline void CoSyncAnimTestLog_Printf(const char* fmt, ...)
 #define LOG_UPDATED_WARN(fmt, ...) CoSyncUpdatedLog_Printf(LogColor::YELLOW, "[WARN]    " fmt, ##__VA_ARGS__)
 #define LOG_UPDATED_ERR(fmt, ...)  CoSyncUpdatedLog_Printf(LogColor::RED,    "[ERROR]   " fmt, ##__VA_ARGS__)
 
+// Runs `stmt` (a LOG_* call) at most once per `ms` milliseconds from this
+// call site, for per-frame / per-message diagnostics that used to fill the
+// log (the 0.3.0 host log was 45 MB for 28 minutes).
+#define LOG_EVERY_MS(ms, stmt) do { \
+        static volatile LONGLONG s_logEveryLast_ = 0; \
+        const LONGLONG logEveryNow_ = static_cast<LONGLONG>(GetTickCount64()); \
+        const LONGLONG logEveryPrev_ = s_logEveryLast_; \
+        if (logEveryNow_ - logEveryPrev_ >= static_cast<LONGLONG>(ms) && \
+            InterlockedCompareExchange64(&s_logEveryLast_, logEveryNow_, logEveryPrev_) == logEveryPrev_) \
+        { stmt; } \
+    } while (0)
+
 #ifdef COSYNC_TRACE
 #  define LOG_TRACE(fmt, ...)  CoSyncUpdatedLog_Printf(LogColor::WHITE, "[TRACE]   " fmt, ##__VA_ARGS__)
 #else

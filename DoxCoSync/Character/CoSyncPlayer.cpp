@@ -1,4 +1,4 @@
-﻿#include "CoSyncPlayer.h"
+#include "CoSyncPlayer.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncEntityRegistry.h"
 #include "CoSyncRequirementsLog.h"
@@ -251,8 +251,8 @@ void CoSyncPlayer::ApplyUpdate(const EntityUpdatePacket& u)
                 if (derived > 1.0f)
                 {
                     hSpeed = derived;
-                    LOG_INFO("[CoSyncPlayer] entity=%u hSpeed DERIVED from pos-delta: %.1f (dx=%.1f dy=%.1f dt=%.3f)",
-                        entityID, hSpeed, dx, dy, (float)dt);
+                    LOG_EVERY_MS(2000, LOG_INFO("[CoSyncPlayer] entity=%u hSpeed DERIVED from pos-delta: %.1f (dx=%.1f dy=%.1f dt=%.3f)",
+                        entityID, hSpeed, dx, dy, (float)dt));
                 }
             }
         }

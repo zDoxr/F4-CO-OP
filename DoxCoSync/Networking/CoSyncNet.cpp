@@ -247,6 +247,7 @@ static const char* SelfStateType(const std::string& msg)
         "HP", "INV", "OUTFIT", "EQUIP", "IMODS", "LOOKS", "DOWN",
         "PA", "PAI", "PAMODS", "SPEC", "AE", "AEV", "SW", "PB",
         "CONS", "SPELL", "THRP", "THRM", "THRX", "VATS_ENTER", "VATS_EXIT", "VER", "WS", "CORPSE",
+        "WM", "WD",   // U7: workshop-mode / legacy scrap notices name their sender too
     };
     const size_t bar = msg.find('|');
     if (bar == std::string::npos)
@@ -1693,8 +1694,13 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
     }
 
 
+    // WM / WD: notices only (logged). The sender check above (SelfStateType)
+    // makes sure a client can only speak for itself; the host passes them on
+    // to everyone except the sender (U7: they used to go back to it as well).
     if (msg.rfind("WM|", 0) == 0)
     {
+        if (isHostRole && conn != k_HSteamNetConnection_Invalid)
+            CoSyncTransport::SendExcept(msg, conn);
         CoSyncWorkshopSync::OnReceiveWorkshopMode(msg);
         return;
     }
@@ -1702,6 +1708,8 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
 
     if (msg.rfind("WD|", 0) == 0)
     {
+        if (isHostRole && conn != k_HSteamNetConnection_Invalid)
+            CoSyncTransport::SendExcept(msg, conn);
         CoSyncWorkshopSync::OnReceiveWorkshopDestroy(msg);
         return;
     }

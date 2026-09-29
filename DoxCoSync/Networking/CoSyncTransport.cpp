@@ -1,4 +1,4 @@
-﻿#include "CoSyncTransport.h"
+#include "CoSyncTransport.h"
 
 #include "Logger.h"
 #include "ConsoleLogger.h"
@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <utility>
+#include <atomic>
 
 namespace
 {
@@ -44,6 +45,12 @@ namespace
 
     size_t s_evictedState = 0;
     size_t s_droppedEvents = 0;
+
+    // High-rate streams are counted, not logged one by one; a summary line
+    // goes out every 10 s, plus every 50th EU in full (its sender timestamp
+    // is what the jitter measurement needs).
+    std::atomic<uint64_t> s_rxEU{ 0 }, s_rxBones{ 0 }, s_rxHP{ 0 }, s_rxVoice{ 0 }, s_rxOther{ 0 };
+    std::atomic<uint64_t> s_txReliable{ 0 }, s_txUnreliable{ 0 }, s_txBytes{ 0 };
 
 
     bool s_wasConnected = false;
@@ -118,12 +125,13 @@ void CoSyncTransport::Send(const std::string& msg, bool reliable)
 {
     if (!s_initialized)
     {
-        LOG_WARN("[Transport] Send called while not initialized");
+        LOG_EVERY_MS(5000, LOG_WARN("[Transport] Send called while not initialized"));
         return;
     }
 
     GNS_Session::Get().SendText(msg, reliable);
-    LOG_DEBUG("[CoSyncTransport] SEND %zu bytes%s", msg.size(), reliable ? "" : " (unreliable)");
+    (reliable ? s_txReliable : s_txUnreliable).fetch_add(1, std::memory_order_relaxed);
+    s_txBytes.fetch_add(msg.size(), std::memory_order_relaxed);
 }
 
 void CoSyncTransport::SendTo(HSteamNetConnection conn, const std::string& msg, bool reliable)
@@ -145,9 +153,13 @@ void CoSyncTransport::ForwardMessage(const std::string& msg, HSteamNetConnection
     if (!s_initialized)
         return;
 
-    // Voice frames (VOICE / VOICEM, 50 a second per speaker): not logged.
+    // Voice frames (VOICE / VOICEM, 50 a second per speaker): counted only.
     if (msg.rfind("VOICE", 0) == 0)
-        ;
+        s_rxVoice.fetch_add(1, std::memory_order_relaxed);
+    else if (msg.rfind("BONES|", 0) == 0)
+        s_rxBones.fetch_add(1, std::memory_order_relaxed);
+    else if (msg.rfind("HP|", 0) == 0)
+        s_rxHP.fetch_add(1, std::memory_order_relaxed);
     // World chunks are raw save bytes; profiles are large -- log the size only.
     else if (msg.rfind("WORLDCHUNK|", 0) == 0 || msg.rfind("PROFILEUP|", 0) == 0)
         LOG_DEBUG("[Transport] ForwardMessage %zu bytes (conn=%u): %.10s...", msg.size(), conn, msg.c_str());
@@ -155,11 +167,17 @@ void CoSyncTransport::ForwardMessage(const std::string& msg, HSteamNetConnection
     // send-vs-arrival jitter measurement needs (Phase 5 audit). 170 covers
     // entity|flags|pos|rot|vel|timestamp for any in-world coordinate.
     else if (msg.rfind("EU|", 0) == 0)
-        LOG_INFO("[Transport] ForwardMessage %zu bytes (conn=%u): %.170s",
-            msg.size(), conn, msg.c_str());
+    {
+        if ((s_rxEU.fetch_add(1, std::memory_order_relaxed) % 50) == 0)
+            LOG_INFO("[Transport] ForwardMessage %zu bytes (conn=%u): %.170s (1 in 50 EU)",
+                msg.size(), conn, msg.c_str());
+    }
     else
+    {
+        s_rxOther.fetch_add(1, std::memory_order_relaxed);
         LOG_INFO("[Transport] ForwardMessage %zu bytes (conn=%u): %.80s",
             msg.size(), conn, msg.c_str());
+    }
 
     std::lock_guard<std::mutex> lk(s_inboxMutex);
 
@@ -247,7 +265,6 @@ void CoSyncTransport::Tick(double now)
 
     if (count > 0)
     {
-        LOG_DEBUG("[Transport] Drained %zu inbound messages", count);
 
         if (s_receiveCallback)
         {
@@ -260,10 +277,15 @@ void CoSyncTransport::Tick(double now)
         }
     }
 
-    if (now - s_lastTickLog > 1.0)
+    if (now - s_lastTickLog > 10.0)
     {
         s_lastTickLog = now;
-        LOG_DEBUG("[CoSyncTransport] Tick (drained=%zu connected=%d)", count, connectedNow ? 1 : 0);
+        LOG_INFO("[Transport] Last 10 s: rx EU=%llu BONES=%llu HP=%llu VOICE=%llu other=%llu | tx reliable=%llu unreliable=%llu (%llu KB) | connected=%d",
+            (unsigned long long)s_rxEU.exchange(0), (unsigned long long)s_rxBones.exchange(0),
+            (unsigned long long)s_rxHP.exchange(0), (unsigned long long)s_rxVoice.exchange(0),
+            (unsigned long long)s_rxOther.exchange(0), (unsigned long long)s_txReliable.exchange(0),
+            (unsigned long long)s_txUnreliable.exchange(0), (unsigned long long)(s_txBytes.exchange(0) / 1024),
+            connectedNow ? 1 : 0);
     }
 }
 
