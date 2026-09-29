@@ -3,6 +3,7 @@
 #include <mmsystem.h>
 #include <objbase.h>
 #include <xaudio2.h>
+#include <mmdeviceapi.h>
 
 #include "CoSyncVoice.h"
 
@@ -48,12 +49,19 @@ namespace
         float threshold = 0.012f;  // voice activation level (RMS, full scale = 1)
         float micGain   = 1.0f;
         float volume    = 1.0f;    // playback
+        std::string inputDevice;   // waveIn device name, "" = default
+        std::string outputDevice;  // WASAPI endpoint id (UTF-8), "" = default
         float range     = 3000.f;  // host: proximity cut-off (game units)
         float fullRange = 600.f;   // host: full volume inside this distance
         int   bitrate   = 24000;
     };
     Config s_cfg;
     std::once_flag s_cfgOnce;
+    // Live copies the audio threads read every frame (0.3.3, Stage 8).
+    std::atomic<float> s_liveGain{ 1.0f };
+    std::atomic<float> s_liveThreshold{ 0.012f };
+    std::atomic<float> s_liveVolume{ 1.0f };
+    std::mutex         s_devMx;          // guards s_cfg.inputDevice / outputDevice
 
     std::string IniPath()
     {
@@ -97,6 +105,14 @@ namespace
             c.range     = IniFloat("fRange", c.range, ini);
             c.fullRange = IniFloat("fFullVolumeRange", c.fullRange, ini);
             c.bitrate   = static_cast<int>(GetPrivateProfileIntA("Voice", "iBitrate", c.bitrate, ini.c_str()));
+            {
+                char dev[512] = {};
+                GetPrivateProfileStringA("Voice", "sInputDevice", "", dev, sizeof(dev), ini.c_str());
+                c.inputDevice = dev;
+                dev[0] = 0;
+                GetPrivateProfileStringA("Voice", "sOutputDevice", "", dev, sizeof(dev), ini.c_str());
+                c.outputDevice = dev;
+            }
             if (c.threshold < 0.f || c.threshold > 1.f) c.threshold = 0.012f;
             if (c.micGain < 0.f || c.micGain > 8.f)     c.micGain = 1.f;
             if (c.volume < 0.f || c.volume > 4.f)       c.volume = 1.f;
@@ -104,10 +120,80 @@ namespace
             if (c.fullRange < 0.f || c.fullRange >= c.range) c.fullRange = c.range * 0.2f;
             if (c.bitrate < 8000 || c.bitrate > 64000)  c.bitrate = 24000;
             s_cfg = c;
+            s_liveGain.store(c.micGain);
+            s_liveThreshold.store(c.threshold);
+            s_liveVolume.store(c.volume);
             LOG_INFO("[Voice] Settings: enabled=%d %s key=%d mode key=%d mute key=%d threshold=%.3f range=%.0f/%.0f bitrate=%d",
                 c.enabled ? 1 : 0, c.pttKey ? "push-to-talk" : "voice activation", c.pttKey, c.modeKey,
                 c.muteKey, c.threshold, c.fullRange, c.range, c.bitrate);
         });
+    }
+
+    // ── Live settings (0.3.3, Stage 8) ──────────────────────────────────────
+    // The capture/playback threads read these every frame; the UI writes them.
+
+    // sensitivity 0..1 <-> RMS threshold. Log scale between 0.05 (needs loud
+    // speech) and 0.002 (whispers); the old default 0.012 sits near 0.45.
+    float SensitivityToThreshold(float sens)
+    {
+        if (sens < 0.f) sens = 0.f;
+        if (sens > 1.f) sens = 1.f;
+        return 0.05f * std::pow(0.002f / 0.05f, sens);
+    }
+    float ThresholdToSensitivity(float thr)
+    {
+        if (thr <= 0.f) return 1.f;
+        const float s = std::log(thr / 0.05f) / std::log(0.002f / 0.05f);
+        return s < 0.f ? 0.f : (s > 1.f ? 1.f : s);
+    }
+
+    void SaveIni(const char* key, const std::string& value)
+    {
+        const std::string ini = IniPath();
+        if (!ini.empty())
+            WritePrivateProfileStringA("Voice", key, value.c_str(), ini.c_str());
+    }
+    void SaveIniFloat(const char* key, float v)
+    {
+        char buf[32];
+        std::snprintf(buf, sizeof(buf), "%.4f", v);
+        SaveIni(key, buf);
+    }
+
+    std::string WideToUtf8(const wchar_t* w)
+    {
+        if (!w) return std::string();
+        const int n = WideCharToMultiByte(CP_UTF8, 0, w, -1, nullptr, 0, nullptr, nullptr);
+        if (n <= 1) return std::string();
+        std::string out(static_cast<size_t>(n - 1), '\0');
+        WideCharToMultiByte(CP_UTF8, 0, w, -1, &out[0], n, nullptr, nullptr);
+        return out;
+    }
+    std::wstring Utf8ToWide(const std::string& s8)
+    {
+        if (s8.empty()) return std::wstring();
+        const int n = MultiByteToWideChar(CP_UTF8, 0, s8.c_str(), -1, nullptr, 0);
+        if (n <= 1) return std::wstring();
+        std::wstring out(static_cast<size_t>(n - 1), L'\0');
+        MultiByteToWideChar(CP_UTF8, 0, s8.c_str(), -1, &out[0], n);
+        return out;
+    }
+
+    // waveIn device index for a saved name; WAVE_MAPPER (default) if absent.
+    UINT ResolveInputDevice(const std::string& name)
+    {
+        if (name.empty())
+            return WAVE_MAPPER;
+        const UINT n = waveInGetNumDevs();
+        for (UINT i = 0; i < n; ++i)
+        {
+            WAVEINCAPSW caps{};
+            if (waveInGetDevCapsW(i, &caps, sizeof(caps)) == MMSYSERR_NOERROR &&
+                WideToUtf8(caps.szPname) == name)
+                return i;
+        }
+        LOG_WARN("[Voice] Saved microphone '%s' not found -- using the Windows default", name.c_str());
+        return WAVE_MAPPER;
     }
 
     // ── Shared state ────────────────────────────────────────────────────────
@@ -186,8 +272,20 @@ namespace
 
         HANDLE ev = CreateEventA(nullptr, FALSE, FALSE, nullptr);
         HWAVEIN hin = nullptr;
-        // WAVE_MAPPER converts from whatever the default microphone delivers.
-        const MMRESULT r = waveInOpen(&hin, WAVE_MAPPER, &wf, reinterpret_cast<DWORD_PTR>(ev), 0, CALLBACK_EVENT);
+        // The chosen microphone (0.3.3), or WAVE_MAPPER = the Windows default;
+        // waveIn converts to the format asked for either way.
+        std::string inputName;
+        {
+            std::lock_guard<std::mutex> lk(s_devMx);
+            inputName = s_cfg.inputDevice;
+        }
+        const UINT inDev = ResolveInputDevice(inputName);
+        MMRESULT r = waveInOpen(&hin, inDev, &wf, reinterpret_cast<DWORD_PTR>(ev), 0, CALLBACK_EVENT);
+        if (r != MMSYSERR_NOERROR && inDev != WAVE_MAPPER)
+        {
+            LOG_WARN("[Voice] Could not open microphone '%s' (%u) -- trying the Windows default", inputName.c_str(), r);
+            r = waveInOpen(&hin, WAVE_MAPPER, &wf, reinterpret_cast<DWORD_PTR>(ev), 0, CALLBACK_EVENT);
+        }
         if (r != MMSYSERR_NOERROR)
         {
             LOG_WARN("[Voice] No microphone (waveInOpen failed, %u) -- you can still hear others", r);
@@ -240,7 +338,7 @@ namespace
                 WAVEHDR& h = hdr[next];
                 const int got = static_cast<int>(h.dwBytesRecorded / 2);
                 const int16_t* src = reinterpret_cast<const int16_t*>(h.lpData);
-                const float gain = s_cfg.micGain;
+                const float gain = s_liveGain.load();
                 double sum = 0.0;
                 for (int i = 0; i < kFrame; ++i)
                 {
@@ -263,7 +361,7 @@ namespace
                         want = KeyHeld(s_cfg.pttKey) && GameHasFocus() && !CoSyncPrismaUI::IsChatOpen();
                     else
                     {
-                        if (rms >= s_cfg.threshold)
+                        if (rms >= s_liveThreshold.load())
                             hangUntil = nowMs + 400;
                         want = nowMs < hangUntil;
                     }
@@ -359,8 +457,24 @@ namespace
         XAudio2CreateFn create = dll ? reinterpret_cast<XAudio2CreateFn>(GetProcAddress(dll, "XAudio2Create")) : nullptr;
         IXAudio2* xa = nullptr;
         IXAudio2MasteringVoice* master = nullptr;
-        if (!create || FAILED(create(&xa, 0, XAUDIO2_DEFAULT_PROCESSOR)) || !xa ||
-            FAILED(xa->CreateMasteringVoice(&master)))
+        std::wstring outDev;
+        {
+            std::lock_guard<std::mutex> lk(s_devMx);
+            outDev = Utf8ToWide(s_cfg.outputDevice);
+        }
+        // The chosen output (0.3.3): XAudio2 2.8+ takes the WASAPI endpoint id;
+        // fall back to the default device if that one is gone.
+        auto makeMaster = [&]() -> bool
+        {
+            if (!outDev.empty() &&
+                SUCCEEDED(xa->CreateMasteringVoice(&master, XAUDIO2_DEFAULT_CHANNELS, XAUDIO2_DEFAULT_SAMPLERATE,
+                                                   0, outDev.c_str())))
+                return true;
+            if (!outDev.empty())
+                LOG_WARN("[Voice] Saved output device not available -- using the Windows default");
+            return SUCCEEDED(xa->CreateMasteringVoice(&master));
+        };
+        if (!create || FAILED(create(&xa, 0, XAUDIO2_DEFAULT_PROCESSOR)) || !xa || !makeMaster())
         {
             LOG_ERROR("[Voice] XAudio2 unavailable (dll=%p) -- voice playback off", dll);
             if (xa) xa->Release();
@@ -412,7 +526,7 @@ namespace
                 Speaker& sp = *slot;
                 sp.lastHeardMs = nowMs;
 
-                const float vol = (p.gain / 100.f) * s_cfg.volume;
+                const float vol = (p.gain / 100.f) * s_liveVolume.load();
                 if (std::fabs(vol - sp.volume) > 0.01f)
                 {
                     sp.voice->SetVolume(vol);
@@ -760,5 +874,174 @@ namespace CoSyncVoice
         std::lock_guard<std::mutex> lk(s_talkMx);
         auto it = s_talkUntil.find(entityID);
         return it != s_talkUntil.end() && GetTickCount64() < it->second;
+    }
+}
+
+
+// ── Audio settings (0.3.3, Stage 8) ─────────────────────────────────────────
+namespace
+{
+    // Restart the voice threads so a device change takes effect now. Only
+    // while a session is running; otherwise the next session picks it up.
+    void RestartAudioThreads()
+    {
+        if (!s_session.load())
+            return;
+        StopThreads();
+        if (!s_playEvent)
+            s_playEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
+        s_playThread = new std::thread(PlayMain);
+        s_captureThread = new std::thread(CaptureMain);
+        LOG_INFO("[Voice] Audio devices changed -- voice restarted");
+    }
+}
+
+namespace CoSyncVoice
+{
+    AudioSettings GetAudioSettings()
+    {
+        LoadConfig();
+        AudioSettings a;
+        {
+            std::lock_guard<std::mutex> lk(s_devMx);
+            a.inputDevice  = s_cfg.inputDevice;
+            a.outputDevice = s_cfg.outputDevice;
+        }
+        a.micGain       = s_liveGain.load();
+        a.sensitivity   = ThresholdToSensitivity(s_liveThreshold.load());
+        a.volume        = s_liveVolume.load();
+        a.pushToTalk    = s_cfg.pttKey != 0;
+        a.pushToTalkKey = s_cfg.pttKey;
+        a.muted         = s_muted.load();
+        return a;
+    }
+
+    std::vector<AudioDevice> ListInputDevices()
+    {
+        std::vector<AudioDevice> out;
+        const UINT n = waveInGetNumDevs();
+        for (UINT i = 0; i < n && out.size() < 32; ++i)
+        {
+            WAVEINCAPSW caps{};
+            if (waveInGetDevCapsW(i, &caps, sizeof(caps)) != MMSYSERR_NOERROR)
+                continue;
+            const std::string name = WideToUtf8(caps.szPname);
+            if (!name.empty())
+                out.push_back({ name, name });
+        }
+        return out;
+    }
+
+    std::vector<AudioDevice> ListOutputDevices()
+    {
+        // PKEY_Device_FriendlyName (functiondiscoverykeys_devpkey.h), defined
+        // here so no INITGUID translation unit is needed.
+        static const PROPERTYKEY kFriendlyName =
+            { { 0xA45C254E, 0xDF1C, 0x4EFD, { 0x80, 0x20, 0x67, 0xD1, 0x46, 0xA8, 0x50, 0xE0 } }, 14 };
+        std::vector<AudioDevice> out;
+        const HRESULT co = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        IMMDeviceEnumerator* en = nullptr;
+        if (SUCCEEDED(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
+                                       __uuidof(IMMDeviceEnumerator), reinterpret_cast<void**>(&en))) && en)
+        {
+            IMMDeviceCollection* col = nullptr;
+            if (SUCCEEDED(en->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &col)) && col)
+            {
+                UINT count = 0;
+                col->GetCount(&count);
+                for (UINT i = 0; i < count && out.size() < 32; ++i)
+                {
+                    IMMDevice* dev = nullptr;
+                    if (FAILED(col->Item(i, &dev)) || !dev)
+                        continue;
+                    LPWSTR id = nullptr;
+                    std::string name;
+                    IPropertyStore* props = nullptr;
+                    if (SUCCEEDED(dev->OpenPropertyStore(STGM_READ, &props)) && props)
+                    {
+                        PROPVARIANT v;
+                        PropVariantInit(&v);
+                        if (SUCCEEDED(props->GetValue(kFriendlyName, &v)) && v.vt == VT_LPWSTR)
+                            name = WideToUtf8(v.pwszVal);
+                        PropVariantClear(&v);
+                        props->Release();
+                    }
+                    if (SUCCEEDED(dev->GetId(&id)) && id)
+                    {
+                        const std::string idUtf8 = WideToUtf8(id);
+                        if (!idUtf8.empty())
+                            out.push_back({ idUtf8, name.empty() ? idUtf8 : name });
+                        CoTaskMemFree(id);
+                    }
+                    dev->Release();
+                }
+                col->Release();
+            }
+            en->Release();
+        }
+        if (SUCCEEDED(co))
+            CoUninitialize();
+        return out;
+    }
+
+    void SetInputDevice(const std::string& id)
+    {
+        LoadConfig();
+        {
+            std::lock_guard<std::mutex> lk(s_devMx);
+            if (s_cfg.inputDevice == id)
+                return;
+            s_cfg.inputDevice = id;
+        }
+        SaveIni("sInputDevice", id);
+        LOG_INFO("[Voice] Microphone set to '%s'", id.empty() ? "Windows default" : id.c_str());
+        RestartAudioThreads();
+    }
+
+    void SetOutputDevice(const std::string& id)
+    {
+        LoadConfig();
+        {
+            std::lock_guard<std::mutex> lk(s_devMx);
+            if (s_cfg.outputDevice == id)
+                return;
+            s_cfg.outputDevice = id;
+        }
+        SaveIni("sOutputDevice", id);
+        LOG_INFO("[Voice] Output device set to '%s'", id.empty() ? "Windows default" : id.c_str());
+        RestartAudioThreads();
+    }
+
+    void SetMicGain(float v)
+    {
+        LoadConfig();
+        if (!std::isfinite(v)) return;
+        v = v < 0.f ? 0.f : (v > 2.f ? 2.f : v);
+        s_liveGain.store(v);
+        SaveIniFloat("fMicGain", v);
+    }
+
+    void SetSensitivity(float v)
+    {
+        LoadConfig();
+        if (!std::isfinite(v)) return;
+        const float thr = SensitivityToThreshold(v);
+        s_liveThreshold.store(thr);
+        SaveIniFloat("fThreshold", thr);
+    }
+
+    void SetVolume(float v)
+    {
+        LoadConfig();
+        if (!std::isfinite(v)) return;
+        v = v < 0.f ? 0.f : (v > 2.f ? 2.f : v);
+        s_liveVolume.store(v);
+        SaveIniFloat("fVolume", v);
+    }
+
+    void SetMuted(bool muted)
+    {
+        if (s_muted.load() != muted)
+            ToggleMute();
     }
 }

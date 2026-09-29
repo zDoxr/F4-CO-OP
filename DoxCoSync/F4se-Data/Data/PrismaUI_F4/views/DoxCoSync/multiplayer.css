@@ -66,8 +66,8 @@ html, body {
   left: 7vh;
   top: 50%;
   transform: translateY(-50%);
-  width: 64vh;
-  padding: 2.6vh 3vh 2.2vh;
+  width: 52vh;   /* 0.3.3: compact (was 64vh) */
+  padding: 2vh 2.4vh 1.8vh;
   background: var(--panel-bg);
   border: 0.15vh solid var(--hud-35);
   text-shadow: 0 0 0.6vh var(--hud-glow);
@@ -97,7 +97,7 @@ html, body {
 }
 h1 {
   margin: 0.2vh 0 0.9vh;
-  font-size: 4.4vh;
+  font-size: 3.4vh;
   line-height: 1;
   letter-spacing: 0.04em;
 }
@@ -105,7 +105,7 @@ h1 {
   position: relative;
   height: 0.3vh;
   background: var(--hud);
-  margin-bottom: 1.8vh;
+  margin-bottom: 1.3vh;
 }
 .rule::after {                     /* tick at the right end of the rule */
   content: "";
@@ -123,7 +123,7 @@ h1 {
 
 /* Info rows: label left, value right, like the Pip-Boy STAT/DATA lists. */
 .rows:empty { display: none; }
-.rows { margin-bottom: 1.8vh; }
+.rows { margin-bottom: 1.3vh; }
 .row {
   display: flex;
   justify-content: space-between;
@@ -131,7 +131,7 @@ h1 {
   padding: 0.7vh 1.2vh;
   margin-bottom: 0.4vh;
   background: var(--hud-12);
-  font-size: 2.3vh;
+  font-size: 2vh;
 }
 .row .label { color: var(--hud-80); font-weight: 400; letter-spacing: 0.05em; }
 .row .value { letter-spacing: 0.04em; text-align: right; }
@@ -147,7 +147,7 @@ h1 {
   font-family: "FO Main", sans-serif;
   font-weight: 400;
   text-transform: none;
-  font-size: 2.1vh;
+  font-size: 1.9vh;
   line-height: 1.35;
   color: var(--hud-80);
 }
@@ -168,12 +168,12 @@ h1 {
   align-items: baseline;
   padding: 0.55vh 1.2vh;
   margin: 0.2vh 0;
-  font-size: 3vh;
+  font-size: 2.5vh;
   letter-spacing: 0.05em;
   color: var(--hud);
   border: 0.15vh solid transparent;
 }
-.item .opt { font-size: 2.3vh; color: var(--hud-80); }
+.item .opt { font-size: 2vh; color: var(--hud-80); }
 .item .opt::before { content: "\2039  "; }   /* ‹ value › like vanilla option rows */
 .item .opt::after  { content: "  \203A"; }
 .item.disabled { color: var(--hud-35); text-shadow: none; }
@@ -191,13 +191,13 @@ h1 {
 
 /* ── Description line under the list (vanilla settings-style help text) ── */
 .desc {
-  min-height: 5.6vh;
+  min-height: 4.4vh;
   margin-top: 1.6vh;
   padding-top: 1.2vh;
   border-top: 0.15vh solid var(--hud-35);
   font-weight: 400;
   text-transform: none;
-  font-size: 2vh;
+  font-size: 1.8vh;
   line-height: 1.35;
   color: var(--muted);
   text-shadow: none;
@@ -235,7 +235,7 @@ h1 {
 .hint .glyph { display: inline-flex; height: 2.6vh; align-items: center; }
 
 /* Right-hand detail on a row (e.g. "3 / 8" on a found game). */
-.item .meta { font-size: 2.3vh; color: var(--hud-80); letter-spacing: 0.04em; }
+.item .meta { font-size: 2vh; color: var(--hud-80); letter-spacing: 0.04em; }
 .item.selected .meta { color: var(--ink); }
 
 /* Direct Connect text fields: underline only, like vanilla text entry. */

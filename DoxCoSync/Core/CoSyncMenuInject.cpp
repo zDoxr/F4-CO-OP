@@ -1062,6 +1062,46 @@ namespace
     }
 
     constexpr double kDisconnectIndex = 99.0;
+    // 0.3.3 (Stage 8): the Multiplayer menu lives in the Pause menu. Index 98
+    // is unused by vanilla's PauseMenu list, like DISCONNECT's 99.
+    constexpr double kPauseMultiplayerIndex = 98.0;
+
+    void InjectPauseMultiplayerEntry(GFxMovieView* view)
+    {
+        if (!view || !view->movieRoot) return;
+        GFxMovieRoot* root = view->movieRoot;
+
+        GFxValue entryList;
+        if (!root->GetVariable(&entryList, "root.Menu_mc.MainPanel_mc.List_mc.entryList")
+            || !entryList.IsArray())
+            return;
+
+        const UInt32 count = entryList.GetArraySize();
+        if (count == 0)
+            return;   // vanilla has not filled the list yet (same rule as MainMenu)
+        for (UInt32 i = 0; i < count; ++i)
+        {
+            GFxValue elem;
+            if (!entryList.GetElement(i, &elem) || !elem.IsObject()) continue;
+            GFxValue idx;
+            if (!elem.GetMember("index", &idx)) continue;
+            if (idx.GetNumber() == kPauseMultiplayerIndex) return;   // already there
+        }
+
+        GFxValue entry;
+        root->CreateObject(&entry);
+        GFxValue text; root->CreateString(&text, "MULTIPLAYER");
+        entry.SetMember("text", &text);
+        GFxValue indexVal(kPauseMultiplayerIndex);
+        entry.SetMember("index", &indexVal);
+        if (!entryList.PushBack(&entry))
+        {
+            LOG_ERROR("[CoSyncMenuInject] PauseMenu: PushBack MULTIPLAYER failed");
+            return;
+        }
+        root->Invoke("root.Menu_mc.MainPanel_mc.List_mc.InvalidateData", nullptr, nullptr, 0);
+        LOG_INFO("[CoSyncMenuInject] MULTIPLAYER row injected into PauseMenu");
+    }
 
     void InjectDisconnectEntry(GFxMovieView* view)
     {
@@ -1134,6 +1174,12 @@ namespace
 
         GFxValue idx;
         if (!elem.GetMember("index", &idx)) return;
+        if (idx.GetNumber() == kPauseMultiplayerIndex)
+        {
+            LOG_INFO("[CoSyncMenuInject] MULTIPLAYER activated from PauseMenu");
+            CoSyncPrismaUI::RequestOpenMultiplayer(false);
+            return;
+        }
         if (idx.GetNumber() != kDisconnectIndex) return;
 
         // The Enter key path (CoSyncMenuInject_PauseMenuKeyActivate) can fire
@@ -1156,6 +1202,7 @@ namespace
         GFxMovieView* movie = *reinterpret_cast<GFxMovieView**>(
             reinterpret_cast<UInt8*>(a1) + 0x40);
 
+        InjectPauseMultiplayerEntry(movie);
         InjectDisconnectEntry(movie);
 
         // Per-frame path: also poll here in case slot 0x15 fires continuously
@@ -1222,8 +1269,7 @@ void CoSyncMenuInject_OnMultiplayerHotkey()
 
 void CoSyncMenuInject_PauseMenuKeyActivate()
 {
-    LOG_REQUIREMENT("(global)::CoSyncMenuInject_PauseMenuKeyActivate", "Only does anything while connected and the game's UI system is up. Safe if the pause menu isn't open or its pieces are missing.");
-    if (!CoSyncTransport::IsInitialized())  return;
+    LOG_REQUIREMENT("(global)::CoSyncMenuInject_PauseMenuKeyActivate", "Needs the game's UI system to be up. MULTIPLAYER works any time; DISCONNECT only while connected. Safe if the pause menu isn't open or its pieces are missing.");
     if (!g_ui_fixed || !*g_ui_fixed)   return;
 
     // Look the menu up live from the engine's menu table instead of trusting
@@ -1263,7 +1309,14 @@ void CoSyncMenuInject_PauseMenuKeyActivate()
 
     GFxValue idx;
     if (!elem.GetMember("index", &idx)) return;
+    if (idx.GetNumber() == 98.0)
+    {
+        LOG_INFO("[CoSyncMenuInject] MULTIPLAYER activated via WndProc (selIdx=%.0f)", selIdxNum);
+        CoSyncPrismaUI::RequestOpenMultiplayer(false);
+        return;
+    }
     if (idx.GetNumber() != 99.0) return;
+    if (!CoSyncTransport::IsInitialized())  return;
 
     LOG_INFO("[CoSyncMenuInject] DISCONNECT activated via WndProc (selIdx=%.0f)", selIdxNum);
     cosync::CoSync_Main::Get().Shutdown();

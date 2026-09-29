@@ -238,6 +238,8 @@
             enter: () => { const st = FX().settings || {}; wsDraft.mode = st.limitMode || 0; wsDraft.free = !!st.freeBuild;
                            wsDraft.unclaimed = st.unclaimed || 0; form.wsLimit = String(st.customLimit || 1000); },
             desc: 'Build limits and building rules for everyone in your game.' });
+        list.push({ key: 'voice', label: 'Voice & Audio', go: 'voice',
+          desc: 'Microphone, speakers and voice volume.' });
         list.push({ key: 'status', label: 'Network Status', go: 'status',
           desc: 'Connection details, for troubleshooting.' });
         list.push({ key: 'settings', label: 'Settings', go: 'settings',
@@ -838,6 +840,59 @@
     },
 
 
+    // 0.3.3 (Stage 8): voice settings. Proximity range is the host's rule and
+    // is shown, never edited, here.
+    voice: {
+      title: () => 'Voice & Audio',
+      live: true,
+      enter: () => native('voice_refresh'),
+      rows: () => {
+        const v = state.voice || {};
+        const inSession = role() !== 'NONE';
+        return [
+          ['Microphone', v.micOk ? 'Working' : (inSession ? 'Not available' : 'Starts with a game'), v.micOk ? '' : 'dim'],
+          ['Talk Mode', v.ptt ? 'Push to talk' : 'Voice activation'],
+          ['Voice Range', 'Set by the host', 'dim'],
+        ];
+      },
+      items: () => {
+        const v = state.voice || {};
+        const pick = (list, cur) => {
+          const ids = [''].concat((list || []).map(d => d.id));
+          const at = Math.max(0, ids.indexOf(cur || ''));
+          const d = (list || []).find(x => x.id === cur);
+          return { ids, at, name: cur ? (d ? d.name : 'Unavailable device') : 'Windows Default' };
+        };
+        const inp = pick(v.inputs, v.input);
+        const out = pick(v.outputs, v.output);
+        const pct = x => Math.round((x || 0) * 100) + '%';
+        const step = (x, d, lo, hi, by) => Math.min(hi, Math.max(lo, Math.round(((x || 0) + d * by) * 100) / 100));
+        return [
+          { key: 'vin', label: 'Microphone', option: inp.name,
+            cycle: d => { const id = inp.ids[wrap(inp.at + d, inp.ids.length)]; v.input = id; native('voice|input|' + id); },
+            desc: 'Which microphone to use. Press ← / → to change.' },
+          { key: 'vgain', label: 'Microphone Volume', option: pct(v.gain),
+            cycle: d => { v.gain = step(v.gain, d, 0, 2, 0.1); native('voice|gain|' + v.gain); },
+            desc: 'How loud you are to other players.' },
+          { key: 'vsens', label: 'Input Sensitivity', option: Math.round((v.sensitivity || 0) * 10) + ' / 10',
+            disabled: !!v.ptt,
+            cycle: d => { v.sensitivity = step(v.sensitivity, d, 0, 1, 0.1); native('voice|sensitivity|' + v.sensitivity); },
+            desc: v.ptt ? 'Push to talk is on ([Voice] iPushToTalkKey), so sensitivity is not used.'
+                        : 'How quiet a sound starts your microphone. Higher picks up softer speech (and more background noise).' },
+          { key: 'vout', label: 'Output Device', option: out.name,
+            cycle: d => { const id = out.ids[wrap(out.at + d, out.ids.length)]; v.output = id; native('voice|output|' + id); },
+            desc: 'Where other players\u2019 voices play. Press ← / → to change.' },
+          { key: 'vvol', label: 'Voice Volume', option: pct(v.volume),
+            cycle: d => { v.volume = step(v.volume, d, 0, 2, 0.1); native('voice|volume|' + v.volume); },
+            desc: 'How loud other players are.' },
+          { key: 'vmute', label: 'Mute Microphone', option: v.muted ? 'On' : 'Off',
+            cycle: () => { v.muted = !v.muted; native('voice|mute|' + (v.muted ? '1' : '0')); },
+            desc: 'Stop sending your voice.' },
+          { key: 'back', label: 'Back', action: 'back', desc: 'Return to the Multiplayer menu.' },
+        ];
+      },
+    },
+
     settings: {
       title: () => 'Settings',
       live: true,
@@ -845,6 +900,7 @@
         ['Player Name', state.playerName || '—'],
       ],
       items: () => [
+        { key: 'voice', label: 'Voice & Audio', go: 'voice', desc: 'Microphone, speakers and voice volume.' },
         { key: 'pad', label: 'Controller Buttons', option: state.controllerStyle === 1 ? 'PlayStation' : 'Xbox',
           toggle: 'controller_style',
           desc: 'Which button art to show for your controller. Press ← / → or SELECT to change.' },

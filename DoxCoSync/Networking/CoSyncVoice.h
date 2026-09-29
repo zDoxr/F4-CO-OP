@@ -47,6 +47,38 @@ namespace CoSyncVoice
     void CycleMode();     // proximity <-> faction (faction only while in one)
     void ToggleMute();
 
+    // ── Audio settings (0.3.3, Stage 8) ──────────────────────────────────
+    // Player-facing settings shown in the Multiplayer menu's Voice screen and
+    // saved to [Voice] in CoSync.ini. Proximity range is deliberately NOT
+    // here: it is the host's rule (HostRoute), not a player preference.
+    struct AudioDevice
+    {
+        std::string id;     // input: device name; output: WASAPI endpoint id
+        std::string name;   // what the player sees
+    };
+    struct AudioSettings
+    {
+        std::string inputDevice;    // "" = Windows default microphone
+        std::string outputDevice;   // "" = Windows default output
+        float micGain     = 1.0f;   // software input volume, 0..2
+        float sensitivity = 0.5f;   // voice activation, 0 (needs loud speech) .. 1 (picks up whispers)
+        float volume      = 1.0f;   // everyone else's voices, 0..2
+        bool  pushToTalk  = false;  // read-only here: [Voice] iPushToTalkKey
+        int   pushToTalkKey = 0;
+        bool  muted       = false;
+    };
+    AudioSettings GetAudioSettings();
+    std::vector<AudioDevice> ListInputDevices();    // enumerates now (cheap)
+    std::vector<AudioDevice> ListOutputDevices();   // enumerates now (COM, a few ms)
+    // Each setter applies at once (device changes restart only the voice
+    // threads) and saves to CoSync.ini. CoSync tick / UI game-thread event.
+    void SetInputDevice(const std::string& id);
+    void SetOutputDevice(const std::string& id);
+    void SetMicGain(float v);
+    void SetSensitivity(float v);
+    void SetVolume(float v);
+    void SetMuted(bool muted);
+
     struct Status
     {
         bool enabled      = false;   // [Voice] bEnabled and a session is running

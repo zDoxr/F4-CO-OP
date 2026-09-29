@@ -631,3 +631,36 @@ FILES:      World/CoSyncWorldSync.cpp (HostTickObjects_Impl,
 1. Three machines if possible (host + 2 clients): client A picks up a box and walks around, then throws it. Host and client B see the box follow smoothly and land in the same spot.
 2. Two machines: client carries a box; host sees the carrier walk without jitter. Repeat with the host carrying.
 3. Join late after throwing things around: objects are where the thrower left them.
+
+---
+
+## Stage 8 — multiplayer UI (Pause menu, voice settings)
+
+### What changed
+
+* **Pause menu entry.** A `MULTIPLAYER` row is injected into the vanilla Pause menu list (index 98, same verified mechanism as the existing DISCONNECT row: `PauseMenu::InitMainList` vtable hook found by RTTI, `root.Menu_mc.MainPanel_mc.List_mc.entryList` push + `InvalidateData`). Selecting it (Enter, Space or mouse; both the per-frame poll and the WndProc path) opens the Multiplayer panel on top of the Pause menu; closing the panel returns to the Pause menu. It is available whenever the game is paused in-game, not only in a session, because hosting starts from here. DISCONNECT still appears only in a session. **F10 remains as a secondary shortcut only.**
+* **Voice & Audio screen** (from the Multiplayer root and from Settings):
+  | Setting | What it does | Saved as |
+  |---|---|---|
+  | Microphone | pick the capture device (waveIn devices by name); Windows Default = WAVE_MAPPER | `[Voice] sInputDevice` |
+  | Microphone Volume | software input level 0-200 % (applied before Opus) | `fMicGain` |
+  | Input Sensitivity | voice-activation threshold, 0-10 (log scale between RMS 0.05 and 0.002; the old default 0.012 is about 4.5); disabled while push-to-talk is on | `fThreshold` |
+  | Output Device | where voices play (WASAPI render endpoints; XAudio2 `CreateMasteringVoice(..., deviceId)`); Windows Default if the saved one is gone | `sOutputDevice` |
+  | Voice Volume | everyone else's voices 0-200 % | `fVolume` |
+  | Mute Microphone | same as the mute key | — |
+  Level changes apply immediately (atomics read by the audio threads every frame); a device change restarts only the two voice threads. Device lists are enumerated when the screen opens, not on every state push.
+* **Voice range is not a player setting.** The screen shows "Voice Range: Set by the host". Proximity range stays the host's routing rule (`HostRoute`, host's `[Voice] fRange`), never exposed in the UI.
+* **Smaller panel.** Width 64vh -> 52vh, title 4.4vh -> 3.4vh, list rows 3vh -> 2.5vh, tighter padding; same Fallout visual language and HUD colour.
+
+"Microphone volume" and "microphone gain" are one control: CoSync's input level *is* a gain applied to the samples; the Windows microphone level is a system setting outside the game.
+
+### Files
+
+`Core/CoSyncMenuInject.cpp`, `GUI/CoSyncPrismaUI.cpp`, `Networking/CoSyncVoice.cpp/.h`, `F4se-Data/.../views/DoxCoSync/multiplayer.js`, `multiplayer.css`. Menu JS parsed with esprima (no JS runtime on this machine for a run).
+
+### TEST PLAN (Stage 8)
+
+1. Esc in game: `MULTIPLAYER` row present (and `DISCONNECT` in a session). Select it with Enter, with the mouse, and with a controller: the panel opens; Esc/back returns to the Pause menu.
+2. Voice & Audio: switch microphone and output device during a session -- voice keeps working (log: "Audio devices changed -- voice restarted"); settings persist after restarting the game (CoSync.ini).
+3. Sensitivity: at 10 whispering transmits, at 0 only loud speech does. Mic/voice volume change is heard at once.
+4. Panel fits and reads well at 1080p and ultrawide.

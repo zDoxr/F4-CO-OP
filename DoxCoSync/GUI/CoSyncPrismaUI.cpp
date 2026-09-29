@@ -336,6 +336,8 @@ namespace
     }
 
     // C++ -> JS: window.cosyncState(json). Game thread only.
+    std::string BuildVoiceJson();   // Voice screen state, defined below
+
     void PushState()
     {
         LOG_REQUIREMENT("(anonymous)::PushState", "Game thread only. Does nothing until the view exists and its DOM is ready.");
@@ -503,6 +505,7 @@ namespace
         }
         json += "]";
 
+        json += ",\"voice\":" + BuildVoiceJson();
         json += ",\"build\":" + std::to_string(myBuild);
         json += ",\"maxPlayers\":" + std::to_string(CoSyncSessionConfig::kMaxPlayers) + "}";
 
@@ -640,6 +643,47 @@ namespace
     // JS -> C++: window.cosync_cmd("name" or "name|arg"). Bound with
     // BindGameThreadUIEvent, so this runs on the game thread. The argument is
     // untrusted page text: only exact, known commands are acted on.
+    // 0.3.3 (Stage 8): the Voice screen's device lists. Enumerated when the
+    // screen opens (voice_refresh) and cached, not on every state push.
+    std::vector<CoSyncVoice::AudioDevice> s_voiceInputs;
+    std::vector<CoSyncVoice::AudioDevice> s_voiceOutputs;
+    bool s_voiceDevicesListed = false;
+
+    void RefreshVoiceDevices()
+    {
+        s_voiceInputs  = CoSyncVoice::ListInputDevices();
+        s_voiceOutputs = CoSyncVoice::ListOutputDevices();
+        s_voiceDevicesListed = true;
+    }
+
+    std::string BuildVoiceJson()
+    {
+        if (!s_voiceDevicesListed)
+            RefreshVoiceDevices();
+        const CoSyncVoice::AudioSettings a = CoSyncVoice::GetAudioSettings();
+        const CoSyncVoice::Status st = CoSyncVoice::GetStatus();
+        auto devs = [](const std::vector<CoSyncVoice::AudioDevice>& list)
+        {
+            std::string j = "[";
+            for (size_t i = 0; i < list.size(); ++i)
+            {
+                if (i) j += ",";
+                j += "{\"id\":\"" + JsonEscape(list[i].id.c_str()) + "\",\"name\":\"" +
+                     JsonEscape(list[i].name.c_str()) + "\"}";
+            }
+            return j + "]";
+        };
+        char nums[160];
+        std::snprintf(nums, sizeof(nums),
+            "\"gain\":%.2f,\"sensitivity\":%.2f,\"volume\":%.2f,\"ptt\":%s,\"pttKey\":%d,\"muted\":%s,\"micOk\":%s",
+            a.micGain, a.sensitivity, a.volume, a.pushToTalk ? "true" : "false", a.pushToTalkKey,
+            a.muted ? "true" : "false", st.micOk ? "true" : "false");
+        return std::string("{\"input\":\"") + JsonEscape(a.inputDevice.c_str()) +
+               "\",\"output\":\"" + JsonEscape(a.outputDevice.c_str()) +
+               "\",\"inputs\":" + devs(s_voiceInputs) + ",\"outputs\":" + devs(s_voiceOutputs) +
+               "," + nums + "}";
+    }
+
     void OnCommand(const char* argument, void*)
     {
         LOG_REQUIREMENT("(anonymous)::OnCommand", "Runs on the game thread (BindGameThreadUIEvent). Treats the page's argument as untrusted text.");
@@ -781,6 +825,27 @@ namespace
                 JoinEndpoint(ip, static_cast<uint16_t>(port), ip + ":" + portStr);
             else
                 LOG_WARN("[PrismaUI] Direct connect rejected: invalid address '%.40s'", arg.c_str());
+            PushState();
+        }
+        else if (cmd == "voice_refresh")
+        {
+            RefreshVoiceDevices();
+            PushState();
+        }
+        else if (cmd == "voice")
+        {
+            // voice|<setting>|<value>. The value is untrusted text from the
+            // page; every setter clamps and validates it.
+            const size_t b2 = arg.find('|');
+            const std::string key = arg.substr(0, b2);
+            const std::string val = (b2 == std::string::npos) ? std::string() : arg.substr(b2 + 1);
+            const float f = static_cast<float>(std::atof(val.c_str()));
+            if (key == "input")            CoSyncVoice::SetInputDevice(val.size() <= 256 ? val : std::string());
+            else if (key == "output")      CoSyncVoice::SetOutputDevice(val.size() <= 512 ? val : std::string());
+            else if (key == "gain")        CoSyncVoice::SetMicGain(f);
+            else if (key == "sensitivity") CoSyncVoice::SetSensitivity(f);
+            else if (key == "volume")      CoSyncVoice::SetVolume(f);
+            else if (key == "mute")        CoSyncVoice::SetMuted(val == "1");
             PushState();
         }
         else if (cmd.rfind("fac_", 0) == 0)
