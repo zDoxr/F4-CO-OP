@@ -577,6 +577,52 @@ __declspec(noinline) static TESObjectREFR* FindLocalChassisInCell(
     __except (EXCEPTION_EXECUTE_HANDLER) { return nullptr; }
 }
 
+// 0.3.5: which LOCAL frame is this machine's copy of a sender's frame.
+// A frame the sender placed or spawned has a runtime (0xFF) formID that means
+// nothing here, and the position search above only sees the local player's
+// own cell -- the client log of 2026-09-29 shows every PAI/PAMODS for the
+// host's frames failing to resolve (74x "PAI: no local frame", 13x PAMODS -1),
+// so station work (paint, armor mods) never reached anyone. The copy is
+// learned when the sender enters PA (the local frame found then) or, when this
+// machine had none, is the chassis spawned for the proxy, which is kept after
+// the exit instead of deleted. Keyed by (sender entity, sender's frame ref).
+// Game thread only.
+namespace
+{
+    std::unordered_map<uint64_t, uint32_t> s_frameCopyOf;
+
+    uint64_t FrameKey(uint32_t senderEid, uint32_t senderRef)
+    {
+        return (static_cast<uint64_t>(senderEid) << 32) | senderRef;
+    }
+}
+
+static bool SafeIsRefPowerArmorFrame(TESObjectREFR* ref);
+
+static void RememberFrameCopy(uint32_t senderEid, uint32_t senderRef, uint32_t localRef)
+{
+    if (senderEid == 0 || senderRef == 0 || localRef == 0)
+        return;
+    uint32_t& slot = s_frameCopyOf[FrameKey(senderEid, senderRef)];
+    if (slot != localRef)
+        LOG_UPDATED("[PASync] frame 0x%08X of entity=%u is frame 0x%08X on this machine", senderRef, senderEid, localRef);
+    slot = localRef;
+}
+
+static TESObjectREFR* LookupFrameCopy(uint32_t senderEid, uint32_t senderRef)
+{
+    auto it = s_frameCopyOf.find(FrameKey(senderEid, senderRef));
+    if (it == s_frameCopyOf.end())
+        return nullptr;
+    TESObjectREFR* ref = SafeLookupAndCastRefr(it->second);
+    if (!ref || (ref->flags & TESObjectREFR::kFlag_IsDeleted) || !SafeIsRefPowerArmorFrame(ref))
+    {
+        s_frameCopyOf.erase(it);   // gone (deleted / freed): forget it
+        return nullptr;
+    }
+    return ref;
+}
+
 static double PaDiagNowSeconds()
 {
     LARGE_INTEGER freq, cnt;
@@ -739,6 +785,24 @@ namespace
 static void FinishPaExit(CoSyncPlayer* proxy, uint32_t senderEntityID)
 {
     static const BSFixedString kDelete("Delete");
+
+    // 0.3.5: no local copy of the sender's frame here -> the chassis the proxy
+    // just left IS that frame from now on. The engine's exit already moved the
+    // pieces back into it and placed it at the exit point (sub_14098D8C0), so
+    // it stands where the sender's frame stands. Deleting it made the frame
+    // vanish on this machine, and every later PAI/PAMODS (station work) for it
+    // had nothing to land on.
+    if (proxy->m_paSpawnedChassisRefFormID != 0 && proxy->m_paRealFrameRefFormID == 0 &&
+        proxy->m_paChassisRefFormID != 0)
+    {
+        if (TESObjectREFR* spawned = SafeLookupAndCastRefr(proxy->m_paSpawnedChassisRefFormID))
+        {
+            RememberFrameCopy(senderEntityID, proxy->m_paChassisRefFormID, spawned->formID);
+            LOG_UPDATED("[PASync] Exit PA: kept chassis 0x%08X as this machine's copy of frame 0x%08X (entity=%u)",
+                spawned->formID, proxy->m_paChassisRefFormID, senderEntityID);
+            proxy->m_paSpawnedChassisRefFormID = 0;
+        }
+    }
 
     if (proxy->m_paSpawnedChassisRefFormID != 0)
     {
@@ -1584,8 +1648,10 @@ static void PaFrameRemoveItem(TESObjectREFR* target, TESForm* item, int32_t coun
 
 // This machine's copy of a frame another player reported: the same persistent
 // ref, else the matching frame near that position.
-static TESObjectREFR* ResolveReportedFrame(uint32_t refFormID, uint32_t baseFormID, const NiPoint3& pos)
+static TESObjectREFR* ResolveReportedFrame(uint32_t senderEid, uint32_t refFormID, uint32_t baseFormID, const NiPoint3& pos)
 {
+    if (TESObjectREFR* known = LookupFrameCopy(senderEid, refFormID))
+        return known;
     TESObjectREFR* frame = nullptr;
     if (!IsDynamicFormID(refFormID))
     {
@@ -1595,6 +1661,8 @@ static TESObjectREFR* ResolveReportedFrame(uint32_t refFormID, uint32_t baseForm
     }
     if (!frame)
         frame = FindLocalChassisInCell(baseFormID, pos, 0);
+    if (frame)
+        RememberFrameCopy(senderEid, refFormID, frame->formID);
     return frame;
 }
 
@@ -1661,7 +1729,7 @@ static void FlushPendingFrameModsOps()
     for (auto it = s_retryMods.begin(); it != s_retryMods.end();)
     {
         if (now < it->nextTry) { ++it; continue; }
-        TESObjectREFR* frame = ResolveReportedFrame(it->refFormID, it->baseFormID, it->pos);
+        TESObjectREFR* frame = ResolveReportedFrame(it->senderEntityID, it->refFormID, it->baseFormID, it->pos);
         int missing = -1;
         if (frame && !IsFrameOccupiedLocally(frame->formID))
         {
@@ -1684,7 +1752,7 @@ static void FlushPendingFrameModsOps()
 
 static void ApplyFrameInventoryOp(const PaInvOp& op, double now)
 {
-    TESObjectREFR* frame = ResolveReportedFrame(op.refFormID, op.baseFormID, op.pos);
+    TESObjectREFR* frame = ResolveReportedFrame(op.senderEntityID, op.refFormID, op.baseFormID, op.pos);
 
     if (!frame)
     {
@@ -2210,7 +2278,12 @@ void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
                 // by PAMODS), copy its piece mods -- paint, armor upgrades,
                 // station work -- onto the spawned chassis before entering, so
                 // the proxy wears what the sender wears.
-                if (TESObjectREFR* realCopy = FindLocalChassisInCell(op.chassisBaseFormID, op.chassisPos, chassis->formID))
+                TESObjectREFR* realCopy = LookupFrameCopy(op.senderEntityID, op.chassisRefFormID);
+                if (realCopy == chassis)
+                    realCopy = nullptr;
+                if (!realCopy)
+                    realCopy = FindLocalChassisInCell(op.chassisBaseFormID, op.chassisPos, chassis->formID);
+                if (realCopy)
                 {
                     const std::string mods = CoSyncItemMods::DescribeMods(realCopy, false);
                     if (!mods.empty())
@@ -2343,12 +2416,15 @@ void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
             // comment). Separate from the clone spawned above for the proxy
             // attach, which is unaffected either way.
             {
-                TESObjectREFR* realFrame = FindLocalChassisInCell(
-                    op.chassisBaseFormID, op.chassisPos, proxy->m_paSpawnedChassisRefFormID);
+                TESObjectREFR* realFrame = LookupFrameCopy(op.senderEntityID, op.chassisRefFormID);
+                if (!realFrame || realFrame->formID == proxy->m_paSpawnedChassisRefFormID)
+                    realFrame = FindLocalChassisInCell(
+                        op.chassisBaseFormID, op.chassisPos, proxy->m_paSpawnedChassisRefFormID);
                 if (realFrame)
                 {
                     CoSyncGameAPI::DisableWorldActor(realFrame);
                     proxy->m_paRealFrameRefFormID = realFrame->formID;
+                    RememberFrameCopy(op.senderEntityID, op.chassisRefFormID, realFrame->formID);
                     LOG_UPDATED("[PASync] Enter PA: hid local real-frame ref=0x%08X (base=0x%08X) entity=%u",
                         realFrame->formID, op.chassisBaseFormID, op.senderEntityID);
                 }
