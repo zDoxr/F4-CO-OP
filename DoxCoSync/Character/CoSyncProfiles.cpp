@@ -1,5 +1,6 @@
 #include "CoSyncProfiles.h"
 #include "CoSyncFactions.h"
+#include "CoSyncEquipHook.h"
 #include "CoSyncWorkshopAuthority.h"
 
 #include "CoSyncWorldTransfer.h"
@@ -392,6 +393,16 @@ namespace
     constexpr uintptr_t kTPS_TargetZoom    = 0xE8;
     constexpr uintptr_t kTPS_CurrentZoom   = 0xEC;
     constexpr uintptr_t kTPS_FreeRotation  = 0x128;
+    // Over-the-shoulder offset (IDA 1.11.240): +0x60 = target (x,y,z) set from
+    // fOverShoulderPosX/PosZ by the ctor 0x102C7B0 and slot 17 0x102DAD0 (combat
+    // variants), rewritten by the update slot 11 0x102CD50 on the weapon edge;
+    // +0x6C = current offset (slots 14-16 copy/interpolate +0x60 into it). The
+    // offset is in CAMERA space, so with the camera swung round to face the
+    // character, its X pushes the character off-centre (the FaceGen bug).
+    constexpr uintptr_t kTPS_TargetOffset  = 0x60;
+    constexpr uintptr_t kTPS_CurrentOffset = 0x6C;
+    float s_savedOffsetX[2] = { 0.f, 0.f };
+    bool  s_offsetSaved = false;
     constexpr uintptr_t kRVA_MinCurrentZoom = 0x02F393C0;   // fMinCurrentZoom:Camera value
     constexpr float kFaceExtraZoom = 0.25f;   // how far past the normal minimum the editor camera goes
     float s_savedZoom = -1.f;
@@ -798,12 +809,26 @@ namespace
                 if (it.first == kPipBoyFormID) hasPipBoy = true;
             LOG_INFO("[Profiles] Inventory wiped: %zu item(s) left%s",
                 left.items.size(), hasPipBoy ? "" : " -- giving the Pip-Boy back");
-            if (!hasPipBoy)
-                if (TESForm* pip = LookupFormByID(kPipBoyFormID))
-                {
+            // RemoveAllItems mode 0 takes the Pip-Boy too. Give it back with
+            // the engine's own add and equip: the queued Papyrus AddItem /
+            // EquipItem form-argument calls used before silently never landed
+            // (0.3.0 logs: every upload "0 items"; no Pip-Boy in game).
+            if (TESForm* pip = LookupFormByID(kPipBoyFormID))
+            {
+                if (!hasPipBoy && !CoSyncGameAPI::NativeAddItem(ref, pip, 1))
                     PapyrusAddItem(pc, pip, 1);
+                if (!CoSyncEquipHook::EquipItemDirect(reinterpret_cast<Actor*>(pc), pip))
                     PapyrusEquipItem(pc, pip);
-                }
+                Profile check;
+                CaptureInventory(pc, check);
+                const bool have = std::find_if(check.items.begin(), check.items.end(),
+                    [](const std::pair<UInt32, SInt32>& it) { return it.first == kPipBoyFormID; }) != check.items.end();
+                const bool worn = std::find(check.equipped.begin(), check.equipped.end(), kPipBoyFormID) != check.equipped.end();
+                if (have && worn)
+                    LOG_INFO("[Profiles] Pip-Boy in the inventory and equipped");
+                else
+                    LOG_WARN("[Profiles] Pip-Boy check failed: in inventory=%d equipped=%d", have ? 1 : 0, worn ? 1 : 0);
+            }
         }
         for (const auto& it : items)
         {
@@ -860,8 +885,8 @@ namespace
         SetPerks(pc, {});
         // A brand-new character owns nothing: the world is a copy of the
         // host's save, so this strips the host's gear from the copy. The
-        // Pip-Boy stays (ReplaceInventory never removes it) -- without it the
-        // game has no inventory, map or data screens at all.
+        // Pip-Boy is given back and equipped by ReplaceInventory -- without it
+        // the game has no inventory, map or data screens at all.
         ReplaceInventory(pc, {}, {});
         HealFully(pc);
         s_characterCreated = false;
@@ -920,6 +945,26 @@ namespace
         return (tps && cur == tps) ? tps : nullptr;
     }
 
+    // Holds the shoulder offset's sideways component at 0 so the character is
+    // centred (the engine may rewrite +0x60, so this runs every editor tick).
+    // The originals are restored by RestoreCamera.
+    void CentreCamera()
+    {
+        uint8_t* tps = ActiveThirdPersonState();
+        if (!tps)
+            return;
+        float* target  = reinterpret_cast<float*>(tps + kTPS_TargetOffset);
+        float* current = reinterpret_cast<float*>(tps + kTPS_CurrentOffset);
+        if (!s_offsetSaved)
+        {
+            s_savedOffsetX[0] = target[0];
+            s_savedOffsetX[1] = current[0];
+            s_offsetSaved = true;
+        }
+        target[0] = 0.f;
+        current[0] = 0.f;
+    }
+
     // Swings the third-person camera round to the front of the character and
     // zooms in to the head -- what a mirror would show. Free rotation keeps
     // the camera there instead of snapping back behind the player.
@@ -944,6 +989,7 @@ namespace
         *reinterpret_cast<float*>(tps + kTPS_FreeYaw) = yaw;
         *zoom = faceZoom;
         *reinterpret_cast<float*>(tps + kTPS_CurrentZoom) = faceZoom;
+        CentreCamera();
     }
 
     // Puts the camera back behind the player at their old zoom.
@@ -955,8 +1001,14 @@ namespace
             *reinterpret_cast<float*>(tps + kTPS_FreeYaw) = reinterpret_cast<TESObjectREFR*>(pc)->rot.z;
             if (s_savedZoom >= 0.f)
                 *reinterpret_cast<float*>(tps + kTPS_TargetZoom) = s_savedZoom;
+            if (s_offsetSaved)
+            {
+                reinterpret_cast<float*>(tps + kTPS_TargetOffset)[0]  = s_savedOffsetX[0];
+                reinterpret_cast<float*>(tps + kTPS_CurrentOffset)[0] = s_savedOffsetX[1];
+            }
         }
         s_savedZoom = -1.f;
+        s_offsetSaved = false;
     }
 
     // Where to put the player back: beside the host's proxy when it is in the
@@ -1076,6 +1128,8 @@ namespace
                 // is standing still in a menu and it stays put.
                 if (now - s_editorSince < 3.0)
                     FrameFaceCamera(pc);
+                else
+                    CentreCamera();
                 s_editorAt = now;         // seen open
                 return;
             }
@@ -1536,6 +1590,7 @@ namespace CoSyncProfiles
         s_editorStage = EditorStage::None;
         s_editorAt = 0.0;
         s_savedZoom = -1.f;
+        s_offsetSaved = false;
         s_characterCreated = false;
         s_modQueue.clear();
         s_inheritedFrame = 0;

@@ -102,6 +102,20 @@ static std::atomic<bool> g_hooksInstalled{ false };
 // without needing a separate singleton RVA lookup.
 static void* s_equipMgr = nullptr;
 
+// ActorEquipManager singleton global (1.11.240): CommonLibF4 ID 4798287 via the
+// installed Address Library -> 0x31EE428, and IDA shows 39 engine call sites
+// doing `mov rcx, [0x31EE428]` then `call EquipObject (0xCE5E20)`. Used when no
+// equip has been seen yet this session (e.g. building a joining character).
+static constexpr uintptr_t kRVA_ActorEquipManager = 0x031EE428;
+
+static void* EquipManager()
+{
+    if (s_equipMgr)
+        return s_equipMgr;
+    static const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandle(nullptr));
+    return *reinterpret_cast<void**>(base + kRVA_ActorEquipManager);
+}
+
 // ============================================================================
 // Pending receive queue — applied on game thread via FlushPendingEquipOps
 // ============================================================================
@@ -529,8 +543,8 @@ void CoSyncEquipHook::FlushPendingEquipOps()
 // which fires the full engine visual chain (HandleItemEquip → AttachWeapon →
 // DoReparentWeapon → DrawWeaponMagicHands → Update3DPosition →
 // RequestLoadAnimationsForWeaponChange). Works for weapons, armor, and clothing.
-// Returns false only when the singleton hasn't been cached yet (no equip event
-// has fired on this session yet) — caller should fall back to Papyrus in that case.
+// Returns false only when the equip hook is not installed (or the arguments are
+// null) -- caller should fall back to Papyrus in that case.
 // MUST be called on the game thread.
 // ============================================================================
 
@@ -539,7 +553,8 @@ bool CoSyncEquipHook::EquipItemDirect(Actor* actor, TESForm* form)
     LOG_REQUIREMENT("CoSyncEquipHook::EquipItemDirect",
         "Needs the equip manager to already be cached and the equip hook installed, "
         "plus a valid actor and form. Must be called on the game thread.");
-    if (!s_equipMgr || !g_origEquip || !actor || !form)
+    void* const mgr = EquipManager();
+    if (!mgr || !g_origEquip || !actor || !form)
         return false;
 
     // BGSObjectInstance is 16 bytes: {TESForm* object, TBO_InstanceData* instanceData}.
@@ -598,7 +613,7 @@ bool CoSyncEquipHook::EquipItemDirect(Actor* actor, TESForm* form)
 
     void* instPair[2] = { form, idata };
     tls_cs_equip_applying = true;
-    g_origEquip(s_equipMgr, actor, instPair,
+    g_origEquip(mgr, actor, instPair,
         /*stackID*/0, /*count*/1, /*slot*/nullptr,
         /*queueEquip*/0, /*forceEquip*/1,
         /*playSounds*/0, /*applyNow*/1, /*locked*/0);
@@ -641,12 +656,13 @@ bool CoSyncEquipHook::UnequipItemDirect(Actor* actor, TESForm* form)
     LOG_REQUIREMENT("CoSyncEquipHook::UnequipItemDirect",
         "Needs the equip manager to already be cached and the unequip hook installed, "
         "plus a valid actor and form. Must be called on the game thread.");
-    if (!s_equipMgr || !g_origUnequip || !actor || !form)
+    void* const mgr = EquipManager();
+    if (!mgr || !g_origUnequip || !actor || !form)
         return false;
 
     void* instPair[2] = { form, nullptr };
     tls_cs_equip_applying = true;
-    g_origUnequip(s_equipMgr, actor, instPair,
+    g_origUnequip(mgr, actor, instPair,
         /*count*/1, /*slot*/nullptr, /*stackID*/0,
         /*queueEquip*/0, /*forceEquip*/1,
         /*playSounds*/0, /*applyNow*/1, /*slotBeingReplaced*/nullptr);
