@@ -110,6 +110,10 @@ private:
     void ProcessEntityCreate(const EntityCreatePacket& p);
     void ProcessEntityUpdate(const EntityUpdatePacket& u);
     void ProcessEntityDestroy(const EntityDestroyPacket& d);
+public:
+    void NoteEntityDestroyed(uint32_t entityID);
+    void ClearEntityDestroyed(uint32_t entityID) { m_destroyedAt.erase(entityID); }
+private:
 
     void DespawnEntity(uint32_t entityID, const char* reason);
     void HandleTimeouts(double now);
@@ -133,6 +137,11 @@ private:
     std::unordered_map<uint32_t, std::unique_ptr<CoSyncPlayer>> m_playersByEntityID;
 
     std::unordered_map<uint32_t, CoSyncEntityState> m_statesByEntityID;
+
+    // 0.3.3 (Stage 2): entities a DESTROY removed, with the time. Updates for
+    // them are dropped until a new CREATE arrives (EU is unreliable and can
+    // land after the reliable DESTROY). Game thread only.
+    std::unordered_map<uint32_t, double> m_destroyedAt;
 
     uint32_t m_localEntityID = 0;
 };

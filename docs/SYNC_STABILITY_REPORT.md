@@ -173,3 +173,76 @@ TEST PLAN:  as S1-A; also under packet loss (clumsy/NetLimiter).
 * **RefreshActor3D (Disable+Enable) storms:** 12 call sites, but only ~10 calls in the whole latest session (spawn, reveal, outfit verify) — not the continuous flicker. Revisited in Stage 3 (equipment).
 * **Bone pose fight:** player proxies take 37/93 bones from BONES| (the other 55 are names the proxy rig does not have: fingers/weapon/IK/anim-object helpers) and those 37 are re-stamped post-`BSAnimationGraphManager::Update` (Detour_MgrUpdate -> ReassertProxyPose), so the engine graph does not win the last write. Not a jitter source on current evidence.
 * **Actor vtable slot 21 hook:** the proxy is class `Actor` (vtable 0x25683B0; the runtime log's vtbl matches), and slot 21 (sub_140C8CC70) is not a per-frame update: 0 fires for proxies, 1 for the local player all session. The re-stamp path above is the one that runs.
+
+---
+
+## Stage 2 — entity lifecycle and network state
+
+### S2-A. KILL re-applied to corpses every 5 seconds
+
+```text
+BUG:        Corpses re-run the engine death every 5 s on clients.
+Severity:   Critical (entity state corruption: repeated death processing)
+
+SYMPTOMS:   Corpse twitch / re-ragdoll; death side effects can repeat.
+ROOT CAUSE: The host re-broadcasts CREATE (+ KILL for corpses) for every
+            world actor every 5 s so late joiners see corpses
+            (NpcWorldSync, kCreateRebroadcastInterval). The KILL receiver was
+            not idempotent: every copy ran KillPuppet = SetLifeState(Dying) +
+            KillDying on an actor that was already Dead.
+AFFECTED FILES:     Character/CoSyncHealthSync.cpp, CoSync/CoSyncGameAPI.cpp/.h
+AFFECTED FUNCTIONS: CoSyncHealthSync flush (Kill branch), KillPuppet
+NETWORK FLOW:  host NpcWorldSync rebroadcast -> KILL| (reliable) -> client
+               HealthSync queue -> flush on the tick.
+ENGINE BEHAVIOR (VERIFIED): Actor::SetLifeState = Actor vtable slot 0x105 =
+               sub_140C83990; life state = (actor+0x130 >> 17) & 0xF
+               (reads/writes mask 0x1E0000). CK enum: 0 alive, 1 dying,
+               2 dead, 7 essential-down.
+EVIDENCE:   0.3.2 client log: "Killing entity=65537/65538" 440 times in
+            18 min, one pair every 5 s from 21:39:45 to 21:58.
+FIX:        The Kill branch skips (and just records the kill) when the engine
+            already reports the actor dying or dead. Engine state, not a
+            bookkeeping flag, so a clone that was freed and respawned alive
+            is still killed.
+REGRESSION RISKS: none known; a live actor still dies on the first KILL.
+TEST PLAN:  Kill an NPC on the host with a client nearby; watch the corpse on
+            the client for a minute (no twitching); client log shows one
+            "Killing entity" per death.
+```
+
+### S2-B. A late update could resurrect a destroyed entity
+
+```text
+BUG:        UPDATE after DESTROY re-created entity state and requested a
+            re-broadcast of the entity.
+Severity:   High (lifecycle: DESTROY -> UPDATE -> REQENT -> CREATE)
+ROOT CAUSE: EU travels on the unreliable lane, DESTROY on the reliable one;
+            GNS does not order across lanes. ProcessEntityUpdate called
+            GetOrCreateState for any entity ID, and with no create on file it
+            sent REQENT|, so an in-flight EU landing after its DESTROY created
+            a stale state entry and asked peers to re-announce the entity.
+FIX:        Destroy tombstones (CoSyncPlayerManager::m_destroyedAt). Every
+            DESTROY path records one (manager inbox and the world-NPC path in
+            CoSyncNet::OnReceive); updates for a tombstoned entity are dropped
+            without touching state; only a new CREATE (either path) clears it.
+            Bounded: pruned past 2 minutes once over 256 entries.
+WHY CORRECT: CREATE is the only message allowed to bring an entity into
+            existence; reconnecting players (same SteamID-derived entity ID)
+            always send CREATE first.
+REGRESSION RISKS: an entity whose DESTROY is followed by updates with no new
+            CREATE stays invisible -- which is the intended rule.
+TEST PLAN:  Client disconnects and reconnects; NPC ownership handoff (walk
+            away from an NPC your partner is near). Both must reappear.
+```
+
+### Audited, no defect found
+
+* **Duplicate CREATE:** ProcessEntityCreate queues a spawn once (`spawnQueued`); a repeat only refreshes the stored create. World-NPC CREATE goes to ClientBindWorldActor, which binds or retries.
+* **Out-of-order EU:** dropped by sender timestamp (`u.timestamp < m_lastHostTime`). NPC ownership handoff is DESTROY + a new entity, so one entity never mixes two sender clocks.
+* **"STUCK" puppets in NpcSyncDiag (438 lines):** both are the two corpses above; dead NPCs are intentionally not streamed. Diagnostic noise only.
+* **Threading:** network thread (GNS) only fills the transport inbox under its mutex; `CoSyncNet::OnReceive`, the manager inbox, and all engine calls run on the CoSync tick (job "NonRendersafeAI"); PrismaUI/WndProc calls are queued to the tick (see HARDENING_REPORT). The only engine-thread callbacks that touch shared CoSync state are the anim-graph re-stamp (own mutex) and the equip/door/quest hooks (enqueue only).
+
+### Found here, fixed in a later stage
+
+* Host revive state loop: "[LocalPlayer] Gave up (revive timeout)" logged 1502 times, twice per frame, from 21:44:24 on (Stage 6).
+* Outfit sync re-sends the whole outfit every 10 s and the receiver's verify step ends in `RefreshActor3D` (Disable + Enable) plus a weapon re-equip (Stage 3).

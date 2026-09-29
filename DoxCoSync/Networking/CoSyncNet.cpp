@@ -1610,6 +1610,7 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
         {
             if (isHostRole)
                 CoSyncTransport::Send(msg);
+            g_CoSyncPlayerManager.NoteEntityDestroyed(d.entityID);
             CoSyncNpcWorldSync::ClientUnbindWorldActor(d.entityID, d.reasonFlags);
             return;
         }
@@ -1656,6 +1657,7 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
 
         if (CoSyncNpcWorldSync::IsWorldActorEntityID(p.entityID))
         {
+            g_CoSyncPlayerManager.ClearEntityDestroyed(p.entityID);
             if (isHostRole)
             {
                 // Only client-owned world-actor CREATEs (owner re-broadcasts)

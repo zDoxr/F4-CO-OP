@@ -1096,6 +1096,28 @@ namespace CoSyncGameAPI
         }
     }
 
+    __declspec(noinline) int GetLifeState(Actor* actor)
+    {
+        if (!actor)
+            return -1;
+        __try
+        {
+            const uint32_t st = *reinterpret_cast<const uint32_t*>(
+                reinterpret_cast<const uint8_t*>(actor) + 0x130);
+            return static_cast<int>((st >> 17) & 0xFu);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return -1;
+        }
+    }
+
+    bool IsDeadOrDying(Actor* actor)
+    {
+        const int ls = GetLifeState(actor);
+        return ls == 1 || ls == 2;
+    }
+
     void KillPuppet(Actor* actor)
     {
         LOG_REQUIREMENT("CoSyncGameAPI::KillPuppet", "Needs a non-null, still-alive actor. Sets its life state to dying, then triggers a real death (ragdoll, loot) through the game's own functions. Wrapped in a crash guard.");

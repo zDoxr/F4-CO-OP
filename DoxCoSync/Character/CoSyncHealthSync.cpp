@@ -526,6 +526,21 @@ void CoSyncHealthSync::FlushPendingHealthOps()
         }
         else
         {
+            // 0.3.3 (Stage 2): KILL must be idempotent. The host re-sends
+            // CREATE + KILL for every known corpse every 5 s (so late joiners
+            // see corpses), and this used to run the full death again each
+            // time: SetLifeState(Dying) + KillDying on an actor that was
+            // already Dead (0.3.2 client log: "Killing entity=65537/65538"
+            // 440 times in 18 minutes). Skip when the ENGINE already has it
+            // dying or dead -- not a bookkeeping flag, so a clone that was
+            // freed and respawned alive still gets killed.
+            if (CoSyncGameAPI::IsDeadOrDying(actor))
+            {
+                if (CoSyncNpcWorldSync::IsWorldActorEntityID(op.entityID))
+                    CoSyncNpcWorldSync::MarkEntityKilled(op.entityID);
+                s_lastSeenHP[op.entityID] = 0.f;
+                continue;
+            }
             LOG_INFO("[HealthSync] Killing entity=%u", op.entityID);
             if (CoSyncNpcWorldSync::IsWorldActorEntityID(op.entityID) &&
                 CoSyncGameAPI::PuppetModeEnabled())

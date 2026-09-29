@@ -107,6 +107,12 @@ namespace CoSyncGameAPI
     // full ragdoll/loot, unlike a bare HP=0 base-value write.
     void KillPuppet(Actor* actor);
 
+    // Engine life state, ActorState bits 17-20 at actor+0x130 (IDA 1.11.240:
+    // Actor::SetLifeState, vtable 0x105 = sub_140C83990). 0 alive, 1 dying,
+    // 2 dead, 7 essential-down (the CK enum). -1 if unreadable.
+    int  GetLifeState(Actor* actor);
+    bool IsDeadOrDying(Actor* actor);
+
     // Returns the actor's REAL current combat target (the actor its AI is
     // fighting), or nullptr when it has none. Reads the BSPointerHandle at
     // Actor+0x380 (IDA-verified via the console GetCombatTarget handler) and

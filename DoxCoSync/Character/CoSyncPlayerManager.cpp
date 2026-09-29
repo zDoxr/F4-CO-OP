@@ -2,6 +2,7 @@
 #include <Windows.h>
 
 #include "CoSyncPlayerManager.h"
+#include <iterator>
 
 #include "CoSyncRequirementsLog.h"
 #include "CoSyncTransport.h"
@@ -459,6 +460,9 @@ void CoSyncPlayerManager::ProcessEntityCreate(const EntityCreatePacket& p)
     if (p.entityID == kDebugNpcEntityID && !CoSyncNet::IsHost())
         return;
 
+    // A new CREATE is the only thing that brings a destroyed entity back.
+    m_destroyedAt.erase(p.entityID);
+
     CoSyncEntityState& st = GetOrCreateState(p.entityID);
 
 
@@ -548,6 +552,13 @@ void CoSyncPlayerManager::ProcessEntityUpdate(const EntityUpdatePacket& u)
     if (u.entityID == kDebugNpcEntityID && !CoSyncNet::IsHost())
         return;
 
+    // 0.3.3 (Stage 2): an update must never resurrect a destroyed entity.
+    // EU travels unreliable while DESTROY is reliable, so a late EU can
+    // arrive after the DESTROY; it used to re-create an empty state here and
+    // fire REQENT, asking for the entity to be re-broadcast.
+    if (m_destroyedAt.count(u.entityID))
+        return;
+
     CoSyncEntityState& st = GetOrCreateState(u.entityID);
 
     // Never apply a relayed update back onto an entity this machine itself
@@ -595,6 +606,21 @@ void CoSyncPlayerManager::ProcessEntityUpdate(const EntityUpdatePacket& u)
     player.ApplyUpdate(u);
 }
 
+// 0.3.3 (Stage 2): see m_destroyedAt. Game thread (the inbox drain and
+// CoSyncNet::OnReceive both run in the CoSync tick).
+void CoSyncPlayerManager::NoteEntityDestroyed(uint32_t entityID)
+{
+    if (entityID == 0 || entityID == m_localEntityID)
+        return;
+    const double now = NowSeconds();
+    m_destroyedAt[entityID] = now;
+    // Keep the tombstones bounded: anything older than 2 minutes can no
+    // longer have an update in flight.
+    if (m_destroyedAt.size() > 256)
+        for (auto it = m_destroyedAt.begin(); it != m_destroyedAt.end(); )
+            it = (now - it->second > 120.0) ? m_destroyedAt.erase(it) : std::next(it);
+}
+
 void CoSyncPlayerManager::ProcessEntityDestroy(const EntityDestroyPacket& d)
 {
     LOG_REQUIREMENT("CoSyncPlayerManager::ProcessEntityDestroy", "Needs a valid entity ID that isn't our own player or a host-only debug NPC before it hands off to the despawn logic.");
@@ -604,6 +630,8 @@ void CoSyncPlayerManager::ProcessEntityDestroy(const EntityDestroyPacket& d)
 
     if (d.entityID == kDebugNpcEntityID && !CoSyncNet::IsHost())
         return;
+
+    NoteEntityDestroyed(d.entityID);
 
     // World NPCs are owned by NpcWorldSync (binding, clone, hidden original):
     // unbind them there, as CoSyncNet's ED receiver and the timeout path do.
