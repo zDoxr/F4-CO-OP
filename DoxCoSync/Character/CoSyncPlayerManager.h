@@ -55,6 +55,16 @@ public:
 
     CoSyncPlayer* GetPlayerByEntityID(uint32_t entityID);
 
+    // Where an entity is (worldspace / cell, as in WS| and CREATE): a player
+    // from its own location reports, an NPC from its CREATE or, failing that,
+    // its owner's location. false = unknown. GAME THREAD.
+    bool GetEntityLocation(uint32_t entityID, uint32_t& ws, uint32_t& cell);
+
+    // True when (ws, cell) is where the local player is -- same exterior
+    // worldspace, or the same interior cell. Unknown (ws == 0xFFFFFFFF) = true
+    // (callers keep their old behaviour until a location is known).
+    static bool IsLocalLocation(uint32_t ws, uint32_t cell);
+
     // Reverse lookup for the revive-activate hook (CoSyncDoorHook), which only
     // has the activated ref's formID off the engine's Activate worker. Linear
     // scan -- no reverse actor->entityID index exists, but session player

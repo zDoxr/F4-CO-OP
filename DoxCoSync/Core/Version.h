@@ -12,9 +12,11 @@
 // 0.2.4 (2026-09-26): compact BONES wire format (N4).
 // 0.3.0 (2026-09-28): factions, territory and authoritative workshop sync
 //       (FQ/FS/FR/FN and WKQ/WKA/WKV/WKX/WKR/WKC/WKN messages).
+// 0.3.1 (2026-09-28): location identity -- CREATE and NPCSEEN carry
+//       worldspace/cell; clients send WS| too.
 #define COSYNC_VERSION_MAJOR 0
 #define COSYNC_VERSION_MINOR 3
-#define COSYNC_VERSION_PATCH 0
+#define COSYNC_VERSION_PATCH 1
 #define COSYNC_VERSION_TAG   ""
 
 // Numeric form used on the wire. MINOR and PATCH must stay below 100 for the

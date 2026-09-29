@@ -244,7 +244,7 @@ static const char* SelfStateType(const std::string& msg)
     static const char* const kTypes[] = {
         "HP", "INV", "OUTFIT", "EQUIP", "IMODS", "LOOKS", "DOWN",
         "PA", "PAI", "PAMODS", "SPEC", "AE", "AEV", "SW", "PB",
-        "CONS", "SPELL", "THRP", "THRM", "THRX", "VATS_ENTER", "VATS_EXIT", "VER",
+        "CONS", "SPELL", "THRP", "THRM", "THRX", "VATS_ENTER", "VATS_EXIT", "VER", "WS",
     };
     const size_t bar = msg.find('|');
     if (bar == std::string::npos)
@@ -693,6 +693,11 @@ void CoSyncNet::Shutdown()
 }
 
 bool CoSyncNet::IsHost() { return s_isHost; }
+uint32_t CoSyncNet::GetHostEntityID()
+{
+    std::lock_guard<std::mutex> lk(s_peerMutex);
+    return s_hostEntityID;
+}
 uint32_t CoSyncNet::GetBuildNumber() { return kCoSyncBuildNumber; }
 bool CoSyncNet::IsInitialized() { return s_initialized; }
 bool CoSyncNet::IsConnected() { return s_connected; }

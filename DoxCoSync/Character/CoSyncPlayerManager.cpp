@@ -934,6 +934,67 @@ void CoSyncPlayerManager::PumpDeferredSpawns()
     PumpDeferredSpawnsSafe(this, p);
 }
 
+bool CoSyncPlayerManager::IsLocalLocation(uint32_t ws, uint32_t cell)
+{
+    if (ws == 0xFFFFFFFFu)
+        return true;
+    PlayerCharacter* lp = CoSyncGetPlayer();
+    if (!lp)
+        return true;
+    TESObjectREFR* r = reinterpret_cast<TESObjectREFR*>(lp);
+    TESWorldSpace* lws = CALL_MEMBER_FN(r, GetWorldspace)();
+    const uint32_t lwsID = lws ? reinterpret_cast<TESForm*>(lws)->formID : 0u;
+    if (ws != 0)
+        return ws == lwsID;
+    return lwsID == 0 && r->parentCell && r->parentCell->formID == cell;
+}
+
+bool CoSyncPlayerManager::GetEntityLocation(uint32_t entityID, uint32_t& ws, uint32_t& cell)
+{
+    ws = 0xFFFFFFFFu;
+    cell = 0;
+    if (entityID == 0)
+        return false;
+    if (entityID == m_localEntityID)
+    {
+        PlayerCharacter* lp = CoSyncGetPlayer();
+        if (!lp) return false;
+        TESObjectREFR* r = reinterpret_cast<TESObjectREFR*>(lp);
+        TESWorldSpace* lws = CALL_MEMBER_FN(r, GetWorldspace)();
+        ws = lws ? reinterpret_cast<TESForm*>(lws)->formID : 0u;
+        cell = r->parentCell ? r->parentCell->formID : 0u;
+        return true;
+    }
+    CoSyncPlayer* p = GetPlayerByEntityID(entityID);
+    if (p && p->createType == CoSyncEntityType::Player)
+    {
+        if (p->lastRemoteWorldspaceID == 0xFFFFFFFFu)
+            return false;
+        ws = p->lastRemoteWorldspaceID;
+        cell = p->lastRemoteCellFormID;
+        return true;
+    }
+    auto it = m_statesByEntityID.find(entityID);
+    if (it == m_statesByEntityID.end() || !it->second.hasCreate)
+        return false;
+    const EntityCreatePacket& c = it->second.lastCreate;
+    if (c.locWS != 0xFFFFFFFFu)
+    {
+        ws = c.locWS;
+        cell = c.locCell;
+        return true;
+    }
+    // No location on the CREATE: an NPC is where its simulating owner is.
+    if (c.ownerEntityID != 0 && c.ownerEntityID != entityID)
+    {
+        uint32_t w2, c2;
+        CoSyncPlayer* owner = GetPlayerByEntityID(c.ownerEntityID);
+        if ((owner && owner->createType == CoSyncEntityType::Player) || c.ownerEntityID == m_localEntityID)
+            if (GetEntityLocation(c.ownerEntityID, w2, c2)) { ws = w2; cell = c2; return true; }
+    }
+    return false;
+}
+
 void CoSyncPlayerManager::SpawnWatchdog(double now)
 {
     for (auto& kv : m_statesByEntityID)
@@ -963,7 +1024,17 @@ void CoSyncPlayerManager::SpawnWatchdog(double now)
             // real ext/int transition. This is what was letting a freed
             // exterior clone respawn at the player's own current position
             // (the door) instead of being correctly postponed.
-            if (lp && pl->authoritativeWorldspaceID != 0xFFFFFFFFu)
+            // 0.3.1: the entity's REAL location (players report theirs with
+            // WS|). A proxy for someone in another interior/worldspace is not
+            // spawned here at all -- it would land at meaningless coordinates
+            // and the engine would free it again (the 0.3.0 "snap back").
+            uint32_t locWS = 0xFFFFFFFFu, locCell = 0;
+            if (GetEntityLocation(kv.first, locWS, locCell) && !IsLocalLocation(locWS, locCell))
+            {
+                st.lastSpawnAttemptTime = now;
+                continue;
+            }
+            if (lp && locWS == 0xFFFFFFFFu && pl->authoritativeWorldspaceID != 0xFFFFFFFFu)
             {
                 TESWorldSpace* lpWS = CALL_MEMBER_FN(reinterpret_cast<TESObjectREFR*>(lp), GetWorldspace)();
                 const uint32_t lpWSID = lpWS ? reinterpret_cast<TESForm*>(lpWS)->formID : 0u;
@@ -992,6 +1063,11 @@ void CoSyncPlayerManager::SpawnWatchdog(double now)
 
         LOG_WARN("[PlayerMgr] SpawnWatchdog: entity=%u not spawned %.1fs after task enqueue — re-enqueuing spawn",
             kv.first, now - st.lastSpawnAttemptTime);
+
+        // Respawn where the entity is NOW, not where it was when it first
+        // appeared (the HELLO/CREATE position: 0.3.0 host log 16:50:18).
+        if (pl && (pl->authoritativePos.x != 0.f || pl->authoritativePos.y != 0.f || pl->authoritativePos.z != 0.f))
+            st.lastCreate.spawnPos = pl->authoritativePos;
 
         st.lastSpawnAttemptTime = now;
         CoSyncSpawnTasks::EnqueueSpawn(

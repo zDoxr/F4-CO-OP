@@ -8,6 +8,7 @@
 #include "ConsoleLogger.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncPlayer.h"
+#include "CoSyncProfiles.h"
 #include "CoSyncEntityState.h"
 #include "CoSyncEntityRegistry.h"
 #include "CoSyncTransport.h"
@@ -766,9 +767,11 @@ __declspec(noinline) static void TickScanWorldActors_Impl(double now)
             NiPoint3 pos{}, rot{};
             CoSyncGameAPI::GetActorWorldTransform(actor, pos, rot);
 
-            char buf[224];
-            snprintf(buf, sizeof(buf), "NPCSEEN|%u|%u|%.2f,%.2f,%.2f|%u",
-                baseFormID, actor->formID, pos.x, pos.y, pos.z, myEid);
+            uint32_t locWS = 0xFFFFFFFFu, locCell = 0;
+            g_CoSyncPlayerManager.GetEntityLocation(myEid, locWS, locCell);
+            char buf[256];
+            snprintf(buf, sizeof(buf), "NPCSEEN|%u|%u|%.2f,%.2f,%.2f|%u|%u|%u",
+                baseFormID, actor->formID, pos.x, pos.y, pos.z, myEid, locWS, locCell);
             CoSyncTransport::Send(std::string(buf));
 
             if (isDynamic)
@@ -864,6 +867,7 @@ __declspec(noinline) static void TickScanWorldActors_Impl(double now)
         cp.spawnPos      = spawnPos;
         cp.spawnRot      = spawnRot;
         cp.reserved0     = ((actor->formID & 0xFF000000u) == 0xFF000000u) ? 0u : actor->formID;
+        g_CoSyncPlayerManager.GetEntityLocation(g_CoSyncPlayerManager.GetLocalEntityID(), cp.locWS, cp.locCell);
 
         state.lastCreate = cp;
 
@@ -1130,6 +1134,11 @@ void TickScanWorldActors(double now)
     }
 
     LOG_REQUIREMENT("CoSyncNpcWorldSync::TickScanWorldActors", "No requirements beyond being called each tick. Wraps the scan in a crash guard so a problem here doesn't crash the game.");
+    // The character editor stages the player in Vault 111's cryo room -- not
+    // part of the session. Scanning there claimed Vault 111's NPCs (0.3.0 host
+    // log 16:50:18; also the old W1 "host NPCs disabled" bug).
+    if (CoSyncProfiles::IsEditorBusy())
+        return;
     __try
     {
         TickScanWorldActors_Impl(now);
@@ -1351,9 +1360,18 @@ __declspec(noinline) static void OnReceiveNpcSeen_Impl(const std::string& msg)
     if (std::sscanf(s, "%f,%f,%f", &pos.x, &pos.y, &pos.z) != 3) return;
     const char* bar = std::strchr(s, '|');
     if (!bar) return;
-    reporterEid = static_cast<uint32_t>(std::strtoul(bar + 1, nullptr, 10));
+    char* after = nullptr;
+    reporterEid = static_cast<uint32_t>(std::strtoul(bar + 1, &after, 10));
+    // Location of the sighting (0.3.1). Required: a sighting without one is
+    // exactly what let Vault 111's cryopod NPCs, seen from the character
+    // editor room, be created at interior coordinates in the host's world.
+    uint32_t locWS = 0xFFFFFFFFu, locCell = 0;
+    if (!after || *after != '|') return;
+    locWS = static_cast<uint32_t>(std::strtoul(after + 1, &after, 10));
+    if (!after || *after != '|') return;
+    locCell = static_cast<uint32_t>(std::strtoul(after + 1, nullptr, 10));
 
-    if (baseFormID == 0 || reporterEid == 0 || refFormID == 0)
+    if (baseFormID == 0 || reporterEid == 0 || refFormID == 0 || locWS == 0xFFFFFFFFu)
         return;
     // NOTE: 0xFF (dynamic) refs are now ACCEPTED. They are session-relative to
     // the reporting client, so they can't be deduped by ref across machines --
@@ -1467,6 +1485,8 @@ __declspec(noinline) static void OnReceiveNpcSeen_Impl(const std::string& msg)
     cp.spawnPos      = pos;
     cp.spawnRot      = NiPoint3(0.f, 0.f, 0.f);
     cp.reserved0     = refFormID;
+    cp.locWS         = locWS;
+    cp.locCell       = locCell;
 
     CoSyncEntityState& state = g_CoSyncPlayerManager.GetOrCreateState(eid);
     state.entityID          = eid;
@@ -1935,6 +1955,14 @@ __declspec(noinline) static void ClientBindWorldActor_Impl(const EntityCreatePac
 
     PlayerCharacter* localPlayer = CoSyncGetPlayer();
     if (!localPlayer)
+        return;
+
+    // 0.3.1: an NPC in another interior/worldspace is not bound here -- no
+    // disabling of our own copy, no clone at its coordinates in our world.
+    // The owner re-sends CREATE every few seconds, so it binds as soon as this
+    // machine is in the same place.
+    if (p.ownerEntityID != g_CoSyncPlayerManager.GetLocalEntityID() &&
+        !CoSyncPlayerManager::IsLocalLocation(p.locWS, p.locCell))
         return;
 
     // Set when a bind is refused because the host and this client disagree

@@ -42,5 +42,12 @@ struct EntityCreatePacket
     uint32_t reserved0 = 0;
     uint32_t reserved1 = 0;
 
+    // Where the entity is (0.3.1): exterior = worldspace formID (+ its exterior
+    // cell), interior = worldspace 0 + the interior cell. 0xFFFFFFFF = unknown.
+    // Positions are only meaningful inside this location; a machine that is
+    // somewhere else must not place the entity into its own world.
+    uint32_t locWS   = 0xFFFFFFFFu;
+    uint32_t locCell = 0;
+
     std::string username;
 };

@@ -35,6 +35,8 @@ inline std::string SerializeEntityCreate(const EntityCreatePacket& p)
         << p.spawnPos.x << "," << p.spawnPos.y << "," << p.spawnPos.z << "|"
         << p.spawnRot.x << "," << p.spawnRot.y << "," << p.spawnRot.z << "|"
         << p.reserved0 << "|"
+        << p.locWS << "|"
+        << p.locCell << "|"
         << p.username;
 
     return ss.str();
@@ -104,6 +106,16 @@ inline bool DeserializeEntityCreate(const std::string& msg, EntityCreatePacket& 
         std::string r0tok;
         if (std::getline(ss, r0tok, '|') && !r0tok.empty())
             out.reserved0 = static_cast<uint32_t>(std::strtoul(r0tok.c_str(), nullptr, 10));
+    }
+
+    // Location (0.3.1). Always present from 0.3.1 peers (mismatched versions
+    // refuse each other through VER/WORLDREQ).
+    {
+        std::string wtok, ctok;
+        if (std::getline(ss, wtok, '|') && !wtok.empty())
+            out.locWS = static_cast<uint32_t>(std::strtoul(wtok.c_str(), nullptr, 10));
+        if (std::getline(ss, ctok, '|') && !ctok.empty())
+            out.locCell = static_cast<uint32_t>(std::strtoul(ctok.c_str(), nullptr, 10));
     }
 
     {

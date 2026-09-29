@@ -1,4 +1,6 @@
 ﻿#include "CoSyncGameAPI.h"
+#include "CoSyncPlayerManager.h"
+#include "CoSyncEntityRegistry.h"
 #include "GameReferences.h"
 #include "GameForms.h"
 #include "GameObjects.h"
@@ -610,6 +612,20 @@ namespace CoSyncGameAPI
             if (actor->parentCell == pcRefr->parentCell)
                 return;
 
+            // 0.3.1: the proxy is only ever moved inside the LOCAL world when
+            // its entity is actually here. Someone in another interior or
+            // worldspace is hidden by WorldSync's visibility pass instead;
+            // moving them to their coordinates in OUR world put them at a
+            // meaningless spot whose cell unloaded (the engine then freed the
+            // proxy and it respawned at a stale position -- the "tether").
+            {
+                uint32_t ws = 0xFFFFFFFFu, cell = 0;
+                const uint32_t eid = g_CoSyncEntities.GetEntityID(actor);
+                if (eid && g_CoSyncPlayerManager.GetEntityLocation(eid, ws, cell) &&
+                    !CoSyncPlayerManager::IsLocalLocation(ws, cell))
+                    return;
+            }
+
             // FalloutTogether/TiltedEvolution's exact cross-cell mechanism: the
             // engine's MoveTo / MoveRefrToPosition (source, handle, cell, worldspace,
             // pos, rot). Interior target -> cell set, worldspace null; exterior ->
@@ -678,6 +694,15 @@ namespace CoSyncGameAPI
         if (!pc)
             return;
         TESObjectREFR* pcRefr = reinterpret_cast<TESObjectREFR*>(pc);
+        // Same rule as ResyncActorCellMembership: never into a world the
+        // entity is not in.
+        {
+            uint32_t lws = 0xFFFFFFFFu, lcell = 0;
+            const uint32_t eid = g_CoSyncEntities.GetEntityID(actor);
+            if (eid && g_CoSyncPlayerManager.GetEntityLocation(eid, lws, lcell) &&
+                !CoSyncPlayerManager::IsLocalLocation(lws, lcell))
+                return;
+        }
         TESWorldSpace* ws   = CALL_MEMBER_FN(pcRefr, GetWorldspace)();
         TESObjectCELL* cell = ws ? nullptr : pcRefr->parentCell;
         UInt32   handle = 0;

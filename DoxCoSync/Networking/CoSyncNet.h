@@ -80,6 +80,8 @@ public:
     static uint32_t GetBuildNumber();
 
     static bool IsHost();
+    // Client: the host's player entity (from its HELLO); 0 = not known yet.
+    static uint32_t GetHostEntityID();
     static bool IsInitialized();
     static bool IsConnected();
 

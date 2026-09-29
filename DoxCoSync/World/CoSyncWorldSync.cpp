@@ -1154,9 +1154,13 @@ void CoSyncWorldSync::Shutdown()
     s_initialized = false;
 }
 
-static void HostTickWorldSync(double now)
+// Every player (host AND clients, 0.3.1) reports where it is: immediately on
+// a worldspace or interior-cell change, otherwise every kWS_BroadcastInterval
+// or after moving kWS_PositionThreshold. Before 0.3.1 only the host sent it,
+// so nobody knew where a client was.
+static void TickMyLocation(double now)
 {
-    LOG_REQUIREMENT("(global)::HostTickWorldSync", "Needs an active connection and a valid player (both checked first) before it reads the player's location and sends it out.");
+    LOG_REQUIREMENT("(global)::TickMyLocation", "Needs an active connection and a valid player (both checked first) before it reads the player's location and sends it out.");
     if (!CoSyncNet::IsConnected())
         return;
 
@@ -1184,7 +1188,8 @@ static void HostTickWorldSync(double now)
 
     const bool intervalUp   = (now - s_lastWSBroadcast) >= kWS_BroadcastInterval;
     const bool movedFar     = distSq > (kWS_PositionThreshold * kWS_PositionThreshold);
-    const bool worldChanged = (wsID != s_lastWSWorldspace);
+    static uint32_t s_lastWSCell = 0;
+    const bool worldChanged = (wsID != s_lastWSWorldspace) || (wsID == 0 && cellID != s_lastWSCell);
 
     if (!intervalUp && !movedFar && !worldChanged)
         return;
@@ -1194,6 +1199,7 @@ static void HostTickWorldSync(double now)
     s_lastWSPosY       = posY;
     s_lastWSPosZ       = posZ;
     s_lastWSWorldspace = wsID;
+    s_lastWSCell       = cellID;
 
     CoSyncWorldSync::WorldSyncPacket p{};
     p.entityID         = CoSyncNet::GetMyEntityID();
@@ -2560,9 +2566,14 @@ void CoSyncWorldSync::Tick(double now)
             TickBuildDeletions(now);
     }
 
+    // Location reports: both roles.
+    if (CoSyncNet::IsConnected())
+        TickMyLocation(now);
+
     if (CoSyncNet::IsHost())
     {
-        HostTickWorldSync(now);
+        // Proxies of players who are somewhere else are hidden on the host too.
+        TickProxyCellVisibility();
 
         // BISECTION (2026-06-24): re-enabled. HostTickObjects (and its WBF
         // loop, disabled in earlier rounds tonight) was never actually
@@ -2654,22 +2665,26 @@ void CoSyncWorldSync::Tick(double now)
 
 void CoSyncWorldSync::OnReceiveWorldSync(const WorldSyncPacket& p)
 {
+    // Host relays every player's location to everyone (senders ignore their
+    // own echo below). The sender is checked by CoSyncNet (P5/N7 "WS").
     if (CoSyncNet::IsHost())
-    {
         CoSyncTransport::Send(SerializeWorldSync(p));
-        return;
-    }
 
     if (p.entityID == CoSyncNet::GetMyEntityID())
         return;
 
-    // Update per-entity worldspace so TickProxyCellVisibility can hide/show the proxy.
+    // Record where this player is: proxy visibility, placement, NPC binding,
+    // territory claims and the spawn watchdog all depend on it.
     CoSyncPlayer* proxy = g_CoSyncPlayerManager.GetPlayerByEntityID(p.entityID);
     if (proxy)
     {
         proxy->lastRemoteWorldspaceID = p.worldspaceFormID;
         proxy->lastRemoteCellFormID   = p.cellFormID;
     }
+
+    // Only the HOST's location is the join placement (one-shot teleport).
+    if (CoSyncNet::IsHost() || p.entityID != CoSyncNet::GetHostEntityID())
+        return;
 
     std::lock_guard<std::mutex> lk(s_wsMutex);
     s_pendingWS    = p;
