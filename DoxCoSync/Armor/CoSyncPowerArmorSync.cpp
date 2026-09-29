@@ -675,6 +675,30 @@ namespace
     };
     std::vector<PaActorRefreshCheck> s_pendingActorRefresh;
 
+    // 0.3.4: after a proxy's PA exit, confirm the ENGINE rebuilt its body
+    // (see FinishPaExit) instead of forcing our own Disable+Enable.
+    struct PaPostExitCheck
+    {
+        uint32_t entityID = 0;
+        double   checkAt  = 0.0;
+    };
+    std::vector<PaPostExitCheck> s_pendingPostExit;
+
+    // AI process level: Actor+0x300 = process, process+0xDF (0 high,
+    // 1 middle-high, 2 middle-low, 3 low). Same byte sub_140CA6AA0 returns
+    // and Actor::Update checks (1.11.240, IDA). -1 = no process/unreadable.
+    __declspec(noinline) int SafeProcessLevel(Actor* actor)
+    {
+        if (!actor) return -1;
+        __try
+        {
+            const uint8_t* process = *reinterpret_cast<uint8_t* const*>(
+                reinterpret_cast<const uint8_t*>(actor) + 0x300);
+            return process ? static_cast<int>(process[0xDF]) : -1;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return -1; }
+    }
+
     // 2026-08-26: live-tested proof the native eject sometimes silently
     // refuses -- ExtraPowerArmor read back 1 (still in PA) immediately after
     // a "called=1" (no fault) SafeSwitchFromPowerArmorNative call, right
@@ -768,8 +792,24 @@ static void FinishPaExit(CoSyncPlayer* proxy, uint32_t senderEntityID)
     proxy->m_paBehaviorEntered  = false;
     memset(proxy->m_paAppliedPieces, 0, sizeof(proxy->m_paAppliedPieces));
 
-    CoSyncGameAPI::RefreshActor3D(proxy->actorRef);
+    // 0.3.4: NO Disable+Enable here any more. The engine rebuilds the body
+    // itself (IDA 1.11.240): the native exit SwitchFromPowerArmor
+    // (sub_14098BE40) sets the PA extra (type 0xBB) state to 3; the exit then
+    // finishes in sub_14098D8C0 (state 5), which moves the pieces back to the
+    // frame and -- for an actor in high or middle-high process
+    // (sub_140CA6AA0 < 2) -- requests update3DModel 0x520 (0x20 = full 3D
+    // reload), consumed by Actor::Update -> sub_140D02600 -> sub_140D27280.
+    // Only after that does sub_14098B8C0 (state 6) remove the 0xBB extra,
+    // which is exactly what TryPaExit waits for. The enter path
+    // (sub_140989D90) makes the same request. So by the time we get here the
+    // engine's rebuild is already queued; our RefreshActor3D was a second
+    // rebuild that also dropped the weapon. A low-process actor finishes the
+    // exit immediately and has no 3D to rebuild. The post-exit check below
+    // confirms the result and falls back only if the engine visibly did not.
+    const int level = SafeProcessLevel(proxy->actorRef);
 
+    // The weapon and outfit are re-checked against the engine after the
+    // engine's rebuild (both are idempotent: equip only what is missing).
     if (proxy->m_lastQueuedWeaponFormID != 0)
     {
         proxy->m_postRefreshWeaponFormID = proxy->m_lastQueuedWeaponFormID;
@@ -778,9 +818,13 @@ static void FinishPaExit(CoSyncPlayer* proxy, uint32_t senderEntityID)
     }
     CoSyncOutfitSync::ClearAppliedOutfits(senderEntityID);
 
-    LOG_UPDATED("[PASync] Exit PA: SwitchFromPowerArmor + full 3D rebuild entity=%u "
-                "(weapon=0x%08X re-queued)",
-        senderEntityID, proxy->m_postRefreshWeaponFormID);
+    s_pendingPostExit.push_back(PaPostExitCheck{ senderEntityID, PaDiagNowSeconds() + 3.0 });
+
+    LOG_UPDATED("[PASync] Exit PA: engine exit finished entity=%u (process level %d; %s) -- "
+                "weapon=0x%08X re-queued, body check in 3 s",
+        senderEntityID, level,
+        (level == 0 || level == 1) ? "engine full 3D reload queued" : "no 3D at this process level",
+        proxy->m_postRefreshWeaponFormID);
 }
 
 // Attempts the native eject and checks whether it actually took. On success,
@@ -1751,6 +1795,7 @@ void CoSyncPowerArmorSync::Reset()
     s_fbPendingSince    = 0.0;
     s_fbLoggedNoChassis = false;
     s_fbRaceConfirmed   = false;
+    s_pendingPostExit.clear();
     s_lastFrameInvPoll  = 0.0;
     s_frameLastSig.clear();
     s_frameSuppressUntil.clear();
@@ -1828,6 +1873,45 @@ void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
 
             s_pendingActorRefresh[i] = s_pendingActorRefresh.back();
             s_pendingActorRefresh.pop_back();
+        }
+    }
+
+    // 0.3.4: did the engine restore the body after a PA exit? Expected: the
+    // race is no longer PowerArmorRace and the 3D is present. Only if not,
+    // fall back to the old full rebuild -- loudly, so a log shows it.
+    if (!s_pendingPostExit.empty())
+    {
+        const double now = PaDiagNowSeconds();
+        for (size_t i = 0; i < s_pendingPostExit.size(); )
+        {
+            if (now < s_pendingPostExit[i].checkAt) { ++i; continue; }
+            const uint32_t eid = s_pendingPostExit[i].entityID;
+            s_pendingPostExit[i] = s_pendingPostExit.back();
+            s_pendingPostExit.pop_back();
+
+            CoSyncPlayer* proxy = g_CoSyncPlayerManager.GetPlayerByEntityID(eid);
+            if (!proxy || !proxy->actorRef || proxy->m_isInPowerArmor || proxy->m_proxyHiddenForCell ||
+                !CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(proxy->actorRef)))
+                continue;   // gone, re-entered, or hidden (re-shown with a full rebuild anyway)
+
+            const bool raceStillPA = SafeActorInPowerArmorByRace(proxy->actorRef);
+            const bool has3D       = proxy->actorRef->GetObjectRootNode() != nullptr;
+            const int  level       = SafeProcessLevel(proxy->actorRef);
+            if (!raceStillPA && (has3D || level >= 2))
+            {
+                LOG_UPDATED("[PASync] Post-exit body check entity=%u: OK (race restored, 3D=%d, process level %d) -- engine rebuild was enough",
+                    eid, has3D ? 1 : 0, level);
+                continue;
+            }
+            LOG_WARN("[PASync] Post-exit body check entity=%u: FAILED (race still PowerArmorRace=%d, 3D=%d, process level %d) -- falling back to a full 3D rebuild",
+                eid, raceStillPA ? 1 : 0, has3D ? 1 : 0, level);
+            CoSyncGameAPI::RefreshActor3D(proxy->actorRef);
+            if (proxy->m_lastQueuedWeaponFormID != 0)
+            {
+                proxy->m_postRefreshWeaponFormID = proxy->m_lastQueuedWeaponFormID;
+                proxy->m_postRefreshWeaponDelay  = 60;
+                proxy->m_weaponConfirmedEquipped = false;
+            }
         }
     }
 

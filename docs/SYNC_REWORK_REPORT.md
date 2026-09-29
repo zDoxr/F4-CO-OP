@@ -89,6 +89,7 @@ CoSync only re-drew on an **edge** of the owner's state (`TickAnimVars`: `weapSt
 - `23:52:23.834`–`23:52:27.882`: the native eject was re-called every second while `ExtraPowerArmor` stayed 1 for about 4 s.
 
 **Fix.**
+- **No Disable+Enable after the exit any more** (follow-up, §2.6). The engine queues its own full 3D reload before the marker `TryPaExit` waits for is removed. `FinishPaExit` now re-checks the weapon and gear only (both idempotent) and schedules a body check 3 s later: race no longer PowerArmorRace, and 3D present or the actor in low process. `RefreshActor3D` runs only if that check fails, logged as `Post-exit body check … FAILED`.
 - An exit for a proxy that isn't in PA (no chassis, marker clear) is a logged no-op.
 - The retry loop now **waits** for the engine's own exit sequence, and re-issues the eject only after 5 s without progress. It still gives up after 10 attempts without tearing down a merged chassis.
 
@@ -175,7 +176,22 @@ The copies stayed filed in an interior at exterior coordinates.
 ### 2.5 `ApplyActorFootIKResults` — `sub_140E1BE80` — VERIFIED (partially)
 It reads the controller position (vfunc +0x1A8, × 69.99), gets foot-IK data from the active graph (`sub_140E1C880`), blends the actor position toward it at `min(15·dt, 1)`, and writes it with `sub_140513DB0`. This is why 0.3.3 moves the controller together with the proxy.
 
-### 2.6 Other confirmed facts used
+### 2.6 Power Armor enter/exit sequence — VERIFIED (follow-up)
+The actor's PA state is a byte at +0x28 of extra-data type **0xBB**: `sub_1402909C0` reads it (7 = no extra) and `sub_1402909F0` writes it. The same extra stores the frame handle at +0x18 (`sub_1402908C0` / `sub_140290880`) and is removed by `sub_140290870`.
+
+- **Enter**, `sub_140989D90`: state 1 → … → 2. For process level < 2 (`sub_140CA6AA0` = `process+0xDF`, 0 high / 1 middle-high / 2 middle-low / 3 low) it requests `update3DModel` **0x520** (`sub_140D363C0`; 0x20 = full 3D reload) and processes it immediately (`sub_140D02600(..., 1)`).
+- **Exit start**, native `SwitchFromPowerArmor` `sub_14098BE40`: only acts at state 2.
+  - If the frame is gone, it creates a new frame at the actor.
+  - It returns the pieces to the frame (`sub_14055F3A0`) and sets state **3**.
+  - A low-process actor (level > 1) finishes immediately through `sub_14098B580`.
+  - It does not change the race or the 3D itself.
+- **Exit finish:**
+  - `sub_14098B580`, or `sub_1409891C0` for states 3/4, reached from `sub_140C85D70` / `sub_140C86590` / `sub_140C86BF0`, calls `sub_14098D8C0` (state **5**).
+  - `sub_14098D8C0` moves the worn pieces back to the frame and unequips the PA skin (vfunc +0x390). For process level < 2 it requests `update3DModel` **0x520**, consumed on the actor's next `Actor::Update` (`sub_140C8B5A0` → `sub_140D02600` → `sub_140D27280`, 0x20 path). It then moves the frame to the actor.
+  - Then `sub_14098B8C0` (state **6**): re-activation via vfunc +0x668 and graph resets; at the end it **removes extra 0xBB**.
+- **Consequence:** `ExtraPowerArmor` presence (what `TryPaExit` waits for) disappears only **after** the engine has queued its own full 3D reload. CoSync's `RefreshActor3D` (Disable+Enable) in `FinishPaExit` was a second rebuild.
+
+### 2.7 Other confirmed facts used
 - GNS `ISteamNetworkingSockets::GetConnectionRealTimeStatus` → `m_nPing` (vendored headers). Used for the UI ping.
 - `SetLifeState` + runtime essential/protected bits (`uiFlags 0x40000`/`0x80000`): verified 2026-08-18, reused for RC7.
 
@@ -271,7 +287,7 @@ All rows are **NOT RUN (needs in-game test)**. The offline checks that *were* do
 | Enemies | Join through the editor near NPCs | NpcSyncDiag no longer STUCK | NPCs visible |
 | Enemies | Client shoots an enemy to 0 HP | host `TX KILL`, client `Killing entity` | dies on both, never dead-here/alive-there |
 | Power Armor | Enter a frame and watch from the other machine for 30 s | no `FALLBACK exit` on the wearer | stays in PA |
-| Power Armor | Exit | `Exit PA … not re-issued (waiting…)` then `confirmed out` | a single rebuild, normal body |
+| Power Armor | Exit | `Exit PA … not re-issued (waiting…)`, `confirmed out`, then `Post-exit body check … OK` | normal body, weapon back, no blink |
 | Power Armor | Two players in two frames at once | — | both correct |
 | Revive | Get downed near enemies | no `TX DMG … hp 0.0->` spam | revive works once |
 | UI | Open Multiplayer (main menu and pause menu), host, join, factions, voice | — | new terminal layout; ping in the player list |
@@ -282,5 +298,5 @@ All rows are **NOT RUN (needs in-game test)**. The offline checks that *were* do
 
 1. **RC2 consumer (INFERRED).** If a first-person host's legs still slide after 0.3.4, the lower body needs a state-driven driver. That's the "hybrid" that was reverted at the user's call on 2026-08-22. This directive's "replicate state, not frames" supports bringing it back; the user needs to decide.
 2. **NPC authority model.** This directive says the host is authoritative for world NPCs. 0.3.1 introduced dynamic ownership hand-off to the nearest client (the user's call in directive 2: multi-targeting, no standing puppets). 0.3.4 keeps one owner at a time and makes death owner-only. Removing the hand-off is a user decision, not done here.
-3. **PA exit still ends in one Disable+Enable** (`FinishPaExit` → `RefreshActor3D`) to restore the body after the race changes back. It's not proven that the engine's own exit sequence restores an NPC's 3D by itself.
+3. ~~PA exit Disable+Enable~~: resolved in the follow-up (§2.6). The engine's exit sequence queues its own full 3D reload; CoSync only verifies it. Watch for `Post-exit body check … OK` / `FAILED` in the next test.
 4. The hook refuses only the verified AI caller. If another engine path turns out to fight the replicated weapon state, the diagnostic names it; extend the refusal only after reading that caller.
