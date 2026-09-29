@@ -479,3 +479,110 @@ FIX:        CoSyncPowerArmorSync::OnProxyRemoved, called from both: deletes the
 2. Client in PA walks through a load door with the host: the host's proxy of the client is back in PA within 5 s of reappearing.
 3. Client disconnects while in PA: no stray frame left on the host, and if the client had entered a world frame, that frame is visible again on the host.
 4. Swap a helmet while in PA: the change shows once; no armor flicker every 5 s afterwards.
+
+---
+
+## Stage 6 — revive / downed
+
+### State machine (now explicit)
+
+```text
+ Up ──HP<=0 (essential bleedout, life state 7)──► Downed      [DOWN| broadcast, vanilla recovery blocked]
+ Downed ──REVIVED for me──► Released (revived)                 [recovery unblocked + health restored at once]
+ Downed ──fReviveGiveUpSeconds──► Released (gave up)           [recovery unblocked, engine regen]
+ Released ──HP>0 for 5 ticks──► Up                             [REVIVED|me|0 if nobody revived me]
+ Real death (life state 1/2) keeps the old full tick gate.
+```
+
+Evidence used: session 0.3.2 21:43-21:45 (host 3012 / client 10228). Host went down 21:43:24.820; client started a revive 21:43:42.799 (1 Stimpak); the channel was cancelled 21:43:44.900 "moved out of range"; the host gave up at 21:44:24.828 and then logged the give-up line 1502 times.
+
+### S6-A. Revive channel cancelled by a jumping proxy position
+
+The range check (350 units) reads the downed proxy's `actorRef->pos`, which Stage 1 (S1-A) showed the engine was pulling toward the stale character-controller spot every frame. The downed host was not moving, yet the check failed 2.1 s into a 3 s channel. **Fixed by S1-A** (the proxy's engine position now is the network position). No separate change.
+
+### S6-B. Give-up branch fired every tick
+
+```text
+ROOT CAUSE: CoSynclocalplayer Tick: `gaveUp = (now - downedSince) >= giveUp`
+            had no latch, so after the timeout it was true on every tick until
+            HP rose: SetNoBleedoutRecovery(false) queued into the Papyrus VM and
+            a log line, twice per frame (1502 lines). The same missing latch
+            also re-ran the give-up path after a successful revive if HP was
+            still 0 at the timeout.
+FIX:        s_recoveryReleased latch (Downed -> Released once), reset on the
+            next down and on recovery.
+```
+
+### S6-C. Revive took too long
+
+```text
+ROOT CAUSE: A revive only unblocked vanilla recovery; the player then lay on
+            the floor until the engine's bleedout regeneration reached its
+            recovery threshold, and the revive heal was applied only after
+            they had already stood up (respawn debounce).
+ENGINE:     GameSettings (layout [vtable][value][name]) fBleedoutDefault 0.2,
+            fBleedoutRate 15, fBleedoutMin 5, fBleedoutCheck 1,
+            fEssentialDownCombatHealthRegenMult 0.75 (static defaults in the
+            exe; Fallout4.esm GMSTs may override). Their exact use by the
+            recovery check is UNVERIFIED; the fix does not depend on it beyond
+            "health above the threshold ends bleedout at the next check".
+FIX:        On revive, RestoreValue(Health, fReviveHealthPercent% of max) is
+            queued through the VM together with the unblock (same VM route the
+            code already used inside the down window; max = last value this
+            machine sent while alive).
+```
+
+### S6-D. Revive heal permanently lowered max health
+
+The post-recovery heal used `SetBase(Health, pct * max)`: that rewrites the **base** value, so every revive reduced the player's maximum health. Removed (the heal now happens at revive time via RestoreValue, which restores current health only).
+
+### S6-E. Downed player stopped streaming ("downed animation does not work")
+
+```text
+ROOT CAUSE: The dead-player gate returned from the local tick whenever HP<=0,
+            which includes essential bleedout. No EU, no BONES, no HP for the
+            whole down window (host log: "tx ... unreliable=0" in every 10 s
+            summary 21:43:40-21:44:20), so every other machine showed the
+            proxy frozen or back in its idle graph -- never the bleedout pose.
+            CoSyncLocalPlayer::IsLocallyConfirmedDead() (used by TickHook to
+            skip animation capture) had the same over-broad meaning.
+FIX:        The gate still stops everything on real death (engine life state
+            dying/dead, CoSyncGameAPI::IsDeadOrDying); in bleedout the tick
+            continues, so position, animation variables and bones keep
+            streaming and the proxy shows the real downed and get-up
+            animation. The unverified "SharedGetUp" PlayIdle on the proxy was
+            removed (a second animation source on a bone-replicated proxy).
+```
+
+### S6-F. "Talk" instead of "Revive"
+
+```text
+ENGINE:     TESNPC vtable 0x24D6400 slot 0x60 = sub_140656D60(base, ref,
+            BSString* out) builds an actor's crosshair text: "%s\n%s" of
+            sub_140513630(ref) (display name) and the verb (sTalk: GMST value
+            slot 0x2F22888, read at 0x657192), via BSString printf
+            sub_1401F84F0. VERIFIED in IDA.
+FIX:        MinHook on sub_140656D60: original runs, then for a downed player
+            proxy the text is rewritten to "<name>\nRevive". The set of downed
+            proxies is rebuilt every tick from the player manager (own mutex:
+            the hook may run on an engine thread), so the prompt goes back to
+            normal the moment the player is up.
+```
+
+### S6-G. Other players' UI never learned you got up on your own
+
+Only DOWN / REVIVEREQ / REVIVED existed; recovering after the give-up timeout sent nothing, so peers kept you DOWNED (UI tag + Revive prompt) for the rest of the session. The recovered player now sends `REVIVED|<me>|0` (reviver 0 = unaided); receivers clear the state and say "<name> is back on their feet". A duplicate REVIVED (the reviver's own echo) is now ignored.
+
+### S6-H. Revive messages were not sender-checked
+
+Any client could mark any player down or revived. The host now requires: DOWN about yourself; REVIVEREQ as the reviver; REVIVED as the reviver, or about yourself with reviver 0.
+
+### Protocol
+
+`REVIVED|entity|0` is new in meaning (reviver 0); same message shape. Version stays 0.3.3 (both sides must run 0.3.3 anyway).
+
+### TEST PLAN (Stage 6)
+
+1. Get the client downed near the host: host sees the client's bleedout pose (not standing), prompt reads "Revive". Revive with a Stimpak: the client stands up about a second after the channel ends, prompt returns to "Talk"/normal, both UIs clear the DOWNED tag. Client's max HP unchanged (check Pip-Boy).
+2. Let the timeout expire (60 s default): one "Gave up" line in the client log; client stands up via vanilla recovery; host's UI clears the tag ("back on their feet").
+3. Try reviving while the downed player is still: no "moved out of range" cancellation.

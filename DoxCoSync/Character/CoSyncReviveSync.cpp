@@ -9,6 +9,7 @@
 #include "CoSyncGameAPI.h"
 #include "CoSyncOverlay.h"
 #include "CoSyncVMFormArg.h"
+#include "MinHook.h"
 
 #include "GameReferences.h"
 #include "GameForms.h"
@@ -25,6 +26,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
+#include <unordered_set>
 
 extern PlayerCharacter* CoSyncGetPlayer();
 
@@ -234,6 +236,32 @@ namespace
     };
     ReviveChannel s_channel;
 
+    // 0.3.3 (Stage 6): refFormIDs of the proxies that are downed right now,
+    // rebuilt every tick from the player manager (so a proxy rebuilt while
+    // down keeps its prompt). Read by the activate-text hook, which may run
+    // on an engine thread -- hence its own lock.
+    std::mutex                   s_downedRefsMutex;
+    std::unordered_set<uint32_t> s_downedRefs;
+
+    bool IsDownedProxyRef(uint32_t refFormID)
+    {
+        std::lock_guard<std::mutex> lk(s_downedRefsMutex);
+        return s_downedRefs.count(refFormID) != 0;
+    }
+
+    void RefreshDownedRefs()
+    {
+        std::unordered_set<uint32_t> now;
+        for (const auto& kv : g_CoSyncPlayerManager.GetAllPlayers())
+        {
+            const CoSyncPlayer* p = kv.second.get();
+            if (p && p->isDowned && p->actorRef && p->createType == CoSyncEntityType::Player)
+                now.insert(p->actorRef->formID);
+        }
+        std::lock_guard<std::mutex> lk(s_downedRefsMutex);
+        s_downedRefs.swap(now);
+    }
+
     constexpr float kReviveMaxRange   = 350.0f; // channel cancels beyond this
     constexpr float kReviveMaxRangeSq = kReviveMaxRange * kReviveMaxRange;
 
@@ -263,19 +291,25 @@ namespace
         if (!proxy)
             return;
 
+        if (!proxy->isDowned)
+            return;   // already up (e.g. the reviver's own REVIVED echoed back)
         proxy->isDowned = false;
         proxy->m_reviverEntityID = 0;
+        if (s_channel.active && s_channel.targetEntityID == entityID)
+            s_channel = ReviveChannel{};   // someone else got there first
 
-        // Stand the proxy back up. Unlike the real local player (whose
-        // vanilla bleedout recovery already animates this), a proxy needs an
-        // explicit idle -- see kSharedGetUpIdleID's comment for how this was
-        // found and its verification status.
-        if (proxy->actorRef)
-            NativePlayIdle(proxy->actorRef, GetSharedGetUpIdle());
+        // 0.3.3 (Stage 6): no stand-up idle any more. Player proxies are
+        // bone-replicated, and the downed player now keeps streaming while in
+        // bleedout, so the real get-up animation arrives with the pose; a
+        // local PlayIdle would be a second, competing animation source.
 
         char note[160];
-        std::snprintf(note, sizeof(note), "%s has been revived!",
-            proxy->username.empty() ? "Player" : proxy->username.c_str());
+        if (reviverEntityID == 0)
+            std::snprintf(note, sizeof(note), "%s is back on their feet",
+                proxy->username.empty() ? "Player" : proxy->username.c_str());
+        else
+            std::snprintf(note, sizeof(note), "%s has been revived!",
+                proxy->username.empty() ? "Player" : proxy->username.c_str());
         CoSyncGameAPI::QueueNotification(note);
 
         CoSyncOverlay_UpdateLobbyDowned(entityID, false);
@@ -412,6 +446,8 @@ void CoSyncReviveSync::OnReceiveRevived(const std::string& msg)
 void CoSyncReviveSync::FlushPendingReviveOps()
 {
     LOG_REQUIREMENT("CoSyncReviveSync::FlushPendingReviveOps", "Every queued revive action gets looked up by player first. Never writes to the local player's own stats directly.");
+    RefreshDownedRefs();
+
     std::vector<ReviveOp> ops;
     {
         std::lock_guard<std::mutex> lk(s_opMutex);
@@ -607,6 +643,10 @@ void CoSyncReviveSync::Reset()
     }
     s_pendingLocalReviveReviverEID.store(0);
     s_channel = ReviveChannel{};
+    {
+        std::lock_guard<std::mutex> lk(s_downedRefsMutex);
+        s_downedRefs.clear();
+    }
     LOG_INFO("[ReviveSync] Reset — state cleared for new session");
 }
 
@@ -644,4 +684,83 @@ float CoSyncReviveSync::SettingChannelSeconds()
     if (s_cached < 0.f)
         s_cached = ReadIniFloat("fReviveChannelSeconds", 3.f);
     return s_cached;
+}
+
+// ── "Revive" prompt (0.3.3, Stage 6) ─────────────────────────────────────────
+// IDA 1.11.240: TESNPC vtable 0x24D6400, slot 0x60 (entry 0x24D6700) =
+// sub_140656D60(TESNPC* base, TESObjectREFR* ref, BSString* out) builds the
+// crosshair text for an actor: "%s\n%s" of the ref's display name
+// (sub_140513630(ref)) and a verb such as sTalk (GMST value slot 0x2F22888,
+// read at 0x657192), printed with the BSString printf sub_1401F84F0. We let it
+// run, then replace the text for a downed player proxy with the same format and
+// "Revive". The prompt is recomputed by the engine every time it is shown, so it
+// follows the down state live (RefreshDownedRefs runs every tick).
+namespace
+{
+    constexpr uintptr_t kRVA_NpcGetActivateText = 0x00656D60;
+    constexpr uintptr_t kRVA_RefDisplayName     = 0x00513630;
+    constexpr uintptr_t kRVA_BSStringPrintf     = 0x001F84F0;
+
+    using GetActivateText_t = uint64_t(__fastcall*)(void* base, TESObjectREFR* ref, void* out);
+    using RefDisplayName_t  = const char*(__fastcall*)(TESObjectREFR* ref);
+    using BSStringPrintf_t  = uint64_t(*)(void* out, const char* fmt, ...);
+
+    GetActivateText_t g_origGetActivateText = nullptr;
+    RefDisplayName_t  g_refDisplayName      = nullptr;
+    BSStringPrintf_t  g_bsStringPrintf      = nullptr;
+
+    __declspec(noinline) bool WriteReviveText(TESObjectREFR* ref, void* out)
+    {
+        __try
+        {
+            const char* name = g_refDisplayName ? g_refDisplayName(ref) : nullptr;
+            g_bsStringPrintf(out, "%s\n%s", name ? name : "", "Revive");
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+    }
+
+    uint64_t __fastcall Detour_GetActivateText(void* base, TESObjectREFR* ref, void* out)
+    {
+        const uint64_t r = g_origGetActivateText(base, ref, out);
+        if (ref && out && g_bsStringPrintf && IsDownedProxyRef(ref->formID) && WriteReviveText(ref, out))
+            return 1;
+        return r;
+    }
+}
+
+void CoSyncReviveSync::InstallActivateTextHook()
+{
+    static bool s_installed = false;
+    if (s_installed)
+        return;
+    const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandleA(nullptr));
+    g_refDisplayName = reinterpret_cast<RefDisplayName_t>(base + kRVA_RefDisplayName);
+    g_bsStringPrintf = reinterpret_cast<BSStringPrintf_t>(base + kRVA_BSStringPrintf);
+
+    MH_STATUS st = MH_Initialize();
+    if (st != MH_OK && st != MH_ERROR_ALREADY_INITIALIZED)
+    {
+        LOG_ERROR("[ReviveSync] MH_Initialize failed: %d", (int)st);
+        return;
+    }
+    void* target = reinterpret_cast<void*>(base + kRVA_NpcGetActivateText);
+    st = MH_CreateHook(target, reinterpret_cast<void*>(&Detour_GetActivateText),
+                       reinterpret_cast<void**>(&g_origGetActivateText));
+    if (st != MH_OK)
+    {
+        LOG_ERROR("[ReviveSync] MH_CreateHook(activate text) failed: %d target=%p", (int)st, target);
+        return;
+    }
+    st = MH_EnableHook(target);
+    if (st != MH_OK)
+    {
+        LOG_ERROR("[ReviveSync] MH_EnableHook(activate text) failed: %d", (int)st);
+        return;
+    }
+    s_installed = true;
+    LOG_INFO("[ReviveSync] \"Revive\" prompt hook installed at base+0x%zX", (size_t)kRVA_NpcGetActivateText);
 }

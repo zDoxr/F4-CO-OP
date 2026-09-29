@@ -49,6 +49,11 @@ namespace CoSyncReviveSync
     // confirmed actor-value access is safe again, and applies the heal there.
     bool ConsumePendingLocalRevive(uint32_t& outReviverEntityID);
 
+    // 0.3.3 (Stage 6): hovering a downed player shows "Revive" instead of the
+    // NPC "Talk" prompt. Hooks TESNPC's activate-text builder (TESNPC vtable
+    // slot 0x60 = sub_140656D60, 1.11.240). Install once at plugin load.
+    void InstallActivateTextHook();
+
     // Session teardown -- clears queues/channel state. Call alongside
     // CoSyncHealthSync::Reset().
     void Reset();

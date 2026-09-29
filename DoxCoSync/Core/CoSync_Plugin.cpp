@@ -27,6 +27,7 @@
 #include "CoSyncLoadingScreen.h"
 #include "CoSyncRequirementsLog.h"
 #include "../Animations/CoSyncPlayerAnimation.h"
+#include "CoSyncReviveSync.h"
 #include "CoSyncFirstPersonGraph.h"
 
 extern bool RegisterCoSyncPapyrus(VirtualMachine* vm);
@@ -538,6 +539,10 @@ bool F4SEPlugin_Load(const F4SEInterface* f4se)
 
     LOG_INFO("CoSync: Installing MainMenu InitMainList hook...");
     CoSyncMenuInject_InstallHooks();
+
+    // "Revive" instead of "Talk" on a downed player (fixed-address hook, safe
+    // this early like the menu hook above).
+    CoSyncReviveSync::InstallActivateTextHook();
 
     // (No DX11 Present hook any more: the ImGui overlay was retired in favour
     // of PrismaUI. The game-window hook is installed from the main-thread

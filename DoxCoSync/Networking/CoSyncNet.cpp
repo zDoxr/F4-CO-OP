@@ -1801,6 +1801,28 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
         return;
     }
 
+    // 0.3.3 (Stage 6): revive messages are sender-checked like the other
+    // self-state messages. DOWN: only about yourself. REVIVEREQ: only as the
+    // reviver. REVIVED: as the reviver, or about yourself (reviver 0 = got
+    // up unaided).
+    if (checkSender && (CoSyncReviveSync::IsDown(msg) || CoSyncReviveSync::IsReviveReq(msg) ||
+                        CoSyncReviveSync::IsRevived(msg)))
+    {
+        const char* bar = std::strchr(msg.c_str(), '|');
+        char* end = nullptr;
+        const uint32_t target  = bar ? static_cast<uint32_t>(std::strtoul(bar + 1, &end, 10)) : 0u;
+        const uint32_t reviver = (end && *end == '|') ? static_cast<uint32_t>(std::strtoul(end + 1, nullptr, 10)) : 0u;
+        bool ok;
+        if (CoSyncReviveSync::IsDown(msg))           ok = (target == senderEid);
+        else if (CoSyncReviveSync::IsReviveReq(msg)) ok = (reviver == senderEid);
+        else                                          ok = (reviver == senderEid) || (reviver == 0 && target == senderEid);
+        if (!ok)
+        {
+            LogUnauthorized("REVIVE", conn, senderEid, target);
+            return;
+        }
+    }
+
     if (CoSyncReviveSync::IsDown(msg))
     {
         if (isHostRole)
