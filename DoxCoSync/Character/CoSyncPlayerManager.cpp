@@ -27,6 +27,7 @@
 #include "CoSyncConsumableSync.h"
 #include "CoSyncOutfitSync.h"
 #include "CoSyncPowerArmorSync.h"
+#include "CoSyncProxyWeaponAuthority.h"
 #include "TickHook.h"
 #include "CoSyncPlayerAnimation.h"
 #include "CoSyncBehaviorGraph.h"
@@ -684,6 +685,8 @@ void CoSyncPlayerManager::DespawnEntity(uint32_t entityID, const char* reason)
             entityID, static_cast<void*>(proxy ? proxy->actorRef : nullptr), reason);
 
         CoSyncPowerArmorSync::OnProxyRemoved(proxy);   // 0.3.3 (Stage 5)
+        if (proxy && proxy->actorRef)
+            CoSyncProxyWeaponAuthority::Forget(proxy->actorRef);
 
         if (proxy && proxy->actorRef &&
             proxy->createType == CoSyncEntityType::Companion &&
@@ -2129,6 +2132,7 @@ bool CoSyncPlayerManager::ReleaseIfFreed(CoSyncPlayer& ent)
         g_CoSyncEntities.Remove(ent.entityID);
         UnregisterRemoteActor(freedActor);
         CoSyncPlayerAnimation::ReleaseBoneCache(freedActor);
+        CoSyncProxyWeaponAuthority::Forget(freedActor);
         // The rebuilt replacement actor gets a fresh body -- any
         // outfit/weapon marked "applied" against the OLD actor is
         // stale. Outfit's cache is keyed by entityID only (no actor

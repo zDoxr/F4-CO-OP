@@ -17,9 +17,11 @@
 // 0.3.3 (2026-09-28): sync-stability directive -- proxies positioned through
 //       the engine's own SetPosition, sender-time interpolation. Behaviour
 //       only; same wire format.
+// 0.3.4 (2026-09-29): sync rework directive -- proxy bone-cache validity,
+//       replicated weapon authority, Power Armor / NPC authority fixes.
 #define COSYNC_VERSION_MAJOR 0
 #define COSYNC_VERSION_MINOR 3
-#define COSYNC_VERSION_PATCH 3
+#define COSYNC_VERSION_PATCH 4
 #define COSYNC_VERSION_TAG   ""
 
 // Numeric form used on the wire. MINOR and PATCH must stay below 100 for the

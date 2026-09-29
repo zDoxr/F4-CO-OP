@@ -220,10 +220,9 @@ public:
 
     bool     m_prevSitting     = false;
     bool     m_prevInPA        = false;
-    // 2026-07-31 diagnostic: ticks remaining until DumpGraphVariableNames
-    // fires once after a PA enter, giving SwitchToPowerArmor's async VM-queued
-    // graph swap time to settle before we dump (0 = not pending).
-    int      m_paVarDumpDelay  = 0;
+    // 0.3.4: when this proxy's weapon was first seen holstered while its owner
+    // has it drawn (0 = not in that state); see TickAnimVars.
+    double   m_weapHolsteredSince = 0.0;
     bool     m_prevGunDown     = true;
     uint32_t m_prevMeleeState  = 0;
     uint32_t m_prevWeaponState = 0;

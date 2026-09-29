@@ -28,6 +28,7 @@
 #include "CoSyncRequirementsLog.h"
 #include "../Animations/CoSyncPlayerAnimation.h"
 #include "CoSyncReviveSync.h"
+#include "CoSyncProxyWeaponAuthority.h"
 #include "CoSyncFirstPersonGraph.h"
 
 extern bool RegisterCoSyncPapyrus(VirtualMachine* vm);
@@ -543,6 +544,10 @@ bool F4SEPlugin_Load(const F4SEInterface* f4se)
     // "Revive" instead of "Talk" on a downed player (fixed-address hook, safe
     // this early like the menu hook above).
     CoSyncReviveSync::InstallActivateTextHook();
+
+    // A proxy's own AI must not holster/draw against the owner's replicated
+    // weapon state (fixed-address hook, same load-time safety as above).
+    CoSyncProxyWeaponAuthority::Install();
 
     // (No DX11 Present hook any more: the ImGui overlay was retired in favour
     // of PrismaUI. The game-window hook is installed from the main-thread

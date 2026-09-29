@@ -13,6 +13,7 @@
 #include "CoSyncVMFormArg.h"
 #include "CoSyncPlayerAnimation.h"
 #include "CoSyncGameAPI.h"
+#include "CoSyncProxyWeaponAuthority.h"
 
 #include "GameReferences.h"
 #include "GameForms.h"
@@ -624,15 +625,10 @@ bool CoSyncEquipHook::EquipItemDirect(Actor* actor, TESForm* form)
     return true;
 }
 
-bool CoSyncEquipHook::DrawWeaponEngine(Actor* actor, bool draw)
+// SEH body kept apart from DrawWeaponEngine: the ScopedOwnCall guard there
+// has a destructor, which a function using __try cannot hold (C2712).
+__declspec(noinline) static bool DrawWeaponEngine_Impl(Actor* actor, bool draw)
 {
-    LOG_REQUIREMENT("CoSyncEquipHook::DrawWeaponEngine",
-        "Needs a valid, fully-spawned actor with a ready animation graph. Calls the engine's own "
-        "draw/holster weapon function directly. Must be called on the game thread; guarded so an "
-        "invalid actor can't crash the game.");
-    if (!actor)
-        return false;
-
     using DrawWeaponFn = char(__fastcall*)(Actor*, bool);
     __try
     {
@@ -649,6 +645,21 @@ bool CoSyncEquipHook::DrawWeaponEngine(Actor* actor, bool draw)
             static_cast<void*>(actor), draw ? 1 : 0);
         return false;
     }
+}
+
+bool CoSyncEquipHook::DrawWeaponEngine(Actor* actor, bool draw)
+{
+    LOG_REQUIREMENT("CoSyncEquipHook::DrawWeaponEngine",
+        "Needs a valid, fully-spawned actor with a ready animation graph. Calls the engine's own "
+        "draw/holster weapon function directly. Must be called on the game thread; guarded so an "
+        "invalid actor can't crash the game.");
+    if (!actor)
+        return false;
+
+    // CoSync's own calls carry the replicated state: never refused by
+    // CoSyncProxyWeaponAuthority's hook.
+    CoSyncProxyWeaponAuthority::ScopedOwnCall own;
+    return DrawWeaponEngine_Impl(actor, draw);
 }
 
 bool CoSyncEquipHook::UnequipItemDirect(Actor* actor, TESForm* form)

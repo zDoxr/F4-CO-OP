@@ -13,6 +13,7 @@
 #include "../Animations/CoSyncPlayerAnimation.h"
 #include "CoSyncCreatureAnimSync.h"
 #include "CoSyncPapyrusHelper.h"
+#include "CoSyncProxyWeaponAuthority.h"
 #include "CoSyncEquipHook.h"
 #include "CoSyncThrowableSync.h"
 #include "CoSyncOverlay.h"
@@ -730,6 +731,22 @@ void CoSyncPlayer::ApplyProxyTransform(const NiPoint3& pos, const NiPoint3& rot)
     else
     {
         CoSyncGameAPI::PositionRemoteActor(actorRef, pos, rot);
+
+        // 0.3.4: PositionRemoteActor moves the character controller with
+        // Actor::SetPosition(pos, true) (vtable 0xCA, sub_140C60B50), which
+        // also zeroes the controller's linear velocity every frame (IDA: the
+        // controller's vfunc +0x1D0, slot 0x3A, is called with the zero
+        // vector). The puppet branch above already hands the owner's velocity
+        // back; player proxies never did, so from 0.3.3 on the engine saw a
+        // controller that never moves. A first-person sender's pose is applied
+        // to the upper body only, and the legs are left to the proxy's own
+        // locomotion graph, which is fed from the engine's movement state --
+        // so the proxy slid with standing legs. INFERRED link (the exact
+        // consumer that turns controller velocity into the Speed graph input
+        // is still unverified, see docs/SYNC_REWORK_REPORT.md); same
+        // freshness rule as the puppet path.
+        const bool fresh = (NowSeconds() - m_lastRecvLocalTime) < 0.25;
+        CoSyncGameAPI::SetActorControllerVelocity(actorRef, fresh ? m_lastVel : NiPoint3(0.f, 0.f, 0.f));
     }
 }
 
@@ -999,6 +1016,8 @@ void CoSyncPlayer::TickAnimVars()
     {
         const uint32_t npcWsRaw = (m_lastRecvAnimVars.actorStateFlags2 >> 1) & 0x7u;
         const bool npcWeaponDrawn = (npcWsRaw >= 3u);
+        if (m_lastRecvAnimVars.isValid)
+            CoSyncProxyWeaponAuthority::SetReplicatedDrawn(actorRef, npcWeaponDrawn);
         if (npcWeaponDrawn != m_prevNpcWeaponDrawn)
         {
             if (!CoSyncEquipHook::DrawWeaponEngine(actorRef, npcWeaponDrawn))
@@ -1095,23 +1114,18 @@ void CoSyncPlayer::TickAnimVars()
             // index-aware dispatch as the cause of PA events being rejected.
             // See CoSyncAnimVarSystem::DumpGraphIndexDiag for full rationale.
             CoSyncAnimVarSystem::DumpGraphIndexDiag(actorRef, "PowerArmorEnter");
-            // Give SwitchToPowerArmor's async VM-queued graph swap time to
-            // land before dumping -- see CoSyncPlayer.h m_paVarDumpDelay.
-            m_paVarDumpDelay = 90;
+            // 0.3.4: the delayed DumpGraphVariableNames that followed here is
+            // gone. It walked the PA graph's variable hash buckets and faulted
+            // inside them (0.3.3 host log 23:52:22, READ at 0x9,
+            // DumpGraphVariableNames+0x290 via TickAnimVars) -- a diagnostic
+            // that crashes is worse than no diagnostic.
         }
         else
         {
             PSC_SendAnimEvent(actorRef, CoSyncAnimUtils::Events::PowerArmorExit);
             LOG_UPDATED("[TickAnimVars] entity=%u PowerArmorExit", entityID);
-            m_paVarDumpDelay = 0;
         }
         m_prevInPA = m_isInPowerArmor;
-    }
-
-    if (m_paVarDumpDelay > 0)
-    {
-        if (--m_paVarDumpDelay == 0)
-            CoSyncAnimVarSystem::DumpGraphVariableNames(actorRef);
     }
 
     if (m_hasSwimPending)
@@ -1537,6 +1551,11 @@ void CoSyncPlayer::TickAnimVars()
 
         {
             const uint32_t weapState = m_lastRecvAnimVars.integers[28];
+            // 0.3.4: the owner's drawn state is authoritative for this proxy;
+            // its own AI may no longer holster/draw against it (see
+            // CoSyncProxyWeaponAuthority).
+            if (!isCreatureSnapshot)
+                CoSyncProxyWeaponAuthority::SetReplicatedDrawn(actorRef, weapState > 0);
             if (weapState != m_prevWeaponState)
             {
                 if (m_prevWeaponState == 0 && weapState > 0)
@@ -1554,6 +1573,32 @@ void CoSyncPlayer::TickAnimVars()
                         entityID, m_prevWeaponState, weapState);
                 }
                 m_prevWeaponState = weapState;
+            }
+
+            // 0.3.4: converge on the STATE, not only on edges. If the owner
+            // has the weapon out and the engine has this proxy's weapon fully
+            // holstered for over a second (anything the authority hook did
+            // not cover, a 3D rebuild, a missed edge), draw it again -- once
+            // per episode, through the engine's own draw. Skipped while a
+            // scheduled draw is pending or the proxy is in Power Armor, whose
+            // enter/exit sequence owns the weapon.
+            if (weapState > 0 && !isCreatureSnapshot && m_weaponDrawDelay == 0 && !m_isInPowerArmor &&
+                CoSyncProxyWeaponAuthority::IsEngineHolstered(actorRef))
+            {
+                const double tNow = NowSeconds();
+                if (m_weapHolsteredSince == 0.0)
+                    m_weapHolsteredSince = tNow;
+                else if (tNow - m_weapHolsteredSince > 1.0)
+                {
+                    m_weapHolsteredSince = 0.0;
+                    const bool ok = CoSyncEquipHook::DrawWeaponEngine(actorRef, true);
+                    LOG_UPDATED("[TickAnimVars] entity=%u owner has the weapon drawn but the proxy's is holstered -- redrawn (%s)",
+                        entityID, ok ? "engine" : "failed");
+                }
+            }
+            else
+            {
+                m_weapHolsteredSince = 0.0;
             }
         }
 

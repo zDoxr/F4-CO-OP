@@ -599,6 +599,25 @@ __declspec(noinline) static bool IsNodeAttached(void* node) noexcept
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
+// 0.3.4: is `node` still inside the tree hanging off `root`? Follows the
+// NiAVObject parent pointer (+0x28, the same field IsNodeAttached reads).
+// IsNodeAttached alone cannot tell a live bone from one whose whole skeleton
+// was detached: a detached skeleton keeps its internal parent links, only its
+// top loses its parent.
+__declspec(noinline) static bool IsNodeUnder(void* node, void* root) noexcept
+{
+    __try {
+        for (int depth = 0; node && depth < 64; ++depth)
+        {
+            if (node == root) return true;
+            node = *reinterpret_cast<void* const*>(
+                reinterpret_cast<const uint8_t*>(node) + 0x28);
+        }
+        return false;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+}
+
 // ============================================================================
 // 2026-08-20 -- pinned per-proxy bone cache (FO4_Wrld Build 68.4 port)
 // ============================================================================
@@ -661,8 +680,13 @@ struct BoneCacheEntry
         bool  upperBody = false;  // drives HOLD-tier gating + smoothing factor
     };
 
-    void*                                     root = nullptr; // GetActorRootNode(false) when built
+    // GetActorRootNode(false) when built. PINNED (NiIncRef) since 0.3.4 -- see
+    // ApplySkeleton's cache-validity checks for why an unpinned root pointer
+    // could not detect a 3D reload.
+    void*                                     root = nullptr;
     std::unordered_map<uint32_t, CachedBone>  nodesByHash;    // pinned, keyed by HashBoneName
+    uint32_t walkedCount   = 0;   // nodes WalkAllNodes found at build time
+    uint64_t nextRecountMs = 0;   // next once-a-second skeleton re-count
 
     // nlerp state: last-applied + prev/cur target quaternions per bone,
     // for the smoothing pass in ApplySkeleton (mirrors FO4_Wrld's c.42
@@ -745,6 +769,9 @@ static void ReleaseBoneCacheEntry(BoneCacheEntry& entry) noexcept
         if (kv.second.node) NiDecRef(kv.second.node);
     entry.nodesByHash.clear();
     entry.smooth.clear();
+    if (entry.root) NiDecRef(entry.root);
+    entry.walkedCount = 0;
+    entry.nextRecountMs = 0;
     entry.root = nullptr;
 }
 
@@ -1910,15 +1937,52 @@ bool ApplySkeleton(Actor* proxy, const CoSyncPlayerAnimation::SkeletonCapture& c
     // here too, once per rebuild, off the PROXY's own node names -- a received
     // capture carries only hashes, so this is the last place names exist to
     // classify from.
+    // 0.3.4 -- cache validity. The "root pointer changed" test alone let the
+    // proxy's replicated pose go to a dead skeleton for a whole session
+    // (0.3.3 client log, host proxy 0xFF000FC6): the cache was built at
+    // 23:45:43.950, the proxy was then hidden and re-shown with full 3D
+    // refreshes (23:45:43, :46, 23:46:15), and the cache was never rebuilt --
+    // every later bone write landed in the old nodes, kept alive by our own
+    // pins, while the rendered skeleton ran the proxy's idle graph ("slides,
+    // no walk, actions don't play"). The unpinned root had been freed and its
+    // address reused by the new root, so the pointer compare still matched.
+    // The host side of the same session shows the second failure: it rebuilt
+    // 1.4 s after the re-show while the 3D was still loading, cached 59 of
+    // ~98 nodes, and never looked again (applied 25/93 for the rest of it).
+    //  1. The root is now pinned, so a replacement 3D can never reuse its
+    //     address -- a reload always changes the pointer.
+    //  2. The cached "Root" bone must still hang off the current root.
+    //  3. Once a second the skeleton is re-counted; a different count means
+    //     it was cached mid-load (or gear changed the tree), so rebuild.
     BoneCacheEntry& entry = g_boneCaches[proxy];
+    const char* rebuildWhy = nullptr;
+    static void* s_proxyNodes[CoSyncPlayerAnimation::MAX_SKELETON_BONES];
+    static const char* s_proxyNames[CoSyncPlayerAnimation::MAX_SKELETON_BONES];
+    uint32_t nodeCount = 0;
+    bool walked = false;
     if (entry.root != root)
+        rebuildWhy = entry.root ? "3D root replaced" : "first build";
+    else if (entry.graphRootNode && !IsNodeUnder(entry.graphRootNode, root))
+        rebuildWhy = "cached skeleton no longer under the 3D root";
+    else if (nowMs >= entry.nextRecountMs)
     {
+        entry.nextRecountMs = nowMs + 1000;
+        WalkAllNodes(root, 0, s_proxyNodes, s_proxyNames, nodeCount);
+        walked = true;
+        if (nodeCount != entry.walkedCount)
+            rebuildWhy = "skeleton node count changed (cached while the 3D was still loading, or gear changed the tree)";
+    }
+
+    if (rebuildWhy)
+    {
+        const uint32_t oldCount = entry.walkedCount;
         ReleaseBoneCacheEntry(entry);
 
-        static void* s_proxyNodes[CoSyncPlayerAnimation::MAX_SKELETON_BONES];
-        static const char* s_proxyNames[CoSyncPlayerAnimation::MAX_SKELETON_BONES];
-        uint32_t nodeCount = 0;
-        WalkAllNodes(root, 0, s_proxyNodes, s_proxyNames, nodeCount);
+        if (!walked)
+        {
+            nodeCount = 0;
+            WalkAllNodes(root, 0, s_proxyNodes, s_proxyNames, nodeCount);
+        }
 
         for (uint32_t j = 1; j < nodeCount; ++j)
         {
@@ -1937,7 +2001,10 @@ bool ApplySkeleton(Actor* proxy, const CoSyncPlayerAnimation::SkeletonCapture& c
             cb.upperBody = IsUpperBodyBoneName(nm);
             entry.nodesByHash[h] = cb;
         }
+        NiIncRef(root);   // pin: see the cache-validity comment above
         entry.root = root;
+        entry.walkedCount = nodeCount;
+        entry.nextRecountMs = nowMs + 1000;
 
         // The graph's own write-target node 0 is the "Root" bone (confirmed
         // live by the FP-drive diagnostic's writeTargetNode0 name='Root'
@@ -1948,8 +2015,8 @@ bool ApplySkeleton(Actor* proxy, const CoSyncPlayerAnimation::SkeletonCapture& c
             entry.graphRootNode = (rootIt != entry.nodesByHash.end()) ? rootIt->second.node : nullptr;
         }
 
-        LOG_INFO("[PlayerAnim] ApplySkeleton: proxy 0x%08X cache REBUILT nodeCount=%u pinned=%zu source boneCount=%u graphRoot=%p",
-                 proxy->formID, nodeCount, entry.nodesByHash.size(), capture.count, entry.graphRootNode);
+        LOG_INFO("[PlayerAnim] ApplySkeleton: proxy 0x%08X cache REBUILT (%s) nodeCount=%u (was %u) pinned=%zu source boneCount=%u graphRoot=%p",
+                 proxy->formID, rebuildWhy, nodeCount, oldCount, entry.nodesByHash.size(), capture.count, entry.graphRootNode);
         if (!entry.graphRootNode)
             LOG_WARN("[PlayerAnim] proxy 0x%08X has no 'Root' bone -- write-last re-stamp cannot be keyed for it",
                      proxy->formID);
