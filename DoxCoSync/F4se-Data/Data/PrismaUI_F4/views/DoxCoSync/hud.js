@@ -2,7 +2,8 @@
  * CoSync teammate HUD. Passive: never takes input.
  *   C++ -> JS : window.cosyncHud(json)
  *     { hud:[r,g,b], players:[{ id, name, level, hp, maxHp, rads, ap, maxAp, downed, hurt,
- *                               faction, rank, banner }] }   (faction fields: CoSyncFactions)
+ *                               faction, rank, banner, talking }],
+ *       voice:{ on, mic, mode:'P'|'F', muted, tx, ptt } }   (faction fields: CoSyncFactions)
  * Pushed by CoSyncPrismaUI::TickHud only when the data changed (<= 10 Hz);
  * senders stream their vitals at 10 Hz with a 1 s exact resync.
  *
@@ -14,6 +15,14 @@
   'use strict';
 
   const team = document.getElementById('team');
+  const voice = document.getElementById('voice');
+
+  // Microphone / speaker marks (inline SVG, HUD colour via currentColor).
+  const MIC_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">' +
+    '<rect x="5.5" y="1.5" width="5" height="8" rx="2.5" fill="currentColor"/>' +
+    '<path d="M3 7.5a5 5 0 0 0 10 0M8 12.5v2.5M5.5 15h5"/></svg>';
+  const TALK_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">' +
+    '<path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path d="M11 5.5a3.5 3.5 0 0 1 0 5M13 3.5a6.5 6.5 0 0 1 0 9"/></svg>';
   const cards = new Map();   // player id -> { root, name, right, hp, rads, apWrap, ap }
 
   const clamp01 = v => (v < 0 ? 0 : (v > 1 ? 1 : v));
@@ -46,6 +55,8 @@
     const root = el('div', 'mate');
     const top = el('div', 'top', root);
     const who = el('span', 'who', top);
+    const talk = el('span', 'talk', who);
+    talk.innerHTML = TALK_SVG;
     const flag = el('span', '', who);
     const name = el('span', 'name', who);
     const right = el('span', '', top);
@@ -70,6 +81,7 @@
 
     c.root.classList.toggle('hurt', !!p.hurt);
     c.root.classList.toggle('down', !!p.downed);
+    c.root.classList.toggle('talking', !!p.talking);
 
     setText(c.name, p.name);
 
@@ -109,11 +121,34 @@
     }
   };
 
+  let voiceKey = null;
+  const updateVoice = v => {
+    const on = !!(v && v.on);
+    const key = on ? [v.mic, v.mode, v.muted, v.tx, v.ptt].join('|') : '';
+    if (key === voiceKey) return;
+    voiceKey = key;
+    voice.className = 'voice' + (on ? ' on' : '') + (on && v.tx ? ' tx' : '') +
+      (on && v.mode === 'F' ? ' faction' : '') + (on && v.muted ? ' muted' : '') + (on && !v.mic ? ' nomic' : '');
+    if (!on) { voice.innerHTML = ''; return; }
+    let text;
+    if (!v.mic) text = 'NO MICROPHONE';
+    else if (v.muted) text = 'MIC MUTED';
+    else text = (v.mode === 'F' ? 'FACTION' : 'PROXIMITY') + ' VOICE';
+    voice.innerHTML = MIC_SVG;
+    const mode = el('span', 'mode', voice);
+    mode.textContent = text;
+    if (v.mic && !v.muted) {
+      const k = el('span', 'key', voice);
+      k.textContent = v.ptt ? 'PUSH TO TALK' : 'OPEN MIC';
+    }
+  };
+
   window.cosyncHud = json => {
     let data;
     try { data = JSON.parse(json); }
     catch (e) { console.error('[CoSyncHUD] bad JSON'); return; }
     if (data.hud) applyHud(data.hud);
+    updateVoice(data.voice);
 
     const players = data.players || [];
     const seen = new Set();

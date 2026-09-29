@@ -6,6 +6,7 @@
 #include "CoSyncThreadDiag.h"
 #include "CoSyncTransport.h"
 #include "CoSyncNet.h"
+#include "CoSyncVoice.h"
 
 #include <Windows.h>
 #include <string>
@@ -97,6 +98,23 @@ namespace
         {
             CoSyncPrismaUI::RequestOpenChat();
             return 0;
+        }
+
+        // Voice keys ([Voice] iModeKey default U, iMuteKey unbound): same
+        // conditions as the chat key.
+        if (msg == WM_KEYDOWN && !(lParam & (1 << 30)))
+        {
+            const int vk = static_cast<int>(wParam);
+            const int modeKey = CoSyncVoice::ModeKey();
+            const int muteKey = CoSyncVoice::MuteKey();
+            if ((vk == modeKey || vk == muteKey) && vk != 0 && CanOpenChat())
+            {
+                if (vk == modeKey)
+                    CoSyncVoice::CycleMode();
+                else
+                    CoSyncVoice::ToggleMute();
+                return 0;
+            }
         }
 
         // Window closing (Alt+F4 etc.) while the PrismaUI menu holds focus:

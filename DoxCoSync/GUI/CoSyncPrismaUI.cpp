@@ -19,6 +19,7 @@
 #include "CoSyncFactions.h"
 #include "CoSyncWorkshopAuthority.h"
 #include "CoSyncChat.h"
+#include "CoSyncVoice.h"
 
 #include <ShlObj.h>
 
@@ -342,6 +343,7 @@ namespace
             json += ",\"host\":";  json += e.isHost ? "true" : "false";
             json += ",\"you\":";   json += e.isLocal ? "true" : "false";
             json += ",\"inGame\":"; json += e.inGame ? "true" : "false";
+            json += ",\"talking\":"; json += CoSyncVoice::IsTalking(e.entityID) ? "true" : "false";
             json += "}";
         }
         json += "],\"joining\":" + std::to_string(joining);
@@ -953,6 +955,26 @@ namespace CoSyncPrismaUI
             const std::string rgb = "[" + std::to_string(r) + "," + std::to_string(g) + "," + std::to_string(b) + "]";
             s_api->InteropCall(s_chat, "cosyncChatHud", rgb.c_str());
         }
+        // Who is talking (voice), pushed only when the set changes.
+        {
+            static std::string s_lastTalk;
+            std::string talk = "[";
+            bool first = true;
+            for (const CoSyncHudPlayer& p : CoSyncOverlay_GetLobbySnapshot())
+            {
+                if (!CoSyncVoice::IsTalking(p.entityID))
+                    continue;
+                if (!first) talk += ",";
+                first = false;
+                talk += "\"" + JsonEscape(p.isLocal ? "You" : p.name.c_str()) + "\"";
+            }
+            talk += "]";
+            if (talk != s_lastTalk)
+            {
+                s_lastTalk = talk;
+                s_api->InteropCall(s_chat, "cosyncChatTalk", talk.c_str());
+            }
+        }
         // Push only when something new arrived (no polling in the page).
         if (CoSyncChat::LatestSeq() != s_chatLastSeq)
         {
@@ -1051,6 +1073,7 @@ namespace CoSyncPrismaUI
             std::snprintf(num, sizeof(num), ",\"ap\":%.1f,\"maxAp\":%.1f", p.ap, p.maxAp);
             json += num;
             json += ",\"downed\":"; json += p.isDowned ? "true" : "false";
+            json += ",\"talking\":"; json += CoSyncVoice::IsTalking(p.entityID) ? "true" : "false";
             json += ",\"hurt\":";   json += p.hurt ? "true" : "false";
             CoSyncFactions::Badge badge;
             if (CoSyncFactions::GetBadge(p.entityID, badge))
@@ -1061,7 +1084,15 @@ namespace CoSyncPrismaUI
             }
             json += "}";
         }
-        json += "]}";
+        json += "]";
+        const CoSyncVoice::Status vs = CoSyncVoice::GetStatus();
+        json += ",\"voice\":{\"on\":"; json += vs.enabled ? "true" : "false";
+        json += ",\"mic\":";   json += vs.micOk ? "true" : "false";
+        json += ",\"mode\":\""; json += vs.mode; json += "\"";
+        json += ",\"muted\":"; json += vs.muted ? "true" : "false";
+        json += ",\"tx\":";    json += vs.transmitting ? "true" : "false";
+        json += ",\"ptt\":";   json += vs.pushToTalk ? "true" : "false";
+        json += "}}";
 
         if (json != s_hudLastJson)
         {
@@ -1070,12 +1101,6 @@ namespace CoSyncPrismaUI
         }
     }
 
-    // CoSync's tick. In game it runs on engine job threads, while PrismaUI's
-    // game thread is the window thread (2026-09-26 logs: every UI event on
-    // the window thread, the tick on 6-7 job threads). This used to bail out
-    // whenever the two differed, so the teammate HUD switched itself off on
-    // the first in-game tick ("TickHud called off PrismaUI's game thread")
-    // and never showed. The update now goes to PrismaUI's thread.
     void RequestOpenChat()
     {
         if (!s_api || s_chatOpen.exchange(true))
@@ -1089,6 +1114,12 @@ namespace CoSyncPrismaUI
         return s_chatOpen.load();
     }
 
+    // CoSync's tick. In game it runs on engine job threads, while PrismaUI's
+    // game thread is the window thread (2026-09-26 logs: every UI event on
+    // the window thread, the tick on 6-7 job threads). This used to bail out
+    // whenever the two differed, so the teammate HUD switched itself off on
+    // the first in-game tick ("TickHud called off PrismaUI's game thread")
+    // and never showed. The update now goes to PrismaUI's thread.
     void TickHud()
     {
         LOG_REQUIREMENT("CoSyncPrismaUI::TickHud", "CoSync tick. Throttled to 10 Hz; the view work runs on PrismaUI's game thread and pushes to the page only when the data changed.");

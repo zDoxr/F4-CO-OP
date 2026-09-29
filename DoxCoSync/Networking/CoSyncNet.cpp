@@ -49,6 +49,7 @@
 #include "CoSyncItemMods.h"
 #include "CoSyncFactions.h"
 #include "CoSyncChat.h"
+#include "CoSyncVoice.h"
 #include "CoSyncWorkshopAuthority.h"
 
 #include <algorithm>
@@ -403,6 +404,7 @@ void CoSyncNet::Init(bool isHost)
     CoSyncFactions::OnSessionStart(isHost);
     CoSyncWorkshopAuthority::OnSessionStart(isHost);
     CoSyncChat::OnSessionStart();
+    CoSyncVoice::OnSessionStart();
     CoSyncTimeSync::Init();
     LOG_INFO("[CoSyncNet] Init() step: CoSyncTimeSync::Init done");
 
@@ -681,6 +683,7 @@ void CoSyncNet::Shutdown()
     CoSyncFactions::OnSessionEnd();
     CoSyncWorkshopAuthority::OnSessionEnd();
     CoSyncChat::OnSessionEnd();
+    CoSyncVoice::OnSessionEnd();
 
     //UninstallEquipHook();
     UninstallWorkshopScrapHook();
@@ -1124,6 +1127,7 @@ void CoSyncNet::Tick(double now)
     g_lastTickStep = "FlushPendingHealthOps";        CoSyncHealthSync::FlushPendingHealthOps();
     g_lastTickStep = "FlushPendingCorpses";          CoSyncHealthSync::FlushPendingCorpses();
     g_lastTickStep = "CoSyncChat::Tick";             CoSyncChat::Tick(now);
+    g_lastTickStep = "CoSyncVoice::Tick";            CoSyncVoice::Tick(now);
     g_lastTickStep = "TickDamageDetection";          CoSyncHealthSync::TickDamageDetection(now);
     g_lastTickStep = "FlushPendingReviveOps";        CoSyncReviveSync::FlushPendingReviveOps();
     g_lastTickStep = "TickReviveChannel";            CoSyncReviveSync::TickReviveChannel(now);
@@ -1255,6 +1259,14 @@ void CoSyncNet::OnReceive(const std::string& msg, double now, HSteamNetConnectio
     // GNS notice (PEERLEFT) and clients trust everything from the host.
     const bool checkSender = isHostRole && conn != k_HSteamNetConnection_Invalid;
     uint32_t senderEid = checkSender ? HostSenderEntityID(conn) : 0;
+
+    // Voice first: 50 packets a second per speaker, no identity field (the
+    // host routes by the connection's bound entity).
+    if (CoSyncVoice::IsVoiceMessage(msg))
+    {
+        CoSyncVoice::OnReceive(msg, conn, senderEid, isHostRole);
+        return;
+    }
 
     if (checkSender)
     {

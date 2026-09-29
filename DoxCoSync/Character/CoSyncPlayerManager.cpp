@@ -956,6 +956,25 @@ bool CoSyncPlayerManager::IsLocalLocation(uint32_t ws, uint32_t cell)
     return lwsID == 0 && r->parentCell && r->parentCell->formID == cell;
 }
 
+bool CoSyncPlayerManager::GetEntityPosition(uint32_t entityID, float& x, float& y, float& z)
+{
+    if (entityID == 0)
+        return false;
+    if (entityID == m_localEntityID)
+    {
+        PlayerCharacter* lp = CoSyncGetPlayer();
+        if (!lp) return false;
+        x = lp->pos.x; y = lp->pos.y; z = lp->pos.z;
+        return true;
+    }
+    auto it = m_statesByEntityID.find(entityID);
+    if (it == m_statesByEntityID.end() || it->second.lastUpdateLocalTime <= 0.0)
+        return false;
+    const NiPoint3& p = it->second.lastUpdate.pos;
+    x = p.x; y = p.y; z = p.z;
+    return true;
+}
+
 bool CoSyncPlayerManager::GetEntityLocation(uint32_t entityID, uint32_t& ws, uint32_t& cell)
 {
     ws = 0xFFFFFFFFu;

@@ -16,7 +16,7 @@
 //       worldspace/cell; clients send WS| too.
 #define COSYNC_VERSION_MAJOR 0
 #define COSYNC_VERSION_MINOR 3
-#define COSYNC_VERSION_PATCH 1
+#define COSYNC_VERSION_PATCH 2
 #define COSYNC_VERSION_TAG   ""
 
 // Numeric form used on the wire. MINOR and PATCH must stay below 100 for the

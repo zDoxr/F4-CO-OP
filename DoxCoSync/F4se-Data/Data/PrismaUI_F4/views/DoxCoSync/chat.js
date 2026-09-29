@@ -3,6 +3,7 @@
  *   C++ -> JS : window.cosyncChat(json)      new messages {seq, msgs:[{seq,scope,name,faction,text,me}]}
  *               window.cosyncChatOpen(scope) take input ("G" everyone / "F" faction)
  *               window.cosyncChatHud(rgb)     HUD colour [r,g,b]
+ *               window.cosyncChatTalk(json)   names heard on voice right now ["You","Ann"]
  *   JS -> C++ : window.cosync_chat("send|G|text" | "send|F|text" | "close")
  * Messages are pushed by the plugin only when new ones arrive; nothing here
  * polls. Text is inserted with textContent (never as HTML).
@@ -14,6 +15,7 @@
   const log = document.getElementById('log');
   const input = document.getElementById('input');
   const scopeEl = document.getElementById('scope');
+  const talkers = document.getElementById('talkers');
 
   const MAX_LINES = 60;
   const FADE_MS = 12000;
@@ -63,6 +65,13 @@
     let data;
     try { data = JSON.parse(json); } catch (e) { console.error('[CoSyncChat] bad JSON'); return; }
     (data.msgs || []).forEach(addLine);
+  };
+
+  window.cosyncChatTalk = json => {
+    let names;
+    try { names = JSON.parse(json); } catch (e) { return; }
+    talkers.textContent = names.length ? '▶ ' + names.join(', ') : '';
+    talkers.classList.toggle('on', names.length > 0);
   };
 
   window.cosyncChatOpen = s => {

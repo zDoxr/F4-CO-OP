@@ -60,6 +60,11 @@ public:
     // its owner's location. false = unknown. GAME THREAD.
     bool GetEntityLocation(uint32_t entityID, uint32_t& ws, uint32_t& cell);
 
+    // Where an entity is in its location: the local player's own position,
+    // anyone else's last received position update. false = none yet.
+    // GAME THREAD.
+    bool GetEntityPosition(uint32_t entityID, float& x, float& y, float& z);
+
     // True when (ws, cell) is where the local player is -- same exterior
     // worldspace, or the same interior cell. Unknown (ws == 0xFFFFFFFF) = true
     // (callers keep their old behaviour until a location is known).

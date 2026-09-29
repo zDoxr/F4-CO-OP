@@ -101,7 +101,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <AdditionalIncludeDirectories>$(ProjectDir)Clothing;$(ProjectDir)World;$(ProjectDir)Items;$(ProjectDir)Networking;$(ProjectDir)Hooks;$(ProjectDir)Character;$(ProjectDir)Animations;$(ProjectDir)Weapons;$(ProjectDir)Core;$(ProjectDir)CoSync;$(ProjectDir)GUI;$(ProjectDir)Dialog;$(ProjectDir)Armor;$(ProjectDir)ThirdParty/extern/include;$(ProjectDir)ThirdParty/extern/include/common;$(SolutionDir)f4se-0.7.9;$(SolutionDir)f4se-0.7.9\f4se;$(SolutionDir)f4se-0.7.9\f4se_common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\MinHook\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Clothing;$(ProjectDir)World;$(ProjectDir)Items;$(ProjectDir)Networking;$(ProjectDir)Hooks;$(ProjectDir)Character;$(ProjectDir)Animations;$(ProjectDir)Weapons;$(ProjectDir)Core;$(ProjectDir)CoSync;$(ProjectDir)GUI;$(ProjectDir)Dialog;$(ProjectDir)Armor;$(ProjectDir)ThirdParty/extern/include;$(ProjectDir)ThirdParty/extern/include/common;$(SolutionDir)f4se-0.7.9;$(SolutionDir)f4se-0.7.9\f4se;$(SolutionDir)f4se-0.7.9\f4se_common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\MinHook\Include;$(ProjectDir)ThirdParty\Opus\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>Default</LanguageStandard>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
@@ -123,7 +123,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <AdditionalIncludeDirectories>$(ProjectDir)Clothing;$(ProjectDir)World;$(ProjectDir)Items;$(ProjectDir)Networking;$(ProjectDir)Hooks;$(ProjectDir)Character;$(ProjectDir)Animations;$(ProjectDir)Weapons;$(ProjectDir)Core;$(ProjectDir)CoSync;$(ProjectDir)GUI;$(ProjectDir)Dialog;$(ProjectDir)Armor;$(ProjectDir)ThirdParty/extern/include;$(ProjectDir)ThirdParty/extern/include/common;$(SolutionDir)f4se-0.7.9;$(SolutionDir)f4se-0.7.9\f4se;$(SolutionDir)f4se-0.7.9\f4se_common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\MinHook\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Clothing;$(ProjectDir)World;$(ProjectDir)Items;$(ProjectDir)Networking;$(ProjectDir)Hooks;$(ProjectDir)Character;$(ProjectDir)Animations;$(ProjectDir)Weapons;$(ProjectDir)Core;$(ProjectDir)CoSync;$(ProjectDir)GUI;$(ProjectDir)Dialog;$(ProjectDir)Armor;$(ProjectDir)ThirdParty/extern/include;$(ProjectDir)ThirdParty/extern/include/common;$(SolutionDir)f4se-0.7.9;$(SolutionDir)f4se-0.7.9\f4se;$(SolutionDir)f4se-0.7.9\f4se_common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\MinHook\Include;$(ProjectDir)ThirdParty\Opus\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>IPrefix.h</ForcedIncludeFiles>
       <LanguageStandard>Default</LanguageStandard>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -133,8 +133,8 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>$(ProjectDir)Lib;$(ProjectDir)ThirdParty/GNS/Lib;$(ProjectDir)ThirdParty/MinHook/Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>common.lib;f4se_common.lib;GameNetworkingSockets.lib;crypt32.lib;secur32.lib;iphlpapi.lib;minhook.x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)Lib;$(ProjectDir)ThirdParty/GNS/Lib;$(ProjectDir)ThirdParty/MinHook/Lib;$(ProjectDir)ThirdParty/Opus/Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>common.lib;f4se_common.lib;GameNetworkingSockets.lib;crypt32.lib;secur32.lib;iphlpapi.lib;minhook.x64.lib;opus.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
       <!-- 2026-08-04: emit a linker map so the VEH's "DoxCoSync.dll+0xRVA"
            crash lines can be resolved to an actual function name. Without it
@@ -153,7 +153,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ForcedIncludeFiles>$(ProjectDir)Core\GlobalPrelude.h</ForcedIncludeFiles>
-      <AdditionalIncludeDirectories>$(ProjectDir)Clothing;$(ProjectDir)World;$(ProjectDir)Items;$(ProjectDir)Networking;$(ProjectDir)Hooks;$(ProjectDir)Character;$(ProjectDir)Animations;$(ProjectDir)Weapons;$(ProjectDir)Core;$(ProjectDir)CoSync;$(ProjectDir)GUI;$(ProjectDir)Dialog;$(ProjectDir)Armor;$(ProjectDir)ThirdParty/extern/include;$(ProjectDir)ThirdParty/extern/include/common;$(SolutionDir)f4se-0.7.9;$(SolutionDir)f4se-0.7.9\f4se;$(SolutionDir)f4se-0.7.9\f4se_common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\MinHook\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Clothing;$(ProjectDir)World;$(ProjectDir)Items;$(ProjectDir)Networking;$(ProjectDir)Hooks;$(ProjectDir)Character;$(ProjectDir)Animations;$(ProjectDir)Weapons;$(ProjectDir)Core;$(ProjectDir)CoSync;$(ProjectDir)GUI;$(ProjectDir)Dialog;$(ProjectDir)Armor;$(ProjectDir)ThirdParty/extern/include;$(ProjectDir)ThirdParty/extern/include/common;$(SolutionDir)f4se-0.7.9;$(SolutionDir)f4se-0.7.9\f4se;$(SolutionDir)f4se-0.7.9\f4se_common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\MinHook\Include;$(ProjectDir)ThirdParty\Opus\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>Default</LanguageStandard>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
@@ -175,7 +175,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <AdditionalIncludeDirectories>$(ProjectDir)Clothing;$(ProjectDir)World;$(ProjectDir)Items;$(ProjectDir)Networking;$(ProjectDir)Hooks;$(ProjectDir)Character;$(ProjectDir)Animations;$(ProjectDir)Weapons;$(ProjectDir)Core;$(ProjectDir)CoSync;$(ProjectDir)GUI;$(ProjectDir)Dialog;$(ProjectDir)Armor;$(ProjectDir)ThirdParty/extern/include;$(ProjectDir)ThirdParty/extern/include/common;$(SolutionDir)f4se-0.7.9;$(SolutionDir)f4se-0.7.9\f4se;$(SolutionDir)f4se-0.7.9\f4se_common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\MinHook\Include;$(ProjectDir)ThirdParty\PrismaUI;$(SolutionDir)f4se-0.7.9\xbyak;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Clothing;$(ProjectDir)World;$(ProjectDir)Items;$(ProjectDir)Networking;$(ProjectDir)Hooks;$(ProjectDir)Character;$(ProjectDir)Animations;$(ProjectDir)Weapons;$(ProjectDir)Core;$(ProjectDir)CoSync;$(ProjectDir)GUI;$(ProjectDir)Dialog;$(ProjectDir)Armor;$(ProjectDir)ThirdParty/extern/include;$(ProjectDir)ThirdParty/extern/include/common;$(SolutionDir)f4se-0.7.9;$(SolutionDir)f4se-0.7.9\f4se;$(SolutionDir)f4se-0.7.9\f4se_common;$(ProjectDir)ThirdParty/GNS/Include;$(ProjectDir)ThirdParty\MinHook\Include;$(ProjectDir)ThirdParty\Opus\Include;$(ProjectDir)ThirdParty\PrismaUI;$(SolutionDir)f4se-0.7.9\xbyak;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>IPrefix.h</ForcedIncludeFiles>
       <!-- C++17: required by the PrismaUI modder API header (inline constexpr,
            [[nodiscard]], std::is_*_v traits). -->
@@ -192,8 +192,8 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>$(ProjectDir)Lib;$(ProjectDir)ThirdParty/GNS/Lib;$(ProjectDir)ThirdParty/MinHook/Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>common.lib;f4se_common.lib;GameNetworkingSockets.lib;crypt32.lib;secur32.lib;iphlpapi.lib;minhook.x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)Lib;$(ProjectDir)ThirdParty/GNS/Lib;$(ProjectDir)ThirdParty/MinHook/Lib;$(ProjectDir)ThirdParty/Opus/Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>common.lib;f4se_common.lib;GameNetworkingSockets.lib;crypt32.lib;secur32.lib;iphlpapi.lib;minhook.x64.lib;opus.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
       <!-- 2026-08-04: emit a linker map so the VEH's "DoxCoSync.dll+0xRVA"
            crash lines can be resolved to an actual function name. Without it
@@ -353,6 +353,7 @@ exit /b 0
     <ClInclude Include="World\CoSyncWorkshopEngine.h" />
     <ClInclude Include="World\CoSyncWorkshopAuthority.h" />
     <ClInclude Include="Networking\CoSyncChat.h" />
+    <ClInclude Include="Networking\CoSyncVoice.h" />
     <ClInclude Include="Character\CoSyncProfiles.h" />
     <ClInclude Include="Character\CoSyncProxyLooks.h" />
     <ClInclude Include="Character\CoSyncCompanions.h" />
@@ -552,6 +553,7 @@ exit /b 0
     <ClCompile Include="World\CoSyncWorkshopEngine.cpp" />
     <ClCompile Include="World\CoSyncWorkshopAuthority.cpp" />
     <ClCompile Include="Networking\CoSyncChat.cpp" />
+    <ClCompile Include="Networking\CoSyncVoice.cpp" />
     <ClCompile Include="Character\CoSyncProfiles.cpp" />
     <ClCompile Include="Character\CoSyncProxyLooks.cpp" />
     <ClCompile Include="Character\CoSyncCompanions.cpp" />

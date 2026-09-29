@@ -70,7 +70,8 @@
     const rows = [['Players', state.net.players + ' / ' + state.maxPlayers, '', 'section']];
     state.roster.forEach(p => {
       const status = p.host ? 'Host' : (p.inGame ? 'In Game' : 'Loading');
-      rows.push(['●  ' + p.name + (p.you ? '  (You)' : ''), status, p.inGame || p.host ? '' : 'dim', 'player']);
+      const mark = p.talking ? '▶  ' : '●  ';   // ▶ while talking on voice
+      rows.push([mark + p.name + (p.you ? '  (You)' : ''), status, p.inGame || p.host ? '' : 'dim', 'player']);
     });
     if (state.joining > 0)
       rows.push(['○  Joining…', state.joining + (state.joining === 1 ? ' player' : ' players'), 'dim', 'player']);

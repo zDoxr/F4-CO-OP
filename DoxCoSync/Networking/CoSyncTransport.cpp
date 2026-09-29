@@ -35,10 +35,11 @@ namespace
 
     // Position (EU) and pose (BONES) messages are pure state: the next one
     // for the same entity replaces them completely, so evicting one loses
-    // nothing permanent. Every other message is an event.
+    // nothing permanent. Voice frames (VOICE/VOICEM) are just as disposable.
+    // Every other message is an event.
     bool IsSupersededState(const std::string& m)
     {
-        return m.rfind("EU|", 0) == 0 || m.rfind("BONES|", 0) == 0;
+        return m.rfind("EU|", 0) == 0 || m.rfind("BONES|", 0) == 0 || m.rfind("VOICE", 0) == 0;
     }
 
     size_t s_evictedState = 0;
@@ -144,8 +145,11 @@ void CoSyncTransport::ForwardMessage(const std::string& msg, HSteamNetConnection
     if (!s_initialized)
         return;
 
+    // Voice frames (VOICE / VOICEM, 50 a second per speaker): not logged.
+    if (msg.rfind("VOICE", 0) == 0)
+        ;
     // World chunks are raw save bytes; profiles are large -- log the size only.
-    if (msg.rfind("WORLDCHUNK|", 0) == 0 || msg.rfind("PROFILEUP|", 0) == 0)
+    else if (msg.rfind("WORLDCHUNK|", 0) == 0 || msg.rfind("PROFILEUP|", 0) == 0)
         LOG_DEBUG("[Transport] ForwardMessage %zu bytes (conn=%u): %.10s...", msg.size(), conn, msg.c_str());
     // EU: 80 chars cut off the sender timestamp (field 6), which is what a
     // send-vs-arrival jitter measurement needs (Phase 5 audit). 170 covers

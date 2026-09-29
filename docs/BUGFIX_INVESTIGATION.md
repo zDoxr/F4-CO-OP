@@ -276,7 +276,7 @@ names for puppet playback, "ragdoll at rest" state.
 | 5 | **Pip-Boy (K2), FaceGen (K1).** | none |
 | 6 | **Networking audit** (sequence/staleness per message family, reconnect, log volume). | as found |
 | 7 | **Text chat** (global + faction, host-enforced recipients, rate limit, UTF-8 length caps) + PrismaUI chat widget. | `CHAT|G|text` / `CHAT|F|text` (client → host), `CHATM|scope|senderEid|name|text` (host → recipients) |
-| 8 | **Voice** (proximity + faction modes, mute, talking indicator). | voice frames on the unreliable lane, `VOICE|seq|mode|<payload>`; `VTALK|eid|0/1` edges for the indicator |
+| 8 | **Voice** (proximity + faction modes, mute, talking indicator). | **As built (0.3.2):** `VOICE|<P/F>|<seq>|<opus>` client -> host and `VOICEM|<eid>|<P/F>|<seq>|<gain>|<opus>` host -> each recipient, both unreliable. No `VTALK`: a receiver derives "talking" from the frames it is sent, so the indicator can never reveal a conversation the host did not route to you. |
 | 9 | **UI:** faction emblems, banner discovery feedback, overhead name/faction/level (after the camera RE). | none (uses existing state) |
 | 10 | **Test matrix** for every fix. | — |
 

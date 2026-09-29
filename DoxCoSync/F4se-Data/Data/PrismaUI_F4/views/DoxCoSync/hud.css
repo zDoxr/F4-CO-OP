@@ -105,3 +105,33 @@ html, body {
   text-overflow: ellipsis;
 }
 .mate .faction .rank { color: var(--hud); }
+
+/* Voice: a speaker mark beside a teammate's name while you hear them. */
+.mate .talk {
+  display: none;
+  width: 1.7vh;
+  height: 1.7vh;
+  flex: none;
+}
+.mate.talking .talk { display: block; }
+.mate.talking .name { color: #fff; text-shadow: 0 0 0.7vh var(--hud); }
+
+/* Voice mode indicator (your own mic), under the teammate stack. */
+.voice {
+  position: absolute;
+  left: 3.6vh;
+  bottom: 18.2vh;
+  display: none;
+  align-items: center;
+  gap: 0.7vh;
+  font-size: 1.5vh;
+  letter-spacing: 0.08em;
+  color: var(--hud-55);
+}
+.voice.on { display: flex; }
+.voice svg { width: 1.7vh; height: 1.7vh; }
+.voice .key { color: var(--hud-25); letter-spacing: 0.03em; }
+.voice.tx { color: var(--hud); text-shadow: 0 0 0.6vh var(--hud-glow); }
+.voice.tx svg { filter: drop-shadow(0 0 0.4vh var(--hud)); }
+.voice.faction .mode { color: rgb(230, 190, 90); }
+.voice.muted, .voice.nomic { color: var(--hit); }

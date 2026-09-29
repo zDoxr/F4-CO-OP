@@ -2,6 +2,39 @@
 
 ---
 
+## [0.3.2] — 2026-09-28
+
+### Voice chat: proximity and faction, no Steam needed
+
+Built clean, deployed. **Not yet live-tested.**
+
+- **Own pipeline** (`Networking/CoSyncVoice`), so GOG / non-Steam players get voice too: microphone through waveIn (48 kHz mono, 20 ms frames), Opus 1.5.2 (VOIP, 24 kbit/s, in-band FEC; vendored in `ThirdParty/Opus`, BSD licence, static CRT build), sent over the existing GNS connection on the unreliable lane, decoded with loss concealment / FEC and played through XAudio2 (loaded at run time, one voice per speaker).
+- **The host routes every frame.** The speaker is the identity bound to the connection. Proximity: same location (same exterior worldspace or same interior cell) and within the host's `fRange` (default 3000 units), fading out from `fFullVolumeRange` (600); the host sets each recipient's volume. Faction: only your faction's online members, full volume, anywhere. Per-connection budget of 60 frames/s.
+- **Modes and keys** (`[Voice]` in CoSync.ini): voice activation by default (`fThreshold`, 400 ms hang time, one frame of pre-roll) or push-to-talk (`iPushToTalkKey`); `iModeKey` (U) switches proximity / faction (faction only while you are in one, back to proximity when you leave); `iMuteKey` mutes the mic; `fVolume`, `fMicGain`, `iBitrate`, `bEnabled`.
+- **Indicators:** teammate HUD shows your voice mode (PROXIMITY / FACTION VOICE, MIC MUTED, NO MICROPHONE; lit while you transmit) and a speaker mark on each teammate you hear; the chat box lists who is talking; the Multiplayer menu roster marks talkers with ▶.
+- Voice frames are not written to the log and are the first to go if the inbox ever fills.
+- Version 0.3.2 (network build 302): new messages VOICE / VOICEM.
+- Known limits: no left/right panning yet (volume only); the default microphone and speakers are used (Windows default devices).
+
+---
+
+## [0.3.1] — 2026-09-28
+
+### Directive 2, first fixes (see `docs/BUGFIX_INVESTIGATION.md`)
+
+Built clean, deployed. **Not yet live-tested.**
+
+- **Character editor centred (K1):** the third-person shoulder offset (ThirdPersonState +0x60/+0x6C, IDA-verified) is zeroed while the editor is open and restored after.
+- **Pip-Boy kept on join (K2):** the inventory replace re-adds and equips the Pip-Boy natively (the Papyrus add was failing: "0 items").
+- **Location identity (K5, U1-U3, U5):** every player reports its worldspace / interior cell (`WS` on both roles; EC and NPCSEEN carry a location). Proxies are no longer pulled into your cell from another location -- fixes the tether and the interior/exterior desync. The Vault 111 editor trip no longer claims NPCs.
+- **NPC combat fidelity (K3):** puppets show the owner's fight (draw state, fire / reload / throw replay, melee attack events from the owner) and never start their own combat.
+- **Corpses (K4):** the owner sends the settled corpse position (`CORPSE`), other players snap to it.
+- **Dynamic NPC ownership:** the host hands an NPC to the player who is near it when its owner is far away or elsewhere (cooldowns against ping-pong).
+- **Text chat:** global and faction chat (`Y`), host-enforced recipients, UTF-8 checked, rate limited (`CHAT` / `CHATM`).
+- Version 0.3.1 (network build 301).
+
+---
+
 ## [0.3.0] — 2026-09-28
 
 ### Factions, territory and authoritative, synchronized workshop building
