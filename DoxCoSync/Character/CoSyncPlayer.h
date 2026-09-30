@@ -369,6 +369,9 @@ public:
     // The receiving client almost never has the host's chassis, so we spawn a
     // fresh frame at the proxy and delete it again on PA exit.
     uint32_t m_paSpawnedChassisRefFormID = 0;
+    // 0.3.6: the chassis above is this machine's copy of the sender's REAL frame
+    // (animated entry), never a clone -- it must not be deleted.
+    bool     m_paChassisIsRealFrame = false;
     // 0.3.3 (Stage 5): the six PA piece formIDs last applied to this proxy,
     // so a repeated PA state message with the same pieces is a no-op.
     uint32_t m_paAppliedPieces[6] = {};

@@ -13,6 +13,8 @@
 void InstallDoorHook();
 void UninstallDoorHook();
 
+class TESObjectREFR;
+
 namespace CoSyncDoorHook
 {
     bool IsDoork(const std::string& msg);
@@ -34,4 +36,12 @@ namespace CoSyncDoorHook
     // SetOpenState capture skips those so a toggle and an absolute state
     // never both describe the same change.
     bool InLocalActivation();
+
+    // 0.3.6: `activator` activates `target` through the engine's own
+    // activation (TESObjectREFR::ActivateRef, 0x1405144B0; CommonLibF4
+    // signature (activator, objectToGet, count, defaultOnly, fromScript,
+    // looping)), bypassing CoSync's detour so nothing is re-broadcast. Used to
+    // put a player's proxy into its power armor frame with the normal animated
+    // entry. Main thread. False if the hook is not installed or it faulted.
+    bool ActivateAs(TESObjectREFR* target, TESObjectREFR* activator);
 }

@@ -1,5 +1,6 @@
 #include "CoSyncItemMods.h"
 #include "CoSyncPowerArmorSync.h"
+#include "CoSyncDoorHook.h"
 
 #include "ConsoleLogger.h"
 #include "CoSyncNet.h"
@@ -262,6 +263,7 @@ namespace
         uint32_t chassisBaseFormID = 0;
         uint32_t chassisRefFormID  = 0;
         bool     entering          = false;
+        bool     forceClone        = false;   // 0.3.6: animated entry was tried and did not take
         // PA piece formIDs for the 6 slots (head/torso/lArm/rArm/lLeg/rLeg).
         // 0 = slot empty. Embedded in the PA| enter packet so they arrive
         // atomically — no PAI| race with FlushPendingPowerArmorOps.
@@ -281,6 +283,9 @@ namespace
     // Latest reported worn piece set per sender (raw, broken pieces too),
     // under s_mutex. Entry removed on the sender's exit packet.
     std::unordered_map<uint32_t, std::vector<uint32_t>> s_rxPaPieces;
+    // 0.3.6: animated entries in flight (proxy activated its real frame).
+    struct PaAnimatedEnter { PaOp op; uint32_t frame = 0; double deadline = 0.0; };
+    std::vector<PaAnimatedEnter> s_animatedEnters;   // tick thread only
     // Set by PADENY (network thread or host), consumed on the tick.
     std::atomic<bool> s_localEntryDenied{ false };
     std::atomic<bool> s_notifyEntryRefused{ false };
@@ -1018,9 +1023,10 @@ static void FinishPaExit(CoSyncPlayer* proxy, uint32_t senderEntityID)
         if (TESObjectREFR* spawned = SafeLookupAndCastRefr(proxy->m_paSpawnedChassisRefFormID))
         {
             RememberFrameCopy(senderEntityID, proxy->m_paChassisRefFormID, spawned->formID);
-            LOG_UPDATED("[PASync] Exit PA: kept chassis 0x%08X as this machine's copy of frame 0x%08X (entity=%u)",
+            LOG_UPDATED("[PASync] PA Exit Completed: kept chassis 0x%08X as this machine's copy of frame 0x%08X (entity=%u)",
                 spawned->formID, proxy->m_paChassisRefFormID, senderEntityID);
             proxy->m_paSpawnedChassisRefFormID = 0;
+            proxy->m_paChassisIsRealFrame = false;
         }
     }
 
@@ -2121,11 +2127,108 @@ void CoSyncPowerArmorSync::Reset()
     LOG_INFO("[PASync] Reset (frame inventory + fallback state)");
 }
 
+// ── 0.3.6: animated entry into the REAL frame ────────────────────────────────
+// Everyone should see the chassis open and the character climb in, as in
+// single player. SwitchToPowerArmor (the clone path below) is documented by
+// Bethesda as "Instantly pop an actor into aArmorFurniture without any
+// animation". When this machine has a loaded copy of the sender's actual
+// frame next to the proxy, the proxy activates THAT frame through the
+// engine's activation (the same path an AI actor uses to get into power
+// armor). The frame is painted from the sender's worn mods first. If the
+// engine has not put the proxy in power armor within kAnimatedEnterSec
+// (ExtraPowerArmor 0xBB present), the op is re-run through the clone path.
+static constexpr double kAnimatedEnterSec = 6.0;
+static constexpr float  kAnimatedEnterMaxDist = 400.f;
+
+static bool TryAnimatedEnter(CoSyncPlayer* proxy, const PaOp& op)
+{
+    TESObjectREFR* frame = LookupFrameCopy(op.senderEntityID, op.chassisRefFormID);
+    if (!frame)
+        frame = FindLocalChassisInCell(op.chassisBaseFormID, op.chassisPos, 0);
+    if (!frame || !SafeIsRefPowerArmorFrame(frame) || !frame->GetObjectRootNode() ||
+        !proxy->actorRef->GetObjectRootNode() || (frame->flags & TESObjectREFR::kFlag_IsDisabled))
+        return false;
+    const float dx = frame->pos.x - proxy->actorRef->pos.x, dy = frame->pos.y - proxy->actorRef->pos.y;
+    if (dx * dx + dy * dy > kAnimatedEnterMaxDist * kAnimatedEnterMaxDist)
+        return false;
+
+    const std::string worn = CoSyncItemMods::DescribeWanted(op.senderEntityID);
+    if (!worn.empty())
+    {
+        const int missing = CoSyncItemMods::ApplyMods(frame, worn, frame->formID);
+        LOG_UPDATED("[PASync] PA Paint/Mod Detected: sender entity=%u worn mods applied to real frame 0x%08X (%d not on a frame piece)",
+            op.senderEntityID, frame->formID, missing);
+    }
+
+    LOG_UPDATED("[PASync] PA Enter Started (animated): proxy entity=%u activates real frame 0x%08X",
+        op.senderEntityID, frame->formID);
+    if (!CoSyncDoorHook::ActivateAs(frame, reinterpret_cast<TESObjectREFR*>(proxy->actorRef)))
+    {
+        LOG_UPDATED_WARN("[PASync] PA Enter (animated): activation refused for frame 0x%08X -- clone path", frame->formID);
+        return false;
+    }
+    // The frame the proxy climbs into is this machine's copy of the sender's
+    // frame: FinishPaExit keeps it on exit (spawned id set, real-frame id 0).
+    proxy->m_isInPowerArmor            = true;
+    proxy->m_paChassisRefFormID        = op.chassisRefFormID;
+    proxy->m_paSpawnedChassisRefFormID = frame->formID;
+    proxy->m_paChassisIsRealFrame      = true;
+    proxy->m_paRealFrameRefFormID      = 0;
+    proxy->m_paBehaviorEntered         = false;
+    memcpy(proxy->m_paAppliedPieces, op.pieceFormIDs, sizeof(op.pieceFormIDs));
+    RememberFrameCopy(op.senderEntityID, op.chassisRefFormID, frame->formID);
+    s_animatedEnters.push_back({ op, frame->formID, PaDiagNowSeconds() + kAnimatedEnterSec });
+    return true;
+}
+
+static void TickAnimatedEnters()
+{
+    if (s_animatedEnters.empty())
+        return;
+    const double now = PaDiagNowSeconds();
+    for (size_t i = 0; i < s_animatedEnters.size(); )
+    {
+        PaAnimatedEnter& a = s_animatedEnters[i];
+        CoSyncPlayer* proxy = g_CoSyncPlayerManager.GetPlayerByEntityID(a.op.senderEntityID);
+        const int state = (proxy && proxy->actorRef) ? CoSyncGameAPI::GetActorPowerArmorExtraState(proxy->actorRef) : -1;
+        if (state == 1)
+        {
+            LOG_UPDATED("[PASync] PA Enter Completed (animated): proxy entity=%u is in frame 0x%08X",
+                a.op.senderEntityID, a.frame);
+            if (proxy->m_lastEquippedWeaponFormID != 0)
+                proxy->m_weaponDrawDelay = 30;
+            s_animatedEnters[i] = s_animatedEnters.back();
+            s_animatedEnters.pop_back();
+            continue;
+        }
+        if (!proxy || now >= a.deadline)
+        {
+            if (proxy)
+            {
+                LOG_UPDATED_WARN("[PASync] PA Enter (animated) did not take in %.0f s for entity=%u -- using the clone entry",
+                    kAnimatedEnterSec, a.op.senderEntityID);
+                proxy->m_isInPowerArmor = false;
+                proxy->m_paSpawnedChassisRefFormID = 0;
+                proxy->m_paChassisIsRealFrame = false;
+                PaOp retry = a.op;
+                retry.forceClone = true;
+                std::lock_guard<std::mutex> lk(s_mutex);
+                s_pending.push_back(retry);
+            }
+            s_animatedEnters[i] = s_animatedEnters.back();
+            s_animatedEnters.pop_back();
+            continue;
+        }
+        ++i;
+    }
+}
+
 void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
 {
     LOG_REQUIREMENT("CoSyncPowerArmorSync::FlushPendingPowerArmorOps", "Needs the player manager to be ready, and checks each stand-in character is actually spawned before touching it. The armor frame's position is set when it's first created, not moved afterward.");
 
     HostTickOwnership(NowSecondsPA());
+    TickAnimatedEnters();
     if (s_localEntryDenied.exchange(false) && CoSyncPowerArmorSync::IsLocalPlayerInPowerArmor())
     {
         CoSyncPowerArmorSync::ExitLocalPlayerPowerArmor();
@@ -2327,6 +2430,9 @@ void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
         // PA from a later repeat, once it is shown here.
         if (op.entering && !proxy->m_isInPowerArmor && proxy->m_proxyHiddenForCell)
             continue;
+        if (op.entering && !op.forceClone && std::any_of(s_animatedEnters.begin(), s_animatedEnters.end(),
+                [&op](const PaAnimatedEnter& a) { return a.op.senderEntityID == op.senderEntityID; }))
+            continue;   // animated entry in flight
 
         TESForm* chassisBaseForm = SafeLookupForm(op.chassisBaseFormID);
         if (!chassisBaseForm)
@@ -2419,6 +2525,12 @@ void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
                 LOG_UPDATED_WARN("[PASync] Piece update: existing chassis=0x%08X not resolvable, skipped entity=%u",
                     proxy->m_paSpawnedChassisRefFormID, op.senderEntityID);
             }
+        }
+        else if (op.entering && !op.forceClone && TryAnimatedEnter(proxy, op))
+        {
+            // 0.3.6: the proxy is walking into the real frame with the engine's
+            // own entry animation; verified (or replaced by the clone path)
+            // in TickAnimatedEnters.
         }
         else if (op.entering)
         {
@@ -2754,6 +2866,14 @@ void CoSyncPowerArmorSync::OnProxyRemoved(CoSyncPlayer* proxy)
     if (!proxy)
         return;
     static const BSFixedString kDelete("Delete");
+    if (proxy->m_paSpawnedChassisRefFormID != 0 && proxy->m_paChassisIsRealFrame)
+    {
+        // 0.3.6: the real frame (animated entry) stays in the world.
+        LOG_UPDATED("[PASync] Proxy entity=%u removed while in PA: real frame 0x%08X kept",
+            proxy->entityID, proxy->m_paSpawnedChassisRefFormID);
+        proxy->m_paSpawnedChassisRefFormID = 0;
+        proxy->m_paChassisIsRealFrame = false;
+    }
     if (proxy->m_paSpawnedChassisRefFormID != 0)
     {
         if (TESObjectREFR* spawned = SafeLookupAndCastRefr(proxy->m_paSpawnedChassisRefFormID))

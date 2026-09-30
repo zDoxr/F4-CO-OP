@@ -367,6 +367,29 @@ namespace
     constexpr uint8_t   kLockFlag_Locked       = 0x01;
 }
 
+__declspec(noinline) static char ActivateAsImpl(TESObjectREFR* target, TESObjectREFR* activator)
+{
+    __try
+    {
+        tls_cs_door_applying = true;
+        const char r = g_origActivate(target, activator, nullptr, reinterpret_cast<void*>(1), nullptr, nullptr, nullptr);
+        tls_cs_door_applying = false;
+        return r;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        tls_cs_door_applying = false;
+        return 0;
+    }
+}
+
+bool CoSyncDoorHook::ActivateAs(TESObjectREFR* target, TESObjectREFR* activator)
+{
+    if (!g_origActivate || !target || !activator)
+        return false;
+    return ActivateAsImpl(target, activator) != 0;
+}
+
 bool CoSyncDoorHook::InLocalActivation()
 {
     return tls_cs_door_in_activate > 0 || tls_cs_door_applying;
