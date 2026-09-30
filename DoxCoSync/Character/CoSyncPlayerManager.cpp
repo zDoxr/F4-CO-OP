@@ -2145,7 +2145,7 @@ bool CoSyncPlayerManager::ReleaseIfFreed(CoSyncPlayer& ent)
         return false;
     if (!CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(ent.actorRef)))
     {
-        LOG_WARN("[PlayerMgr] entity=%u actor=%p freed (unloaded) — clearing",
+        LOG_WARN("[PlayerMgr] Entity Lost: entity=%u actor=%p freed (unloaded) — clearing",
             ent.entityID, static_cast<void*>(ent.actorRef));
         Actor* const freedActor = ent.actorRef;
         ent.actorRef   = nullptr;

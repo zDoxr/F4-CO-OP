@@ -657,6 +657,13 @@ void CoSyncPowerArmorSync::NotifyPowerArmor(
 
     const std::string msg = SerializePowerArmor(
         senderEntityID, chassisBaseFormID, chassisRefFormID, entering, pieceFormIDs, chassisPos);
+    {
+        static bool s_lastEntering = false;
+        if (entering != s_lastEntering)
+            LOG_UPDATED("[PASync] PA Detected (local): %s frame ref=0x%08X base=0x%08X at (%.0f,%.0f,%.0f)",
+                entering ? "entered" : "exited", chassisRefFormID, chassisBaseFormID, chassisPos.x, chassisPos.y, chassisPos.z);
+        s_lastEntering = entering;
+    }
     CoSyncTransport::Send(msg);
     HostOnPaEvent(senderEntityID, chassisRefFormID, chassisBaseFormID, chassisPos, entering);
 
@@ -1137,6 +1144,8 @@ static void TryPaExit(CoSyncPlayer* proxy, uint32_t senderEntityID)
         return;
     }
 
+    LOG_UPDATED("[PASync] PA Exit Started: proxy entity=%u, engine exit (SwitchFromPowerArmor) on chassis 0x%08X",
+        senderEntityID, proxy->m_paSpawnedChassisRefFormID);
     const int paBefore = CoSyncGameAPI::GetActorPowerArmorExtraState(proxy->actorRef);
     const bool ejected = SafeSwitchFromPowerArmorNative(proxy->actorRef);
     const int paAfter  = CoSyncGameAPI::GetActorPowerArmorExtraState(proxy->actorRef);

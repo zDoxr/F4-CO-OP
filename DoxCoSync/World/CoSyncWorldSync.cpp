@@ -2506,6 +2506,9 @@ __declspec(noinline) static void TickProxyCellVisibility_Impl()
     const bool localTransitioned =
         (s_lastLocalWSID != 0xFFFFFFFFu) &&
         (wsChanged || interiorCellChanged);
+    if (localTransitioned)
+        LOG_UPDATED("[WorldSync] %s: local ws 0x%08X cell 0x%08X (was ws 0x%08X cell 0x%08X)",
+            wsChanged ? "Worldspace Change" : "Cell Change", myWSID, myCellID, s_lastLocalWSID, s_lastLocalCellID);
     s_lastLocalWSID   = myWSID;
     s_lastLocalCellID = myCellID;
 
@@ -2637,11 +2640,13 @@ static void TickProxyCellVisibility()
 
 static void TickNpcFurnitureEvents();   // below (0.3.6)
 static void TickNpcSeatRetry(double now);
+static void TickNpcStateLog(double now);
 
 void CoSyncWorldSync::Tick(double now)
 {
     TickNpcFurnitureEvents();
     TickNpcSeatRetry(now);
+    TickNpcStateLog(now);
 
     {
         std::vector<PendingFurnitureApply> pending;
@@ -2990,6 +2995,37 @@ static void TickNpcFurnitureEvents()
             LOG_UPDATED("[NpcSync] entity=%u puppet's own AI took furniture 0x%08X the owner's NPC is not using -- standing it up",
                 p->entityID, e.furn);
         }
+    }
+}
+
+// 0.3.6 diagnostics: NPC Entity / AI / Movement / Animation / Weapon state,
+// logged on transitions only (1 Hz scan).
+static void TickNpcStateLog(double now)
+{
+    static double s_next = 0.0;
+    if (now < s_next) return;
+    s_next = now + 1.0;
+    struct Last { int moving = -1; int weapon = -1; uint32_t furn = 0xFFFFFFFFu; int role = -1; };
+    static std::unordered_map<uint32_t, Last> s_last;
+    for (const auto& kv : g_CoSyncPlayerManager.GetAllPlayers())
+    {
+        CoSyncPlayer* p = kv.second.get();
+        if (!p || p->createType != CoSyncEntityType::NPC || !p->actorRef || !p->hasSpawned)
+            continue;
+        const int role = p->m_hasRealTransform ? 1 : 0;   // 1 = puppet (owner elsewhere), 0 = simulated here
+        const float v2 = p->m_lastVel.x * p->m_lastVel.x + p->m_lastVel.y * p->m_lastVel.y;
+        const int moving = role ? (v2 > 100.f ? 1 : 0) : -2;
+        const int weapon = p->m_prevNpcWeaponDrawn ? 1 : 0;
+        Last& l = s_last[p->entityID];
+        if (l.role == role && l.moving == moving && l.weapon == weapon && l.furn == p->m_npcFurnitureRef)
+            continue;
+        l.role = role; l.moving = moving; l.weapon = weapon; l.furn = p->m_npcFurnitureRef;
+        LOG_UPDATED("[NpcSync] NPC Entity=%u actor=0x%08X AI State=%s Movement State=%s Animation/Action State=%s Weapon State=%s",
+            p->entityID, reinterpret_cast<TESForm*>(p->actorRef)->formID,
+            role ? "puppet (owner's AI decides)" : "simulated here (local AI)",
+            moving == -2 ? "local" : (moving ? "moving" : "still"),
+            p->m_npcFurnitureRef ? "in furniture" : "free",
+            weapon ? "drawn" : "holstered");
     }
 }
 

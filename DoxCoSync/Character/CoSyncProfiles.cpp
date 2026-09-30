@@ -839,7 +839,7 @@ namespace
             bool hasPipBoy = false;
             for (const auto& it : left.items)
                 if (it.first == kPipBoyFormID) hasPipBoy = true;
-            LOG_INFO("[Profiles] Inventory wiped: %zu item(s) left%s",
+            LOG_INFO("[Profiles] Inventory Initialization: inventory wiped, %zu item(s) left%s",
                 left.items.size(), hasPipBoy ? "" : " -- giving the Pip-Boy back");
             // RemoveAllItems mode 0 takes the Pip-Boy too. Give it back with
             // the engine's own add and equip: the queued Papyrus AddItem /
@@ -1509,6 +1509,7 @@ namespace CoSyncProfiles
             s_openLooksMenu = false;
             s_looksMenuAt = 0.0;
             s_status = "CUSTOMIZING";
+            LOG_INFO("[Profiles] Face Generation: opening the character editor for the new player");
             s_editorStage = EditorStage::MoveAway;
             s_editorAt = now;
         }
