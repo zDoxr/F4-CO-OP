@@ -2,6 +2,7 @@
 #include "CoSyncNet.h"
 #include "CoSyncCombatAuthority.h"
 #include "CoSyncWorldStateSync.h"
+#include "CoSyncSharedDialogue.h"
 #include "Version.h"
 
 #include "ConsoleLogger.h"
@@ -252,6 +253,7 @@ static const char* SelfStateType(const std::string& msg)
         "PA", "PAI", "PAMODS", "SPEC", "AE", "AEV", "SW", "PB",
         "CONS", "SPELL", "THRP", "THRM", "THRX", "VATS_ENTER", "VATS_EXIT", "VER", "WS", "CORPSE",
         "SHOT",   // 0.3.5: the shooter must be the sender's own player or an NPC it owns
+        "DLGP", "DLGQ",   // 0.3.5: a dialogue choice/request names the sender's own player
         "WM", "WD",   // U7: workshop-mode / legacy scrap notices name their sender too
     };
     const size_t bar = msg.find('|');
@@ -686,6 +688,7 @@ void CoSyncNet::Shutdown()
     CoSyncThrowableSync::Reset();
     CoSyncCombatAuthority::Reset();
     CoSyncWorldStateSync::Reset();
+    CoSyncSharedDialogue::Reset();
 
     CoSyncWorldSync::Shutdown();
     CoSyncWorkshopSync::Shutdown();
@@ -2130,6 +2133,14 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
         if (isHostRole)
             CoSyncTransport::Send(msg);
         CoSyncExplosionSync::OnReceiveExplosion(msg);
+        return;
+    }
+
+    // Shared dialogue (0.3.5): host conversation shown to nearby clients;
+    // their choices come to the host and are never relayed.
+    if (CoSyncSharedDialogue::IsSharedDialogueMsg(msg))
+    {
+        CoSyncSharedDialogue::OnReceive(msg, isHostRole);
         return;
     }
 

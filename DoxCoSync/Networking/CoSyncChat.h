@@ -36,4 +36,6 @@ namespace CoSyncChat
     // Messages newer than `afterSeq` as JSON {"seq":N,"msgs":[...]}.
     std::string BuildJson(uint64_t afterSeq);
     uint64_t LatestSeq();
+    // A line shown only on this machine (no network), e.g. shared dialogue.
+    void AddLocalLine(const std::string& name, const std::string& text);
 }

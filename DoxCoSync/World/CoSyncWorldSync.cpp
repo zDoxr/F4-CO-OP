@@ -1,6 +1,7 @@
 #include "CoSyncWorldSync.h"
 #include "CoSyncCombatAuthority.h"
 #include "CoSyncWorldStateSync.h"
+#include "CoSyncSharedDialogue.h"
 #include "CoSyncContainerSync.h"
 
 #include <Windows.h>
@@ -2634,6 +2635,7 @@ void CoSyncWorldSync::Tick(double now)
         // explosion here, which the explosion scan must see before a duplicate
         // EXP from the sender is considered (0.3.5).
         CoSyncWorldStateSync::Tick(now);
+        CoSyncSharedDialogue::Tick(now);
 
         CoSyncExplosionSync::Tick(now);
         CoSyncExplosionSync::FlushPendingExplosions();

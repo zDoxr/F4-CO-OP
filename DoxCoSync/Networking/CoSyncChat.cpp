@@ -323,6 +323,12 @@ namespace CoSyncChat
             s_outbox.push_back({ scope, text });
     }
 
+    void AddLocalLine(const std::string& name, const std::string& text)
+    {
+        std::lock_guard<std::mutex> lk(s_mx);
+        Remember('G', 0, name, std::string(), text);
+    }
+
     uint64_t LatestSeq()
     {
         std::lock_guard<std::mutex> lk(s_mx);

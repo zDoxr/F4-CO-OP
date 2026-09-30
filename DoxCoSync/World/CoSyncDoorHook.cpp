@@ -2,6 +2,7 @@
 #include <Windows.h>
 
 #include "CoSyncDoorHook.h"
+#include "CoSyncSharedDialogue.h"
 
 #include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
@@ -234,6 +235,9 @@ static char __fastcall Detour_ActivateWorker(
         if (n <= 10 || n % 50 == 0)
             LOG_INFO("[DialogGate] [CLIENT] blocked activation #%u of actor ref=0x%08X "
                      "(host owns dialogue)", n, ri.refFormID);
+        // 0.3.5: tell the host who wants to talk to whom; the host's
+        // conversation is then shared with this client (CoSyncSharedDialogue).
+        CoSyncSharedDialogue::OnClientTalkAttempt(ri.refFormID);
         return 0;
     }
     // ── Run the real activation FIRST, then broadcast only if it worked ─────
