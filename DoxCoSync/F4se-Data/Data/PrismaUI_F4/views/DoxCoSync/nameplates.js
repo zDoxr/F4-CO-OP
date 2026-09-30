@@ -65,6 +65,11 @@
     plates.forEach((c, id) => {
       if (!seen.has(id)) { c.el.remove(); plates.delete(id); }
     });
+    // Exactly one element per tracked player: drop any plate node the map
+    // does not own (never expected; guards against a ghost copy).
+    const owned = new Set();
+    plates.forEach(c => owned.add(c.el));
+    Array.from(root.children).forEach(n => { if (!owned.has(n)) n.remove(); });
   };
 
   window.cosyncPlatesHud = rgbJson => {

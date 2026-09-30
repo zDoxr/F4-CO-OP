@@ -356,6 +356,7 @@ namespace
 
     enum class ApplyState { None, Pending, Applied };
     ApplyState  s_applyState = ApplyState::None;
+    bool        s_freshStarterCheck = false;   // new player: re-check starting gear after the editor
     double      s_readySince = 0.0;
     double      s_lastUpload = 0.0;
     const char* s_status = "";
@@ -787,8 +788,39 @@ namespace
     }
 
     // Replaces the inventory (the loaded world's player is the HOST's copy).
+    // Gives a vanilla starting item back after the wipe with the engine's own
+    // add + equip (the same path the Pip-Boy has always used), then checks it.
+    void GiveStartingItem(PlayerCharacter* pc, UInt32 formID, const char* what)
+    {
+        TESObjectREFR* ref = reinterpret_cast<TESObjectREFR*>(pc);
+        TESForm* form = LookupFormByID(formID);
+        if (!form)
+        {
+            LOG_WARN("[Profiles] New Player Initialization: %s form 0x%08X not found", what, formID);
+            return;
+        }
+        Profile before;
+        CaptureInventory(pc, before);
+        const bool had = std::find_if(before.items.begin(), before.items.end(),
+            [formID](const std::pair<UInt32, SInt32>& it) { return it.first == formID; }) != before.items.end();
+        if (!had && !CoSyncGameAPI::NativeAddItem(ref, form, 1))
+            PapyrusAddItem(pc, form, 1);
+        if (!CoSyncEquipHook::EquipItemDirect(reinterpret_cast<Actor*>(pc), form))
+            PapyrusEquipItem(pc, form);
+        Profile check;
+        CaptureInventory(pc, check);
+        const bool have = std::find_if(check.items.begin(), check.items.end(),
+            [formID](const std::pair<UInt32, SInt32>& it) { return it.first == formID; }) != check.items.end();
+        const bool worn = std::find(check.equipped.begin(), check.equipped.end(), formID) != check.equipped.end();
+        if (have && worn)
+            LOG_INFO("[Profiles] New Player Initialization: %s in the inventory and equipped", what);
+        else
+            LOG_WARN("[Profiles] New Player Initialization: %s check failed: in inventory=%d equipped=%d",
+                what, have ? 1 : 0, worn ? 1 : 0);
+    }
+
     void ReplaceInventory(PlayerCharacter* pc, const std::vector<std::pair<UInt32, SInt32>>& items,
-                          const std::vector<UInt32>& equip)
+                          const std::vector<UInt32>& equip, bool freshStart = false)
     {
         // Everything the loaded world gave this player (the HOST's gear) goes,
         // synchronously, in one engine call. Queued per-item Papyrus
@@ -830,6 +862,12 @@ namespace
                     LOG_WARN("[Profiles] Pip-Boy check failed: in inventory=%d equipped=%d", have ? 1 : 0, worn ? 1 : 0);
             }
         }
+        // 0.3.6: a brand-new character also starts in the Vault 111 jumpsuit,
+        // like a vanilla new game. RemoveAllItems mode 0 took it with
+        // everything else and only the Pip-Boy was given back, so every fresh
+        // player walked out of the face editor in their underwear.
+        if (freshStart)
+            GiveStartingItem(pc, kVaultSuitFormID, "Vault 111 jumpsuit");
         for (const auto& it : items)
         {
             if (it.first == kPipBoyFormID) continue;
@@ -887,7 +925,8 @@ namespace
         // host's save, so this strips the host's gear from the copy. The
         // Pip-Boy is given back and equipped by ReplaceInventory -- without it
         // the game has no inventory, map or data screens at all.
-        ReplaceInventory(pc, {}, {});
+        ReplaceInventory(pc, {}, {}, /*freshStart*/ true);
+        s_freshStarterCheck = true;
         HealFully(pc);
         s_characterCreated = false;
         // Character creation: the vanilla face/body editor, full mode.
@@ -1166,6 +1205,18 @@ namespace
                 Fn<ForcePerson_t>(kRVA_ForceFirstPerson)();
             s_editorStage = EditorStage::None;
             s_status = "READY";
+            // 0.3.6: a new player leaves the editor wearing the Pip-Boy and the
+            // Vault 111 jumpsuit (re-checked here: the editor's sex/race
+            // rebuild and the teleports back are the last steps before play).
+            if (s_freshStarterCheck)
+            {
+                s_freshStarterCheck = false;
+                if (PlayerCharacter* pc = CoSyncGetPlayer())
+                {
+                    GiveStartingItem(pc, kPipBoyFormID, "Pip-Boy");
+                    GiveStartingItem(pc, kVaultSuitFormID, "Vault 111 jumpsuit");
+                }
+            }
             CoSyncProfiles::ClientUploadNow();   // the host keeps the new look right away
             CoSyncProxyLooks::SendMine();        // and everyone sees it
             return;
@@ -1429,6 +1480,10 @@ namespace CoSyncProfiles
                     Profile p;
                     ApplyCtx ctx{ pc, &p };
                     const bool haveSaved = !blob.empty() && Deserialize(blob, p);
+                    LOG_INFO("[Profiles] Player Join: key=%s save %s", GetMyProfileKey().c_str(),
+                        !haveSaved ? "NOT FOUND in the host world (new player -> face generation)"
+                                   : (p.created ? "FOUND in the host world (restoring)"
+                                                : "found but unfinished (new player -> face generation)"));
                     if (haveSaved && p.created)
                         RunGuarded(ApplyProfileThunk, &ctx, "Restoring the character");
                     else

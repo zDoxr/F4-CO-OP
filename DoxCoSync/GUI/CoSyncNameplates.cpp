@@ -16,6 +16,7 @@
 
 #include "GameReferences.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <mutex>
@@ -135,11 +136,17 @@ namespace CoSyncNameplates
             const uint32_t me = g_CoSyncPlayerManager.GetLocalEntityID();
             bool first = true;
             char num[96];
+            // 0.3.6: one plate per proxy actor, whatever the entity map holds.
+            std::vector<const Actor*> drawn;
             for (const auto& kv : g_CoSyncPlayerManager.GetAllPlayers())
             {
                 const uint32_t eid = kv.first;
                 const CoSyncPlayer* p = kv.second.get();
-                if (!p || eid == me || p->createType != CoSyncEntityType::Player || !p->actorRef)
+                if (!p || eid == me || p->isLocalPlayer || p->createType != CoSyncEntityType::Player || !p->actorRef)
+                    continue;
+                if (reinterpret_cast<const TESObjectREFR*>(p->actorRef) == reinterpret_cast<const TESObjectREFR*>(lp))
+                    continue;
+                if (std::find(drawn.begin(), drawn.end(), p->actorRef) != drawn.end())
                     continue;
                 uint32_t ws, cell;
                 if (g_CoSyncPlayerManager.GetEntityLocation(eid, ws, cell) &&
@@ -161,6 +168,7 @@ namespace CoSyncNameplates
                 CoSyncFactions::Badge badge;
                 const bool hasBadge = CoSyncFactions::GetBadge(eid, badge) && !badge.faction.empty();
 
+                drawn.push_back(p->actorRef);
                 if (!first) json += ",";
                 first = false;
                 json += "{\"id\":" + std::to_string(eid);

@@ -1304,18 +1304,15 @@ namespace CoSyncPrismaUI
             json = s_platesJson;
         }
         const bool any = json != "[]";
-        if (!any)
-        {
-            // Nothing to draw: hide the view instead of rendering an empty page.
-            if (s_platesShown && s_plates != 0 && s_api->IsValid(s_plates))
-            {
-                if (s_platesDomReady.load())
-                    s_api->InteropCall(s_plates, "cosyncPlates", "[]");
-                s_api->Hide(s_plates);
-            }
-            s_platesShown = false;
-            return;
-        }
+        if (!any && (s_plates == 0 || !s_api->IsValid(s_plates)))
+            return;   // nothing to draw and no view yet
+        // 0.3.6: an empty list is pushed to the page (which removes every
+        // plate) instead of Hide()ing the view. Hide() ran right after the
+        // "[]" call, before the page could repaint, so the hidden view kept
+        // its last frame -- plates at old positions -- and Show() brought
+        // that stale frame back until the next repaint: the reported ghost /
+        // duplicate names in other parts of the screen. The page is
+        // transparent and passive, so leaving it shown costs nothing visible.
         if (s_plates == 0 || !s_api->IsValid(s_plates))
         {
             s_platesDomReady.store(false);
