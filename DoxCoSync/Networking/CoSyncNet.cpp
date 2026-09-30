@@ -48,6 +48,7 @@
 #include "CoSyncSteamAPI.h"
 #include "CoSyncSessionConfig.h"
 #include "CoSyncWorldTransfer.h"
+#include "CoSyncContentSync.h"
 #include "CoSyncProfiles.h"
 #include "CoSyncProxyLooks.h"
 #include "CoSyncCompanions.h"
@@ -1267,6 +1268,23 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
 {
 
     const bool isHostRole = s_isHost || (s_pendingInit && s_pendingHostFlag);
+
+    // 0.4.0: pre-join content sync. Routed before anything else touches the
+    // text -- CSDATA carries raw file bytes the FormID translation below
+    // must never rewrite.
+    if (CoSyncContentSync::IsContentMessage(rawMsg))
+    {
+        CoSyncContentSync::OnReceive(rawMsg, static_cast<uint32_t>(conn), isHostRole);
+        return;
+    }
+    // Join gate: a client whose content the host has not verified gets no
+    // further than the content check (and WORLDREQ, which is refused inside
+    // CoSyncWorldTransfer until it is verified). conn==Invalid is a local
+    // notice (PEERLEFT), never a client.
+    if (isHostRole && conn != k_HSteamNetConnection_Invalid &&
+        !CoSyncContentSync::HostAllowsMessage(static_cast<uint32_t>(conn), rawMsg))
+        return;
+
     // 0.3.3: a client maps FormIDs from the host's load-order space to its own
     // before anything reads them (CoSyncFormIdMap; identity = no copy).
     std::string translated;
@@ -2417,20 +2435,6 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
         return;
     }
 
-    if (CoSyncModSync::IsModList(msg))
-    {
-        if (isHostRole)
-            CoSyncModSync::OnReceiveModList(msg, conn);
-        return;
-    }
-
-    if (CoSyncModSync::IsModFile(msg))
-    {
-        if (!isHostRole)
-            CoSyncModSync::OnReceiveModFile(msg);
-        return;
-    }
-
     if (msg.rfind("MODEVENT|", 0) == 0)
     {
         if (isHostRole)
@@ -2549,9 +2553,11 @@ void CoSyncNet::OnGNSConnected()
     // The retry now lives in TrySendHello(), which CoSyncNet::Tick calls every
     // frame until it succeeds.
     //
-    // Shared host save: first ask for the host's world. HELLO waits (see
-    // TrySendHello) until it has been downloaded and loaded.
-    CoSyncWorldTransfer::ClientBegin(CoSyncProfiles::GetMyProfileKey(), GetMyName());
+    // 0.4.0: first the content check (CoSyncContentSync). Only once the host
+    // has verified this client's plugins/archives does it ask for the host's
+    // world (CoSyncWorldTransfer::ClientBegin, called by the content sync),
+    // and HELLO waits (see TrySendHello) until that world is loaded.
+    CoSyncContentSync::ClientBegin();
     TrySendHello();
 }
 
@@ -2589,9 +2595,9 @@ void CoSyncNet::TrySendHello()
        << "|" << myPos.x << "|" << myPos.y << "|" << myPos.z;
     CoSyncTransport::Send(ss.str());
 
-    // Send our plugin list so host can push any missing mods before we load
-    CoSyncModSync::ClientSendModList();
-    // 0.3.3 (Stage 9): and the ACTIVE load order, which FormIDs depend on.
+    // 0.3.3 (Stage 9): the ACTIVE load order, which FormIDs depend on. (The
+    // old MODLIST/MODFILE push is gone: content is matched before the join
+    // by CoSyncContentSync.)
     CoSyncModSync::ClientSendLoadOrder();
 
     CoSyncOverlay_ShowLoadingScreen(true);
@@ -2703,6 +2709,7 @@ void CoSyncNet::OnGNSDisconnected()
     s_hostEntityID        = 0;
 
     CoSyncWorldTransfer::Reset();
+    CoSyncContentSync::OnSessionEnded();
     CoSyncProfiles::Reset();
     CoSyncProxyLooks::Reset();
     CoSyncCompanions::Reset();

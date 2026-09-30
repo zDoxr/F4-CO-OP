@@ -169,8 +169,13 @@ void CoSyncTransport::ForwardMessage(const std::string& msg, HSteamNetConnection
         s_rxBones.fetch_add(1, std::memory_order_relaxed);
     else if (msg.rfind("HP|", 0) == 0)
         s_rxHP.fetch_add(1, std::memory_order_relaxed);
-    // World chunks are raw save bytes; profiles are large -- log the size only.
-    else if (msg.rfind("WORLDCHUNK|", 0) == 0 || msg.rfind("PROFILEUP|", 0) == 0)
+    // Content-sync file chunks and their requests (thousands per download):
+    // counted only; CoSyncContentSync logs per file.
+    else if (msg.rfind("CSDATA|", 0) == 0 || msg.rfind("CSGET|", 0) == 0)
+        s_rxOther.fetch_add(1, std::memory_order_relaxed);
+    // World chunks are raw save bytes; profiles and content lists are large --
+    // log the size only.
+    else if (msg.rfind("WORLDCHUNK|", 0) == 0 || msg.rfind("PROFILEUP|", 0) == 0 || msg.rfind("CSBIG|", 0) == 0)
         LOG_DEBUG("[Transport] ForwardMessage %zu bytes (conn=%u): %.10s...", msg.size(), conn, msg.c_str());
     // EU: 80 chars cut off the sender timestamp (field 6), which is what a
     // send-vs-arrival jitter measurement needs (Phase 5 audit). 170 covers

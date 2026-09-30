@@ -10,6 +10,7 @@
 #include "CoSyncRequirementsLog.h"
 #include "CoSyncDiscovery.h"
 #include "CoSyncWorldTransfer.h"
+#include "CoSyncContentSync.h"
 #include "CoSyncProfiles.h"
 #include "CoSyncProxyLooks.h"
 #include "CoSyncCompanions.h"
@@ -210,6 +211,7 @@ namespace cosync
         CoSyncProfiles::ClientUploadNow();   // client: last snapshot to the host
         CoSyncNet::Shutdown();
         CoSyncWorldTransfer::Reset();
+        CoSyncContentSync::OnSessionEnded();
         CoSyncProfiles::Reset();
         CoSyncProxyLooks::Reset();
         CoSyncCompanions::Reset();

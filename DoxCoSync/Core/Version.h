@@ -19,9 +19,13 @@
 //       only; same wire format.
 // 0.3.4 (2026-09-29): sync rework directive -- proxy bone-cache validity,
 //       replicated weapon authority, Power Armor / NPC authority fixes.
+// 0.4.0 (2026-09-30): pre-join content sync -- the host's plugins, their
+//       archives and deployed loose files are checked (SHA-256 + possession
+//       proof) and transferred before the world (CS* messages; WORLDREQ and
+//       every session message are refused until the content is verified).
 #define COSYNC_VERSION_MAJOR 0
-#define COSYNC_VERSION_MINOR 3
-#define COSYNC_VERSION_PATCH 6
+#define COSYNC_VERSION_MINOR 4
+#define COSYNC_VERSION_PATCH 0
 #define COSYNC_VERSION_TAG   ""
 
 // Numeric form used on the wire. MINOR and PATCH must stay below 100 for the

@@ -9,6 +9,7 @@
 #include "CoSyncGameAPI.h"
 #include "ConsoleLogger.h"
 #include "CoSyncRequirementsLog.h"
+#include "CoSyncContentSync.h"
 
 #include <Windows.h>
 
@@ -270,6 +271,15 @@ namespace CoSyncWorldTransfer
             if (!CoSyncWorld::IsWorldReady())
             {
                 CoSyncTransport::SendTo(conn, "WORLDERR|host_not_in_game");
+                return;
+            }
+            // 0.4.0 join gate: the world (the host's save) goes only to a
+            // client whose plugins/archives the host has verified -- a save
+            // loaded without one of its plugins drops that plugin's content.
+            if (!CoSyncContentSync::HostIsConnVerified(conn))
+            {
+                LOG_WARN("[WorldXfer] WORLDREQ from conn=%u before its content was verified -- refused", conn);
+                CoSyncTransport::SendTo(conn, "WORLDERR|content_not_verified");
                 return;
             }
             if (!s_worldRequestedConns.insert(conn).second)

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 // PrismaUI bridge: owns CoSync's PrismaUI API handle and its two views
 // (Data\PrismaUI_F4\views\DoxCoSync\):
 //   * multiplayer.html -- the Multiplayer menu (interactive panel)
@@ -33,6 +35,12 @@ namespace CoSyncPrismaUI
 
     // Developer hotkey (F10): open if closed, close if open. Any thread.
     void RequestToggleMultiplayer();
+
+    // Starts a join without the menu (rejoin after a content restart).
+    //   kind "ip":    value "<ipv4>:<port>"
+    //   kind "steam": value "<lobby id hex>"
+    // Game thread. False when the target is invalid or unavailable.
+    bool StartJoin(const std::string& kind, const std::string& value, const std::string& label);
 
     // True from the moment an open is requested until the menu closes.
     // Any thread.

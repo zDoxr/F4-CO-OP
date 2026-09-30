@@ -66,6 +66,7 @@ extern volatile void* g_animUtils_lastActor;
 #include "CoSyncWindowHook.h"
 #include "CoSyncPrismaUI.h"
 #include "CoSyncWorldTransfer.h"
+#include "CoSyncContentSync.h"
 #include "CoSyncProfiles.h"
 #include "CoSyncProxyLooks.h"
 #include "CoSyncCompanions.h"
@@ -531,6 +532,8 @@ void CoSyncRuntime_TickGameThread()
 
     // Shared host save: stream the world to joining clients (host) and
     // apply / upload this player's character (client).
+    g_lastTickStep = "RTGT:ContentSync";
+    CoSyncContentSync::Tick();
     g_lastTickStep = "RTGT:WorldTransfer";
     CoSyncWorldTransfer::Tick();
     g_lastTickStep = "RTGT:Profiles";

@@ -2,6 +2,24 @@
 
 ---
 
+## [0.4.0] — 2026-09-30
+
+### Pre-join mod validation and automatic mod transfer
+
+This build compiles cleanly, passes the offline tests (112 + 102 checks) and loaded at the main menu. **It has not been tested in a two-machine session.** The design, engine evidence and test matrix are in `docs/CONTENT_SYNC_REPORT.md`.
+
+- Before a client gets the host's world, the host sends the session's content. That is every plugin its engine loaded, the archives, precombine and voice files the engine ties to each plugin, and the loose files a mod manager deployed with those plugins.
+- The client checks its own copies with SHA-256 and proves it holds them with a nonce proof. The host decides the result.
+- Content the client is missing or has in a different version is downloaded after the player agrees. It is chunked, CRC-checked per chunk, resumable and SHA-256 verified.
+- The downloaded content is installed and enabled at the next game start, before the engine opens any data file. Replaced files are backed up, every step is journaled, and a failed step rolls everything back. The client then rejoins automatically.
+- Official content (base game, DLC, Creation Club, Creations) and native F4SE plugins are never transferred. The client is told exactly what it is missing.
+- Join gate: the host drops every session message from a client whose content is not verified. It also refuses that client's WORLDREQ.
+- The old `MODLIST`/`MODFILE` push is removed. It wrote unhashed plugins into Data after the join.
+- The Multiplayer menu shows each stage (checking, missing content, downloading with per-file and overall progress, restart required, and the failure reason). It uses the existing PrismaUI view.
+- Version 0.4.0 (network 400; new `CS*` messages, `WORLDERR|content_not_verified`, end reason 1003).
+
+---
+
 ## [0.3.4] — 2026-09-29
 
 ### Sync rework: remote animation, weapons, Power Armor, NPC authority, terminal UI

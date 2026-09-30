@@ -9,6 +9,7 @@
  *                  "join|<sessionId>" | "direct|<ipv4>|<port>" |
  *                  "steam_host" | "steam_invite" | "steam_join|<lobbyHex>" |
  *                  "steam_browse|0|1" |
+ *                  "content|accept|cancel|quit"   pre-join content sync (CoSyncContentSync) |
  *                  "fac_<op>|<args...>"   faction / territory / workshop-settings
  *                                         requests (CoSyncFactions; the host decides))
  *   C++ -> JS  : window.cosyncState(json)   real state, pushed on demand
@@ -36,6 +37,10 @@
     roster: [],
     joining: 0,
     transfer: { phase: 'idle', percent: 0, error: '' },
+    // Pre-join content check / download (CoSyncContentSync::BuildUiJson).
+    content: { phase: 'idle', error: '', detail: '', checkDone: 0, checkTotal: 0, fileCount: 0, fileIndex: 0,
+               file: '', fileDone: 0, fileSize: 0, done: 0, total: 0, scripts: 0,
+               missing: [], activate: [], blocked: [], warnings: [], native: [] },
     profile: '',
     build: 0,
     maxPlayers: 8,
@@ -107,7 +112,121 @@
     checksum:         { head: 'Download damaged', text: 'The world arrived damaged. Try again.' },
     write_failed:     { head: 'Could not store the world', text: 'Your save folder could not be written to.' },
     load_failed:      { head: 'Could not load the world', text: 'The host’s world failed to load. Both players need the same mods in the same order.' },
+    content_not_verified: { head: 'Content not verified', text: 'The host refused the world because your mods were not verified first. Try again.' },
     default:          { head: 'Could not join', text: 'Joining the host’s world failed. Try again.' },
+  };
+
+  // ── Pre-join content sync (CoSyncContentSync) ───────────────────────────
+  const CT = () => state.content || {};
+  const cPhase = () => CT().phase || 'idle';
+  const CONTENT_BUSY = ['requesting', 'preparing', 'checking', 'waiting', 'confirm', 'downloading', 'installing'];
+  const CONTENT_END = ['restart', 'blocked', 'failed', 'cancelled'];
+  const contentShown = () => CONTENT_BUSY.indexOf(cPhase()) >= 0 || CONTENT_END.indexOf(cPhase()) >= 0;
+  const fmtBytes = n => {
+    n = +n || 0;
+    if (n >= 1073741824) return (n / 1073741824).toFixed(2) + ' GB';
+    if (n >= 1048576) return (n / 1048576).toFixed(1) + ' MB';
+    if (n >= 1024) return (n / 1024).toFixed(1) + ' KB';
+    return n + ' B';
+  };
+  const pct = (a, b) => (b > 0 ? Math.min(100, Math.floor(a * 100 / b)) : 0);
+  const BLOCK_TEXT = {
+    official_missing:       n => n + ' is missing. The base game and its DLC cannot be sent by CoSync.',
+    official_different:     n => n + ' is a different version from the host’s. Both players need the same game version.',
+    creationclub_missing:   n => 'Creation Club content ' + n + ' is needed. Get it in the game’s Creation Club menu.',
+    creationclub_different: n => 'Creation Club content ' + n + ' differs from the host’s copy.',
+    creations_missing:      n => 'The Bethesda.net Creation ' + n + ' is needed. Get it in the game’s Creations menu.',
+    creations_different:    n => 'The Bethesda.net Creation ' + n + ' differs from the host’s copy.',
+    official_not_loaded:    n => n + ' is installed but not enabled. Enable it in the game’s Creations / Load Order menu.',
+    host_unreadable:        n => 'The host could not read ' + n + '. Ask the host to check that file.',
+    too_large:              n => 'The missing content (' + n + ') is over the limit for one join.',
+  };
+  const CONTENT_ERRORS = {
+    version_mismatch:  { head: 'Different CoSync version', text: 'You and the host are running different versions of CoSync. Both players need the same version.' },
+    protocol_version:  { head: 'Different CoSync version', text: 'The host speaks a different content-sync protocol. Both players need the same CoSync version.' },
+    host_not_in_game:  { head: 'The host is not in a game', text: 'The host has to load a save and host from inside their game.' },
+    bad_manifest:      { head: 'Invalid content list', text: 'The host sent a content list CoSync could not accept. Nothing was downloaded or changed.' },
+    unsafe_path:       { head: 'Unsafe file path refused', text: 'The host listed a file outside the folders CoSync may write to. Nothing was downloaded or changed.' },
+    refused_official:  { head: 'Official content refused', text: 'The host asked to send official game content (base game, DLC or Creation Club). CoSync never transfers it.' },
+    bad_verdict:       { head: 'Invalid answer from the host', text: 'The host’s answer could not be accepted. Nothing was changed.' },
+    too_large:         { head: 'Too much content', text: 'The missing content is over the limit for one join.' },
+    disk_space:        { head: 'Not enough disk space', text: 'There is not enough free space on the drive Fallout 4 is installed on.' },
+    write_failed:      { head: 'Could not save the download', text: 'CoSync could not write to its download folder (Data\\CoSyncContent).' },
+    hash_mismatch:     { head: 'Download damaged', text: 'A file failed its SHA-256 check twice. Nothing was installed. Try again.' },
+    corrupt_transfer:  { head: 'Download damaged', text: 'A part of a file kept arriving damaged. Nothing was installed. Try again.' },
+    host_stalled:      { head: 'The host stopped sending', text: 'Finished files are kept; the download resumes where it stopped when you try again.' },
+    no_response:       { head: 'The host did not answer', text: 'The host did not answer the content check. It may run an older CoSync or have stopped hosting.' },
+    host_read_error:   { head: 'The host could not read a file', text: 'A file changed or could not be read on the host. Ask the host to host again.' },
+    connection_lost:   { head: 'Connection lost', text: 'Finished files are kept; the download resumes where it stopped when you try again.' },
+    install_failed:    { head: 'Could not prepare the install', text: 'The downloaded files were kept but not installed.' },
+    not_loaded:        { head: 'Mods installed but not loaded', text: 'The game did not load them although they are enabled in Plugins.txt. If you use a mod manager (Mod Organizer 2, Vortex), enable them there and start the game from it.' },
+    protocol:          { head: 'Content check failed', text: 'The content check was refused (protocol error).' },
+    flood:             { head: 'Content check failed', text: 'The host stopped the transfer (too many requests).' },
+    too_many_requests: { head: 'Content check failed', text: 'Too many content checks on one connection. Connect again.' },
+    default:           { head: 'Content check failed', text: 'The required content could not be synchronized.' },
+  };
+  const contentRows = () => {
+    const c = CT();
+    const rows = [];
+    switch (cPhase()) {
+      case 'requesting': rows.push(['Content', 'Asking the host…', 'dim']); break;
+      case 'preparing':  rows.push(['Content', 'Host is preparing' + (c.checkTotal ? '  ·  ' + c.checkDone + ' / ' + c.checkTotal + ' files' : '…'), 'dim']); break;
+      case 'checking':   rows.push(['Content', 'Checking installed mods  ' + pct(c.checkDone, c.checkTotal) + '%']); break;
+      case 'waiting':    rows.push(['Content', 'Host is verifying your files…', 'dim']); break;
+      case 'confirm':
+        rows.push(['Missing content', c.fileCount + (c.fileCount === 1 ? ' file' : ' files') + '  ·  ' + fmtBytes(c.total), 'warn']);
+        (c.missing || []).slice(0, 8).forEach(m => rows.push(['  ' + m.name, fmtBytes(m.size) + (m.here ? '  ·  different' : '  ·  missing'), 'dim']));
+        if ((c.missing || []).length > 8) rows.push(['  …', '+' + ((c.missing || []).length - 8) + ' more', 'dim']);
+        break;
+      case 'downloading':
+        rows.push(['Downloading', 'File ' + Math.min(c.fileIndex + 1, c.fileCount) + ' of ' + c.fileCount]);
+        rows.push(['Current file', c.file || '…']);
+        rows.push(['File', pct(c.fileDone, c.fileSize) + '%  ·  ' + fmtBytes(c.fileDone) + ' / ' + fmtBytes(c.fileSize)]);
+        rows.push(['Overall', pct(c.done, c.total) + '%  ·  ' + fmtBytes(c.done) + ' / ' + fmtBytes(c.total)]);
+        break;
+      case 'installing': rows.push(['Content', 'Verified  ·  preparing the install…']); break;
+      case 'restart':    rows.push(['Content', 'Verified  ·  restart required', 'warn']); break;
+      case 'blocked':
+        (c.blocked || []).slice(0, 8).forEach(b => rows.push([b.name || b.code, String(b.code).replace(/_/g, ' '), 'bad']));
+        break;
+      case 'failed':     rows.push(['Content', 'Failed', 'bad']); break;
+      case 'cancelled':  rows.push(['Content', 'Cancelled', 'dim']); break;
+    }
+    if ((c.activate || []).length && (cPhase() === 'confirm' || cPhase() === 'restart'))
+      rows.push(['To enable', c.activate.slice(0, 4).join(', ') + (c.activate.length > 4 ? ' …' : '')]);
+    const extra = (c.warnings || []).filter(w => w.code === 'extra').length;
+    if (extra) rows.push(['Your extra mods', extra + ' not used by the host (not synced)', 'dim']);
+    if ((c.native || []).length)
+      rows.push(['F4SE plugins (not sent)', c.native.slice(0, 3).join(', ') + (c.native.length > 3 ? ' …' : ''), 'dim']);
+    return rows;
+  };
+  const contentNotice = () => {
+    const c = CT();
+    switch (cPhase()) {
+      case 'requesting': return { head: 'Checking required content…', text: 'Asking the host which mods this game uses.' };
+      case 'preparing':  return { head: 'The host is preparing its mod list…', text: 'The host checks its files once (SHA-256); the first time can take a while with large mods.' };
+      case 'checking':   return { head: 'Checking installed mods…', text: 'Comparing your plugins and archives with the host’s (SHA-256).' };
+      case 'waiting':    return { head: 'Verifying…', text: 'The host is checking your answer against its own files.' };
+      case 'confirm':    return { head: 'Missing content detected',
+        text: 'The host uses ' + c.fileCount + ' file(s) (' + fmtBytes(c.total) + ') that you do not have or that differ. CoSync can download them; each file is verified before use, replaced files are backed up, and they are installed when Fallout 4 restarts.' +
+              (c.scripts ? ' Includes ' + c.scripts + ' game script file(s).' : '') };
+      case 'downloading': return { head: 'Downloading required content…', text: 'Every file is checked (SHA-256) before it is used. Cancel keeps what finished; it resumes next time.' };
+      case 'installing': return { head: 'Preparing the install…', text: 'All files passed verification.' };
+      case 'restart':    return { head: 'Restart required',
+        text: 'The content is downloaded and verified. It is installed when Fallout 4 starts again, and CoSync then rejoins this game by itself (within 30 minutes).' };
+      case 'blocked': {
+        const b = (c.blocked || [])[0];
+        const f = b && BLOCK_TEXT[b.code];
+        return { head: 'This content cannot be synchronized',
+          text: f ? f(b.name) + ((c.blocked || []).length > 1 ? ' (+' + (c.blocked.length - 1) + ' more)' : '') : 'The host uses content that CoSync cannot send.' };
+      }
+      case 'failed': {
+        const e = CONTENT_ERRORS[c.error] || CONTENT_ERRORS.default;
+        return { head: e.head, text: e.text + (c.detail ? '  (' + c.detail + ')' : '') };
+      }
+      case 'cancelled':  return { head: 'Download cancelled', text: 'Finished files are kept and the download resumes next time.' };
+    }
+    return null;
   };
 
   // Last join request, for TRY AGAIN.
@@ -388,6 +507,13 @@
 
     connect: {
       title: () => {
+        switch (cPhase()) {
+          case 'confirm': case 'downloading': case 'installing': return 'Required Content';
+          case 'restart': return 'Restart Required';
+          case 'blocked': case 'failed': return 'Join Failed';
+          case 'cancelled': return 'Cancelled';
+        }
+        if (contentShown()) return 'Checking Content';
         if (xferFailed()) return 'Join Failed';
         if (FAILED.indexOf(status()) >= 0) return status();
         return inHostWorld() ? 'Connected' : 'Joining';
@@ -398,11 +524,13 @@
           ['Game', state.net.joinTarget || '—'],
           ['Status', status(), statusCls(status())],
         ];
+        if (contentShown()) return rows.concat(contentRows());
         const w = worldLabel();
         if (w) rows.push(['World', w[0], w[1]]);
         return inHostWorld() ? rows.concat(rosterRows()) : rows;
       },
       notice: () => {
+        if (contentShown()) return contentNotice();
         if (xferFailed()) return XFER_ERRORS[state.transfer.error] || XFER_ERRORS.default;
         if (status() === 'OFFLINE' && state.steam.error === 'version_mismatch')
           return XFER_ERRORS.version_mismatch;
@@ -443,6 +571,28 @@
         return { head: 'Connecting…', text: 'Contacting the host.' };
       },
       items: () => {
+        switch (cPhase()) {
+          case 'confirm':
+            return [
+              { key: 'caccept', label: 'Download & Install', action: 'content_accept',
+                desc: 'Download ' + fmtBytes(CT().total) + ', verify every file, and install it when Fallout 4 restarts.' },
+              { key: 'ccancel', label: 'Cancel', action: 'content_cancel', desc: 'Do not download. Leaves this game.' },
+            ];
+          case 'requesting': case 'preparing': case 'checking': case 'waiting': case 'downloading':
+            return [{ key: 'ccancel', label: 'Cancel', action: 'content_cancel', desc: 'Stop and leave this game. Finished files are kept.' }];
+          case 'installing':
+            return [{ key: 'cwait', label: 'Please wait…', disabled: true, desc: '' }];
+          case 'restart':
+            return [
+              { key: 'cquit', label: 'Quit Game', action: 'content_quit', desc: 'Close Fallout 4. Start it again and CoSync installs the content and rejoins this game.' },
+              { key: 'back', label: 'Back', action: 'leave_back', desc: 'Return to the Multiplayer menu. The content is installed at the next start.' },
+            ];
+          case 'blocked': case 'failed': case 'cancelled':
+            return [
+              { key: 'retry', label: 'Try Again', action: 'retry', disabled: !lastJoin, desc: 'Connect to the same game again.' },
+              { key: 'back', label: 'Back', action: 'leave_back', desc: 'Return to the Multiplayer menu.' },
+            ];
+        }
         if (xferFailed() || FAILED.indexOf(status()) >= 0 || status() === 'OFFLINE')
           return [
             { key: 'retry', label: 'Try Again', action: 'retry', disabled: !lastJoin, desc: 'Connect to the same game again.' },
@@ -1155,6 +1305,9 @@
       case 'leave_back': sound('cancel'); native('stop'); goRoot(); break;
       case 'refresh': sound('ok'); native('search_start'); break;
       case 'retry':   sound('ok'); if (lastJoin) native(lastJoin); break;
+      case 'content_accept': sound('ok'); native('content|accept'); break;
+      case 'content_cancel': sound('cancel'); native('content|cancel'); break;
+      case 'content_quit':   sound('ok'); native('content|quit'); break;
       case 'direct': {
         const addr = direct.address.trim();
         const port = (direct.port || '48000').trim();

@@ -104,6 +104,10 @@ public:
     // Host: fully connected clients (thread-safe).
     int GetConnectedClientCount() const;
 
+    // Host: is this client connection still open (connecting or connected)?
+    // Thread-safe.
+    bool IsClientConnected(HSteamNetConnection conn) const;
+
     // Client: lifecycle + the GNS end reason once Closed (thread-safe).
     GNSClientState GetClientState() const { return m_clientState.load(); }
     int  GetClientEndReason() const { return m_clientEndReason.load(); }

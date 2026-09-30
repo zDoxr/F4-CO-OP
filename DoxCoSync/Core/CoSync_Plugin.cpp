@@ -38,6 +38,7 @@
 #include "CoSyncReviveSync.h"
 #include "CoSyncProxyWeaponAuthority.h"
 #include "CoSyncFirstPersonGraph.h"
+#include "CoSyncContentSync.h"
 
 extern bool RegisterCoSyncPapyrus(VirtualMachine* vm);
 
@@ -498,6 +499,9 @@ void OnF4SEMessage(F4SEMessagingInterface::Message* msg)
 
         CoSyncWorldSync::Init();
 
+        // Rejoin the host automatically after a content restart.
+        CoSyncContentSync::OnGameLoaded();
+
 
         LOG_INFO("CoSync: Installing TickHook...");
         // Round 123 bisection: ruled out (re-enabled round 125,
@@ -548,6 +552,12 @@ bool F4SEPlugin_Load(const F4SEInterface* f4se)
 {
     LOG_REQUIREMENT("(global)::F4SEPlugin_Load", "Needs a valid interface handed to it by the mod loader. Called exactly once, right at the start, before any of the other systems it sets up are used.");
     LOG_INFO("CoSync - F4SEPlugin_Load  version=%s", COSYNC_VERSION_STR);
+
+    // Pre-join content sync: install what the last session downloaded and
+    // verified. Must run here -- before InitGameDataThread reads Plugins.txt
+    // and opens plugins/archives (F4SE lets that thread run only after every
+    // plugin's Load) -- so nothing it replaces is open.
+    CoSyncContentSync::ApplyPendingInstall();
 
     InjectLoadingScreenTexture();
 

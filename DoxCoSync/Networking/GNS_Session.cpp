@@ -953,6 +953,12 @@ void GNS_Session::LeaveWithReason(int reason, const char* debug)
         k_HSteamNetConnection_Invalid);
 }
 
+bool GNS_Session::IsClientConnected(HSteamNetConnection conn) const
+{
+    std::lock_guard<std::mutex> lk(m_connsMutex);
+    return m_clientConns.count(conn) != 0 || m_pendingClientConns.count(conn) != 0;
+}
+
 int GNS_Session::GetConnectedClientCount() const
 {
     std::lock_guard<std::mutex> lk(m_connsMutex);

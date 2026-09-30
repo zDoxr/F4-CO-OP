@@ -15,6 +15,7 @@
 #include "CoSyncSessionConfig.h"
 #include "CoSyncPlayerAnimation.h"
 #include "CoSyncWorldTransfer.h"
+#include "CoSyncContentSync.h"
 #include "CoSyncProfiles.h"
 #include "CoSyncFactions.h"
 #include "CoSyncWorkshopAuthority.h"
@@ -161,6 +162,8 @@ namespace
                 return "SESSION FULL";
             if (gns.GetClientEndReason() == CoSyncSessionConfig::kEndReason_VersionMismatch)
                 return "VERSION MISMATCH";
+            if (gns.GetClientEndReason() == CoSyncSessionConfig::kEndReason_ContentSync)
+                return "CONTENT CHECK";
             return gns.ClientWasEverConnected() ? "HOST DISCONNECTED" : "CONNECTION FAILED";
         default:
             return "CONNECTING";
@@ -481,6 +484,8 @@ namespace
             json += ",\"profile\":\"";
             json += CoSyncProfiles::GetClientStatus();
             json += "\"";
+            // Pre-join content check / download (CoSyncContentSync).
+            json += ",\"content\":" + CoSyncContentSync::BuildUiJson();
         }
 
         // Factions, territory and workshop rules (CoSyncFactions /
@@ -615,6 +620,7 @@ namespace
         s_joinTarget = label;
         const std::string endpoint = ipv4 + ":" + std::to_string(port);
         LOG_INFO("[PrismaUI] Joining '%s' at %s", label.c_str(), endpoint.c_str());
+        CoSyncContentSync::NoteJoinTarget("ip", endpoint, label);
         cosync::CoSync_Main::Get().StartJoining(endpoint);
     }
 
@@ -776,6 +782,7 @@ namespace
                     EndSession();
                 s_joinTarget = label;
                 LOG_INFO("[PrismaUI] Joining '%s' through Steam lobby %llx", label.c_str(), (unsigned long long)lobby);
+                CoSyncContentSync::NoteJoinTarget("steam", arg, label);
                 CoSyncSteamLobby::RequestJoin(lobby);
             }
             PushState();
@@ -826,6 +833,13 @@ namespace
                 JoinEndpoint(ip, static_cast<uint16_t>(port), ip + ":" + portStr);
             else
                 LOG_WARN("[PrismaUI] Direct connect rejected: invalid address '%.40s'", arg.c_str());
+            PushState();
+        }
+        else if (cmd == "content")
+        {
+            // content|accept / cancel / quit -- the content sync validates
+            // the phase; anything else is ignored there.
+            CoSyncContentSync::UiCommand(arg);
             PushState();
         }
         else if (cmd == "voice_refresh")
@@ -1020,6 +1034,45 @@ namespace CoSyncPrismaUI
             s_openForInput.store(false);
             LOG_WARN("[PrismaUI] DispatchToGameThread refused the open (dispatcher not ready yet)");
         }
+    }
+
+    bool StartJoin(const std::string& kind, const std::string& value, const std::string& label)
+    {
+        LOG_REQUIREMENT("CoSyncPrismaUI::StartJoin", "Game thread only. Values come from CoSync's own rejoin note; validated like menu input.");
+        if (kind == "ip")
+        {
+            const size_t colon = value.rfind(':');
+            if (colon == std::string::npos)
+                return false;
+            const std::string ip = value.substr(0, colon);
+            const std::string portStr = value.substr(colon + 1);
+            if (!IsValidIpv4(ip) || portStr.empty() || portStr.size() > 5 ||
+                portStr.find_first_not_of("0123456789") != std::string::npos)
+                return false;
+            const int port = std::stoi(portStr);
+            if (port < 1 || port > 65535)
+                return false;
+            JoinEndpoint(ip, static_cast<uint16_t>(port), label.empty() ? value : label);
+            PushState();
+            return true;
+        }
+        if (kind == "steam")
+        {
+            uint64_t lobby = 0;
+            try { lobby = std::stoull(value, nullptr, 16); } catch (...) { lobby = 0; }
+            if (lobby == 0 || !CoSyncSteamLobby::IsAvailable())
+                return false;
+            CoSyncDiscovery::StopSearching();
+            if (CoSyncTransport::IsInitialized())
+                EndSession();
+            s_joinTarget = label;
+            LOG_INFO("[PrismaUI] Rejoining '%s' through Steam lobby %llx", label.c_str(), (unsigned long long)lobby);
+            CoSyncContentSync::NoteJoinTarget("steam", value, label);
+            CoSyncSteamLobby::RequestJoin(lobby);
+            PushState();
+            return true;
+        }
+        return false;
     }
 
     void RequestToggleMultiplayer()

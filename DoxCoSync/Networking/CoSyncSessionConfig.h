@@ -25,4 +25,8 @@ namespace CoSyncSessionConfig
     // player exactly why.
     constexpr int kEndReason_SessionFull     = 1001;
     constexpr int kEndReason_VersionMismatch = 1002;
+    // Pre-join content sync ended the connection: the client's content could
+    // not be matched, the player cancelled, or the client queued downloaded
+    // content and must restart (CoSyncContentSync; the menu shows which).
+    constexpr int kEndReason_ContentSync     = 1003;
 }

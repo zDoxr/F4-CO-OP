@@ -355,6 +355,8 @@ exit /b 0
     <ClInclude Include="Networking\GNS_Session.h" />
     <ClInclude Include="Networking\CoSyncDiscovery.h" />
     <ClInclude Include="Networking\CoSyncWorldTransfer.h" />
+    <ClInclude Include="Networking\CoSyncContentManifest.h" />
+    <ClInclude Include="Networking\CoSyncContentSync.h" />
     <ClInclude Include="World\CoSyncSaveLoad.h" />
     <ClInclude Include="World\CoSyncFactions.h" />
     <ClInclude Include="World\CoSyncWorkshopEngine.h" />
@@ -563,6 +565,8 @@ exit /b 0
     <ClCompile Include="Networking\GNS_Session.cpp" />
     <ClCompile Include="Networking\CoSyncDiscovery.cpp" />
     <ClCompile Include="Networking\CoSyncWorldTransfer.cpp" />
+    <ClCompile Include="Networking\CoSyncContentManifest.cpp" />
+    <ClCompile Include="Networking\CoSyncContentSync.cpp" />
     <ClCompile Include="World\CoSyncSaveLoad.cpp" />
     <ClCompile Include="World\CoSyncFactions.cpp" />
     <ClCompile Include="World\CoSyncWorkshopEngine.cpp" />
