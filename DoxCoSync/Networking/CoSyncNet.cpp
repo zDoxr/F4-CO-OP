@@ -1,7 +1,8 @@
-﻿
+
 #include "CoSyncNet.h"
 #include "CoSyncCombatAuthority.h"
 #include "CoSyncWorldStateSync.h"
+#include "CoSyncWorldSpawnSync.h"
 #include "CoSyncSharedDialogue.h"
 #include "Version.h"
 
@@ -2155,6 +2156,13 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
     // World-object state (0.3.5): destruction, open/close, script enable.
     // Destruction/open reports are relayed from anyone; script enable/disable
     // is the host's alone (the receiver refuses it on the host).
+    // Host console placements (0.3.6), host-originated only.
+    if (CoSyncWorldSpawnSync::IsSpawnMsg(msg))
+    {
+        CoSyncWorldSpawnSync::OnReceive(msg, isHostRole);
+        return;
+    }
+
     if (CoSyncWorldStateSync::IsWorldStateMsg(msg))
     {
         if (isHostRole && msg[2] != 'E')
@@ -2692,6 +2700,7 @@ void CoSyncNet::OnGNSDisconnected()
     CoSyncProxyLooks::Reset();
     CoSyncCompanions::Reset();
     CoSyncItemMods::Reset();
+    CoSyncWorldSpawnSync::Reset();
 
     // Clear the Essential crash guard so solo play afterward is unaffected.
     CoSyncGameAPI::SetLocalPlayerEssential(false);
