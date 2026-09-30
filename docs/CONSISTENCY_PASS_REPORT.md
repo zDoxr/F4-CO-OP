@@ -178,4 +178,5 @@ generator and a light (host and client builder), and a fresh join (Pip-Boy + jum
 - PA ownership is not saved across sessions.
 - A scrapped wire is removed with the object delete path, not the engine's wire scrap, so endpoint power links may
   need re-wiring after a remote scrap.
-- NPC contextual animation sync is untouched (item 6).
+- NPC idles the engine picks by type (no explicit idle form) are not replicated.
+- The animated PA entry needs the real frame loaded near the proxy; otherwise the instant clone entry is used.
