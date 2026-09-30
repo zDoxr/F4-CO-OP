@@ -1040,6 +1040,18 @@ void CoSyncPlayer::TickAnimVars()
         // Give it one kick: if still not ready kAnimGraphSettleDelay*6
         // seconds after first observed not-ready, run the same
         // Disable()+Enable() cycle a fresh spawn gets, once.
+        // 0.3.6: a proxy WorldSync hid for a location mismatch is disabled on
+        // purpose, so its graph is never "ready" -- the retries below then
+        // re-ENABLED it (RefreshActor3D = Disable+Enable) 2 ms after the
+        // hide, at coordinates from another worldspace. 0.3.5 host log
+        // 11680 21:02:13.783-.839: HIDDEN, "PA graph still not ready 0.0s",
+        // then the engine freed the re-enabled actor 56 ms later and the
+        // client's proxy was lost. WorldSync's SHOW path rebuilds it.
+        if (m_proxyHiddenForCell)
+        {
+            m_3dNotLoadedSince = 0.0;
+            return;
+        }
         const double now = NowSeconds();
         if (m_3dNotLoadedSince == 0.0)
             m_3dNotLoadedSince = now;
@@ -1056,7 +1068,14 @@ void CoSyncPlayer::TickAnimVars()
         // tuned for. Keep periodically retrying (instead of giving up after
         // one attempt) while in PA, so a slow graph swap eventually recovers
         // rather than leaving the proxy permanently unsynced/un-animated.
-        if (m_isInPowerArmor && (now - m_lastPaGraphRetryTime) >= (kAnimGraphSettleDelay * 6.0))
+        // 0.3.6: the not-ready state must itself have lasted the settle
+        // window. Only the time since the LAST retry was checked, so after a
+        // loading screen (stale m_lastPaGraphRetryTime) the first not-ready
+        // frame fired a Disable+Enable at once ("0.0s after PA entry", every
+        // load in the 0.3.5 logs), stacking on WorldSync's own rebuild.
+        if (m_isInPowerArmor &&
+            (now - m_3dNotLoadedSince) >= (kAnimGraphSettleDelay * 6.0) &&
+            (now - m_lastPaGraphRetryTime) >= (kAnimGraphSettleDelay * 6.0))
         {
             m_lastPaGraphRetryTime = now;
             LOG_WARN("[TickAnimVars] entity=%u PA graph still not ready %.1fs after PA entry -- retrying RefreshActor3D",

@@ -2503,7 +2503,18 @@ __declspec(noinline) static void TickProxyCellVisibility_Impl()
             IsRegisteredRemoteActor(proxy->actorRef))
             CoSyncGameAPI::RefileMisplacedActor(proxy->actorRef);
 
-        if (localTransitioned && !proxy->m_proxyHiddenForCell)
+        // 0.3.6: decide visibility BEFORE the local-transition rebuild. The
+        // rebuild used to run first and the mismatch test then disabled the
+        // proxy in the same frame (Disable+Enable+Disable on one actor: every
+        // load in the 0.3.5 logs). A proxy that is about to be hidden is
+        // rebuilt by the SHOW path when it comes back, not here.
+        const bool haveRemoteLoc = proxy->lastRemoteWorldspaceID != 0xFFFFFFFFu;
+        const bool bothInterior = haveRemoteLoc && (proxy->lastRemoteWorldspaceID == 0u) && (myWSID == 0u);
+        const bool mismatch = haveRemoteLoc && (bothInterior
+            ? (proxy->lastRemoteCellFormID != myCellID)
+            : (proxy->lastRemoteWorldspaceID != myWSID));
+
+        if (localTransitioned && !proxy->m_proxyHiddenForCell && !mismatch)
         {
             CoSyncGameAPI::RefreshActor3D(proxy->actorRef);
             if (proxy->m_lastQueuedWeaponFormID != 0)
@@ -2518,12 +2529,8 @@ __declspec(noinline) static void TickProxyCellVisibility_Impl()
                 myWSID, myCellID, proxy->entityID);
         }
 
-        if (proxy->lastRemoteWorldspaceID == 0xFFFFFFFFu) continue; // no WS packet yet
+        if (!haveRemoteLoc) continue; // no WS packet yet
 
-        const bool bothInterior = (proxy->lastRemoteWorldspaceID == 0u) && (myWSID == 0u);
-        const bool mismatch = bothInterior
-            ? (proxy->lastRemoteCellFormID != myCellID)
-            : (proxy->lastRemoteWorldspaceID != myWSID);
 
         if (mismatch && !proxy->m_proxyHiddenForCell)
         {

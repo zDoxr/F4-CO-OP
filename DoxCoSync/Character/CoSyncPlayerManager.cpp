@@ -1089,6 +1089,18 @@ void CoSyncPlayerManager::SpawnWatchdog(double now)
                 }
             }
 
+            // 0.3.6: range-gate on the NEWEST position received for this
+            // entity. authoritativePos is written once, at CREATE, and a
+            // player's proxy is never re-CREATEd, so after the remote
+            // player went exterior -> interior the gate compared their old
+            // exterior CREATE coordinates with our interior position
+            // (~95000 units) and postponed the respawn indefinitely: the
+            // 0.3.5 host log (11680) lost the client's proxy at 21:02:13
+            // and only rebuilt it at 21:09:03 when the host walked back
+            // near the CREATE spot. EU packets are stored before any spawn
+            // check (ProcessEntityUpdate), so lastUpdate is current.
+            if (st.lastUpdateLocalTime > 0.0)
+                pl->authoritativePos = st.lastUpdate.pos;
             const NiPoint3& ap = pl->authoritativePos;
             if (lp && (ap.x != 0.f || ap.y != 0.f || ap.z != 0.f))
             {
@@ -1105,8 +1117,10 @@ void CoSyncPlayerManager::SpawnWatchdog(double now)
             }
         }
 
-        LOG_WARN("[PlayerMgr] SpawnWatchdog: entity=%u not spawned %.1fs after task enqueue — re-enqueuing spawn",
-            kv.first, now - st.lastSpawnAttemptTime);
+        LOG_WARN("[PlayerMgr] SpawnWatchdog: entity=%u not spawned %.1fs after task enqueue — re-enqueuing spawn "
+                 "(Entity Recovered path, pos=(%.0f,%.0f,%.0f))",
+            kv.first, now - st.lastSpawnAttemptTime,
+            pl ? pl->authoritativePos.x : 0.f, pl ? pl->authoritativePos.y : 0.f, pl ? pl->authoritativePos.z : 0.f);
 
         // Respawn where the entity is NOW, not where it was when it first
         // appeared (the HELLO/CREATE position: 0.3.0 host log 16:50:18).

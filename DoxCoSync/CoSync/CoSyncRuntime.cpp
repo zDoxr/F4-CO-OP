@@ -95,6 +95,142 @@ namespace
     std::atomic<uint64_t> g_lastTickMs{ 0 };
     std::atomic<bool>     g_watchdogStarted{ false };
 
+    // 0.3.6: render-pass cycle probe. The 0.3.5 client hang (CoSync_hang.dmp,
+    // 21:10:35) had the main thread (the window thread, 12712) spinning in
+    // sub_14221F620 at 0x14221F780..0x14221F798:
+    //     for (p = head; p; p = *(p + 0x40)) if (!*p) sub_14221FCC0(p);
+    // called from the frame render sub_140C33250 -> sub_140C38240 -- a render
+    // pass list whose +0x40 chain had become a cycle. The dump has no heap,
+    // so the objects in the cycle could not be named. On a stall this
+    // suspends the main thread, and if RIP is in that function walks the
+    // chain from RBX (the loop cursor) with SEH-guarded reads. Pass +0x18 is
+    // the BSGeometry (sub_14221FCC0 reads its +0x108 flags / +0x140 fields);
+    // NiAVObject name is the BSFixedString at +0x10 (entry string at +0x18),
+    // parent at +0x28. Nothing is logged while the thread is suspended (the
+    // logger's lock could be held by it).
+    constexpr uintptr_t kRenderPassWalkStart = 0x221F620;
+    constexpr uintptr_t kRenderPassWalkEnd   = 0x221F620 + 0x2BF;
+
+    __declspec(noinline) bool ProbeRead(uintptr_t a, uintptr_t& out)
+    {
+        __try { out = *reinterpret_cast<const uintptr_t*>(a); return true; }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
+    __declspec(noinline) void ProbeName(uintptr_t obj, char* out, size_t cap)
+    {
+        out[0] = 0;
+        uintptr_t entry = 0;
+        if (!obj || !ProbeRead(obj + 0x10, entry) || !entry)
+            return;
+        __try
+        {
+            const char* s = reinterpret_cast<const char*>(entry + 0x18);
+            size_t i = 0;
+            for (; i + 1 < cap && s[i]; ++i)
+                out[i] = (s[i] >= 32 && s[i] < 127) ? s[i] : '?';
+            out[i] = 0;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) { out[0] = 0; }
+    }
+
+    DWORD FindMainWindowThread()
+    {
+        struct Ctx { DWORD pid; DWORD tid; } ctx{ ::GetCurrentProcessId(), 0 };
+        ::EnumWindows([](HWND h, LPARAM lp) -> BOOL {
+            auto* c = reinterpret_cast<Ctx*>(lp);
+            DWORD pid = 0;
+            const DWORD tid = ::GetWindowThreadProcessId(h, &pid);
+            char cls[32] = {};
+            if (pid == c->pid && ::GetClassNameA(h, cls, sizeof(cls)) && strcmp(cls, "Fallout4") == 0)
+            {
+                c->tid = tid;
+                return FALSE;
+            }
+            return TRUE;
+        }, reinterpret_cast<LPARAM>(&ctx));
+        return ctx.tid;
+    }
+
+    void ProbeRenderPassCycle()
+    {
+        const DWORD tid = FindMainWindowThread();
+        if (!tid)
+        {
+            LOG_ERROR("[HangWatchdog] render probe: main window thread not found");
+            return;
+        }
+        HANDLE th = ::OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT, FALSE, tid);
+        if (!th)
+            return;
+        const uintptr_t exe = reinterpret_cast<uintptr_t>(::GetModuleHandleA(nullptr));
+
+        struct Node { uintptr_t pass, geo; char geoName[64]; char chain[256]; };
+        Node nodes[8] = {};
+        int nodeCount = 0, walked = 0, cycleAt = -1;
+        uintptr_t rip = 0;
+        bool inLoop = false;
+
+        if (::SuspendThread(th) != (DWORD)-1)
+        {
+            CONTEXT c{};
+            c.ContextFlags = CONTEXT_FULL;
+            if (::GetThreadContext(th, &c))
+            {
+                rip = c.Rip - exe;
+                inLoop = rip >= kRenderPassWalkStart && rip < kRenderPassWalkEnd;
+                if (inLoop)
+                {
+                    uintptr_t seen[512];
+                    uintptr_t p = c.Rbx;
+                    while (p && walked < 512 && cycleAt < 0)
+                    {
+                        for (int k = 0; k < walked; ++k)
+                            if (seen[k] == p) { cycleAt = k; break; }
+                        if (cycleAt >= 0) break;
+                        seen[walked++] = p;
+                        uintptr_t next = 0;
+                        if (!ProbeRead(p + 0x40, next)) break;
+                        p = next;
+                    }
+                    const int from = cycleAt >= 0 ? cycleAt : 0;
+                    for (int k = from; k < walked && nodeCount < 8; ++k)
+                    {
+                        Node& n = nodes[nodeCount++];
+                        n.pass = seen[k];
+                        ProbeRead(n.pass + 0x18, n.geo);
+                        ProbeName(n.geo, n.geoName, sizeof(n.geoName));
+                        uintptr_t cur = n.geo;
+                        size_t len = 0;
+                        for (int depth = 0; depth < 8; ++depth)
+                        {
+                            uintptr_t parent = 0;
+                            if (!ProbeRead(cur + 0x28, parent) || !parent) break;
+                            char nm[48];
+                            ProbeName(parent, nm, sizeof(nm));
+                            const int w = _snprintf_s(n.chain + len, sizeof(n.chain) - len, _TRUNCATE, "%s<-", nm[0] ? nm : "?");
+                            if (w < 0) break;
+                            len += static_cast<size_t>(w);
+                            cur = parent;
+                        }
+                    }
+                }
+            }
+            ::ResumeThread(th);
+        }
+        ::CloseHandle(th);
+
+        LOG_ERROR("[HangWatchdog] render probe: main tid=%lu rip=Fallout4+0x%llX (%s the render-pass walk sub_14221F620)",
+            tid, (unsigned long long)rip, inLoop ? "INSIDE" : "not in");
+        if (!inLoop)
+            return;
+        LOG_ERROR("[HangWatchdog] render probe: walked %d pass node(s), %s", walked,
+            cycleAt >= 0 ? "CYCLE found (list loops back)" : "no cycle within 512 nodes");
+        for (int k = 0; k < nodeCount; ++k)
+            LOG_ERROR("[HangWatchdog]   pass=%p geo=%p '%s' parents: %s",
+                (void*)nodes[k].pass, (void*)nodes[k].geo, nodes[k].geoName, nodes[k].chain);
+    }
+
     void WriteHangDump(uint64_t stalledSec)
     {
         char exePath[MAX_PATH] = {};
@@ -110,7 +246,7 @@ namespace
         if (hFile == INVALID_HANDLE_VALUE)
             return;
         const BOOL ok = ::MiniDumpWriteDump(::GetCurrentProcess(), ::GetCurrentProcessId(), hFile,
-            static_cast<MINIDUMP_TYPE>(MiniDumpWithDataSegs | MiniDumpWithThreadInfo),
+            static_cast<MINIDUMP_TYPE>(MiniDumpWithDataSegs | MiniDumpWithThreadInfo | MiniDumpWithIndirectlyReferencedMemory),
             nullptr, nullptr, nullptr);
         ::CloseHandle(hFile);
         LOG_ERROR("[HangWatchdog] tick stalled %llus -- %s CoSync_hang.dmp",
@@ -132,6 +268,7 @@ namespace
                 const char* step = g_lastTickStep ? const_cast<const char*>(g_lastTickStep) : "<none>";
                 LOG_ERROR("[HangWatchdog] no CoSync tick for %llus (lastTickStep=%s, loadingMenu=%d)",
                     (unsigned long long)stalled, step, CoSyncOverlay_IsLoadingScreenActive() ? 1 : 0);
+                ProbeRenderPassCycle();
                 WriteHangDump(stalled);
                 dumped = true;   // once per process
             }
