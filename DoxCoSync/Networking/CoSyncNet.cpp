@@ -1890,6 +1890,14 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
         return;
     }
 
+    if (CoSyncPowerArmorSync::IsPowerArmorOwnership(msg))
+    {
+        // Host-originated; the host never relays a peer's copy.
+        if (!isHostRole)
+            CoSyncPowerArmorSync::OnReceivePowerArmorOwnership(msg);
+        return;
+    }
+
     if (CoSyncPowerArmorSync::IsPowerArmorMods(msg))
     {
         if (isHostRole)

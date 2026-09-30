@@ -5,6 +5,7 @@
 #include "NiTypes.h"
 
 class CoSyncPlayer;
+class TESObjectREFR;
 
 namespace CoSyncPowerArmorSync
 {
@@ -97,4 +98,21 @@ namespace CoSyncPowerArmorSync
     // alone -- injecting them too gave the proxy two copies of every piece,
     // and the engine only mods singular items (paint never applied).
     bool IsSenderPowerArmorPiece(uint32_t eid, uint32_t formID);
+
+    // ── 0.3.6: chassis ownership (host-authoritative) ──────────────────────
+    // The first player to enter a frame owns it for the session: everyone
+    // still SEES the frame, its occupant, the entry and the exit, but only the
+    // owner can get in. The host decides (first PA enter it sees for an
+    // unowned frame wins), broadcasts "PAOWN|ref|base|x|y|z|owner" (owner 0 =
+    // released) and re-sends the table every 10 s for late joiners. A player
+    // whose entry lost a race gets "PADENY|eid|ref" and is ejected. Released
+    // when the owner has been gone from the session for 30 s. A frame is
+    // identified by the sender's ref formID + base, or base + position (a
+    // runtime 0xFF ref id can differ between machines); the position follows
+    // the frame to where its owner last got out.
+    bool IsPowerArmorOwnership(const std::string& msg);
+    void OnReceivePowerArmorOwnership(const std::string& msg);
+    // Activation gate (any thread): true when the LOCAL player must not
+    // enter this frame because another player owns it.
+    bool ShouldBlockLocalEntry(TESObjectREFR* frame);
 }

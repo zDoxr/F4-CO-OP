@@ -26,6 +26,7 @@
 
 #include "GameHandle.h"
 
+#include <atomic>
 #include <mutex>
 #include <cmath>
 #include <algorithm>
@@ -280,6 +281,9 @@ namespace
     // Latest reported worn piece set per sender (raw, broken pieces too),
     // under s_mutex. Entry removed on the sender's exit packet.
     std::unordered_map<uint32_t, std::vector<uint32_t>> s_rxPaPieces;
+    // Set by PADENY (network thread or host), consumed on the tick.
+    std::atomic<bool> s_localEntryDenied{ false };
+    std::atomic<bool> s_notifyEntryRefused{ false };
 
     // Sender-side PA state, keyed by real actor formID. Written from the
     // main/game thread only (Papyrus OnSit/OnGetUp -> CoSync_NotifyPowerArmor
@@ -414,6 +418,212 @@ static bool ParsePowerArmor(const std::string& msg,
     return true;
 }
 
+// ── 0.3.6: chassis ownership ────────────────────────────────────────────────
+static bool SafeIsRefPowerArmorFrame(TESObjectREFR* ref);   // below
+namespace
+{
+    struct PaOwnerRec
+    {
+        uint32_t ref   = 0;     // the owner's formID for the frame
+        uint32_t base  = 0;
+        NiPoint3 pos;           // where the frame stands (entry, then last exit)
+        uint32_t owner = 0;
+        double   ownerMissingSince = 0.0;   // host: owner not in the session
+    };
+    std::mutex              s_ownMx;
+    std::vector<PaOwnerRec> s_owners;
+    double                  s_ownLastBroadcast = 0.0;
+    constexpr float         kOwnMatchDist   = 128.f;
+    constexpr double        kOwnReleaseSec  = 30.0;
+    constexpr double        kOwnResendSec   = 10.0;
+
+    float Dist2(const NiPoint3& a, const NiPoint3& b)
+    {
+        const float dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    // Caller holds s_ownMx.
+    int FindOwnerRecLocked(uint32_t ref, uint32_t base, const NiPoint3& pos)
+    {
+        for (size_t i = 0; i < s_owners.size(); ++i)
+            if (s_owners[i].base == base && ref != 0 && s_owners[i].ref == ref)
+                return static_cast<int>(i);
+        for (size_t i = 0; i < s_owners.size(); ++i)
+            if (s_owners[i].base == base && Dist2(s_owners[i].pos, pos) <= kOwnMatchDist * kOwnMatchDist)
+                return static_cast<int>(i);
+        return -1;
+    }
+
+    std::string OwnMsg(const PaOwnerRec& r)
+    {
+        char buf[160];
+        std::snprintf(buf, sizeof(buf), "PAOWN|%u|%u|%.2f|%.2f|%.2f|%u",
+            r.ref, r.base, r.pos.x, r.pos.y, r.pos.z, r.owner);
+        return buf;
+    }
+
+    // Host only: a PA enter/exit reported by `sender` (or by the host itself).
+    void HostOnPaEvent(uint32_t sender, uint32_t ref, uint32_t base, const NiPoint3& pos, bool entering)
+    {
+        if (!CoSyncNet::IsHost() || !sender || !base)
+            return;
+        std::string send;
+        std::string deny;
+        {
+            std::lock_guard<std::mutex> lk(s_ownMx);
+            const int i = FindOwnerRecLocked(ref, base, pos);
+            if (entering)
+            {
+                if (i < 0)
+                {
+                    PaOwnerRec r;
+                    r.ref = ref; r.base = base; r.pos = pos; r.owner = sender;
+                    s_owners.push_back(r);
+                    send = OwnMsg(r);
+                    LOG_UPDATED("[PASync] PA Owner Assigned: frame ref=0x%08X base=0x%08X at (%.0f,%.0f,%.0f) -> entity=%u",
+                        ref, base, pos.x, pos.y, pos.z, sender);
+                }
+                else if (s_owners[i].owner == 0)
+                {
+                    s_owners[i].owner = sender;
+                    s_owners[i].ref = ref;
+                    send = OwnMsg(s_owners[i]);
+                    LOG_UPDATED("[PASync] PA Owner Assigned: released frame ref=0x%08X -> entity=%u", ref, sender);
+                }
+                else if (s_owners[i].owner != sender)
+                {
+                    char b[64];
+                    std::snprintf(b, sizeof(b), "PADENY|%u|%u", sender, ref);
+                    deny = b;
+                    LOG_UPDATED_WARN("[PASync] PA entry DENIED: entity=%u entered frame ref=0x%08X owned by entity=%u",
+                        sender, ref, s_owners[i].owner);
+                }
+            }
+            else if (i >= 0 && s_owners[i].owner == sender)
+            {
+                // The frame stays where its owner got out; ownership is kept.
+                if (pos.x != 0.f || pos.y != 0.f || pos.z != 0.f)
+                    s_owners[i].pos = pos;
+                s_owners[i].ref = ref ? ref : s_owners[i].ref;
+                send = OwnMsg(s_owners[i]);
+                LOG_UPDATED("[PASync] PA Exit Completed: frame ref=0x%08X stays owned by entity=%u at (%.0f,%.0f,%.0f)",
+                    s_owners[i].ref, sender, s_owners[i].pos.x, s_owners[i].pos.y, s_owners[i].pos.z);
+            }
+        }
+        if (!send.empty())
+            CoSyncTransport::Send(send);
+        if (!deny.empty())
+        {
+            if (sender == CoSyncNet::GetMyEntityID())
+                CoSyncPowerArmorSync::OnReceivePowerArmorOwnership(deny);   // the host itself lost the race
+            else
+                CoSyncTransport::Send(deny);
+        }
+    }
+
+    // Host tick: release frames whose owner left, re-send the table.
+    void HostTickOwnership(double now)
+    {
+        if (!CoSyncNet::IsHost() || !CoSyncNet::IsConnected())
+            return;
+        std::vector<std::string> out;
+        {
+            std::lock_guard<std::mutex> lk(s_ownMx);
+            const uint32_t me = CoSyncNet::GetMyEntityID();
+            for (PaOwnerRec& r : s_owners)
+            {
+                if (r.owner == 0 || r.owner == me)
+                    continue;
+                if (g_CoSyncPlayerManager.GetPlayerByEntityID(r.owner))
+                {
+                    r.ownerMissingSince = 0.0;
+                    continue;
+                }
+                if (r.ownerMissingSince == 0.0)
+                    r.ownerMissingSince = now;
+                else if (now - r.ownerMissingSince >= kOwnReleaseSec)
+                {
+                    LOG_UPDATED("[PASync] PA Owner released: entity=%u left the session, frame ref=0x%08X is free",
+                        r.owner, r.ref);
+                    r.owner = 0;
+                    out.push_back(OwnMsg(r));
+                }
+            }
+            if (now - s_ownLastBroadcast >= kOwnResendSec)
+            {
+                s_ownLastBroadcast = now;
+                for (const PaOwnerRec& r : s_owners)
+                    if (r.owner != 0)
+                        out.push_back(OwnMsg(r));
+            }
+            s_owners.erase(std::remove_if(s_owners.begin(), s_owners.end(),
+                [](const PaOwnerRec& r) { return r.owner == 0; }), s_owners.end());
+        }
+        for (const std::string& m : out)
+            CoSyncTransport::Send(m);
+    }
+}
+
+bool CoSyncPowerArmorSync::IsPowerArmorOwnership(const std::string& msg)
+{
+    return msg.rfind("PAOWN|", 0) == 0 || msg.rfind("PADENY|", 0) == 0;
+}
+
+void CoSyncPowerArmorSync::OnReceivePowerArmorOwnership(const std::string& msg)
+{
+    if (msg.rfind("PADENY|", 0) == 0)
+    {
+        uint32_t eid = 0, ref = 0;
+        if (std::sscanf(msg.c_str() + 7, "%u|%u", &eid, &ref) != 2 || eid != CoSyncNet::GetMyEntityID())
+            return;
+        LOG_UPDATED_WARN("[PASync] PA entry DENIED by host: frame ref=0x%08X is owned by another player -- ejecting", ref);
+        s_localEntryDenied.store(true);
+        return;
+    }
+    if (CoSyncNet::IsHost())
+        return;   // the host's table is the source
+    PaOwnerRec r;
+    if (std::sscanf(msg.c_str() + 6, "%u|%u|%f|%f|%f|%u", &r.ref, &r.base, &r.pos.x, &r.pos.y, &r.pos.z, &r.owner) != 6)
+        return;
+    std::lock_guard<std::mutex> lk(s_ownMx);
+    const int i = FindOwnerRecLocked(r.ref, r.base, r.pos);
+    if (r.owner == 0)
+    {
+        if (i >= 0)
+            s_owners.erase(s_owners.begin() + i);
+        return;
+    }
+    if (i < 0)
+    {
+        s_owners.push_back(r);
+        LOG_UPDATED("[PASync] PA Owner: frame ref=0x%08X base=0x%08X is owned by entity=%u", r.ref, r.base, r.owner);
+    }
+    else
+        s_owners[i] = r;
+}
+
+bool CoSyncPowerArmorSync::ShouldBlockLocalEntry(TESObjectREFR* frame)
+{
+    if (!frame || !CoSyncNet::IsConnected() || !SafeIsRefPowerArmorFrame(frame))
+        return false;
+    TESForm* base = frame->baseForm;
+    if (!base)
+        return false;
+    const uint32_t me = CoSyncNet::GetMyEntityID();
+    uint32_t owner = 0;
+    {
+        std::lock_guard<std::mutex> lk(s_ownMx);
+        const int i = FindOwnerRecLocked(frame->formID, base->formID, frame->pos);
+        if (i >= 0)
+            owner = s_owners[i].owner;
+    }
+    const bool block = owner != 0 && owner != me;
+    if (block)
+        s_notifyEntryRefused.store(true);   // shown from the tick (this runs on the activation thread)
+    return block;
+}
+
 void CoSyncPowerArmorSync::NotifyPowerArmor(
     uint32_t        senderEntityID,
     uint32_t        chassisBaseFormID,
@@ -443,6 +653,7 @@ void CoSyncPowerArmorSync::NotifyPowerArmor(
     const std::string msg = SerializePowerArmor(
         senderEntityID, chassisBaseFormID, chassisRefFormID, entering, pieceFormIDs, chassisPos);
     CoSyncTransport::Send(msg);
+    HostOnPaEvent(senderEntityID, chassisRefFormID, chassisBaseFormID, chassisPos, entering);
 
     LOG_UPDATED("[PASync] TX PA sender=%u base=0x%08X ref=0x%08X pos=(%.0f,%.0f,%.0f) entering=%d pieces=[%u,%u,%u,%u,%u,%u]",
         senderEntityID, chassisBaseFormID, chassisRefFormID,
@@ -477,6 +688,8 @@ void CoSyncPowerArmorSync::OnReceivePowerArmor(const std::string& msg)
         senderEntityID, chassisBaseFormID, chassisRefFormID,
         chassisPos.x, chassisPos.y, chassisPos.z, entering ? 1 : 0,
         pieces[0], pieces[1], pieces[2], pieces[3], pieces[4], pieces[5]);
+
+    HostOnPaEvent(senderEntityID, chassisRefFormID, chassisBaseFormID, chassisPos, entering);
 
     std::lock_guard<std::mutex> lk(s_mutex);
     if (entering)
@@ -1880,6 +2093,12 @@ void CoSyncPowerArmorSync::Reset()
         std::lock_guard<std::mutex> lk(s_mutex);
         s_rxPaPieces.clear();
     }
+    {
+        std::lock_guard<std::mutex> lk(s_ownMx);
+        s_owners.clear();
+        s_ownLastBroadcast = 0.0;
+    }
+    s_localEntryDenied.store(false);
     LOG_REQUIREMENT("CoSyncPowerArmorSync::Reset", "No FO4 engine state involved -- clears the frame-inventory / fallback session state for a new session.");
     {
         std::lock_guard<std::mutex> lk(s_invMutex);
@@ -1905,6 +2124,15 @@ void CoSyncPowerArmorSync::Reset()
 void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
 {
     LOG_REQUIREMENT("CoSyncPowerArmorSync::FlushPendingPowerArmorOps", "Needs the player manager to be ready, and checks each stand-in character is actually spawned before touching it. The armor frame's position is set when it's first created, not moved afterward.");
+
+    HostTickOwnership(NowSecondsPA());
+    if (s_localEntryDenied.exchange(false) && CoSyncPowerArmorSync::IsLocalPlayerInPowerArmor())
+    {
+        CoSyncPowerArmorSync::ExitLocalPlayerPowerArmor();
+        CoSyncGameAPI::ShowNotification("This Power Armor belongs to another player.");
+    }
+    if (s_notifyEntryRefused.exchange(false))
+        CoSyncGameAPI::ShowNotification("This Power Armor belongs to another player.");
 
     // Sender-side: catch PA pieces swapped while already wearing the frame.
     TickLocalPowerArmorPieces();

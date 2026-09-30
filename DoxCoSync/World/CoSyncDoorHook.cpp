@@ -12,6 +12,7 @@
 #include "CoSyncPlayerManager.h"
 #include "CoSyncPlayer.h"
 #include "CoSyncReviveSync.h"
+#include "CoSyncPowerArmorSync.h"
 
 #include "GameReferences.h"
 #include "GameForms.h"
@@ -152,6 +153,8 @@ namespace
 // Detour
 // ============================================================================
 
+extern PlayerCharacter* CoSyncGetPlayer();
+
 static char __fastcall Detour_ActivateWorker(
     void* refr, void* activator, void* a3, void* a4,
     void* a5, void* a6, void* a7)
@@ -186,6 +189,17 @@ static char __fastcall Detour_ActivateWorker(
         if (n <= 5 || n % 50 == 0)
             LOG_INFO("[ThrowSync] blocked activation #%u of in-flight stand-in ref=0x%08X",
                 n, ri.refFormID);
+        return 0;
+    }
+
+    // ── 0.3.6: Power Armor ownership ────────────────────────────────────────
+    // The first player to get into a frame owns it (host-authoritative, see
+    // CoSyncPowerArmorSync.h). Anyone else can see it but not enter it.
+    if (ri.refFormID != 0 && activator &&
+        activator == static_cast<void*>(CoSyncGetPlayer()) &&
+        CoSyncPowerArmorSync::ShouldBlockLocalEntry(static_cast<TESObjectREFR*>(refr)))
+    {
+        LOG_UPDATED("[PASync] PA Enter refused: frame ref=0x%08X is owned by another player", ri.refFormID);
         return 0;
     }
 
