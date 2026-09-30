@@ -31,6 +31,10 @@ namespace CoSyncItemMods
     // items ref doesn't carry yet count as missing). MAIN THREAD.
     int ApplyMods(TESObjectREFR* ref, const std::string& text, uint32_t logTag);
 
+    // What entity `eid` last reported (IMODS) for its equipped items, in the
+    // same "ITEM:MOD/MOD,..." form ApplyMods takes. "" if nothing yet.
+    std::string DescribeWanted(uint32_t eid);
+
     bool IsItemModsMessage(const std::string& msg);
     void OnReceive(const std::string& msg, bool isHostRole);
 

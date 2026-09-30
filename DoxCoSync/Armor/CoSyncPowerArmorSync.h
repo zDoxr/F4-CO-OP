@@ -91,4 +91,10 @@ namespace CoSyncPowerArmorSync
     // local player's own occupied frame, a proxy's hidden real-frame copy or
     // its spawned chassis). World-state sync never enables/disables these.
     bool IsCoSyncManagedFrame(uint32_t localRefFormID);
+    // 0.3.6: true when `formID` is one of the Power Armor pieces sender `eid`
+    // last reported wearing (PA| enter packet). Those pieces reach the proxy
+    // through the chassis (SwitchToPowerArmor), so OutfitSync leaves them
+    // alone -- injecting them too gave the proxy two copies of every piece,
+    // and the engine only mods singular items (paint never applied).
+    bool IsSenderPowerArmorPiece(uint32_t eid, uint32_t formID);
 }

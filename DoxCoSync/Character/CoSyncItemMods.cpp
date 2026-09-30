@@ -263,6 +263,12 @@ namespace CoSyncItemMods
         return missing;
     }
 
+    std::string DescribeWanted(uint32_t eid)
+    {
+        auto it = s_wanted.find(eid);
+        return it == s_wanted.end() ? std::string() : Serialize(it->second);
+    }
+
     bool IsItemModsMessage(const std::string& msg)
     {
         return msg.rfind("IMODS|", 0) == 0;

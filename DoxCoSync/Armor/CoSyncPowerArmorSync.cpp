@@ -277,6 +277,9 @@ namespace
 
     std::mutex          s_mutex;
     std::vector<PaOp>   s_pending;
+    // Latest reported worn piece set per sender (raw, broken pieces too),
+    // under s_mutex. Entry removed on the sender's exit packet.
+    std::unordered_map<uint32_t, std::vector<uint32_t>> s_rxPaPieces;
 
     // Sender-side PA state, keyed by real actor formID. Written from the
     // main/game thread only (Papyrus OnSit/OnGetUp -> CoSync_NotifyPowerArmor
@@ -476,6 +479,10 @@ void CoSyncPowerArmorSync::OnReceivePowerArmor(const std::string& msg)
         pieces[0], pieces[1], pieces[2], pieces[3], pieces[4], pieces[5]);
 
     std::lock_guard<std::mutex> lk(s_mutex);
+    if (entering)
+        s_rxPaPieces[senderEntityID].assign(pieces, pieces + 6);
+    else
+        s_rxPaPieces.erase(senderEntityID);
     PaOp op{};
     op.senderEntityID    = senderEntityID;
     op.chassisBaseFormID = chassisBaseFormID;
@@ -1857,8 +1864,22 @@ static void FlushPendingFrameInventoryOps()
         ApplyFrameInventoryOp(op, now);
 }
 
+bool CoSyncPowerArmorSync::IsSenderPowerArmorPiece(uint32_t eid, uint32_t formID)
+{
+    if (!eid || !formID)
+        return false;
+    std::lock_guard<std::mutex> lk(s_mutex);
+    auto it = s_rxPaPieces.find(eid);
+    return it != s_rxPaPieces.end() &&
+        std::find(it->second.begin(), it->second.end(), formID) != it->second.end();
+}
+
 void CoSyncPowerArmorSync::Reset()
 {
+    {
+        std::lock_guard<std::mutex> lk(s_mutex);
+        s_rxPaPieces.clear();
+    }
     LOG_REQUIREMENT("CoSyncPowerArmorSync::Reset", "No FO4 engine state involved -- clears the frame-inventory / fallback session state for a new session.");
     {
         std::lock_guard<std::mutex> lk(s_invMutex);
@@ -2257,6 +2278,28 @@ void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
                 // chassis's inventory before SwitchToPowerArmorDirect runs a
                 // few lines below, removing a queue-ordering race that used
                 // to just be hoped for.
+                // 0.3.6: the chassis copy must be the ONLY copy of each piece
+                // the proxy ends up with. Copies already on the proxy (0.3.5:
+                // OutfitSync injected the sender's worn PA pieces as outfit
+                // armor, and re-injected one on every rebuild) made the engine
+                // refuse every paint mod ("Can only mod singular items",
+                // sub_141180DE0) and SwitchToPowerArmor equipped a bare copy.
+                for (int pi = 0; pi < 6; ++pi)
+                {
+                    if (op.pieceFormIDs[pi] == 0) continue;
+                    TESForm* pieceForm = SafeLookupForm(op.pieceFormIDs[pi]);
+                    if (!pieceForm) continue;
+                    TESObjectREFR* proxyRef = reinterpret_cast<TESObjectREFR*>(proxy->actorRef);
+                    BGSInventoryItem::Stack* stacks[16];
+                    const int ns = SafeCollectStacks(proxyRef, pieceForm, stacks, 16);
+                    UInt32 have = 0;
+                    for (int k = 0; k < ns; ++k)
+                        have += stacks[k]->count;
+                    if (have > 0 && CoSyncGameAPI::NativeRemoveItem(proxyRef, pieceForm, have))
+                        LOG_UPDATED("[PASync] Enter PA: removed %u stray copy/copies of piece 0x%08X from proxy entity=%u",
+                            have, op.pieceFormIDs[pi], op.senderEntityID);
+                }
+
                 int piecesAdded = 0;
                 for (int pi = 0; pi < 6; ++pi)
                 {
@@ -2283,10 +2326,28 @@ void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
                 // by PAMODS), copy its piece mods -- paint, armor upgrades,
                 // station work -- onto the spawned chassis before entering, so
                 // the proxy wears what the sender wears.
-                TESObjectREFR* realCopy = LookupFrameCopy(op.senderEntityID, op.chassisRefFormID);
+                // 0.3.6: first source is the sender's own report of the mods on
+                // the pieces it WEARS (IMODS: paint, linings, jetpack -- sent on
+                // every change, relayed by the host). The frame copy below was
+                // the only source before and is usually empty by now: the
+                // sender took the pieces out of the frame when it got in, and
+                // PAI already mirrored that here.
+                bool paintFromSender = false;
+                {
+                    const std::string worn = CoSyncItemMods::DescribeWanted(op.senderEntityID);
+                    if (!worn.empty())
+                    {
+                        const int missing = CoSyncItemMods::ApplyMods(chassis, worn, chassis->formID);
+                        paintFromSender = true;
+                        LOG_UPDATED("[PASync] PA Paint/Mod Detected: sender entity=%u worn mods applied to chassis 0x%08X "
+                            "before entry (%d listed mod(s) not on a chassis piece -- weapons etc.)",
+                            op.senderEntityID, chassis->formID, missing);
+                    }
+                }
+                TESObjectREFR* realCopy = paintFromSender ? nullptr : LookupFrameCopy(op.senderEntityID, op.chassisRefFormID);
                 if (realCopy == chassis)
                     realCopy = nullptr;
-                if (!realCopy)
+                if (!realCopy && !paintFromSender)
                     realCopy = FindLocalChassisInCell(op.chassisBaseFormID, op.chassisPos, chassis->formID);
                 if (realCopy)
                 {

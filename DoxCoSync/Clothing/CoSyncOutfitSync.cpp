@@ -1,4 +1,5 @@
 #include "CoSyncOutfitSync.h"
+#include "CoSyncPowerArmorSync.h"
 #include "CoSyncVMFormArg.h"
 #include "CoSyncEquipHook.h"
 #include "CoSyncGameAPI.h"
@@ -419,8 +420,15 @@ void CoSyncOutfitSync::FlushPendingOutfitOps()
         for (uint32_t fid : received)
         {
             if (inFlight.count(fid)) continue;     // mid equip/verify
+            // 0.3.6: the sender's Power Armor pieces come in through the
+            // chassis (PASync, SwitchToPowerArmor). Injecting them here as
+            // well gave the proxy duplicate pieces, which the engine refuses
+            // to mod -- the reason PA paint never showed on other players.
+            if (CoSyncPowerArmorSync::IsSenderPowerArmorPiece(op.entityID, fid))
+                continue;
+            bool present = false;
             {
-                bool present = false, equipped = false;
+                bool equipped = false;
                 UInt32 invCount = 0;
                 if (SafeFindInProxyInventory(actor, fid, present, equipped, invCount) && equipped)
                 {
@@ -432,6 +440,19 @@ void CoSyncOutfitSync::FlushPendingOutfitOps()
 
             TESForm* form = SafeLookupForm(fid);
             if (!form) { LOG_UPDATED_WARN("[OutfitSync FLUSH] armorFormID=0x%08X not found", fid); continue; }
+
+            // 0.3.6: carried but not worn -- equip that copy. Injecting
+            // another one every time (the old path) stacked a new copy of the
+            // piece on each 3D rebuild, and multi-copy items cannot take
+            // their mods (paint, linings) from IMODS.
+            if (present)
+            {
+                inFlight.insert(fid);
+                s_delayedEquips.push_back({ op.entityID, fid, now + 0.05 });
+                LOG_UPDATED("[OutfitSync APPLY] entity=%u armor=0x%08X already carried -- equipping it (no new copy)",
+                    op.entityID, fid);
+                continue;
+            }
 
 
             // Round 145: bypass Papyrus AddItem (silently fails on the proxy —
