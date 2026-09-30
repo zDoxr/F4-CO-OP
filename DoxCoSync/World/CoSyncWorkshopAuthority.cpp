@@ -20,6 +20,8 @@
 #include "PapyrusArgs.h"
 #include "PapyrusEvents.h"
 #include "f4se/PluginAPI.h"
+#include "f4se/GameWorkshop.h"
+#include "f4se/GameExtraData.h"
 
 #include "MinHook.h"
 
@@ -52,6 +54,9 @@ extern PlayerCharacter* CoSyncGetPlayer();
 //   WKR|<net>|<hostRef>
 //   WKC|<ws>=<count>;...
 //   WKN|<op>|<clientRef>|<reason>
+//  0.3.6 wires (an endpoint id is N<net> or R<formID>, like the requests):
+//   WKQ|W|<clientWire>|<splineBase>|<endA>|<endB>|<ws>
+//   WKW|<net>|<hostRef>|<splineBase>|<endA>|<endB>|<ws>|<placerEid>|<placerRef>
 namespace
 {
     using namespace CoSyncWorkshopEngine;
@@ -152,6 +157,10 @@ namespace
     uint32_t s_nextNet = 1;
     bool     s_countsDirty = false;
     double   s_nextCounts = 0.0;
+
+    // 0.3.6: wire endpoints per net id ("N<net>" / "R<formID>"), both roles.
+    struct WireEnds { std::string a, b; };
+    std::unordered_map<uint32_t, WireEnds> s_wireEnds;
 
     // Client
     std::unordered_map<uint32_t, uint32_t> s_netToLocal;
@@ -257,8 +266,9 @@ namespace
 
     // Wires are BendableSpline refs whose shape lives in extra data set up by
     // the workshop wiring code between two endpoints. A plain spawn of the
-    // base elsewhere would be a broken object, so wires are gated but not
-    // replicated (docs/WORKSHOP_FACTIONS_RE.md, Unresolved).
+    // base elsewhere would be a broken object. 0.3.6: they are replicated as
+    // "a wire of base S between endpoint A and endpoint B" and rebuilt on
+    // each machine by the engine's own wiring calls (see CreateWireImpl).
     __declspec(noinline) bool IsSplineBase(uint32_t baseId)
     {
         __try
@@ -267,6 +277,83 @@ namespace
             return f && f->formType == kFormType_BNDS;
         }
         __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
+    // ── 0.3.6: wires ────────────────────────────────────────────────────────
+    // A wire's ExtraPowerLinks (type 0xD0) lists the two endpoint form IDs;
+    // each endpoint's lists the wire (F4SE 0.7.9 GameExtraData.h).
+    __declspec(noinline) bool ReadWireEnds(TESObjectREFR* wire, uint32_t& a, uint32_t& b)
+    {
+        a = b = 0;
+        __try
+        {
+            ExtraDataList* x = wire ? wire->extraDataList : nullptr;
+            auto* pl = x ? static_cast<ExtraPowerLinks*>(x->GetByType(kExtraData_PowerLinks)) : nullptr;
+            if (!pl || pl->connections.count < 2)
+                return false;
+            UInt64 v0 = 0, v1 = 0;
+            pl->connections.GetNthItem(0, v0);
+            pl->connections.GetNthItem(1, v1);
+            a = static_cast<uint32_t>(v0);
+            b = static_cast<uint32_t>(v1);
+            return a != 0 && b != 0;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
+    __declspec(noinline) bool Has3D(TESObjectREFR* r)
+    {
+        __try { return r && r->GetObjectRootNode() != nullptr; }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
+    // The engine wiring sequence, as F4SE 0.7.9's ObjectReference.AttachWire
+    // (PapyrusObjectReference.cpp AttachWireLatent) runs it on 1.11.240; every
+    // callee verified as a function start in IDA (2026-09-29):
+    //   Workshop::ContextData ctor sub_1403897F0, SplineUtils::UpdateSpline
+    //   sub_14038DB50, SplineUtils::ConnectSpline sub_14038DFE0 (writes the
+    //   ExtraPowerLinks on both endpoints and the wire), Workshop::ExtraData
+    //   AddItem sub_140387090 / AddConnection sub_1403876D0 (power grid),
+    //   PowerUtils::UpdateMovingWirelessItem sub_14038ECB0,
+    //   TerminalUtils::EstablishTerminalLinks sub_14038FB40,
+    //   hCurrentWorkshop 0x1430F7698.
+    // The wire ref itself comes from CreateReferenceAtLocation (SpawnItemAtPosition)
+    // instead of PlaceAtMe_Native, which needs a VM stack.
+    __declspec(noinline) void WireEngineCalls(TESObjectREFR* wire, TESObjectREFR* a, TESObjectREFR* b,
+                                              TESObjectREFR* workshop, Workshop::ExtraData* wx)
+    {
+        BSPointerHandle<TESObjectREFR> saved = *Workshop::hCurrentWorkshop;
+        *Workshop::hCurrentWorkshop = workshop;
+        Workshop::ContextData ctx(reinterpret_cast<Actor*>(CoSyncGetPlayer()));
+        SplineUtils::UpdateSpline(&ctx, wire, b, 0, a, 0);
+        SplineUtils::ConnectSpline(a, 0, b, 0, wire);
+        if (wire->extraDataList)
+            if (auto* sp = static_cast<ExtraBendableSplineParams*>(wire->extraDataList->GetByType(kExtraData_BendableSplineParams)))
+                sp->thickness = 1.5f;
+        wx->AddItem(wire);
+        wx->AddConnection(a, b, wire);
+        PowerUtils::UpdateMovingWirelessItem(a, wx);
+        PowerUtils::UpdateMovingWirelessItem(b, wx);
+        TerminalUtils::EstablishTerminalLinks(wire);
+        *Workshop::hCurrentWorkshop = saved;
+    }
+
+    __declspec(noinline) bool WireEngineCallsSafe(TESObjectREFR* wire, TESObjectREFR* a, TESObjectREFR* b,
+                                                  TESObjectREFR* workshop, Workshop::ExtraData* wx)
+    {
+        __try { WireEngineCalls(wire, a, b, workshop, wx); return true; }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
+    __declspec(noinline) Workshop::ExtraData* WorkshopExtra(TESObjectREFR* workshop)
+    {
+        __try
+        {
+            return workshop && workshop->extraDataList
+                ? static_cast<Workshop::ExtraData*>(workshop->extraDataList->GetByType(kExtraData_WorkshopExtraData))
+                : nullptr;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return nullptr; }
     }
 
     // Actor buildables (turrets, robots): permission-gated like everything
@@ -926,6 +1013,94 @@ namespace
         s_localToNet.erase(it);
     }
 
+    // Endpoint identity valid on every machine.
+    std::string EndIdent(uint32_t localForm)
+    {
+        if (AuthorityNow())
+        {
+            auto it = s_refToNet.find(localForm);
+            return it != s_refToNet.end() ? Fmt("N%u", it->second) : Fmt("R%u", localForm);
+        }
+        auto it = s_localToNet.find(localForm);
+        return it != s_localToNet.end() ? Fmt("N%u", it->second) : Fmt("R%u", localForm);
+    }
+
+    TESObjectREFR* ResolveEnd(const std::string& id)
+    {
+        if (id.size() < 2) return nullptr;
+        const uint32_t n = static_cast<uint32_t>(std::strtoul(id.c_str() + 1, nullptr, 10));
+        if (id[0] == 'R') return LiveRef(n);
+        if (id[0] != 'N') return nullptr;
+        if (AuthorityNow())
+        {
+            auto it = s_reg.find(n);
+            return (it != s_reg.end() && it->second.hostRef) ? LiveRef(it->second.hostRef) : nullptr;
+        }
+        auto it = s_netToLocal.find(n);
+        return it != s_netToLocal.end() ? LiveRef(it->second) : nullptr;
+    }
+
+    // 'W' job: build wire j.o.net between its endpoints on THIS machine.
+    Apply ApplyWire(Job& j)
+    {
+        if (ResolveLocal(j.o, false))
+            return Apply::Done;   // already here
+        auto we = s_wireEnds.find(j.o.net);
+        if (we == s_wireEnds.end())
+            return Apply::Drop;
+        TESObjectREFR* a = ResolveEnd(we->second.a);
+        TESObjectREFR* b = ResolveEnd(we->second.b);
+        TESObjectREFR* ws = WorkshopByID(j.o.ws);
+        if (!a || !b || !ws)
+            return (++j.inRangeMisses > 600) ? Apply::Drop : Apply::Wait;   // endpoints not built / bound yet
+        if (!Has3D(a) || !Has3D(b))
+            return Apply::Wait;                                          // not loaded here: build when in range
+        Workshop::ExtraData* wx = WorkshopExtra(ws);
+        TESForm* spline = LookupFormByID(j.o.base);
+        if (!wx || !spline || spline->formType != kFormType_BNDS)
+        {
+            LOG_WARN("[Workshop] Wire %u: workshop extra data or spline base 0x%08X missing -- dropped", j.o.net, j.o.base);
+            return Apply::Drop;
+        }
+        TESObjectREFR* wire = CoSyncGameAPI::SpawnItemAtPosition(spline, a->pos, NiPoint3());
+        if (!wire)
+            return Apply::Wait;
+        SetLinkedWorkshop(wire, ws);
+        ++t_depth;   // our own wiring: never re-captured
+        const bool ok = WireEngineCallsSafe(wire, a, b, ws, wx);
+        --t_depth;
+        if (!ok)
+        {
+            LOG_ERROR("[Workshop] Wire %u: engine wiring faulted -- wire removed", j.o.net);
+            DeleteRef(wire);
+            return Apply::Drop;
+        }
+        if (AuthorityNow())
+        {
+            if (Obj* r = (s_reg.count(j.o.net) ? &s_reg[j.o.net] : nullptr))
+            {
+                if (r->hostRef) s_refToNet.erase(r->hostRef);
+                r->hostRef = wire->formID;
+                s_refToNet[r->hostRef] = r->net;
+            }
+        }
+        else
+            BindLocal(j.o.net, wire->formID);
+        uint32_t ea = 0, eb = 0;
+        ReadWireEnds(wire, ea, eb);
+        LOG_INFO("[Workshop] Wire Synchronized: wire %u = 0x%08X, Wire Endpoint A 0x%08X, Wire Endpoint B 0x%08X "
+                 "(power links on the wire: 0x%08X / 0x%08X)", j.o.net, wire->formID, a->formID, b->formID, ea, eb);
+        return Apply::Done;
+    }
+
+    void BroadcastWire(const Obj& o, uint32_t placerEid, uint32_t placerRef)
+    {
+        auto we = s_wireEnds.find(o.net);
+        if (we == s_wireEnds.end()) return;
+        Send(Fmt("WKW|%u|%u|%u|%s|%s|%u|%u|%u", o.net, o.hostRef, o.base,
+            we->second.a.c_str(), we->second.b.c_str(), o.ws, placerEid, placerRef), 0);
+    }
+
     __declspec(noinline) Apply ApplyJobImpl(Job& j)
     {
         TESObjectCELL* myCell = nullptr;
@@ -936,6 +1111,8 @@ namespace
 
         switch (j.kind)
         {
+        case 'W':
+            return ApplyWire(j);
         case 'A':
         {
             if (TESObjectREFR* have = ResolveLocal(j.o, true))
@@ -1102,9 +1279,26 @@ namespace
             Obj o = ObjFromCapture(c);
             o.placer = CoSyncProfiles::GetMyProfileKey();
             o.built = true;
-            if ((o.base & 0xFF000000u) == 0xFF000000u || IsSplineBase(o.base) || IsActorBase(o.base))
+            if (IsSplineBase(o.base))
             {
-                LOG_INFO("[Workshop] built base 0x%08X is a runtime form, a wire or an actor -- not replicated as a workshop object", o.base);
+                uint32_t ea = 0, eb = 0;
+                if (!ReadWireEnds(c.ref, ea, eb))
+                {
+                    LOG_WARN("[Workshop] Wire Created (host) 0x%08X but its endpoints are unreadable -- not replicated", c.formID);
+                    return;
+                }
+                Obj& r = RegAdd(o);
+                s_refToNet[c.formID] = r.net;
+                r.hostRef = c.formID;
+                s_wireEnds[r.net] = { EndIdent(ea), EndIdent(eb) };
+                BroadcastWire(r, myEid, c.formID);
+                LOG_INFO("[Workshop] Wire Created (host): wire %u = 0x%08X, Wire Endpoint A 0x%08X (%s), Wire Endpoint B 0x%08X (%s)",
+                    r.net, c.formID, ea, s_wireEnds[r.net].a.c_str(), eb, s_wireEnds[r.net].b.c_str());
+                return;
+            }
+            if ((o.base & 0xFF000000u) == 0xFF000000u || IsActorBase(o.base))
+            {
+                LOG_INFO("[Workshop] built base 0x%08X is a runtime form or an actor -- not replicated as a workshop object", o.base);
                 return;
             }
             Obj& r = RegAdd(o);
@@ -1152,7 +1346,18 @@ namespace
         {
         case 'P':
             if (IsSplineBase(c.base))
-                return;   // wires stay local (see IsSplineBase)
+            {
+                uint32_t ea = 0, eb = 0;
+                if (!ReadWireEnds(c.ref, ea, eb))
+                {
+                    LOG_WARN("[Workshop] Wire Created locally 0x%08X but its endpoints are unreadable -- not sent", c.formID);
+                    return;
+                }
+                CoSyncTransport::Send(Fmt("WKQ|W|%u|%u|%s|%s|%u", c.formID, c.base,
+                    EndIdent(ea).c_str(), EndIdent(eb).c_str(), c.ws));
+                LOG_INFO("[Workshop] Wire Created locally 0x%08X (A 0x%08X, B 0x%08X) -- asking the host", c.formID, ea, eb);
+                return;
+            }
             CoSyncTransport::Send(Fmt("WKQ|P|%u|%u|%.4f|%.4f|%.4f|%.4f|%.4f|%.4f|%u|%u|%u", c.formID, c.base,
                 c.pos.x, c.pos.y, c.pos.z, c.rot.x, c.rot.y, c.rot.z, c.ws, c.space, c.cell));
             return;
@@ -1280,6 +1485,30 @@ namespace
             return;
         }
 
+        if (op == 'W')
+        {
+            if (v.size() < 6) return;
+            const uint32_t cref = U(v[1]);
+            Obj o;
+            o.base = U(v[2]);
+            o.ws = U(v[5]);
+            o.placer = key;
+            o.built = true;
+            if (!IsSplineBase(o.base)) return Deny(conn, 'P', cref, "That is not a wire.");
+            if (!WorkshopByID(o.ws)) return Deny(conn, 'P', cref, "That is not a settlement.");
+            TESObjectREFR* a = ResolveEnd(v[3]);
+            TESObjectREFR* b = ResolveEnd(v[4]);
+            if (!a || !b) return Deny(conn, 'P', cref, "The host does not know one of the wired objects yet.");
+            o.pos = a->pos;
+            if (!CheckAll(key, o.ws, 0, o.pos, WorkshopOp::Build, why)) return Deny(conn, 'P', cref, why);
+            Obj& r = RegAdd(o);
+            s_wireEnds[r.net] = { v[3], v[4] };
+            AddJob('W', r, true);
+            BroadcastWire(r, EidForConn(conn), cref);
+            LOG_INFO("[Workshop] accepted wire %u (%s -> %s) in 0x%08X from conn=%u", r.net, v[3].c_str(), v[4].c_str(), r.ws, conn);
+            return;
+        }
+
         if (op == 'M')
         {
             if (v.size() < 13) return;
@@ -1389,6 +1618,20 @@ namespace
                 return;
             }
             AddJob('A', o, false);
+            return;
+        }
+        if (type == "WKW" && v.size() >= 8)
+        {
+            Obj o;
+            o.net = U(v[0]); o.hostRef = U(v[1]); o.base = U(v[2]); o.ws = U(v[5]);
+            s_wireEnds[o.net] = { v[3], v[4] };
+            const uint32_t placerEid = U(v[6]), placerRef = U(v[7]);
+            if (placerEid == myEid && placerRef != 0)
+            {
+                BindLocal(o.net, placerRef);   // our own wire, accepted
+                return;
+            }
+            AddJob('W', o, false);
             return;
         }
         if (type == "WKV" && v.size() >= 10)
