@@ -3,6 +3,7 @@
 #include "CoSyncCombatAuthority.h"
 #include "CoSyncWorldStateSync.h"
 #include "CoSyncWorldSpawnSync.h"
+#include "CoSyncNpcIdleSync.h"
 #include "CoSyncSharedDialogue.h"
 #include "Version.h"
 
@@ -2157,6 +2158,12 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
     // Destruction/open reports are relayed from anyone; script enable/disable
     // is the host's alone (the receiver refuses it on the host).
     // Host console placements (0.3.6), host-originated only.
+    if (CoSyncNpcIdleSync::IsIdleMsg(msg))
+    {
+        CoSyncNpcIdleSync::OnReceive(msg, isHostRole);
+        return;
+    }
+
     if (CoSyncWorldSpawnSync::IsSpawnMsg(msg))
     {
         CoSyncWorldSpawnSync::OnReceive(msg, isHostRole);
@@ -2701,6 +2708,7 @@ void CoSyncNet::OnGNSDisconnected()
     CoSyncCompanions::Reset();
     CoSyncItemMods::Reset();
     CoSyncWorldSpawnSync::Reset();
+    CoSyncNpcIdleSync::Reset();
 
     // Clear the Essential crash guard so solo play afterward is unaffected.
     CoSyncGameAPI::SetLocalPlayerEssential(false);

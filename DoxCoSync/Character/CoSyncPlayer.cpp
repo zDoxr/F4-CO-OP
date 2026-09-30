@@ -698,6 +698,16 @@ void CoSyncPlayer::ApplyProxyTransform(const NiPoint3& pos, const NiPoint3& rot)
             LOG_UPDATED("[CoSyncPlayer] entity=%u jumped %.0f units -- relocated", entityID,
                 sqrtf(dx * dx + dy * dy + dz * dz));
         }
+        // 0.3.6: seated/leaning on the owner's furniture -> the engine holds
+        // the actor on the furniture marker; steering it to the network
+        // position every frame pulled it off again (the reported "standing
+        // instead of sitting", "fighting the synchronized movement").
+        if (m_npcFurnitureRef != 0)
+        {
+            CoSyncGameAPI::StopActorCombat(actorRef);
+            m_lastAnimApplyTime = NowSeconds();
+            return;
+        }
         CoSyncGameAPI::SteerPuppetPosition(actorRef, pos, rot.z);
         // 0.3.3: SetPosition zeroed the controller velocity (verified); hand
         // the engine the owner's velocity instead, so the puppet is moving,

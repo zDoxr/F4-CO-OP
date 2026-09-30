@@ -1078,6 +1078,74 @@ namespace CoSyncGameAPI
         }
     }
 
+    namespace
+    {
+        constexpr uintptr_t kRVA_SnapIntoInteraction = 0x00BB33A0;
+        constexpr uint8_t   kSnapIntoInteractionPrologue[16] = {
+            0x40, 0x56, 0x57, 0x41, 0x56, 0x48, 0x83, 0xEC, 0x30, 0x4C, 0x8B, 0xF1, 0x40, 0x32, 0xFF, 0x48 };
+        constexpr uintptr_t kRVA_SetSitSleepState = 0x00D36460;
+        constexpr uint8_t   kSetSitSleepStatePrologue[16] = {
+            0x48, 0x8B, 0xC4, 0x44, 0x89, 0x40, 0x18, 0x55, 0x56, 0x57, 0x41, 0x55, 0x48, 0x8D, 0x68, 0xD8 };
+        using SnapInteraction_t = bool (*)(Actor* actor, TESObjectREFR* furniture);
+        using SetSitSleepState_t = void (*)(void* process, Actor* actor, int state);
+
+        bool PrologueOk(uintptr_t rva, const uint8_t* bytes, size_t n, const char* what)
+        {
+            const uintptr_t fn = RelocationManager::s_baseAddr + rva;
+            if (std::memcmp(reinterpret_cast<const void*>(fn), bytes, n) == 0)
+                return true;
+            static bool s_warned[2] = {};
+            bool& w = s_warned[rva == kRVA_SnapIntoInteraction ? 0 : 1];
+            if (!w) { w = true; LOG_ERROR("[GameAPI] %s prologue mismatch (not 1.11.240?) -- disabled", what); }
+            return false;
+        }
+
+        __declspec(noinline) bool SnapIntoFurnitureImpl(Actor* actor, TESObjectREFR* furniture)
+        {
+            __try
+            {
+                if (!actor->GetObjectRootNode() || !furniture->GetObjectRootNode())
+                    return false;
+                const auto fn = reinterpret_cast<SnapInteraction_t>(RelocationManager::s_baseAddr + kRVA_SnapIntoInteraction);
+                return fn(actor, furniture);
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+        }
+
+        __declspec(noinline) bool StandImpl(Actor* actor)
+        {
+            __try
+            {
+                void* process = actor->middleProcess;
+                if (!process)
+                    return false;
+                const auto fn = reinterpret_cast<SetSitSleepState_t>(RelocationManager::s_baseAddr + kRVA_SetSitSleepState);
+                fn(process, actor, 4);
+                return true;
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+        }
+    }
+
+    bool SnapActorIntoFurniture(Actor* actor, TESObjectREFR* furniture)
+    {
+        if (!actor || !furniture || !IsFormStillLive(static_cast<TESForm*>(actor)) ||
+            !IsFormStillLive(static_cast<TESForm*>(furniture)))
+            return false;
+        if (!PrologueOk(kRVA_SnapIntoInteraction, kSnapIntoInteractionPrologue, sizeof(kSnapIntoInteractionPrologue), "SnapIntoInteraction"))
+            return false;
+        return SnapIntoFurnitureImpl(actor, furniture);
+    }
+
+    bool RequestActorStand(Actor* actor)
+    {
+        if (!actor || !IsFormStillLive(static_cast<TESForm*>(actor)))
+            return false;
+        if (!PrologueOk(kRVA_SetSitSleepState, kSetSitSleepStatePrologue, sizeof(kSetSitSleepStatePrologue), "SetSitSleepState"))
+            return false;
+        return StandImpl(actor);
+    }
+
     void SteerPuppetPosition(Actor* actor, const NiPoint3& pos, float headingZ)
     {
         LOG_REQUIREMENT("CoSyncGameAPI::SteerPuppetPosition", "Needs a non-null, still-alive actor. Sets its facing direction, then moves it to the given position through the game's own move function, wrapped in a crash guard. The actor's AI and animation keep running normally — we're only pinning its position.");

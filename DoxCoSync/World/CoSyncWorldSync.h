@@ -134,6 +134,8 @@ namespace CoSyncWorldSync
     void OnReceiveStateRequest();
 
     void NotifyFurnitureUse(uint32_t refFormID, uint32_t actorEntityID, bool isSitting);
+    // 0.3.6: an NPC's TESFurnitureEvent (any thread); handled on the tick.
+    void QueueNpcFurnitureEvent(uint32_t actorFormID, uint32_t furnFormID, bool sitting);
 
     // Shared with any other subsystem that independently calls
     // PlaceAtMe_Native on a peer-supplied base form (e.g. CoSyncPowerArmorSync

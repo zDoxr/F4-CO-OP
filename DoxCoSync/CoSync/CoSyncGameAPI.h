@@ -110,6 +110,17 @@ namespace CoSyncGameAPI
     // NiNode write). headingZ is written to actor->rot.z (== GetHeading) first.
     void SteerPuppetPosition(Actor* actor, const NiPoint3& pos, float headingZ);
 
+    // 0.3.6 NPC furniture (IDA 1.11.240): the core of Papyrus
+    // Actor.SnapIntoInteraction (native sub_1410FBB20 -> sub_140BB33A0(actor,
+    // furniture)): no-op when the actor already uses that furniture, else
+    // picks a free marker and snaps the actor in (actor vfunc +0x668). Both
+    // need 3D. Main thread; SEH-guarded; prologue-checked.
+    bool SnapActorIntoFurniture(Actor* actor, TESObjectREFR* furniture);
+    // Asks the engine to stand an actor up with its own get-up animation:
+    // sub_140D36460(middleProcess, actor, 4) sets SIT_SLEEP_STATE 4 ("want to
+    // stand"); state 0 would pop it out with no animation. Main thread.
+    bool RequestActorStand(Actor* actor);
+
     // 0.3.3: set the actor's Havok character-proxy linear velocity (game
     // units/s). IDA 1.11.240: the controller is process(+0x300)->middleHigh
     // (+0x08)->+0x3E0 (sub_140C5CD50 / sub_140D347C0); its vtable slot 0x3A

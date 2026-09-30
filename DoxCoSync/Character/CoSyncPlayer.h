@@ -255,6 +255,9 @@ public:
     bool     m_prevRecvHasPos = false;
 
     bool     m_isSitting = false;
+    // 0.3.6: furniture the OWNER's NPC is using (host-reported via FU), 0 =
+    // none. While set, the puppet is seated by the engine and not steered.
+    uint32_t m_npcFurnitureRef = 0;
 
     uint32_t m_lastEquippedWeaponFormID = 0;
 

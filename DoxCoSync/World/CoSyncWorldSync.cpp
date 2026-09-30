@@ -2,6 +2,7 @@
 #include "CoSyncCombatAuthority.h"
 #include "CoSyncWorldStateSync.h"
 #include "CoSyncWorldSpawnSync.h"
+#include "CoSyncNpcIdleSync.h"
 #include "CoSyncSharedDialogue.h"
 #include "CoSyncContainerSync.h"
 
@@ -1024,6 +1025,30 @@ static void ApplyFurnitureToProxy_Impl(uint32_t refFormID, uint32_t actorEntityI
 
     player->m_isSitting = isSitting;
 
+    // 0.3.6: an NPC puppet does what its owner's NPC does with furniture
+    // (chairs, benches, wall leans, counters): the engine seats it on the
+    // SAME furniture and stands it up with its own animation.
+    if (player->createType == CoSyncEntityType::NPC && player->actorRef && player->hasSpawned)
+    {
+        TESObjectREFR* furn = refFormID ? FormToREFR(LookupFormByID(refFormID)) : nullptr;
+        if (isSitting)
+        {
+            player->m_npcFurnitureRef = refFormID;
+            const bool ok = furn && CoSyncGameAPI::SnapActorIntoFurniture(player->actorRef, furn);
+            LOG_UPDATED("[NpcSync] entity=%u Animation/Action State: uses furniture 0x%08X -> %s",
+                actorEntityID, refFormID, ok ? "seated natively" : (furn ? "snap refused (no 3D yet?), retried on tick" : "furniture not in this world"));
+            if (!furn)
+                player->m_npcFurnitureRef = 0;
+        }
+        else
+        {
+            player->m_npcFurnitureRef = 0;
+            const bool ok = CoSyncGameAPI::RequestActorStand(player->actorRef);
+            LOG_UPDATED("[NpcSync] entity=%u Animation/Action State: leaves furniture 0x%08X -> %s",
+                actorEntityID, refFormID, ok ? "engine stand-up requested" : "no process");
+        }
+    }
+
     LOG_INFO("[WorldSync] FU applied: entity=%u isSitting=%d", actorEntityID, isSitting ? 1 : 0);
 }
 
@@ -1099,8 +1124,15 @@ namespace
                 return kEvent_Continue;
 
             PlayerCharacter* pPlayer = CoSyncGetPlayer();
-            if (!pPlayer || reinterpret_cast<Actor*>(pPlayer) != evn->actor)
+            if (!pPlayer)
                 return kEvent_Continue;
+            if (reinterpret_cast<Actor*>(pPlayer) != evn->actor)
+            {
+                // 0.3.6: NPCs. Queued to the tick (this sink can run off the
+                // main thread); see TickNpcFurnitureEvents.
+                CoSyncWorldSync::QueueNpcFurnitureEvent(evn->actor->formID, evn->furniture->formID, !evn->isGettingUp);
+                return kEvent_Continue;
+            }
 
             if (IsCraftingStation(evn->furniture))
             {
@@ -2603,8 +2635,13 @@ static void TickProxyCellVisibility()
     }
 }
 
+static void TickNpcFurnitureEvents();   // below (0.3.6)
+static void TickNpcSeatRetry(double now);
+
 void CoSyncWorldSync::Tick(double now)
 {
+    TickNpcFurnitureEvents();
+    TickNpcSeatRetry(now);
 
     {
         std::vector<PendingFurnitureApply> pending;
@@ -2644,6 +2681,7 @@ void CoSyncWorldSync::Tick(double now)
         // EXP from the sender is considered (0.3.5).
         CoSyncWorldStateSync::Tick(now);
         CoSyncWorldSpawnSync::Tick(now);
+        CoSyncNpcIdleSync::Tick(now);
         CoSyncSharedDialogue::Tick(now);
 
         CoSyncExplosionSync::Tick(now);
@@ -2903,6 +2941,72 @@ void CoSyncWorldSync::NotifyWorkshopBuildImmediate(const WorkshopBuildFullPacket
     CoSyncTransport::Send(SerializeWorkshopBuildFull(p));
     LOG_UPDATED("[WorldSync] TX WBF (instant): base=0x%08X pos=(%.0f,%.0f,%.0f) rot=(%.2f,%.2f,%.2f)",
         p.baseFormID, p.posX, p.posY, p.posZ, p.rotX, p.rotY, p.rotZ);
+}
+
+// ── 0.3.6: NPC furniture ────────────────────────────────────────────────────
+namespace
+{
+    struct NpcFurnEvt { uint32_t actor, furn; bool sitting; };
+    std::mutex              s_npcFurnMx;
+    std::vector<NpcFurnEvt> s_npcFurnEvts;
+}
+
+void CoSyncWorldSync::QueueNpcFurnitureEvent(uint32_t actorFormID, uint32_t furnFormID, bool sitting)
+{
+    std::lock_guard<std::mutex> lk(s_npcFurnMx);
+    if (s_npcFurnEvts.size() < 256)
+        s_npcFurnEvts.push_back({ actorFormID, furnFormID, sitting });
+}
+
+// Main thread. For an NPC this machine SIMULATES (no network transforms
+// arrive for it): tell everyone which furniture it uses. For a puppet (its
+// transforms come from the owner): its own AI must not pick furniture the
+// owner's NPC is not using -- stand it back up.
+static void TickNpcFurnitureEvents()
+{
+    std::vector<NpcFurnEvt> evts;
+    {
+        std::lock_guard<std::mutex> lk(s_npcFurnMx);
+        evts.swap(s_npcFurnEvts);
+    }
+    if (evts.empty() || !CoSyncNet::IsConnected())
+        return;
+    for (const NpcFurnEvt& e : evts)
+    {
+        CoSyncPlayer* p = g_CoSyncPlayerManager.GetPlayerByActorFormID(e.actor);
+        if (!p || p->createType != CoSyncEntityType::NPC || p->isLocalPlayer)
+            continue;
+        if (!p->m_hasRealTransform)
+        {
+            if (IsCraftingStation(FormToREFR(LookupFormByID(e.furn))))
+                continue;
+            CoSyncWorldSync::NotifyFurnitureUse(e.furn, p->entityID, e.sitting);
+            LOG_UPDATED("[NpcSync] entity=%u (simulated here) %s furniture 0x%08X -- sent",
+                p->entityID, e.sitting ? "sits in / uses" : "gets up from", e.furn);
+        }
+        else if (e.sitting && e.furn != p->m_npcFurnitureRef && p->actorRef)
+        {
+            CoSyncGameAPI::RequestActorStand(p->actorRef);
+            LOG_UPDATED("[NpcSync] entity=%u puppet's own AI took furniture 0x%08X the owner's NPC is not using -- standing it up",
+                p->entityID, e.furn);
+        }
+    }
+}
+
+// Retry seats that were refused because 3D was still loading.
+static void TickNpcSeatRetry(double now)
+{
+    static double s_next = 0.0;
+    if (now < s_next) return;
+    s_next = now + 1.0;
+    for (const auto& kv : g_CoSyncPlayerManager.GetAllPlayers())
+    {
+        CoSyncPlayer* p = kv.second.get();
+        if (!p || p->createType != CoSyncEntityType::NPC || !p->m_npcFurnitureRef || !p->actorRef || !p->hasSpawned)
+            continue;
+        if (TESObjectREFR* f = FormToREFR(LookupFormByID(p->m_npcFurnitureRef)))
+            CoSyncGameAPI::SnapActorIntoFurniture(p->actorRef, f);   // no-op once seated there
+    }
 }
 
 void CoSyncWorldSync::NotifyFurnitureUse(uint32_t refFormID, uint32_t actorEntityID, bool isSitting)

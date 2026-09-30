@@ -339,6 +339,7 @@ exit /b 0
     <ClInclude Include="Weapons\CoSyncCombatAuthority.h" />
     <ClInclude Include="World\CoSyncWorldStateSync.h" />
     <ClInclude Include="World\CoSyncWorldSpawnSync.h" />
+    <ClInclude Include="Animations\CoSyncNpcIdleSync.h" />
     <ClInclude Include="Dialog\CoSyncSharedDialogue.h" />
     <ClInclude Include="Hooks\CoSyncPlayerLevelGuard.h" />
     <ClInclude Include="World\CoSyncNpcWorldSync.h" />
@@ -544,6 +545,7 @@ exit /b 0
     <ClCompile Include="Weapons\CoSyncCombatAuthority.cpp" />
     <ClCompile Include="World\CoSyncWorldStateSync.cpp" />
     <ClCompile Include="World\CoSyncWorldSpawnSync.cpp" />
+    <ClCompile Include="Animations\CoSyncNpcIdleSync.cpp" />
     <ClCompile Include="Dialog\CoSyncSharedDialogue.cpp" />
     <ClCompile Include="Hooks\CoSyncPlayerLevelGuard.cpp" />
     <ClCompile Include="World\CoSyncNpcWorldSync.cpp" />

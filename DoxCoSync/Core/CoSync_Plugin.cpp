@@ -24,6 +24,7 @@
 #include "CoSyncCombatAuthority.h"
 #include "CoSyncWorldStateSync.h"
 #include "CoSyncWorldSpawnSync.h"
+#include "CoSyncNpcIdleSync.h"
 #include "CoSyncSharedDialogue.h"
 #include "CoSyncPlayerLevelGuard.h"
 #include "CoSyncAnimEventHook.h"
@@ -610,6 +611,7 @@ bool F4SEPlugin_Load(const F4SEInterface* f4se)
     InstallNpcGraphInputCapture();
     CoSyncWorldStateSync::Install();
     CoSyncWorldSpawnSync::Install();
+    CoSyncNpcIdleSync::Install();
     CoSyncSharedDialogue::Install();
 
     // (No DX11 Present hook any more: the ImGui overlay was retired in favour
