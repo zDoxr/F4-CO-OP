@@ -24,6 +24,7 @@
 #include "CoSyncCombatAuthority.h"
 #include "CoSyncWorldStateSync.h"
 #include "CoSyncSharedDialogue.h"
+#include "CoSyncPlayerLevelGuard.h"
 #include "CoSyncAnimEventHook.h"
 #include "CoSyncSpawnTasks.h"
 #include "CoSyncRuntime.h"
@@ -602,6 +603,7 @@ bool F4SEPlugin_Load(const F4SEInterface* f4se)
 
     // A proxy's own AI must not holster/draw against the owner's replicated
     // weapon state (fixed-address hook, same load-time safety as above).
+    CoSyncPlayerLevelGuard::Install();   // before any save can load
     CoSyncProxyWeaponAuthority::Install();
     CoSyncCombatAuthority::Install();
     InstallNpcGraphInputCapture();

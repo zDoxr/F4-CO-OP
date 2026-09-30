@@ -3,9 +3,18 @@
 #include "NiTypes.h"
 #include "GameReferences.h"
 #include "GameForms.h"
+#include "GameObjects.h"
 
 namespace CoSyncGameAPI
 {
+    // The engine's 32-bit ACBS flags of an NPC base (TESActorBaseData+0x08).
+    // Never write actorData.flags directly: F4SE types it UInt64, which spans
+    // the XP offset (+0x0C) and the level (+0x0E) too.
+    inline uint32_t& ActorBaseFlags32(TESNPC* npc)
+    {
+        return *reinterpret_cast<uint32_t*>(reinterpret_cast<uint8_t*>(&npc->actorData) + 0x08);
+    }
+
 
     Actor* SpawnRemoteActor(TESNPC* npcBase, bool isPlayerProxy);
 

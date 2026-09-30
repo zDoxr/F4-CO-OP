@@ -260,7 +260,7 @@ namespace CoSyncGameAPI
         // essential would make the local player unkillable.
         if (npcBase->formID != 0x00000007u)
         {
-            npcBase->actorData.flags |= TESActorBaseData::kFlagEssential;
+            ActorBaseFlags32(npcBase) |= TESActorBaseData::kFlagEssential;
             LOG_INFO("[CoSyncGameAPI] marked proxy base 0x%08X as essential (flags now 0x%llX)",
                 npcBase->formID, (unsigned long long)npcBase->actorData.flags);
         }
@@ -2312,10 +2312,16 @@ namespace CoSyncGameAPI
             return;
 
         TESNPC* npcBase = static_cast<TESNPC*>(player->baseForm);
-        if (essential)
-            npcBase->actorData.flags |= TESActorBaseData::kFlagEssential;
-        else
-            npcBase->actorData.flags &= ~static_cast<uint32_t>(TESActorBaseData::kFlagEssential);
+        // 32-bit flags only. F4SE declares actorData.flags as UInt64, but the
+        // engine's ACBS flags are the DWORD at +0x08 (sub_14030A7E0 reads it
+        // that way); +0x0C is the XP offset and +0x0E the LEVEL. The old
+        // "flags &= ~static_cast<uint32_t>(kFlagEssential)" widened the mask
+        // to 0x00000000FFFFFFFD and zeroed the player's level on every
+        // session end -- logged 2026-09-29: flags 0x2003200000026 -> 0x24
+        // (level 2 -> 0), then saved into the host's save.
+        ActorBaseFlags32(npcBase) = essential
+            ? (ActorBaseFlags32(npcBase) | TESActorBaseData::kFlagEssential)
+            : (ActorBaseFlags32(npcBase) & ~static_cast<uint32_t>(TESActorBaseData::kFlagEssential));
 
         LOG_INFO("[CoSyncGameAPI] set local player essential=%d, base=0x%08X, flags=0x%llX",
             essential ? 1 : 0, npcBase->formID, (unsigned long long)npcBase->actorData.flags);

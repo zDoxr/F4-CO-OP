@@ -1564,8 +1564,9 @@ namespace CoSyncProfiles
         {
             // A proxy base has no live "player" behind it: its sex can follow
             // the player's, then the proxy's 3D is reloaded (caller).
-            if (p.female) base->actorData.flags |= TESActorBaseData::kFlagFemale;
-            else          base->actorData.flags &= ~TESActorBaseData::kFlagFemale;
+            uint32_t& fl = CoSyncGameAPI::ActorBaseFlags32(base);
+            if (p.female) fl |= TESActorBaseData::kFlagFemale;
+            else          fl &= ~static_cast<uint32_t>(TESActorBaseData::kFlagFemale);
             sexChanged = true;
         }
         return WriteLooks(base, p);
