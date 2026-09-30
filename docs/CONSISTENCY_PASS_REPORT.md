@@ -133,16 +133,39 @@ Fixes:
   they are in the same location.
 - Actors are left to NpcWorldSync.
 
-## 6. NPC behaviour (sitting, leaning, smoking, weapon idles)
-**Not changed in this pass.** It needs its own RE investigation of furniture/idle/package state,
-and nothing was changed here without one. Directive 4/5 work on NPC graph inputs and weapon authority stands.
+## 6. NPC behaviour (sitting, leaning, smoking, idles)
+- Model traced: on a client, each host NPC is an AI-alive puppet, steered every frame (`SteerPuppetPosition` plus
+  controller velocity). Its own AI kept choosing furniture and idles, and the steering pulled it off them.
+- **Furniture** (commit dbf3534):
+  - The simulating machine forwards its NPCs' `TESFurnitureEvent`s. Before, the sink dropped everything but the
+    local player.
+  - The puppet is seated on the same furniture by the engine: the core of Papyrus `SnapIntoInteraction`,
+    `sub_140BB33A0` (native `sub_1410FBB20`).
+  - It stands up with the engine's own animation: `sub_140D36460(process, actor, 4)`, SIT_SLEEP_STATE
+    "want to stand". State 0 would pop it out with no animation.
+  - Steering pauses while it is seated.
+  - A puppet whose own AI takes furniture the owner's NPC isn't using is stood back up.
+- **Idles:** the special-idle start `sub_140CFB0D0(process, actor, type, TESIdleForm*, flag, target)` is hooked.
+  It is called by console PlayIdle (`sub_1405CB340`), Papyrus, dialogue and about 30 AI package procedures.
+  Explicit idle forms started on a simulated NPC are sent as `NIDL` and started on the puppet through the same
+  function. The puppet's own idle calls are not blocked, because furniture entry may use the same path.
+- Not covered: idles the engine picks by type with no explicit form, and locomotion/weapon behaviour beyond the
+  directive 3-5 work.
+
+## 7. Animated PA entry (commit 3dbe5ff)
+- When a machine has a loaded copy of the sender's real frame within 400 units of the proxy:
+  1. The frame is painted from the sender's IMODS.
+  2. The proxy activates it through the engine activation `0x1405144B0`
+     (`ActivateRef(activator, objectToGet, count, defaultOnly, fromScript, looping)`), which is the animated entry.
+  3. The entry is verified via ExtraPowerArmor (0xBB) within 6 s; otherwise the old clone entry runs.
+- The real frame is kept on exit and on proxy removal.
 
 ## 11. Logging
 New transition lines are listed with each item above. There is no per-frame spam: the lines fire on
 state changes, and the resends are 10 s.
 
 ## 12. Testing
-Build only. No in-game test was possible from here.
+Load test on 1.11.240 (22:58): the plugin loads as 0.3.6, the console-placement and special-idle hooks pass their prologue checks, there are no errors or crashes, and the tick runs at the menu. No multiplayer session was possible from here.
 
 Suggested order: exterior->interior->exterior with both players (watch for `SpawnWatchdog ... Entity Recovered`
 and no `HIDDEN` followed by `PA graph` lines), PA paint (enter a painted frame and look from the other machine),
