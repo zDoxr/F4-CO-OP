@@ -1,6 +1,7 @@
 ﻿
 #include "CoSyncNet.h"
 #include "CoSyncCombatAuthority.h"
+#include "CoSyncWorldStateSync.h"
 #include "Version.h"
 
 #include "ConsoleLogger.h"
@@ -684,6 +685,7 @@ void CoSyncNet::Shutdown()
     // in mid-air in the player's solo game.
     CoSyncThrowableSync::Reset();
     CoSyncCombatAuthority::Reset();
+    CoSyncWorldStateSync::Reset();
 
     CoSyncWorldSync::Shutdown();
     CoSyncWorkshopSync::Shutdown();
@@ -2128,6 +2130,17 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
         if (isHostRole)
             CoSyncTransport::Send(msg);
         CoSyncExplosionSync::OnReceiveExplosion(msg);
+        return;
+    }
+
+    // World-object state (0.3.5): destruction, open/close, script enable.
+    // Destruction/open reports are relayed from anyone; script enable/disable
+    // is the host's alone (the receiver refuses it on the host).
+    if (CoSyncWorldStateSync::IsWorldStateMsg(msg))
+    {
+        if (isHostRole && msg[2] != 'E')
+            CoSyncTransport::Send(msg);
+        CoSyncWorldStateSync::OnReceive(msg, isHostRole);
         return;
     }
 

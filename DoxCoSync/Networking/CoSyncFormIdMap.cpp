@@ -282,6 +282,9 @@ namespace
             // Weapons/*
             { "EXP",  [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); } },
             { "SHOT", [](std::vector<std::string>& f, MapFn m) { D(f, 3, m); } },
+            { "WSD",  [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); D(f, 2, m); } },
+            { "WSO",  [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); D(f, 2, m); } },
+            { "WSE",  [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); } },
             { "THRP", [](std::vector<std::string>& f, MapFn m) { D(f, 2, m); D(f, 3, m); D(f, 10, m); } },
             { "THRM", [](std::vector<std::string>& f, MapFn m) { D(f, 2, m); } },
             { "THRX", [](std::vector<std::string>& f, MapFn m) { D(f, 2, m); } },

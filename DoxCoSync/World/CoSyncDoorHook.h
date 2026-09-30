@@ -28,4 +28,10 @@ namespace CoSyncDoorHook
     // it, walking into a locked door broadcast an open that succeeded remotely
     // while failing locally, leaving the two sides permanently disagreeing.
     bool IsRefLocked(void* refr);
+
+    // True while this thread is inside a local activation (whose door change
+    // goes out as DOOR) or applying a received DOOR. CoSyncWorldStateSync's
+    // SetOpenState capture skips those so a toggle and an absolute state
+    // never both describe the same change.
+    bool InLocalActivation();
 }

@@ -87,4 +87,8 @@ namespace CoSyncPowerArmorSync
     // Clears session state (frame signatures, pending ops, fallback timers).
     void OnProxyRemoved(::CoSyncPlayer* proxy);
     void Reset();
+    // True for a frame this machine currently represents for someone (the
+    // local player's own occupied frame, a proxy's hidden real-frame copy or
+    // its spawned chassis). World-state sync never enables/disables these.
+    bool IsCoSyncManagedFrame(uint32_t localRefFormID);
 }

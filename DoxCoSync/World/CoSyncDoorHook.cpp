@@ -53,6 +53,8 @@ static constexpr bool is_door_like(uint8_t ftype) noexcept
 }
 
 thread_local bool tls_cs_door_applying = false;
+// >0 while a local activation runs (its door change is replicated as DOOR).
+static thread_local int tls_cs_door_in_activate = 0;
 
 using ActivateWorkerFn = char(__fastcall*)(
     void* refr, void* activator, void* a3, void* a4,
@@ -245,9 +247,11 @@ static char __fastcall Detour_ActivateWorker(
     // actually happen", covering locked AND every other refusal reason without
     // needing to special-case them. Gate on that instead of trying to
     // enumerate the failure modes.
+    ++tls_cs_door_in_activate;
     const char actResult = g_origActivate
         ? g_origActivate(refr, activator, a3, a4, a5, a6, a7)
         : 0;
+    --tls_cs_door_in_activate;
 
     if (ri.refFormID != 0 && is_door_like(ri.formType) && CoSyncNet::IsConnected())
     {
@@ -343,6 +347,11 @@ namespace
     constexpr uintptr_t kLockDataGet_RVA_Local = 0x005634A0;
     constexpr size_t    kLockData_FlagsOff     = 0x10;
     constexpr uint8_t   kLockFlag_Locked       = 0x01;
+}
+
+bool CoSyncDoorHook::InLocalActivation()
+{
+    return tls_cs_door_in_activate > 0 || tls_cs_door_applying;
 }
 
 bool CoSyncDoorHook::IsRefLocked(void* refr)

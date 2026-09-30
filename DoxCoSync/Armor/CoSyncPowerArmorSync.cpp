@@ -1321,6 +1321,11 @@ static bool IsFrameOccupiedLocally(uint32_t localRefFormID)
     return false;
 }
 
+bool CoSyncPowerArmorSync::IsCoSyncManagedFrame(uint32_t localRefFormID)
+{
+    return IsFrameOccupiedLocally(localRefFormID);
+}
+
 // ── (1) Enter/exit fallback ─────────────────────────────────────────────────
 static void TickLocalPowerArmorFallback()
 {

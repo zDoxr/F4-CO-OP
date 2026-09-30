@@ -2,6 +2,7 @@
 #include <Windows.h>
 
 #include "CoSyncExplosionSync.h"
+#include <algorithm>
 
 #include "ConsoleLogger.h"
 #include "CoSyncRequirementsLog.h"
@@ -64,6 +65,26 @@ namespace
     };
     std::mutex                   s_mutex;
     std::vector<PendingExplosion> s_pending;
+
+    // 0.3.5: explosions that already happened HERE (detected by the local
+    // scan, not our own replays). A replicated destruction (CoSyncWorldState-
+    // Sync) or a replayed shot makes this machine's engine produce the same
+    // explosion itself -- the car blowing up at its last stage -- so the
+    // sender's EXP for it must not add a second one. Game thread only.
+    struct RecentExplosion { uint32_t base; float x, y, z; double t; };
+    std::vector<RecentExplosion> s_recentLocal;
+
+    bool MatchesRecentLocal(uint32_t base, float x, float y, float z, double now)
+    {
+        for (const RecentExplosion& r : s_recentLocal)
+        {
+            if (r.base != base || now - r.t > 3.0) continue;
+            const float dx = r.x - x, dy = r.y - y, dz = r.z - z;
+            if (dx * dx + dy * dy + dz * dz <= 400.0f * 400.0f)
+                return true;
+        }
+        return false;
+    }
 
     struct ExplDiag
     {
@@ -161,6 +182,12 @@ namespace
                 continue;
             }
 
+            {
+                const double tnow = NowSeconds();
+                s_recentLocal.erase(std::remove_if(s_recentLocal.begin(), s_recentLocal.end(),
+                    [tnow](const RecentExplosion& r) { return tnow - r.t > 5.0; }), s_recentLocal.end());
+                s_recentLocal.push_back({ ref->baseForm->formID, ref->pos.x, ref->pos.y, ref->pos.z, tnow });
+            }
             char buf[128];
             std::snprintf(buf, sizeof(buf), "EXP|%u|%.1f|%.1f|%.1f",
                 ref->baseForm->formID, ref->pos.x, ref->pos.y, ref->pos.z);
@@ -224,6 +251,11 @@ namespace
             //     sequence (RVA 0x16590EF, the 0x165910F family) even for
             //     ordinary bases -- see the long note in CoSyncWorldSync.cpp's
             //     WBF apply. SpawnItemAtPosition does not go through it.
+            if (MatchesRecentLocal(e.baseFormID, e.x, e.y, e.z, NowSeconds()))
+            {
+                s_diag.skipped++;   // it already went off here (replicated destruction / replayed shot)
+                continue;
+            }
             NiPoint3 pos{ e.x, e.y, e.z };
             TESObjectREFR* placed = CoSyncGameAPI::SpawnItemAtPosition(base, pos);
             if (!placed)

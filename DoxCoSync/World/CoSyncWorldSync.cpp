@@ -1,5 +1,6 @@
 #include "CoSyncWorldSync.h"
 #include "CoSyncCombatAuthority.h"
+#include "CoSyncWorldStateSync.h"
 #include "CoSyncContainerSync.h"
 
 #include <Windows.h>
@@ -2629,6 +2630,11 @@ void CoSyncWorldSync::Tick(double now)
 
         // Explosions are caused by whoever pulled the trigger, so like debris
         // this is role-independent -- both sides detect and both sides replay.
+        // World-object state first: a replicated destruction produces its own
+        // explosion here, which the explosion scan must see before a duplicate
+        // EXP from the sender is considered (0.3.5).
+        CoSyncWorldStateSync::Tick(now);
+
         CoSyncExplosionSync::Tick(now);
         CoSyncExplosionSync::FlushPendingExplosions();
 
