@@ -23,6 +23,16 @@ namespace
     // gated on "not the player", no combat, no alert and weapon state >= 3).
     constexpr uintptr_t kRVA_AiProcessUpdate      = 0x00D12010;
     constexpr uintptr_t kAiProcessUpdateSize      = 0x26FC;
+    // 0.3.5: the other caller the 0.3.4 diagnostic named on the client
+    // (2026-09-29: up to 129 contradicting calls / 10 s, return address
+    // base+0xF34257). IDA: sub_140F34140, reached only from the vtables of
+    // CombatBehaviorTreeNodeObject<CombatBehaviorEquipRangedWeapon> /
+    // <CombatBehaviorEquipObject> / <CombatBehaviorChildSelector<...>> -- the
+    // puppet's OWN combat behavior tree drawing its weapon
+    // (DrawWeaponMagicHands(actor, true)) against the owner's replicated
+    // state. Same authority rule as the AI update.
+    constexpr uintptr_t kRVA_CombatEquipNode      = 0x00F34140;
+    constexpr uintptr_t kCombatEquipNodeSize      = 0x160;
 
     using DrawWeapon_t = char(__fastcall*)(Actor*, bool);
     DrawWeapon_t g_orig = nullptr;
@@ -66,7 +76,9 @@ namespace
             {
                 const uintptr_t ret = reinterpret_cast<uintptr_t>(_ReturnAddress());
                 const uintptr_t lo  = g_base + kRVA_AiProcessUpdate;
-                if (ret >= lo && ret < lo + kAiProcessUpdateSize)
+                const uintptr_t lo2 = g_base + kRVA_CombatEquipNode;
+                if ((ret >= lo && ret < lo + kAiProcessUpdateSize) ||
+                    (ret >= lo2 && ret < lo2 + kCombatEquipNodeSize))
                 {
                     g_refused.fetch_add(1, std::memory_order_relaxed);
                     g_lastRefusedFormID.store(SafeFormID(actor), std::memory_order_relaxed);
