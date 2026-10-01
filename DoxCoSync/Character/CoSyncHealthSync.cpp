@@ -525,6 +525,9 @@ void CoSyncHealthSync::FlushPendingHealthOps()
                 // unlike SetBase (base value, never kills). delta = target - current.
                 float cur = 0.f;
                 CoSyncAVSafety::SafeGetValue(actor, healthAVI, cur);
+                // 0.4.3: the owner's value -- the one Health write a puppet takes
+                // (CoSyncEnemySync refuses every local one).
+                CoSyncEnemySync::ScopedHealthWrite authoritative;
                 CoSyncAVSafety::SafeForceDamage(actor, healthAVI, target - cur);
             }
             else
@@ -583,7 +586,10 @@ void CoSyncHealthSync::FlushPendingHealthOps()
                 // kill credit when the killer is our player. The old direct
                 // SetLifeState(kDying) + KillDying (KillPuppet) is the fallback.
                 if (!CoSyncEnemySync::ReplayDeath(op.entityID, actor, op.killer, op.flags))
+                {
+                    CoSyncEnemySync::ScopedHealthWrite authoritative;
                     CoSyncGameAPI::KillPuppet(actor);
+                }
             }
             else
             {

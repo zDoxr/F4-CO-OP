@@ -68,4 +68,15 @@ struct EntityUpdatePacket
     bool     isCombatActive      = false;
     uint32_t combatTargetEntityID = 0;
     bool     isInDialog           = false;
+
+    // 0.4.3: the owner's engine locomotion channels for a world NPC, read raw
+    // from its middle-high process (Speed = +0x428, Direction = +0xC0; the
+    // setters sub_140D35520 / sub_140D355C0 and the movement update
+    // sub_140C66910, IDA 1.11.240). A puppet's own movement controller would
+    // otherwise feed its graph the speed its OWN AI wants; the receiver puts
+    // these values into the same channels instead (CoSyncPuppetAuthority), so
+    // the engine's locomotion blend plays what the owner's NPC is doing.
+    bool     hasMoveChannels = false;
+    float    moveSpeed       = 0.f;
+    float    moveDirection   = 0.f;
 };

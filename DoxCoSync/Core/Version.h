@@ -23,9 +23,15 @@
 //       archives and deployed loose files are checked (SHA-256 + possession
 //       proof) and transferred before the world (CS* messages; WORLDREQ and
 //       every session message are refused until the content is verified).
+// 0.4.3 (2026-10-01): NPC authority directive -- puppets no longer run their
+//       own fights or locomotion intention (combat-entry gate, the owner's
+//       Speed/Direction channels, graph-input gate, owner-only puppet health),
+//       corpses stay corpses (tombstones, Dead CREATE flag, contact-based
+//       timeouts), player flashlights (FL), real replicated mines (MINE/MINEX)
+//       that proxies cannot trigger, aggressor-less hits on proxies refused.
 #define COSYNC_VERSION_MAJOR 0
 #define COSYNC_VERSION_MINOR 4
-#define COSYNC_VERSION_PATCH 2
+#define COSYNC_VERSION_PATCH 3
 #define COSYNC_VERSION_TAG   ""
 
 // Numeric form used on the wire. MINOR and PATCH must stay below 100 for the

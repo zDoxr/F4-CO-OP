@@ -2,6 +2,9 @@
 #include "CoSyncNet.h"
 #include "CoSyncCombatAuthority.h"
 #include "CoSyncEnemySync.h"
+#include "CoSyncPuppetAuthority.h"
+#include "CoSyncFlashlightSync.h"
+#include "CoSyncMineSync.h"
 #include "CoSyncWorldStateSync.h"
 #include "CoSyncWorldSpawnSync.h"
 #include "CoSyncNpcIdleSync.h"
@@ -238,6 +241,19 @@ static bool HostSenderOwns(uint32_t senderEid, uint32_t entityID)
            it->second.lastCreate.ownerEntityID == senderEid;
 }
 
+// 0.4.3 (Bug #2): any authoritative word about a world actor (ENS, HP, KILL,
+// CORPSE, CREATE) keeps it "heard from" -- a corpse streams no EU, and the EU-
+// only timeout used to declare every corpse lost after 15 s. `at` = the offset
+// of the entity ID in the text.
+static void NoteWorldActorContact(const std::string& msg, size_t at)
+{
+    if (at == 0 || at >= msg.size())
+        return;
+    const uint32_t eid = static_cast<uint32_t>(std::strtoul(msg.c_str() + at, nullptr, 10));
+    if (CoSyncNpcWorldSync::IsWorldActorEntityID(eid))
+        g_CoSyncPlayerManager.NoteAuthoritativeContact(eid);
+}
+
 static void LogUnauthorized(const char* what, HSteamNetConnection conn, uint32_t senderEid, uint32_t entityID)
 {
     static uint32_t s_dropped = 0;
@@ -264,6 +280,10 @@ static const char* SelfStateType(const std::string& msg)
         // host enemy -- docs/ENEMY_SYNC_REPORT.md G1).
         "KILL", "ENS",
         "QSREQ",   // 0.4.2: a client asks for quest progress only in its own name
+        // 0.4.3: a player's own flashlight; a mine announcement/end names the
+        // machine that speaks first (MINE's owner field must be the sender too:
+        // only the placing machine announces a mine).
+        "FL", "MINE", "MINEX",
     };
     const size_t bar = msg.find('|');
     if (bar == std::string::npos)
@@ -589,6 +609,9 @@ void CoSyncNet::Init(bool isHost)
     // previous session don't shadow real actors in the new scan.
     CoSyncNpcWorldSync::Reset();
     CoSyncEnemySync::Reset();
+    CoSyncPuppetAuthority::Reset();
+    CoSyncFlashlightSync::Reset();
+    CoSyncMineSync::Reset();
     CoSyncPowerArmorSync::Reset();
     CoSyncItemDropSync::Reset();
 
@@ -698,6 +721,9 @@ void CoSyncNet::Shutdown()
     CoSyncThrowableSync::Reset();
     CoSyncCombatAuthority::Reset();
     CoSyncEnemySync::Reset();
+    CoSyncPuppetAuthority::Reset();
+    CoSyncFlashlightSync::Reset();
+    CoSyncMineSync::Reset();
     CoSyncWorldStateSync::Reset();
     CoSyncSharedDialogue::Reset();
 
@@ -1147,6 +1173,9 @@ void CoSyncNet::Tick(double now)
 
     g_lastTickStep = "FlushPendingHealthOps";        CoSyncHealthSync::FlushPendingHealthOps();
     g_lastTickStep = "EnemySync::Tick";              CoSyncEnemySync::Tick(now);
+    g_lastTickStep = "PuppetAuthority::Diag";        CoSyncPuppetAuthority::TickDiagnostics(now);
+    g_lastTickStep = "FlashlightSync::Tick";         CoSyncFlashlightSync::Tick(now);
+    g_lastTickStep = "MineSync::Tick";               CoSyncMineSync::Tick(now);
     g_lastTickStep = "FlushPendingCorpses";          CoSyncHealthSync::FlushPendingCorpses();
     g_lastTickStep = "CoSyncChat::Tick";             CoSyncChat::Tick(now);
     g_lastTickStep = "CoSyncVoice::Tick";            CoSyncVoice::Tick(now);
@@ -1703,6 +1732,7 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
         if (CoSyncNpcWorldSync::IsWorldActorEntityID(p.entityID))
         {
             g_CoSyncPlayerManager.ClearEntityDestroyed(p.entityID);
+            g_CoSyncPlayerManager.NoteAuthoritativeContact(p.entityID);   // 0.4.3 (Bug #2)
             if (isHostRole)
             {
                 // Only client-owned world-actor CREATEs (owner re-broadcasts)
@@ -1775,6 +1805,33 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
     }
 
 
+    // 0.4.3: player flashlight state and mines (self-state checked above).
+    if (CoSyncFlashlightSync::IsFlashlightMsg(msg))
+    {
+        if (isHostRole && conn != k_HSteamNetConnection_Invalid)
+            CoSyncTransport::SendExcept(msg, conn);
+        CoSyncFlashlightSync::OnReceive(msg);
+        return;
+    }
+    if (CoSyncMineSync::IsMineMsg(msg))
+    {
+        if (checkSender && msg.rfind("MINE|", 0) == 0)
+        {
+            // MINE|sender|owner|...: a machine announces only its own mines.
+            const char* p1 = std::strchr(msg.c_str() + 5, '|');
+            const uint32_t owner = p1 ? static_cast<uint32_t>(std::strtoul(p1 + 1, nullptr, 10)) : 0u;
+            if (owner != senderEid)
+            {
+                LogUnauthorized("MINE", conn, senderEid, owner);
+                return;
+            }
+        }
+        if (isHostRole && conn != k_HSteamNetConnection_Invalid)
+            CoSyncTransport::SendExcept(msg, conn);
+        CoSyncMineSync::OnReceive(msg);
+        return;
+    }
+
     // 0.4.1 enemy sync. ENS is self-state checked above (only an enemy's
     // owner speaks for it). EHIT names a target the sender does not own; the
     // sender must own the ATTACKER. The host passes both on; each machine
@@ -1793,6 +1850,8 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
         }
         if (isHostRole && conn != k_HSteamNetConnection_Invalid)
             CoSyncTransport::SendExcept(msg, conn);
+        if (!CoSyncEnemySync::IsHit(msg))
+            NoteWorldActorContact(msg, 4);   // ENS|eid|...
         CoSyncEnemySync::OnReceive(msg);
         return;
     }
@@ -1802,6 +1861,7 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
 
         if (isHostRole)
             CoSyncTransport::Send(msg);
+        NoteWorldActorContact(msg, msg.find('|') + 1);
         CoSyncHealthSync::OnReceiveHP(msg);
         return;
     }
@@ -1810,6 +1870,7 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
     {
         if (isHostRole)
             CoSyncTransport::Send(msg);
+        NoteWorldActorContact(msg, 5);   // KILL|eid|...
         CoSyncHealthSync::OnReceiveKill(msg);
         return;
     }
@@ -1820,6 +1881,7 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
     {
         if (isHostRole)
             CoSyncTransport::SendExcept(msg, conn);
+        NoteWorldActorContact(msg, 7);   // CORPSE|eid|...
         CoSyncHealthSync::OnReceiveCorpse(msg);
         return;
     }

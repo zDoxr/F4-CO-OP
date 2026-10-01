@@ -180,7 +180,10 @@ inline std::string SerializeEntityUpdate(const EntityUpdatePacket& p)
        << "|" << p.equippedThrowableFormID
        << "|" << (p.isThrowing ? 1 : 0)
        << "|" << (p.isReloading ? 1 : 0)
-       << "|" << (p.isFiring ? 1 : 0);
+       << "|" << (p.isFiring ? 1 : 0)
+       << "|" << (p.hasMoveChannels ? 1 : 0)
+       << "|" << p.moveSpeed
+       << "|" << p.moveDirection;
 
     return ss.str();
 }
@@ -331,8 +334,24 @@ inline bool DeserializeEntityUpdate(const std::string& msg, EntityUpdatePacket& 
 
     {
         std::string ftok;
-        if (!std::getline(ss, ftok)) return true;
+        if (!std::getline(ss, ftok, '|')) return true;
         out.isFiring = (ftok == "1");
+    }
+
+    // 0.4.3 locomotion channels (world NPCs). Optional: a field that is missing
+    // or not finite leaves hasMoveChannels false.
+    {
+        std::string htok, stok, dtok;
+        if (!std::getline(ss, htok, '|') || htok != "1") return true;
+        if (!std::getline(ss, stok, '|') || !std::getline(ss, dtok)) return true;
+        const float sp = std::strtof(stok.c_str(), nullptr);
+        const float dr = std::strtof(dtok.c_str(), nullptr);
+        if (std::isfinite(sp) && std::isfinite(dr) && sp >= 0.f && sp < 100000.f)
+        {
+            out.hasMoveChannels = true;
+            out.moveSpeed       = sp;
+            out.moveDirection   = dr;
+        }
     }
 
     return true;

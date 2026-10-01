@@ -6,6 +6,8 @@
 #include "CoSyncPlayerManager.h"
 #include "CoSyncPlayer.h"
 #include "CoSyncEntityState.h"
+#include "CoSyncHealthSync.h"
+#include "CoSyncActorValueSafety.h"
 #include "CoSyncGameAPI.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
@@ -117,6 +119,15 @@ namespace
     std::mutex                 g_guardMx;
     std::unordered_set<Actor*> g_guard;
 
+    // Player proxies (0.4.3): this machine's copies of the other players.
+    std::unordered_set<Actor*> g_playerProxies;   // under g_guardMx
+
+    // 0.4.3 authoritative puppet health (see the header). Thread-local depth:
+    // CoSync's own writes set it; everything else on a puppet is refused.
+    thread_local int tls_healthWriteDepth = 0;
+    bool g_cfgAuthoritativeHealth = true;
+    std::atomic<uint32_t> g_dRefusedHealthWrites{ 0 };
+
     bool IsGuarded(Actor* a)
     {
         if (!a)
@@ -156,8 +167,11 @@ namespace
         std::vector<uint32_t> casts;
         double   lastSent = -1.0, clsAt = -1.0;
         bool     dirty = true;
+        float    lastHp = -1.f;        // 0.4.3: HP last sent from here
+        double   lastHpSent = -1.0;
     };
     std::unordered_map<uint32_t, OwnerState> g_owned;
+    uint32_t g_dTxHp = 0;
 
     // ── Receiver-side state per entity ──────────────────────────────────────
     struct RemoteState
@@ -270,10 +284,12 @@ namespace
 
     uint64_t __fastcall Detour_ModAV(Actor* actor, int mode, void* avi, float delta, Actor* attacker)
     {
+        const bool healthOfPuppet = mode == 2 && actor && avi != nullptr &&
+            avi == g_healthAVI.load(std::memory_order_relaxed) && IsGuarded(actor);
+
         // Damage (mode 2) to Health, with an attacker, on a puppet: if the
         // attacker is simulated here, its owner needs this hit.
-        if (mode == 2 && delta < 0.f && attacker && actor && attacker != actor &&
-            avi != nullptr && avi == g_healthAVI.load(std::memory_order_relaxed) && IsGuarded(actor))
+        if (healthOfPuppet && delta < 0.f && attacker && attacker != actor)
         {
             PlayerCharacter* pc = CoSyncGetPlayer();
             const bool attackerHere = (reinterpret_cast<Actor*>(pc) == attacker) || !IsRegisteredRemoteActor(attacker);
@@ -288,6 +304,17 @@ namespace
                     g_dCapHits.fetch_add(1, std::memory_order_relaxed);
                 }
             }
+        }
+
+        // 0.4.3: the puppet's Health is the owner's. A local write (this hit,
+        // damage over time, regeneration, an aggressor-less explosion replica)
+        // is not applied here; the owner applies the reported hit and its HP
+        // comes back. Without this the client showed its own prediction first
+        // and the owner's correction then pulled the bar back (Bug #3).
+        if (healthOfPuppet && g_cfgAuthoritativeHealth && tls_healthWriteDepth == 0)
+        {
+            g_dRefusedHealthWrites.fetch_add(1, std::memory_order_relaxed);
+            return 0;
         }
         return g_origModAV(actor, mode, avi, delta, attacker);
     }
@@ -499,11 +526,14 @@ namespace
         {
             // The runtime-essential bit would turn Dying into essential-down.
             puppet->uiFlags &= ~(kUiFlag_RuntimeEssential | kUiFlag_RuntimeProtected);
+            ++tls_healthWriteDepth;   // the owner's death: any Health write it makes is authoritative
             g_killCore(puppet, killer, 0.f, true, ragdoll);
+            --tls_healthWriteDepth;
             return true;
         }
         __except (EXCEPTION_EXECUTE_HANDLER)
         {
+            tls_healthWriteDepth = 0;
             return false;
         }
     }
@@ -561,12 +591,18 @@ namespace
 
     void RebuildGuard()
     {
-        std::unordered_set<Actor*> next;
+        std::unordered_set<Actor*> next, proxies;
         for (const auto& kv : g_CoSyncPlayerManager.GetAllPlayers())
         {
             const CoSyncPlayer* p = kv.second.get();
-            if (!p || !p->hasSpawned || !p->actorRef || !CoSyncNpcWorldSync::IsWorldActorEntityID(p->entityID))
+            if (!p || !p->hasSpawned || !p->actorRef || p->isLocalPlayer)
                 continue;
+            if (!CoSyncNpcWorldSync::IsWorldActorEntityID(p->entityID))
+            {
+                if (p->createType == CoSyncEntityType::Player && IsRegisteredRemoteActor(p->actorRef))
+                    proxies.insert(p->actorRef);
+                continue;
+            }
             if (OwnedHere(p->entityID))
                 continue;
             if (IsRegisteredRemoteActor(p->actorRef))
@@ -574,6 +610,7 @@ namespace
         }
         std::lock_guard<std::mutex> lk(g_guardMx);
         g_guard.swap(next);
+        g_playerProxies.swap(proxies);
     }
 
     void ProcessCapturedKills()
@@ -782,6 +819,23 @@ namespace
                     o.combat = combat; o.target = target; o.life = life; o.dirty = true;
                 }
             }
+            // 0.4.3: the owner's health, as soon as it changes (5 Hz), not only
+            // from NpcWorldSync's 1 Hz scan -- the enemy meter on every other
+            // machine shows exactly this value (puppet Health is owner-only).
+            if (sample && o.life == 0)
+            {
+                ActorValueInfo* hav = static_cast<ActorValueInfo*>(g_healthAVI.load(std::memory_order_relaxed));
+                float cur = 0.f, mx = 0.f;
+                if (hav && CoSyncAVSafety::SafeGetValue(a, hav, cur) && CoSyncAVSafety::SafeGetMaximum(a, hav, mx) &&
+                    cur > 0.f && (o.lastHp < 0.f || std::fabs(cur - o.lastHp) >= 0.5f || now - o.lastHpSent >= 4.0))
+                {
+                    SendText(CoSyncHealthSync::SerializeHP(eid, cur, mx));
+                    o.lastHp = cur;
+                    o.lastHpSent = now;
+                    ++g_dTxHp;
+                }
+            }
+
             // State, at most 5 sends/s/entity (trailing edge: the newest value wins).
             if (o.dirty && now - o.lastSent >= 0.2)
                 SendState(eid, o, now);
@@ -875,7 +929,10 @@ namespace
             {
                 ++g_dReplayKillFallback;
                 LOG_UPDATED_WARN("[EnemySync] entity=%u engine kill did not take after 3 s -- falling back to KillPuppet", it->eid);
-                CoSyncGameAPI::KillPuppet(a);
+                {
+                    CoSyncEnemySync::ScopedHealthWrite authoritative;
+                    CoSyncGameAPI::KillPuppet(a);
+                }
                 it = g_pendingKills.erase(it);
                 continue;
             }
@@ -890,17 +947,18 @@ namespace
             return;
         s_next = now + 10.0;
         const uint32_t rk = g_dRefusedKills.exchange(0), rc = g_dRefusedCasts.exchange(0),
-                       ch = g_dCapHits.exchange(0), ck = g_dCapKills.exchange(0), cc = g_dCapCasts.exchange(0);
-        if (rk || rc || ch || ck || cc || g_dTxHit || g_dRxHitApplied || g_dRxHitRejected || g_dTxKill ||
-            g_dTxState || g_dRxState || g_dReplayKill || g_dReplayCast)
+                       ch = g_dCapHits.exchange(0), ck = g_dCapKills.exchange(0), cc = g_dCapCasts.exchange(0),
+                       rh = g_dRefusedHealthWrites.exchange(0);
+        if (rk || rc || ch || ck || cc || rh || g_dTxHit || g_dRxHitApplied || g_dRxHitRejected || g_dTxKill ||
+            g_dTxState || g_dRxState || g_dReplayKill || g_dReplayCast || g_dTxHp)
         {
-            LOG_UPDATED("[EnemySync] last 10 s: owned=%zu remote=%zu | TX EHIT=%u KILL=%u ENS=%u bytes=%u | RX EHIT applied=%u rejected=%u (dup %u, dead %u, no actor %u) ENS=%u | "
-                        "replayed kills=%u (fallback %u) casts=%u | hooks: hits seen=%u deaths seen=%u self-casts seen=%u | refused puppet deaths=%u casts=%u",
-                g_owned.size(), g_remote.size(), g_dTxHit, g_dTxKill, g_dTxState, g_dTxBytes, g_dRxHitApplied, g_dRxHitRejected, g_dRejDup, g_dRejDead, g_dRejNoActor, g_dRxState,
-                g_dReplayKill, g_dReplayKillFallback, g_dReplayCast, ch, ck, cc, rk, rc);
+            LOG_UPDATED("[EnemySync] last 10 s: owned=%zu remote=%zu | TX EHIT=%u KILL=%u ENS=%u HP=%u bytes=%u | RX EHIT applied=%u rejected=%u (dup %u, dead %u, no actor %u) ENS=%u | "
+                        "replayed kills=%u (fallback %u) casts=%u | hooks: hits seen=%u deaths seen=%u self-casts seen=%u | refused puppet deaths=%u casts=%u local health writes=%u",
+                g_owned.size(), g_remote.size(), g_dTxHit, g_dTxKill, g_dTxState, g_dTxHp, g_dTxBytes, g_dRxHitApplied, g_dRxHitRejected, g_dRejDup, g_dRejDead, g_dRejNoActor, g_dRxState,
+                g_dReplayKill, g_dReplayKillFallback, g_dReplayCast, ch, ck, cc, rk, rc, rh);
         }
         g_dTxHit = g_dRxHitApplied = g_dRxHitRejected = g_dTxKill = g_dTxState = g_dRxState =
-            g_dReplayKill = g_dReplayKillFallback = g_dReplayCast = g_dTxBytes = 0;
+            g_dReplayKill = g_dReplayKillFallback = g_dReplayCast = g_dTxBytes = g_dTxHp = 0;
         g_dRejDup = g_dRejDead = g_dRejNoActor = 0;
     }
 
@@ -920,6 +978,15 @@ namespace CoSyncEnemySync
             return;
         g_installed = true;
         g_base = reinterpret_cast<uintptr_t>(GetModuleHandleA(nullptr));
+        {
+            char exe[MAX_PATH] = {};
+            if (GetModuleFileNameA(nullptr, exe, MAX_PATH))
+            {
+                std::string ini = exe;
+                ini = ini.substr(0, ini.find_last_of("\\/") + 1) + "Data\\F4SE\\Plugins\\CoSync.ini";
+                g_cfgAuthoritativeHealth = GetPrivateProfileIntA("Puppet", "bAuthoritativeHealth", 1, ini.c_str()) != 0;
+            }
+        }
         MH_STATUS st = MH_Initialize();
         if (st != MH_OK && st != MH_ERROR_ALREADY_INITIALIZED)
         {
@@ -962,9 +1029,10 @@ namespace CoSyncEnemySync
             if (HookOne(kRVA_SpellCast, reinterpret_cast<void*>(&Detour_SpellCast), reinterpret_cast<void**>(&g_origCast), "Spell.Cast"))
                 g_spellCast = g_origCast;
         }
-        LOG_INFO("[EnemySync] ready: killGate=%d deathCapture=%d hitCapture=%d castCapture=%d hitEvent=%d classify=%d/%d combatState=%d",
+        LOG_INFO("[EnemySync] ready: killGate=%d deathCapture=%d hitCapture=%d castCapture=%d hitEvent=%d classify=%d/%d combatState=%d authoritativeHealth=%d",
             g_origKillCore ? 1 : 0, g_origKillImpl ? 1 : 0, g_origModAV ? 1 : 0, g_origCast ? 1 : 0,
-            g_hitEvent ? 1 : 0, g_hasKeyword ? 1 : 0, g_hasLocRef ? 1 : 0, g_combatState ? 1 : 0);
+            g_hitEvent ? 1 : 0, g_hasKeyword ? 1 : 0, g_hasLocRef ? 1 : 0, g_combatState ? 1 : 0,
+            IsAuthoritativeHealthActive() ? 1 : 0);
     }
 
     void Reset()
@@ -980,6 +1048,7 @@ namespace CoSyncEnemySync
         {
             std::lock_guard<std::mutex> lk(g_guardMx);
             g_guard.clear();
+            g_playerProxies.clear();
         }
         g_owned.clear();
         g_remote.clear();
@@ -989,6 +1058,31 @@ namespace CoSyncEnemySync
         g_txHitSeq.clear();
         g_rxHitSeq.clear();
         g_hitBudget.clear();
+    }
+
+    bool IsGuardedPuppet(Actor* actor)
+    {
+        return IsGuarded(actor);
+    }
+
+    bool IsPlayerProxy(Actor* actor)
+    {
+        if (!actor)
+            return false;
+        {
+            std::lock_guard<std::mutex> lk(g_guardMx);
+            if (g_playerProxies.find(actor) == g_playerProxies.end())
+                return false;
+        }
+        return IsRegisteredRemoteActor(actor);
+    }
+
+    ScopedHealthWrite::ScopedHealthWrite()  { ++tls_healthWriteDepth; }
+    ScopedHealthWrite::~ScopedHealthWrite() { --tls_healthWriteDepth; }
+
+    bool IsAuthoritativeHealthActive()
+    {
+        return g_cfgAuthoritativeHealth && g_origModAV != nullptr;
     }
 
     bool IsHitCaptureActive()

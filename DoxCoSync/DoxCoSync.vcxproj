@@ -335,6 +335,8 @@ exit /b 0
     <ClInclude Include="Weapons\CoSyncVatsSync.h" />
     <ClInclude Include="Weapons\CoSyncExplosionSync.h" />
     <ClInclude Include="Weapons\CoSyncThrowableSync.h" />
+    <ClInclude Include="Weapons\CoSyncMineSync.h" />
+    <ClInclude Include="Character\CoSyncFlashlightSync.h" />
     <ClInclude Include="Weapons\CoSyncProxyWeaponAuthority.h" />
     <ClInclude Include="Weapons\CoSyncCombatAuthority.h" />
     <ClInclude Include="World\CoSyncWorldStateSync.h" />
@@ -344,6 +346,7 @@ exit /b 0
     <ClInclude Include="Hooks\CoSyncPlayerLevelGuard.h" />
     <ClInclude Include="World\CoSyncNpcWorldSync.h" />
     <ClInclude Include="World\CoSyncEnemySync.h" />
+    <ClInclude Include="World\CoSyncPuppetAuthority.h" />
     <ClInclude Include="Dialog\CoSyncDialogSync.h" />
     <ClInclude Include="Items\CoSyncLootSync.h" />
     <ClInclude Include="Character\CoSyncCompanionSync.h" />
@@ -523,6 +526,7 @@ exit /b 0
     <ClCompile Include="World\CoSyncTimeSync.cpp" />
     <ClCompile Include="Items\CoSyncWorkshopSync.cpp" />
     <ClCompile Include="Character\CoSyncHealthSync.cpp" />
+    <ClCompile Include="Character\CoSyncFlashlightSync.cpp" />
     <ClCompile Include="Character\CoSyncReviveSync.cpp" />
     <ClCompile Include="Character\CoSyncActorValueSafety.cpp" />
     <ClCompile Include="Items\CoSyncInventorySync.cpp" />
@@ -544,6 +548,7 @@ exit /b 0
     <ClCompile Include="Weapons\CoSyncVatsSync.cpp" />
     <ClCompile Include="Weapons\CoSyncExplosionSync.cpp" />
     <ClCompile Include="Weapons\CoSyncThrowableSync.cpp" />
+    <ClCompile Include="Weapons\CoSyncMineSync.cpp" />
     <ClCompile Include="Weapons\CoSyncProxyWeaponAuthority.cpp" />
     <ClCompile Include="Weapons\CoSyncCombatAuthority.cpp" />
     <ClCompile Include="World\CoSyncWorldStateSync.cpp" />
@@ -553,6 +558,7 @@ exit /b 0
     <ClCompile Include="Hooks\CoSyncPlayerLevelGuard.cpp" />
     <ClCompile Include="World\CoSyncNpcWorldSync.cpp" />
     <ClCompile Include="World\CoSyncEnemySync.cpp" />
+    <ClCompile Include="World\CoSyncPuppetAuthority.cpp" />
     <ClCompile Include="Dialog\CoSyncDialogSync.cpp" />
     <ClCompile Include="Items\CoSyncLootSync.cpp" />
     <ClCompile Include="Character\CoSyncCompanionSync.cpp" />

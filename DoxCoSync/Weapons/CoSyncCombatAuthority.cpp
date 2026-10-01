@@ -9,6 +9,7 @@
 #include "CoSyncPlayer.h"
 #include "CoSyncEntityState.h"
 #include "CoSyncNpcWorldSync.h"
+#include "CoSyncEnemySync.h"
 #include "CoSyncGameAPI.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
@@ -103,6 +104,7 @@ namespace
     std::atomic<uint32_t> g_lastRefusedFormID{ 0 };
     std::atomic<uint32_t> g_gatedHits{ 0 };
     std::atomic<uint32_t> g_lastGatedAggressor{ 0 };
+    std::atomic<uint32_t> g_gatedProxyEnvHits{ 0 };   // 0.4.3: aggressor-less hits on player proxies
     uint32_t g_txCount = 0, g_rxCount = 0, g_replayed = 0, g_animOnly = 0, g_skippedWeapon = 0,
              g_skippedStale = 0, g_skippedDead = 0, g_animAccepted = 0, g_animRejected = 0;
 
@@ -179,6 +181,20 @@ namespace
         if (hitData)
         {
             const uint32_t h = SafeReadU32(hitData, kHitData_Aggressor);
+            // 0.4.3: a hit with NO aggressor on another player's proxy. The
+            // engine builds explosion hits with aggressor 0 and the explosion as
+            // the source (sub_140E44930 -> sub_140E37220(hit, 0, target,
+            // explosion), queued as task 14 -> DoHitMe); hazards and falls are
+            // aggressor-less too. Every machine that has a copy of the explosion
+            // (the origin, and each peer's EXP replica) would damage this proxy
+            // and relay it as DMG -- the 2026-09-30 log shows the host losing 60
+            // HP twice to one mine. That player's own machine applies it to its
+            // real player from its own copy; here it is only seen.
+            if (h == 0 && target && CoSyncEnemySync::IsPlayerProxy(target))
+            {
+                g_gatedProxyEnvHits.fetch_add(1, std::memory_order_relaxed);
+                return;
+            }
             if (h != 0)
             {
                 TESObjectREFR* agg = RefFromHandle(h);
@@ -443,7 +459,12 @@ namespace
                 targetHandle = h;
             }
             uint32_t firedWeapon = 0;
+            // 0.4.3: graph inputs the engine Fire sends into the puppet's graph
+            // are part of this replay, not a local decision -- the puppet input
+            // gate (CoSyncAnimEventHook) must let them through.
+            CoSyncAnimEventHook::SetApplyingRemote(true);
             const bool fired = EngineFire_Impl(shooter, s.equipIndex, targetHandle, firedWeapon);
+            CoSyncAnimEventHook::SetApplyingRemote(false);
             if (fired)
                 ++g_replayed;
             if (!fired || firedWeapon != s.weaponFormID)
@@ -529,11 +550,13 @@ namespace CoSyncCombatAuthority
             s_lastDiag = now;
             const uint32_t refused = g_refusedNative.exchange(0);
             const uint32_t gated   = g_gatedHits.exchange(0);
-            if (g_txCount || g_rxCount || refused || gated)
+            const uint32_t envGated = g_gatedProxyEnvHits.exchange(0);
+            if (g_txCount || g_rxCount || refused || gated || envGated)
                 LOG_UPDATED("[CombatAuthority] last 10 s: tx=%u rx=%u replayed=%u animOnly(explosive)=%u weaponMismatch=%u stale=%u deadShooter=%u "
-                            "| attack anim accepted=%u rejected=%u | proxy native fires refused=%u (last 0x%08X) | remote-aggressor hits refused=%u (last 0x%08X)",
+                            "| attack anim accepted=%u rejected=%u | proxy native fires refused=%u (last 0x%08X) | remote-aggressor hits refused=%u (last 0x%08X) "
+                            "| aggressor-less hits on player proxies refused=%u",
                     g_txCount, g_rxCount, g_replayed, g_animOnly, g_skippedWeapon, g_skippedStale, g_skippedDead,
-                    g_animAccepted, g_animRejected, refused, g_lastRefusedFormID.load(), gated, g_lastGatedAggressor.load());
+                    g_animAccepted, g_animRejected, refused, g_lastRefusedFormID.load(), gated, g_lastGatedAggressor.load(), envGated);
             g_txCount = g_rxCount = g_replayed = g_animOnly = g_skippedWeapon = g_skippedStale = g_skippedDead = 0;
             g_animAccepted = g_animRejected = 0;
         }

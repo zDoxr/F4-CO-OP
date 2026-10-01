@@ -2,6 +2,8 @@
 #include <Windows.h>
 
 #include "CoSyncPlayerManager.h"
+#include "CoSyncPuppetAuthority.h"
+#include "CoSyncFlashlightSync.h"
 #include <iterator>
 
 #include "CoSyncRequirementsLog.h"
@@ -540,6 +542,7 @@ void CoSyncPlayerManager::ProcessEntityUpdate(const EntityUpdatePacket& u)
         return;
 
     st.lastUpdateLocalTime = NowSeconds();
+    st.lastContactLocalTime = st.lastUpdateLocalTime;
     st.lastUpdate = u;
 
     if (!st.hasCreate)
@@ -700,6 +703,7 @@ void CoSyncPlayerManager::DespawnEntity(uint32_t entityID, const char* reason)
             entityID, static_cast<void*>(proxy ? proxy->actorRef : nullptr), reason);
 
         CoSyncPowerArmorSync::OnProxyRemoved(proxy);   // 0.3.3 (Stage 5)
+        CoSyncFlashlightSync::OnProxyRemoved(entityID); // 0.4.3: its light goes with it
         if (proxy && proxy->actorRef)
             CoSyncProxyWeaponAuthority::Forget(proxy->actorRef);
 
@@ -1730,6 +1734,33 @@ void CoSyncPlayerManager::HostSendNpcUpdates_Impl(double now)
         u.rot                   = rot;
         u.vel                   = NiPoint3(0.f, 0.f, 0.f);
         u.timestamp             = now;
+        // 0.4.3: the NPC's real velocity (position delta between its own sends)
+        // instead of zero -- receivers extrapolate with it and hand it to the
+        // puppet's character controller -- plus its raw locomotion channels.
+        if (CoSyncNpcWorldSync::IsWorldActorEntityID(npc.entityID))
+        {
+            struct LastSend { NiPoint3 pos; double t; };
+            static std::unordered_map<uint32_t, LastSend> s_lastNpcSend;
+            auto ls = s_lastNpcSend.find(npc.entityID);
+            if (ls != s_lastNpcSend.end())
+            {
+                const double dt = now - ls->second.t;
+                if (dt > 0.02 && dt < 1.0)
+                {
+                    NiPoint3 v((pos.x - ls->second.pos.x) / float(dt), (pos.y - ls->second.pos.y) / float(dt), (pos.z - ls->second.pos.z) / float(dt));
+                    if (v.x * v.x + v.y * v.y + v.z * v.z < 3000.f * 3000.f)   // a relocation is not a speed
+                        u.vel = v;
+                }
+            }
+            s_lastNpcSend[npc.entityID] = LastSend{ pos, now };
+            float sp = 0.f, dir = 0.f;
+            if (CoSyncPuppetAuthority::ReadMoveChannels(npc.actorRef, sp, dir))
+            {
+                u.hasMoveChannels = true;
+                u.moveSpeed       = sp;
+                u.moveDirection   = dir;
+            }
+        }
         u.equippedWeaponFormID  = weapFormID;
         // Raiders and gunners throw Molotovs and frag grenades constantly, so
         // host-owned NPCs need the same throwable field the local player gets
@@ -2130,6 +2161,7 @@ bool CoSyncPlayerManager::ReleaseIfFreed(CoSyncPlayer& ent)
         UnregisterRemoteActor(freedActor);
         CoSyncPlayerAnimation::ReleaseBoneCache(freedActor);
         CoSyncProxyWeaponAuthority::Forget(freedActor);
+        CoSyncPuppetAuthority::ForgetPuppet(freedActor);
         // The rebuilt replacement actor gets a fresh body -- any
         // outfit/weapon marked "applied" against the OLD actor is
         // stale. Outfit's cache is keyed by entityID only (no actor
@@ -2140,6 +2172,7 @@ bool CoSyncPlayerManager::ReleaseIfFreed(CoSyncPlayer& ent)
         // 0.3.3 (Stage 5): its PA chassis/hidden frame must not outlive it;
         // the rebuilt proxy re-enters PA from the sender's 5 s PA state.
         CoSyncPowerArmorSync::OnProxyRemoved(&ent);
+        CoSyncFlashlightSync::OnProxyRemoved(ent.entityID);   // 0.4.3
         if (CoSyncNpcWorldSync::IsWorldActorEntityID(ent.entityID))
         {
             auto stIt = m_statesByEntityID.find(ent.entityID);
@@ -2574,6 +2607,27 @@ void CoSyncPlayerManager::Tick()
             // -- the engine's idle-holster rule, see CoSyncProxyWeaponAuthority.
             if (ent.actorRef && !isMyOwnRealActor)
                 CoSyncProxyWeaponAuthority::SetReplicatedDrawn(ent.actorRef, ent.m_pendingCombatActive);
+            // 0.4.3: the owner's fight, with the owner's target, becomes the
+            // puppet's engine combat state (CoSyncPuppetAuthority). Local
+            // combat entries for any other target are refused by its gate.
+            if (ent.actorRef && !isMyOwnRealActor && CoSyncNpcWorldSync::IsWorldActorEntityID(ent.entityID) &&
+                !CoSyncNpcWorldSync::IsEntityDead(ent.entityID))
+            {
+                Actor* localTarget = nullptr;
+                if (ent.m_pendingCombatActive && ent.m_pendingCombatTarget != 0)
+                {
+                    if (ent.m_pendingCombatTarget == CoSyncNet::GetMyEntityID())
+                        localTarget = reinterpret_cast<Actor*>(CoSyncGetPlayer());
+                    else if (CoSyncPlayer* tp = GetPlayerByEntityID(ent.m_pendingCombatTarget))
+                    {
+                        if (tp->hasSpawned && tp->actorRef && tp->actorRef != ent.actorRef &&
+                            CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(tp->actorRef)) &&
+                            !CoSyncGameAPI::IsDeadOrDying(tp->actorRef))
+                            localTarget = tp->actorRef;
+                    }
+                }
+                CoSyncPuppetAuthority::ApplyOwnerCombat(ent.entityID, ent.actorRef, ent.m_pendingCombatActive, localTarget, NowSeconds());
+            }
             if (combatStateEdge && ent.actorRef)
             {
                 CoSyncEquipHook::DrawWeaponEngine(ent.actorRef, ent.m_pendingCombatActive);
@@ -2721,6 +2775,14 @@ void CoSyncPlayerManager::Tick()
     g_lastTickStep = "PlayerMgr:Tick:exit";
 }
 
+void CoSyncPlayerManager::NoteAuthoritativeContact(uint32_t entityID)
+{
+    LOG_REQUIREMENT("CoSyncPlayerManager::NoteAuthoritativeContact", "Game thread. Only stamps an existing state.");
+    auto it = m_statesByEntityID.find(entityID);
+    if (it != m_statesByEntityID.end())
+        it->second.lastContactLocalTime = NowSeconds();
+}
+
 void CoSyncPlayerManager::HandleTimeouts(double now)
 {
     LOG_REQUIREMENT("CoSyncPlayerManager::HandleTimeouts", "Goes through the tracked entities and hands any that timed out to the despawn function, which handles its own safety checks.");
@@ -2744,8 +2806,12 @@ void CoSyncPlayerManager::HandleTimeouts(double now)
             if (gap > 3.0)
             {
                 for (auto& kv : m_statesByEntityID)
+                {
                     if (kv.second.lastUpdateLocalTime > 0.0)
                         kv.second.lastUpdateLocalTime += gap;
+                    if (kv.second.lastContactLocalTime > 0.0)
+                        kv.second.lastContactLocalTime += gap;
+                }
                 LOG_UPDATED("[PlayerMgr] tick stalled %.1fs (loading screen?) — forgiving entity timeouts", gap);
             }
         }
@@ -2778,10 +2844,15 @@ void CoSyncPlayerManager::HandleTimeouts(double now)
         if (st.isLocallyOwned && CoSyncNpcWorldSync::IsWorldActorEntityID(st.entityID))
             continue;
 
-        if (st.lastUpdateLocalTime <= 0.0)
+        // 0.4.3: "lost" means the owner has gone silent about the entity, not
+        // "no transform for 15 s". A corpse never streams a transform; its
+        // owner re-broadcasts CREATE + KILL every 5 s, which keep it alive.
+        const double lastHeard = (st.lastContactLocalTime > st.lastUpdateLocalTime)
+            ? st.lastContactLocalTime : st.lastUpdateLocalTime;
+        if (lastHeard <= 0.0)
             continue;
 
-        if ((now - st.lastUpdateLocalTime) > kEntityTimeoutSec)
+        if ((now - lastHeard) > kEntityTimeoutSec)
             expired.push_back(st.entityID);
     }
 

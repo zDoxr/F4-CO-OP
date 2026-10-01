@@ -3,6 +3,7 @@
 #include <Windows.h>
 
 #include "CoSyncNpcWorldSync.h"
+#include "CoSyncPuppetAuthority.h"
 
 #include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
@@ -288,6 +289,22 @@ namespace
 
     // Client: world-actor proxies a KILL has been applied to.
     std::unordered_set<uint32_t>           s_killedEntities;
+
+    // 0.4.3, client: entities that are KNOWN CORPSES here and were unbound
+    // (the owner went silent about them, left the area, or the entity was
+    // released). "Entity exists + actor is dead" stays a state: a later CREATE
+    // with the Dead flag for it must never build a new living body -- that is
+    // what made enemies stand up and die a second time (Bug #2). A CREATE
+    // WITHOUT the Dead flag means the owner reused the ID for a live actor.
+    struct CorpseTombstone { Actor* corpse; uint32_t corpseFormID; };
+    std::unordered_map<uint32_t, CorpseTombstone> s_corpseTombstones;
+
+    // The bound actor handed to the unbind may already be freed by the engine.
+    __declspec(noinline) uint32_t SafeActorFormID(Actor* a)
+    {
+        __try { return a ? a->formID : 0u; }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return 0u; }
+    }
 
     // 0.3.3 (Stage 4), host: entities that are a player's companion -- the
     // client-owned copies registered through COMPOWN. (The host's own
@@ -1018,11 +1035,16 @@ __declspec(noinline) static void TickScanWorldActors_Impl(double now)
                     st.lastCreate.spawnRot = curRot;
                 }
 
+                // 0.4.3: a corpse is announced AS a corpse (EntityCreatePacket::Dead),
+                // so a receiver never treats this re-broadcast as "spawn it alive".
+                const bool deadHere = s_deadEntities.count(kv.first) != 0;
+                if (deadHere)
+                    st.lastCreate.spawnFlags |= EntityCreatePacket::Dead;
                 CoSyncTransport::Send(SerializeEntityCreate(st.lastCreate));
                 ++sentCount;
 
                 // Late joiners must see corpses as corpses, not idle clones.
-                if (s_deadEntities.count(kv.first))
+                if (deadHere)
                     CoSyncTransport::Send(CoSyncEnemySync::BuildKill(kv.first));
             }
             if (sentCount > 0)
@@ -1727,6 +1749,7 @@ void Reset()
     s_reportedLocalRefs.clear();
     s_deadEntities.clear();
     s_killedEntities.clear();
+    s_corpseTombstones.clear();
     s_companionEntities.clear();
     s_npcDeadSentAt.clear();
     s_knownDeadRefs.clear();
@@ -1948,6 +1971,24 @@ static bool SpawnProxyForWorldActor(Actor* realActor, const EntityCreatePacket& 
 __declspec(noinline) static void ClientBindWorldActor_Impl(const EntityCreatePacket& p)
 {
     LOG_REQUIREMENT("CoSyncNpcWorldSync::ClientBindWorldActor_Impl", "Needs a valid local player. Mainly looks up the actor directly by the ID the host sent, which works no matter which cell it's in. Only falls back to scanning the cell if that ID is missing. The caller wraps this in a crash guard.");
+
+    // 0.4.3 (Bug #2): an entity this machine already knows as a corpse keeps
+    // its corpse. A Dead CREATE for it is the owner's corpse re-broadcast, not
+    // a request for a body. A non-Dead CREATE for a tombstoned ID is the owner
+    // reusing the ID for a new, live actor: the tombstone is dropped (the old
+    // corpse stays in the world as an ordinary engine corpse).
+    {
+        auto tomb = s_corpseTombstones.find(p.entityID);
+        if (tomb != s_corpseTombstones.end())
+        {
+            if (EntityCreatePacket::HasFlag(p.spawnFlags, EntityCreatePacket::Dead))
+                return;
+            LOG_UPDATED("[NpcWorldSync] entity=%u was a corpse here (0x%08X) -- the owner now uses the ID for a live actor",
+                p.entityID, tomb->second.corpseFormID);
+            s_corpseTombstones.erase(tomb);
+            s_killedEntities.erase(p.entityID);
+        }
+    }
 
     // Host re-broadcasts CREATE every few seconds as a bind-retry mechanism.
     // Guard 1: entity already fully bound.
@@ -2874,7 +2915,23 @@ void ClientUnbindWorldActor(uint32_t entityID, uint32_t reasonFlags)
     }
     s_spawnFallback.erase(entityID);
     s_firstBindFail.erase(entityID);
-    s_killedEntities.erase(entityID);
+    // 0.4.3: a dead entity stays known as dead (tombstone) -- see
+    // s_corpseTombstones. Only a live entity's knowledge is dropped.
+    if (isDead)
+    {
+        Actor* corpse = cloneToDespawn ? cloneToDespawn : boundActor;
+        s_corpseTombstones[entityID] = CorpseTombstone{ corpse, SafeActorFormID(corpse) };
+        s_killedEntities.insert(entityID);
+    }
+    else
+    {
+        s_killedEntities.erase(entityID);
+        s_corpseTombstones.erase(entityID);
+    }
+    if (boundActor)
+        CoSyncPuppetAuthority::ForgetPuppet(boundActor);
+    if (cloneToDespawn)
+        CoSyncPuppetAuthority::ForgetPuppet(cloneToDespawn);
     ReleaseClaimForEntity(entityID);
 
     // The TickHook keeps a raw CoSyncPlayer* per proxy actor; drop it before

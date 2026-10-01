@@ -97,4 +97,27 @@ namespace CoSyncEnemySync
     // The network entity ID of an actor as this machine knows it (the local
     // player -> our own ID). 0 = not a synced entity.
     uint32_t EntityIdOf(Actor* actor);
+
+    // 0.4.3: thread-safe tests used by engine hooks on any thread.
+    // A guarded puppet = this machine's copy of a world NPC another machine
+    // simulates. A player proxy = this machine's copy of another player.
+    bool IsGuardedPuppet(Actor* actor);
+    bool IsPlayerProxy(Actor* actor);
+
+    // 0.4.3: a puppet's Health is its owner's value only. Local engine writes
+    // to a guarded puppet's Health (hits, damage over time, regeneration) are
+    // refused in the ModActorValue hook -- the hit is still reported to the
+    // owner when this machine simulates the attacker -- so the HUD enemy meter
+    // (it reads the local actor's Health percent, sub_140A349F0 ->
+    // sub_140C63650) never shows a locally predicted value that the owner's
+    // HP then pulls back. CoSync's own authoritative writes (HealthSync's HP
+    // apply, the engine kill replay) run inside this scope and pass.
+    struct ScopedHealthWrite
+    {
+        ScopedHealthWrite();
+        ~ScopedHealthWrite();
+        ScopedHealthWrite(const ScopedHealthWrite&) = delete;
+        ScopedHealthWrite& operator=(const ScopedHealthWrite&) = delete;
+    };
+    bool IsAuthoritativeHealthActive();
 }

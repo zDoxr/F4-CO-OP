@@ -23,6 +23,9 @@
 #include "CoSyncGameAPI.h"
 #include "CoSyncCombatAuthority.h"
 #include "CoSyncEnemySync.h"
+#include "CoSyncPuppetAuthority.h"
+#include "CoSyncFlashlightSync.h"
+#include "CoSyncMineSync.h"
 #include "CoSyncWorldStateSync.h"
 #include "CoSyncWorldSpawnSync.h"
 #include "CoSyncNpcIdleSync.h"
@@ -620,6 +623,9 @@ bool F4SEPlugin_Load(const F4SEInterface* f4se)
     CoSyncProxyWeaponAuthority::Install();
     CoSyncCombatAuthority::Install();
     CoSyncEnemySync::Install();
+    CoSyncPuppetAuthority::Install();   // 0.4.3: puppet combat gate + locomotion channels
+    CoSyncFlashlightSync::Install();    // 0.4.3: remote player flashlights (engine SetPipboyLight steps)
+    CoSyncMineSync::Install();          // 0.4.3: real mines everywhere; proxies never trigger them
     InstallNpcGraphInputCapture();
     CoSyncWorldStateSync::Install();
     CoSyncWorldSpawnSync::Install();

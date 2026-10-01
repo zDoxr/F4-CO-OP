@@ -24,6 +24,10 @@ struct EntityCreatePacket
         RemoteControlled = 1 << 0,
         HiddenOnSpawn = 1 << 1,
         Persistent = 1 << 2,
+        // 0.4.3: the entity exists and is DEAD (a corpse). A receiver that
+        // already knows the entity never builds a new living body for it; a
+        // late joiner spawns the corpse and the KILL that follows lays it down.
+        Dead = 1 << 3,
     };
 
     uint32_t spawnFlags = HiddenOnSpawn | RemoteControlled;

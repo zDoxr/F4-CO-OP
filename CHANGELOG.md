@@ -2,6 +2,27 @@
 
 ---
 
+## [0.4.3] — 2026-10-01
+
+### NPC authority, corpses, enemy health bar, flashlights, mines
+
+Built clean (0 errors, 0 warnings), wire format tested offline, and loaded at the main menu with every new hook passing its check. **It has not been played in a multiplayer session yet.** Root causes with the log and IDA evidence, the authority model, the entity state machine, the packet model and the test list: `docs/NPC_AUTHORITY_REPORT.md`.
+
+- **Enemies fight the host but act on their own on the client (animation/AI desync):** a client's copy of an NPC ran its whole AI: it entered combat against whoever it saw, chose its own target, and its movement controller fed its own walking intention into the animation. CoSync stopped its combat every frame. Now:
+  - combat on a copy is allowed only against the target its owner's NPC is fighting, and that fight is started on the copy through the engine's own StartCombat task (gate on the engine's single combat entry, `sub_140D00F80`);
+  - the copy's walk/run/strafe animation uses the owner's own Speed/Direction values (the engine's locomotion channels);
+  - the copy's own attack/aim/reload/sneak/stagger decisions are refused; the owner's arrive over the network.
+- **Dead enemies stand up and die again:** the client treated "no movement updates for 15 s" as "entity lost", and a corpse never sends movement. It then forgot the entity was dead and built a new body from the next 5 s re-broadcast. Now the owner's re-broadcast marks corpses as dead, any message from the owner keeps an entity alive, and a known corpse is never rebuilt.
+- **Enemy health bar and name flicker / wrong health:** the HUD shows the bar while the enemy's combat group targets you; the copy's combat was being created and destroyed every frame. With the combat fix it is stable. The copy's health is now only ever the owner's value (no local prediction that the owner then pulled back), and the owner sends health changes at 5 Hz.
+- **Player flashlights:** the Pip-Boy light and the Power Armor headlamp now show on other players. Only the on/off state is sent; each machine builds the light with the game's own steps on the player's character, so it follows their body and head with no jitter.
+- **Landmines:** mines thrown or placed by one player now exist as real mines for everyone (beep, blinking light, HUD mine warning, disarm). Mines are only triggered by actors your own game simulates. Other players' characters and other machines' NPCs can no longer set off your mines. When a mine goes off or is disarmed anywhere, the copies on the other machines are removed.
+- **Double explosion damage:** a replayed explosion no longer damages another player's character here (that player's own game applies it once).
+- **Overlapping name tags:** traced to PrismaUI's compositor, not CoSync. CoSync's data, its page and Ultralight's own rendering were all proven correct (offline renderer test). Details and next step in the report.
+- `CoSync.ini` `[Puppet]` switches (all on by default) to isolate any of the NPC changes.
+- Version 0.4.3 (network 403; new `FL`, `MINE`, `MINEX` messages; `EU` gains locomotion fields; `EC` gains a Dead flag). Both players must run 0.4.3.
+
+---
+
 ## [0.4.0] — 2026-09-30
 
 ### Pre-join mod validation and automatic mod transfer

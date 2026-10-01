@@ -1,4 +1,5 @@
 #include "CoSyncPlayer.h"
+#include "CoSyncPuppetAuthority.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncEntityRegistry.h"
 #include "CoSyncRequirementsLog.h"
@@ -475,6 +476,13 @@ void CoSyncPlayer::ApplyUpdate(const EntityUpdatePacket& u)
     m_pendingCombatActive = u.isCombatActive;
     m_pendingCombatTarget = u.combatTargetEntityID;
     m_pendingInDialog     = u.isInDialog;
+    if (u.hasMoveChannels)
+    {
+        m_hasMoveChannels = true;
+        m_moveSpeed       = u.moveSpeed;
+        m_moveDirection   = u.moveDirection;
+        m_moveRecvTime    = NowSeconds();
+    }
 
     if (!hasSpawned || !actorRef)
         return;
@@ -704,7 +712,11 @@ void CoSyncPlayer::ApplyProxyTransform(const NiPoint3& pos, const NiPoint3& rot)
         // instead of sitting", "fighting the synchronized movement").
         if (m_npcFurnitureRef != 0)
         {
-            CoSyncGameAPI::StopActorCombat(actorRef);
+            // 0.4.3: with the combat-entry gate live the puppet cannot enter a
+            // fight its owner is not in, so there is nothing to stop here.
+            if (!CoSyncPuppetAuthority::CombatGateActive())
+                CoSyncGameAPI::StopActorCombat(actorRef);
+            CoSyncPuppetAuthority::SetPuppetMovement(actorRef, 0.f, 0.f, false);
             m_lastAnimApplyTime = NowSeconds();
             return;
         }
@@ -719,6 +731,14 @@ void CoSyncPlayer::ApplyProxyTransform(const NiPoint3& pos, const NiPoint3& rot)
             CoSyncGameAPI::SetActorControllerVelocity(actorRef, fresh ? m_lastVel : NiPoint3(0.f, 0.f, 0.f));
         }
 
+        // 0.4.3: the engine's locomotion channels carry the OWNER's values
+        // (the puppet's own movement controller would write what its own AI
+        // wants). Released when the owner's stream goes stale.
+        {
+            const bool freshMove = m_hasMoveChannels && (NowSeconds() - m_moveRecvTime) < 0.5;
+            CoSyncPuppetAuthority::SetPuppetMovement(actorRef, m_moveSpeed, m_moveDirection, freshMove);
+        }
+
         // Re-neutralize every tick, not just at spawn: the puppet's local AI
         // (still fully alive by design) can decide to enter combat against
         // the local client's own player at any point in a long session, and
@@ -726,7 +746,12 @@ void CoSyncPlayer::ApplyProxyTransform(const NiPoint3& pos, const NiPoint3& rot)
         // every tick, fighting the SteerPuppetPosition call above -- IsInCombat
         // gates this internally so the repeated call is a cheap no-op the rest
         // of the time.
-        CoSyncGameAPI::StopActorCombat(actorRef);
+        // 0.4.3: only without the combat-entry gate. With it, local combat
+        // cannot start at all, and the owner's own fight (started on the
+        // puppet with the same target) must not be stopped every frame -- that
+        // flapping is what made the HUD enemy meter flicker (Bug #3).
+        if (!CoSyncPuppetAuthority::CombatGateActive())
+            CoSyncGameAPI::StopActorCombat(actorRef);
 
         // Drag the client's own hidden original along with the proxy. Quest
         // aliases and quest target markers still reference that original ref,

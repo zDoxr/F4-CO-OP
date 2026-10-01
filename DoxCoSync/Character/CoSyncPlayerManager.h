@@ -47,6 +47,10 @@ public:
     void ProcessInbox();
     void Tick();
 
+    // 0.4.3: the owner sent something about this entity (see
+    // CoSyncEntityState::lastContactLocalTime). Game thread. Never creates a state.
+    void NoteAuthoritativeContact(uint32_t entityID);
+
     void SetLocalEntityID(uint32_t id) { LOG_REQUIREMENT("CoSyncPlayerManager::SetLocalEntityID", "Just stores the given ID, no other requirement."); m_localEntityID = id; }
     uint32_t GetLocalEntityID() const { LOG_REQUIREMENT("CoSyncPlayerManager::GetLocalEntityID", "Just returns the already-stored local entity ID."); return m_localEntityID; }
 

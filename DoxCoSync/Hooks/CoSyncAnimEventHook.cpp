@@ -1,4 +1,5 @@
 #include "CoSyncAnimEventHook.h"
+#include "CoSyncEnemySync.h"
 #include "CoSyncAnimationUtils.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
@@ -452,14 +453,66 @@ namespace
             "attack", "bash", "block", "reload", "stagger", "recoil", "hitreact", "flinch",
             "sighted", "aim", "ready", "gundown", "throw", "grenade", "mine", "jump", "sneak",
             "dodge", "cower", "panic", "stumble", "melee", "charge", "surrender", "combat",
+            "cover", "knockdown",
         };
         for (const char* a : kAllow)
             if (std::strstr(lc, a)) return true;
         return false;
     }
 
+    // 0.4.3 puppet input gate. A puppet's graph is driven by its OWNER: the
+    // owner's accepted inputs arrive as AE| (and SHOT/KILL replays) and are
+    // sent with the applying-remote guard set. The same categories coming from
+    // the puppet's own engine -- its combat behaviour, its packages, its local
+    // hit reactions -- are this machine making a decision the owner did not
+    // make (the reported "attacks the host did not perform", wrong aim, a
+    // second stagger). They are refused before they reach the graph.
+    // Locomotion (Speed/Direction channels), death/ragdoll (KILL replay ->
+    // engine KillImpl), weapon draw (owner state) and furniture/idles (FU/NIDL)
+    // are not decisions made here and pass.
+    std::atomic<uint32_t> s_puppetRefused{ 0 };
+    std::atomic<bool>     s_puppetGateOn{ true };
+
+    bool IsLocalDecisionInput(const char* name)
+    {
+        char lc[64];
+        size_t n = 0;
+        for (; name[n] && n < sizeof(lc) - 1; ++n)
+            lc[n] = static_cast<char>((name[n] >= 'A' && name[n] <= 'Z') ? name[n] + 32 : name[n]);
+        lc[n] = '\0';
+        static const char* const kPass[] = {
+            "death", "ragdoll", "bleedout", "getup", "furniture", "sit", "idle", "dialogue",
+            "weapdraw", "weapondraw", "weaponsheathe", "weapequip", "equip", "graphdeleting",
+            "movestart", "movestop", "turn", "walk", "run", "sprint", "foot", "powerarmor",
+        };
+        for (const char* p : kPass)
+            if (std::strstr(lc, p)) return false;
+        static const char* const kDecision[] = {
+            "attack", "bash", "block", "reload", "stagger", "recoil", "hitreact", "flinch",
+            "sighted", "aim", "ready", "gundown", "throw", "grenade", "mine", "jump", "sneak",
+            "dodge", "cower", "panic", "stumble", "melee", "charge", "surrender", "combat",
+            "cover", "knockdown",
+        };
+        for (const char* d : kDecision)
+            if (std::strstr(lc, d)) return true;
+        return false;
+    }
+
     bool __fastcall Detour_ActorNotifyGraph(void* holder, BSFixedString* ev)
     {
+        if (!tls_cs_anim_applying && s_puppetGateOn.load(std::memory_order_relaxed))
+        {
+            Actor* subject = reinterpret_cast<Actor*>(reinterpret_cast<uintptr_t>(holder) - 0x48);
+            if (CoSyncEnemySync::IsGuardedPuppet(subject))
+            {
+                char tag[40];
+                if (SafeCopyTagString(ev, tag, sizeof(tag)) && IsLocalDecisionInput(tag))
+                {
+                    s_puppetRefused.fetch_add(1, std::memory_order_relaxed);
+                    return false;   // not taken: the owner's input decides
+                }
+            }
+        }
         const bool accepted = s_origHolderNotify ? s_origHolderNotify(holder, ev) : false;
         if (!accepted || tls_cs_anim_applying || !s_inputCaptureOn.load(std::memory_order_relaxed))
             return accepted;
@@ -507,15 +560,26 @@ void InstallNpcGraphInputCapture()
     *slot = reinterpret_cast<void*>(&Detour_ActorNotifyGraph);
     VirtualProtect(slot, sizeof(void*), oldProt, &oldProt);
     s_inputCaptureOn.store(true);
-    LOG_INFO("[AnimEventHook] NPC graph INPUT capture installed (Actor holder vtable base+0x%llX slot 1)",
-        (unsigned long long)kRVA_ActorHolderVtbl);
+    {
+        char exe[MAX_PATH] = {};
+        if (GetModuleFileNameA(nullptr, exe, MAX_PATH))
+        {
+            std::string ini = exe;
+            ini = ini.substr(0, ini.find_last_of("\\/") + 1) + "Data\\F4SE\\Plugins\\CoSync.ini";
+            s_puppetGateOn.store(GetPrivateProfileIntA("Puppet", "bGraphInputGate", 1, ini.c_str()) != 0);
+        }
+    }
+    LOG_INFO("[AnimEventHook] NPC graph INPUT capture installed (Actor holder vtable base+0x%llX slot 1), puppet input gate=%d",
+        (unsigned long long)kRVA_ActorHolderVtbl, s_puppetGateOn.load() ? 1 : 0);
 }
 
 void LogNpcGraphInputCaptureStats()
 {
-    const uint32_t seen = s_inputSeen.exchange(0), queued = s_inputQueued.exchange(0);
-    if (seen || queued)
-        LOG_UPDATED("[AnimEventHook] NPC graph inputs last 10 s: accepted by graphs here=%u, forwardable queued=%u", seen, queued);
+    const uint32_t seen = s_inputSeen.exchange(0), queued = s_inputQueued.exchange(0),
+                   refused = s_puppetRefused.exchange(0);
+    if (seen || queued || refused)
+        LOG_UPDATED("[AnimEventHook] NPC graph inputs last 10 s: accepted by graphs here=%u, forwardable queued=%u, "
+                    "puppet-local decisions refused=%u", seen, queued, refused);
 }
 
 static int __fastcall HookedReceiveEvent(

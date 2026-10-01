@@ -335,6 +335,14 @@ public:
     uint32_t m_pendingCombatTarget  = 0;
     uint32_t m_lastCombatTarget     = 0;
 
+    // 0.4.3: the owner's raw locomotion channels for a world-NPC puppet (EU),
+    // fed into the puppet's own Speed/Direction channels every frame by
+    // CoSyncPuppetAuthority.
+    bool     m_hasMoveChannels = false;
+    float    m_moveSpeed       = 0.f;
+    float    m_moveDirection   = 0.f;
+    double   m_moveRecvTime    = 0.0;
+
 
     bool m_lastInDialog    = false;
     bool m_pendingInDialog = false;
