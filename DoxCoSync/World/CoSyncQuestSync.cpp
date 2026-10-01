@@ -21,6 +21,8 @@
 #include <sstream>
 #include <cstdlib>
 #include <cstring>
+#include <cstdio>
+#include <chrono>
 
 extern RelocAddr<_LookupFormByID> LookupFormByID;
 extern RelocPtr<DataHandler*>     g_dataHandler;
@@ -50,6 +52,10 @@ namespace
     std::vector<QuestObjAllOp>   s_pendingObjAll;
     std::vector<QuestObjSetOp>   s_pendingObjSet;
     std::vector<QuestObjDispOp>  s_pendingObjDisp;
+
+    // Host: client stage requests (QSREQ), 0.4.2.
+    struct QuestReqOp { uint32_t sender = 0; uint32_t questFormID = 0; int stage = 0; };
+    std::vector<QuestReqOp>      s_pendingReqs;
 
     // ── Poll state (game main thread only — no mutex needed) ─────────────────
     std::unordered_set<uint32_t> s_knownActive;     // quests seen as running
@@ -213,6 +219,106 @@ void CoSyncQuestSync::OnReceiveQuestStage(const std::string& msg)
     s_pending.push_back({ questFormID, stage });
 }
 
+// ─── Packet: client stage request (QSREQ|senderID|formID|stage), 0.4.2 ───────
+
+__declspec(noinline) static void CallSetStageNoTry(TESForm* form, VMArray<VMVariable>& args)
+{
+    static const BSFixedString kSetStage("SetStage");
+    CallFunctionNoWait(form, kSetStage, args);
+}
+
+__declspec(noinline) static bool SafeCallFunctionNoWaitSetStage(TESForm* form, VMArray<VMVariable>& args)
+{
+    LOG_REQUIREMENT("(global)::SafeCallFunctionNoWaitSetStage", "Host, game thread, world loaded. Queues Quest.SetStage on the Papyrus VM; SEH-guarded.");
+    __try
+    {
+        CallSetStageNoTry(form, args);
+        return true;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return false;
+    }
+}
+
+bool CoSyncQuestSync::IsQuestStageRequest(const std::string& msg)
+{
+    return msg.rfind("QSREQ|", 0) == 0;
+}
+
+void CoSyncQuestSync::RequestQuestStage(uint32_t questFormID, int stage, uint32_t senderEntityID)
+{
+    LOG_REQUIREMENT("CoSyncQuestSync::RequestQuestStage", "Client, any thread (the SetCurrentStageID hook runs on Papyrus threads). Only sends.");
+    if (!CoSyncNet::IsConnected() || CoSyncNet::IsHost() || questFormID == 0 || senderEntityID == 0)
+        return;
+    char buf[96];
+    std::snprintf(buf, sizeof(buf), "QSREQ|%u|%u|%d", senderEntityID, questFormID, stage);
+    CoSyncTransport::Send(std::string(buf));
+    LOG_INFO("[QuestSync] TX QSREQ quest=0x%08X stage=%d (client progress)", questFormID, stage);
+}
+
+void CoSyncQuestSync::OnReceiveQuestStageRequest(const std::string& msg)
+{
+    LOG_REQUIREMENT("CoSyncQuestSync::OnReceiveQuestStageRequest", "Host only; the sender check in CoSyncNet already bound the first field to the connection. Parses and queues.");
+    if (!CoSyncNet::IsHost())
+        return;
+    QuestReqOp op{};
+    if (std::sscanf(msg.c_str() + 6, "%u|%u|%d", &op.sender, &op.questFormID, &op.stage) != 3 ||
+        op.questFormID == 0 || (op.questFormID & 0xFF000000u) == 0xFF000000u || op.stage < 0 || op.stage > 0xFFFF)
+    {
+        LOG_WARN("[QuestSync] Malformed QSREQ: '%s'", msg.c_str());
+        return;
+    }
+    std::lock_guard<std::mutex> lk(s_mutex);
+    if (s_pendingReqs.size() < 256)
+        s_pendingReqs.push_back(op);
+}
+
+// Host, game thread: applies queued client requests.
+static void ApplyClientStageRequests(std::vector<QuestReqOp>& reqs)
+{
+    static std::unordered_map<uint32_t, std::pair<double, int>> s_budget;   // sender -> (window, count)
+    const double now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    for (const QuestReqOp& op : reqs)
+    {
+        auto& b = s_budget[op.sender];
+        if (now - b.first >= 1.0) { b.first = now; b.second = 0; }
+        if (++b.second > 30)
+        {
+            LOG_UPDATED_WARN("[QuestSync] QSREQ from entity=%u over 30/s -- dropped quest=0x%08X stage=%d",
+                op.sender, op.questFormID, op.stage);
+            continue;
+        }
+        TESQuest* quest = nullptr;
+        TESForm* form = LookupFormByID(op.questFormID);
+        if (form && form->formType == kFormType_QUST)
+            quest = static_cast<TESQuest*>(form);
+        if (!quest)
+        {
+            LOG_UPDATED_WARN("[QuestSync] QSREQ quest=0x%08X from entity=%u is not a quest here -- ignored", op.questFormID, op.sender);
+            continue;
+        }
+        const int done = CoSyncQuestHook_IsStageDone(quest, op.stage);
+        if (done == 1)
+        {
+            LOG_UPDATED("[QuestSync] QSREQ quest=0x%08X stage=%d from entity=%u: already done here -- nothing to do",
+                op.questFormID, op.stage, op.sender);
+            continue;
+        }
+        if (s_papyrusDispatchKnownBad)
+            continue;
+        VMArray<VMVariable> args;
+        SInt32 st = op.stage;
+        VMVariable vStage; vStage.Set(&st); args.Push(&vStage);
+        if (SafeCallFunctionNoWaitSetStage(form, args))
+            LOG_UPDATED("[QuestSync] QSREQ quest=0x%08X stage=%d from entity=%u -> SetStage on the host (stage done here: %s); "
+                        "the host's hook broadcasts it to everyone",
+                op.questFormID, op.stage, op.sender, done == 0 ? "no" : "unknown");
+        else
+            LOG_ERROR("[QuestSync] QSREQ quest=0x%08X stage=%d: SetStage through the script system faulted", op.questFormID, op.stage);
+    }
+}
+
 // ─── Packet: Start (QS_ST|senderID|formID) ───────────────────────────────────
 
 bool CoSyncQuestSync::IsQuestStart(const std::string& msg)
@@ -368,14 +474,20 @@ void CoSyncQuestSync::FlushPendingQuestOps()
     std::vector<QuestStartOp> starts;
     std::vector<QuestOp>      stages;
     std::vector<QuestDoneOp>  dones;
+    std::vector<QuestReqOp>   reqs;
     {
         std::lock_guard<std::mutex> lk(s_mutex);
-        if (s_pendingStarts.empty() && s_pending.empty() && s_pendingDones.empty())
+        if (s_pendingStarts.empty() && s_pending.empty() && s_pendingDones.empty() && s_pendingReqs.empty())
             return;
         starts.swap(s_pendingStarts);
         stages.swap(s_pending);
         dones.swap(s_pendingDones);
+        reqs.swap(s_pendingReqs);
     }
+    // Client progress first, outside the remote-apply bracket: SetStage runs
+    // later on the VM and the host's own hook must broadcast it.
+    if (!reqs.empty())
+        ApplyClientStageRequests(reqs);
 
     g_inRemoteQuestApply = true;
 

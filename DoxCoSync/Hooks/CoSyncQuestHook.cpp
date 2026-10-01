@@ -14,6 +14,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <cstring>
 #include "CoSyncThreadDiag.h"
 
 // Quest.SetCurrentStageID Papyrus dispatch — FO4 1.11.221
@@ -90,16 +91,25 @@ static void __fastcall Detour_SetCurrentStageID(
         return;
     }
 
-    // CLIENT: block all local quest stage advancement.
-    // Host is authoritative — clients must not advance quest stages on their own;
-    // the host broadcasts every SetCurrentStageID it fires and clients apply those
-    // packets via CoSyncQuestHook_ApplySetCurrentStageID (which calls g_origSetStage
-    // directly, bypassing this detour, so received stages still land correctly).
+    // CLIENT (0.4.2): a client's own progress counts. Before this, every stage a
+    // client's scripts set (quest item picked up, objective reached, trigger
+    // entered) was dropped and lost. Now the client advances its own quest --
+    // its stage fragment runs here, so ITS player gets that stage's rewards and
+    // journal update -- and asks the host to apply the same stage. The host
+    // checks it and sets it through its own engine (its fragment runs: the
+    // authoritative world changes), then broadcasts QS to everyone. Received
+    // stages are applied through CoSyncQuestHook_ApplySetCurrentStageID (the
+    // internal setter, not this native), so they never come back here.
     if (CoSyncNet::IsConnected() && !CoSyncNet::IsHost())
     {
-        if (thisObj)
-            LOG_UPDATED("[QuestHook] [CLIENT] Suppressed local SetCurrentStageID "
-                "quest=0x%08X stage=%d — awaiting host packet", thisObj->formID, aiStageID);
+        if (g_origSetStage)
+            g_origSetStage(vm, stackID, thisObj, aiStageID);
+        if (!thisObj) return;
+        const uint32_t qid = thisObj->formID;
+        if (qid == 0 || (qid & 0xFF000000u) == 0xFF000000u) return;
+        CoSyncQuestSync::RequestQuestStage(qid, aiStageID, CoSyncNet::GetMyEntityID());
+        LOG_UPDATED("[QuestHook] [CLIENT] quest=0x%08X stage=%d set here -- asked the host to apply it for everyone",
+            qid, aiStageID);
         return;
     }
 
@@ -216,6 +226,32 @@ bool CoSyncQuestHook_ApplySetCurrentStageID(TESQuest* quest, int32_t stage)
         LOG_ERROR("[QuestHook] ApplySetCurrentStageID faulted (quest=0x%08X stage=%d)",
             quest->formID, stage);
     return ok;
+}
+
+// Engine IsStageDone (1.11.240): the Papyrus native sub_141185BF0 calls
+// sub_14066B700(quest, uint16 stage) directly; it walks the quest's stage
+// table (+0x138 / +0x144 / +0x100) and returns whether that stage is done.
+__declspec(noinline) static int SafeIsStageDone(TESQuest* quest, uint16_t stage)
+{
+    static const uint8_t kPro[16] = { 0x48,0x89,0x5C,0x24,0x08,0x44,0x8B,0x81,0x44,0x01,0x00,0x00,0x48,0x8B,0x99,0x38 };
+    const uintptr_t fn = reinterpret_cast<uintptr_t>(GetModuleHandle(NULL)) + 0x0066B700;
+    if (std::memcmp(reinterpret_cast<const void*>(fn), kPro, sizeof(kPro)) != 0)
+        return -1;
+    __try
+    {
+        return reinterpret_cast<bool(__fastcall*)(TESQuest*, uint16_t)>(fn)(quest, stage) ? 1 : 0;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return -1;
+    }
+}
+
+int CoSyncQuestHook_IsStageDone(TESQuest* quest, int32_t stage)
+{
+    if (!quest || stage < 0 || stage > 0xFFFF)
+        return -1;
+    return SafeIsStageDone(quest, static_cast<uint16_t>(stage));
 }
 
 void UninstallQuestStageHook()

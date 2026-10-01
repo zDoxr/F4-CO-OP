@@ -121,6 +121,9 @@ namespace
     };
     std::deque<uint32_t> s_pendingRequests;   // conns waiting for a fresh save
     bool                 s_saveQueued = false;
+    int                  s_saveAttempts = 0;          // refused saves in a row (0.4.2)
+    double               s_saveRetryAtMs = 0.0;       // GetTickCount64 time of the next try, 0 = none
+    constexpr int        kMaxSaveAttempts = 20;       // 20 x 0.5 s
     std::vector<Outgoing> s_outgoing;
     uint32_t             s_nextId = 1;
     // S-SEC2 (2026-09-26): a client requests the world exactly once per
@@ -191,11 +194,32 @@ namespace
 
         if (!CoSyncSaveLoad::SaveNamed(kHostSaveName))
         {
+            // 0.4.2: the engine refuses to save in some moments (2026-09-30
+            // host log 34976: five joins failed at once with save_failed). The
+            // request is kept and retried for up to ~10 s; only then the join
+            // fails. The log says whether the engine's own can-save gate is
+            // what refused.
+            ++s_saveAttempts;
+            const int canSave = CoSyncSaveLoad::EngineCanSave();
+            if (s_saveAttempts < kMaxSaveAttempts)
+            {
+                LOG_WARN("[WorldXfer] The game refused to save (engine can-save gate: %s) -- retrying in 0.5 s (%d/%d)",
+                    canSave == 0 ? "NO: a menu, VATS, a power-armor transition, dying, a scene..." :
+                    canSave == 1 ? "yes -- the save itself failed" : "unavailable",
+                    s_saveAttempts, kMaxSaveAttempts);
+                if (s_saveAttempts == 1)
+                    CoSyncGameAPI::QueueNotification("A player is joining -- close menus so the game can save.");
+                s_saveRetryAtMs = static_cast<double>(GetTickCount64()) + 500.0;
+                return;   // requests stay pending
+            }
+            LOG_ERROR("[WorldXfer] The game refused to save %d times -- the join fails (save_failed)", s_saveAttempts);
+            s_saveAttempts = 0;
             for (uint32_t conn : s_pendingRequests)
                 CoSyncTransport::SendTo(conn, "WORLDERR|save_failed");
             s_pendingRequests.clear();
             return;
         }
+        s_saveAttempts = 0;
 
         const std::string folder = CoSyncSaveLoad::GetSaveFolder();
         Outgoing base;
@@ -409,6 +433,20 @@ namespace CoSyncWorldTransfer
             QuitToMainMenu();
         }
 
+        // Host: retry a save the game refused (see HostSaveAndQueue).
+        if (s_saveRetryAtMs > 0.0 && static_cast<double>(GetTickCount64()) >= s_saveRetryAtMs && !s_saveQueued)
+        {
+            s_saveRetryAtMs = 0.0;
+            if (s_pendingRequests.empty())
+                s_saveAttempts = 0;
+            else
+            {
+                s_saveQueued = CoSyncSpawnTasks::EnqueueMainThread([] { HostSaveAndQueue(); });
+                if (!s_saveQueued)
+                    s_saveRetryAtMs = static_cast<double>(GetTickCount64()) + 500.0;
+            }
+        }
+
         // Client: a load that never completed (prompt declined, file missing).
         if (GetClientPhase() == ClientPhase::Loading && s_loadStartedMs > 0.0 &&
             static_cast<double>(GetTickCount64()) - s_loadStartedMs > kLoadTimeoutMs)
@@ -520,6 +558,8 @@ namespace CoSyncWorldTransfer
         s_outgoing.clear();
         s_worldRequestedConns.clear();
         s_saveQueued = false;
+        s_saveAttempts = 0;
+        s_saveRetryAtMs = 0.0;
         s_inFiles[0].clear(); s_inFiles[1].clear();
         s_inReceived = 0;
         s_percent.store(0);

@@ -263,6 +263,7 @@ static const char* SelfStateType(const std::string& msg)
         // machine that simulates it (a client used to be able to KILL any
         // host enemy -- docs/ENEMY_SYNC_REPORT.md G1).
         "KILL", "ENS",
+        "QSREQ",   // 0.4.2: a client asks for quest progress only in its own name
     };
     const size_t bar = msg.find('|');
     if (bar == std::string::npos)
@@ -2009,6 +2010,16 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
         if (isHostRole)
             CoSyncTransport::Send(msg);
         CoSyncQuestSync::OnReceiveObjDisp(msg);
+        return;
+    }
+
+    // 0.4.2: a client's quest progress. Sender-checked above (SelfStateType:
+    // the first field is the client itself); only the host acts on it, and
+    // its result reaches everyone as the QS its own hook broadcasts.
+    if (CoSyncQuestSync::IsQuestStageRequest(msg))
+    {
+        if (isHostRole)
+            CoSyncQuestSync::OnReceiveQuestStageRequest(msg);
         return;
     }
 

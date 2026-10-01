@@ -223,6 +223,20 @@ __declspec(noinline) static uint32_t SafeReadFormID(void* form)
     }
 }
 
+// DIAL category of a TESTopic (TESTopic+0x31; 0xFF = unreadable).
+__declspec(noinline) static uint8_t SafeReadTopicCategory(void* topic)
+{
+    if (!topic) return 0xFF;
+    __try
+    {
+        return *(reinterpret_cast<uint8_t*>(topic) + 0x31);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return 0xFF;
+    }
+}
+
 __declspec(noinline) static uint8_t SafeReadFormType(void* form)
 {
     LOG_REQUIREMENT("CoSyncDialogSync::SafeReadFormType", "Reads a pointer handed to us by the game inside a hook. Wrapped in a crash guard for the same reason as SafeReadFormID.");
@@ -311,6 +325,20 @@ static void* __fastcall Detour_BuildDialogueItem(
     const uint32_t topicFormID = SafeReadFormID(topic);
     if (topicFormID == 0)
         return result;
+
+    // 0.4.2: combat and detection barks are not sent. A client replays a line
+    // as Say(topic), so ITS engine picks the response by evaluating the topic's
+    // conditions against ITS quest state; for reaction barks that state is
+    // different from the host's (2026-09-30 client log 3476, 19:44:14: Dogmeat
+    // hit bark 0x3D789 faulted in the GetIsID condition sub_14059E090). These
+    // barks react to local events, which a puppet's own engine already voices.
+    // TESTopic+0x30 = DIAL DATA {flags, category, subtype} (loader
+    // sub_140697270 copies the 4 bytes there); category 3 = Combat, 5 = Detection.
+    {
+        const uint8_t category = SafeReadTopicCategory(topic);
+        if (category == 3 || category == 5)
+            return result;
+    }
 
     const uint32_t entityID =
         CoSyncNpcWorldSync::GetEntityIDForActor(static_cast<Actor*>(speaker));

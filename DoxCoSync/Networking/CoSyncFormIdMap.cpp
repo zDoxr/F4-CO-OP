@@ -246,6 +246,7 @@ namespace
             { "NPCDEAD", [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); } },
             { "QS",          [](std::vector<std::string>& f, MapFn m) { D(f, 2, m); } },
             { "QS_ST",       [](std::vector<std::string>& f, MapFn m) { D(f, 2, m); } },
+            { "QSREQ",       [](std::vector<std::string>& f, MapFn m) { D(f, 2, m); } },
             { "QS_DONE",     [](std::vector<std::string>& f, MapFn m) { D(f, 2, m); } },
             { "QS_OBJ_ALL",  [](std::vector<std::string>& f, MapFn m) { D(f, 2, m); } },
             { "QS_OBJ_SET",  [](std::vector<std::string>& f, MapFn m) { D(f, 2, m); } },

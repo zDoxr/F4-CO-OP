@@ -176,6 +176,7 @@ namespace
     // Replayed kills waiting for the engine task (receiver).
     struct PendingKill { uint32_t eid; Actor* actor; double since; };
     std::vector<PendingKill> g_pendingKills;
+    std::unordered_set<uint32_t> g_killReplayedEids;   // entities whose death already played here
 
     // Hit sequencing.
     std::unordered_map<uint32_t, uint32_t> g_txHitSeq;                    // attacker -> last sent
@@ -185,7 +186,8 @@ namespace
     // Diagnostics (10 s window).
     std::atomic<uint32_t> g_dRefusedKills{ 0 }, g_dRefusedCasts{ 0 }, g_dCapHits{ 0 }, g_dCapKills{ 0 }, g_dCapCasts{ 0 };
     uint32_t g_dTxHit = 0, g_dRxHitApplied = 0, g_dRxHitRejected = 0, g_dTxKill = 0, g_dTxState = 0,
-             g_dRxState = 0, g_dReplayKill = 0, g_dReplayKillFallback = 0, g_dReplayCast = 0, g_dTxBytes = 0;
+             g_dRxState = 0, g_dReplayKill = 0, g_dReplayKillFallback = 0, g_dReplayCast = 0, g_dTxBytes = 0,
+             g_dRejDup = 0, g_dRejDead = 0, g_dRejNoActor = 0;
 
     std::atomic<uint32_t> g_localPlayerFid{ 0x14 };
 
@@ -691,15 +693,20 @@ namespace
             uint32_t& last = g_rxHitSeq[h.attacker];
             if (h.seq != 0 && h.seq <= last && last - h.seq < 0x10000000u)
             {
-                ++g_dRxHitRejected;
+                ++g_dRxHitRejected; ++g_dRejDup;
                 continue;   // duplicate / replayed
             }
             last = h.seq;
             Actor* target = ActorOfEntity(h.target);
-            if (!target || CoSyncGameAPI::IsDeadOrDying(target) || CoSyncEnemySync::WasDeathAnnounced(h.target))
+            if (!target)
             {
-                ++g_dRxHitRejected;
-                continue;   // a hit on a corpse changes nothing
+                ++g_dRxHitRejected; ++g_dRejNoActor;
+                continue;
+            }
+            if (CoSyncGameAPI::IsDeadOrDying(target) || CoSyncEnemySync::WasDeathAnnounced(h.target))
+            {
+                ++g_dRxHitRejected; ++g_dRejDead;
+                continue;   // a hit on a corpse changes nothing (shots in flight when it died)
             }
             if (!(h.damage > 0.f) || h.damage > 100000.f)
             {
@@ -887,13 +894,14 @@ namespace
         if (rk || rc || ch || ck || cc || g_dTxHit || g_dRxHitApplied || g_dRxHitRejected || g_dTxKill ||
             g_dTxState || g_dRxState || g_dReplayKill || g_dReplayCast)
         {
-            LOG_UPDATED("[EnemySync] last 10 s: owned=%zu remote=%zu | TX EHIT=%u KILL=%u ENS=%u bytes=%u | RX EHIT applied=%u rejected=%u ENS=%u | "
+            LOG_UPDATED("[EnemySync] last 10 s: owned=%zu remote=%zu | TX EHIT=%u KILL=%u ENS=%u bytes=%u | RX EHIT applied=%u rejected=%u (dup %u, dead %u, no actor %u) ENS=%u | "
                         "replayed kills=%u (fallback %u) casts=%u | hooks: hits seen=%u deaths seen=%u self-casts seen=%u | refused puppet deaths=%u casts=%u",
-                g_owned.size(), g_remote.size(), g_dTxHit, g_dTxKill, g_dTxState, g_dTxBytes, g_dRxHitApplied, g_dRxHitRejected, g_dRxState,
+                g_owned.size(), g_remote.size(), g_dTxHit, g_dTxKill, g_dTxState, g_dTxBytes, g_dRxHitApplied, g_dRxHitRejected, g_dRejDup, g_dRejDead, g_dRejNoActor, g_dRxState,
                 g_dReplayKill, g_dReplayKillFallback, g_dReplayCast, ch, ck, cc, rk, rc);
         }
         g_dTxHit = g_dRxHitApplied = g_dRxHitRejected = g_dTxKill = g_dTxState = g_dRxState =
             g_dReplayKill = g_dReplayKillFallback = g_dReplayCast = g_dTxBytes = 0;
+        g_dRejDup = g_dRejDead = g_dRejNoActor = 0;
     }
 
     template <size_t N>
@@ -977,6 +985,7 @@ namespace CoSyncEnemySync
         g_remote.clear();
         g_deaths.clear();
         g_pendingKills.clear();
+        g_killReplayedEids.clear();
         g_txHitSeq.clear();
         g_rxHitSeq.clear();
         g_hitBudget.clear();
@@ -1016,6 +1025,13 @@ namespace CoSyncEnemySync
             if (p.eid == entityID && p.actor == puppet)
                 return true;   // already queued in the engine
         Actor* killer = ActorOfEntity(killerEntityID);
+        // 0.4.2: a corpse whose puppet is spawned again (rebind after an
+        // unload, a late bind) already played its death here once -- it goes
+        // straight to ragdoll instead of dying a second time on screen
+        // (2026-09-30 client log 3476: every death replayed twice).
+        const bool seenBefore = !g_killReplayedEids.insert(entityID).second;
+        if (seenBefore)
+            flags |= 1u;
         if (!EngineKill(puppet, killer, (flags & 1u) != 0))
             return false;
         LARGE_INTEGER f{}, c{};

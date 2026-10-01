@@ -174,6 +174,24 @@ namespace CoSyncSaveLoad
         return ok;
     }
 
+    // 0.4.2: the engine's own "can the game be saved right now" gate. SaveGame
+    // (0xBF9330) calls it first and fails without writing a file when it says
+    // no (player dying/dead, a menu that forbids saving, VATS, mid power-armor
+    // enter/exit, scene/dialogue states, ...). IDA 1.11.240: sub_140BFB3A0(mgr).
+    int EngineCanSave()
+    {
+        LOG_REQUIREMENT("CoSyncSaveLoad::EngineCanSave", "Main thread. Read-only engine check.");
+        static const uint8_t kPro[16] = { 0x48,0x89,0x5C,0x24,0x18,0x56,0x48,0x83,0xEC,0x20,0x48,0x8B,0xF1,0x48,0x8B,0x0D };
+        constexpr uintptr_t kRVA_CanSave = 0x00BFB3A0;
+        const auto* fn = reinterpret_cast<const uint8_t*>(Base() + kRVA_CanSave);
+        if (std::memcmp(fn, kPro, sizeof(kPro)) != 0)
+            return -1;
+        void* mgr = Manager();
+        if (!mgr)
+            return -1;
+        return reinterpret_cast<bool (*)(void*)>(Base() + kRVA_CanSave)(mgr) ? 1 : 0;
+    }
+
     std::string GetSaveFolder()
     {
         LOG_REQUIREMENT("CoSyncSaveLoad::GetSaveFolder", "Doesn't touch the game. Reads the player's INI files.");

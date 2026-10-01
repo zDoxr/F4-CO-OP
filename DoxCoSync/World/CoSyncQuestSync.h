@@ -11,6 +11,15 @@ namespace CoSyncQuestSync
     void NotifyQuestStage(uint32_t questFormID, int stage, uint32_t senderEntityID);
     void OnReceiveQuestStage(const std::string& msg);
 
+    // ── Client progress request (0.4.2) ─────────────────────────────────────
+    // "QSREQ|senderEntityID|questFormID|stage". A client's own scripts set a
+    // stage (it applied it locally); the host re-checks it (engine IsStageDone)
+    // and sets it through Papyrus SetStage, so its stage fragment runs and its
+    // SetCurrentStageID hook broadcasts QS to everyone.
+    bool IsQuestStageRequest(const std::string& msg);
+    void RequestQuestStage(uint32_t questFormID, int stage, uint32_t senderEntityID);
+    void OnReceiveQuestStageRequest(const std::string& msg);   // host only
+
     // ── Start ────────────────────────────────────────────────────────────────
     bool        IsQuestStart(const std::string& msg);
     std::string SerializeQuestStart(uint32_t senderEntityID, uint32_t questFormID);

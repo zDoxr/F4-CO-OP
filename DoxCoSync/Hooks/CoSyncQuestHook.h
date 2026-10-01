@@ -20,3 +20,7 @@ extern thread_local bool g_questHookSuppressed;
 // 1.11.221 build) is stale and jumps through a null pointer (RIP=0, AV
 // type=EXEC). SEH-guarded; returns false if the call still faults.
 bool CoSyncQuestHook_ApplySetCurrentStageID(TESQuest* quest, int32_t stage);
+
+// Engine IsStageDone (sub_14066B700, 1.11.240). 1 = done, 0 = not done,
+// -1 = unavailable (prologue mismatch / fault).
+int CoSyncQuestHook_IsStageDone(TESQuest* quest, int32_t stage);

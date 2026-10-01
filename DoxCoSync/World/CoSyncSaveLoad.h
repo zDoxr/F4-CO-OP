@@ -21,6 +21,11 @@ namespace CoSyncSaveLoad
     bool SaveNamed(const char* name);
     bool LoadNamed(const char* name);
 
+    // The engine's own "can save right now?" gate (sub_140BFB3A0), which
+    // SaveGame checks first. 1 = yes, 0 = the engine refuses saving at this
+    // moment, -1 = unavailable (wrong exe / no manager). MAIN THREAD ONLY.
+    int EngineCanSave();
+
     // Documents\My Games\Fallout4\<SLocalSavePath>, with a trailing slash.
     std::string GetSaveFolder();
 

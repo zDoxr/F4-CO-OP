@@ -17,6 +17,7 @@
 #include "CoSyncSpawnTasks.h"
 #include "CoSyncHealthSync.h"
 #include "CoSyncEnemySync.h"
+#include "CoSyncWorldTransfer.h"
 #include "CoSyncActorValueSafety.h"
 #include "EntitySerialization.h"
 #include "Packets_EntityCreate.h"
@@ -2116,7 +2117,19 @@ __declspec(noinline) static void ClientBindWorldActor_Impl(const EntityCreatePac
             const float dz = actor->pos.z - p.spawnPos.z;
             const float distSq = dx * dx + dy * dy + dz * dz;
 
-            if (distSq > kMaxBindDistSq)
+            // 0.4.2: a client in the host's world (it loaded the host's save,
+            // CoSyncWorldTransfer) holds a COPY of the same placed NPC: same
+            // ref = same NPC, only its local AI walked it elsewhere. The bind
+            // hides that copy and spawns the synced one at the host's position,
+            // so nothing is dragged. Refusing here left the client with no
+            // enemy at all during a fight (2026-09-30 client log 3476:
+            // entity=65543 ref 0x1FA04, 23 refusals, shown only after it died).
+            if (distSq > kMaxBindDistSq && CoSyncWorldTransfer::IsInHostWorld())
+            {
+                LOG_UPDATED("[NpcWorldSync] entity=%u ref=0x%08X: our copy is %.0f units from the host's -- binding anyway "
+                            "(shared host world: same ref, same NPC)", p.entityID, p.reserved0, sqrtf(distSq));
+            }
+            else if (distSq > kMaxBindDistSq)
             {
                 positionsAgree = false;
                 refusedForPosition = true;
