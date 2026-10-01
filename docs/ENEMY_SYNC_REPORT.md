@@ -471,6 +471,8 @@ It also added:
 - **Bleedout / essential-down of enemies** is replicated as state (ENS `life`) but not re-enacted on puppets. It needs an engine-verified entry for `ActionBleedoutStart` on a remote actor.
 - **Dismemberment and limb damage** are not replicated. The host's `DoHitMe` decides them locally; the engine entry exists (`sub_140C88E70`) for a later pass.
 - **Client damage uses the client's own difficulty multiplier** (the number the puppet's `DoHitMe` produced). The host applies that number (INFERRED equivalent when both play at the same difficulty).
+  - The capture takes the delta **at the entry** of `ModActorValue`. Inside it, mode 2 passes the delta through Actor vfunc `0x131` (`sub_140CCC1A0`, read after implementation: `call [rax+988h]` with the delta in `xmm2`, `0xCC9C24`).
+  - That function only **clamps** the damage to the value's current bounds (not below 0, or 1 for flagged AVs). It is not a multiplier, so the host re-running it on its own actor scales nothing twice. VERIFIED.
 - **The ragdoll impulse direction** isn't replicated. `CORPSE` settles the position.
 - **The host `TESHitEvent` carries no weapon or projectile** (`akSource`/`akProjectile` = None). Vanilla `AbLegendaryScript` doesn't read them; a mod script filtering on weapon wouldn't fire.
 - **Script casts on *other* targets** (an enemy script casting at a player) remain host-local.
