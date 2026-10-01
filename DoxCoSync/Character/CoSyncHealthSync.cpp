@@ -6,6 +6,7 @@
 #include "CoSyncPlayer.h"
 #include "CoSyncActorValueSafety.h"
 #include "CoSyncNpcWorldSync.h"
+#include "CoSyncEnemySync.h"
 #include "CoSyncGameAPI.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
@@ -165,6 +166,8 @@ struct HealthOp
     float    rads     = 0.f;   // SetHealth only, current radiation (red bar chunk)
     float    ap       = -1.f;  // SetHealth only, current action points (-1 = absent)
     float    apMax    = 0.f;
+    uint32_t killer   = 0;     // Kill only (0.4.1): the killer's entity, 0 = unknown
+    uint32_t flags    = 0;     // Kill only: bit0 = ragdoll instantly
 };
 
 static std::mutex            s_opMutex;
@@ -274,6 +277,14 @@ void CoSyncHealthSync::OnReceiveKill(const std::string& msg)
     HealthOp op{};
     op.type     = HealthOp::Kill;
     op.entityID = entityID;
+    // 0.4.1: "KILL|eid|killer|flags" (older "KILL|eid" still parses).
+    if (end && *end == '|')
+    {
+        char* e2 = nullptr;
+        op.killer = (uint32_t)std::strtoul(end + 1, &e2, 10);
+        if (e2 && *e2 == '|')
+            op.flags = (uint32_t)std::strtoul(e2 + 1, nullptr, 10);
+    }
 
     {
         std::lock_guard<std::mutex> lk(s_opMutex);
@@ -483,6 +494,13 @@ void CoSyncHealthSync::FlushPendingHealthOps()
                     CoSyncOverlay_UpdateLobbyAP(op.entityID, op.ap, op.apMax);
             }
 
+            // 0.4.1: death is final. An HP that was in flight when the owner's
+            // KILL was applied here must not write a corpse's health (the
+            // engine kill may still be queued) -- docs/ENEMY_SYNC_REPORT.md P3.
+            if (CoSyncNpcWorldSync::IsWorldActorEntityID(op.entityID) &&
+                (CoSyncNpcWorldSync::IsEntityDead(op.entityID) || CoSyncGameAPI::IsDeadOrDying(actor)))
+                continue;
+
             float effectiveMax = 0.f;
             if (!CoSyncAVSafety::SafeGetMaximum(actor, healthAVI, effectiveMax))
             {
@@ -541,14 +559,31 @@ void CoSyncHealthSync::FlushPendingHealthOps()
                 s_lastSeenHP[op.entityID] = 0.f;
                 continue;
             }
-            LOG_INFO("[HealthSync] Killing entity=%u", op.entityID);
+            if (CoSyncNpcWorldSync::IsWorldActorEntityID(op.entityID))
+            {
+                // 0.4.1: the machine that simulates an enemy decides its death.
+                // A KILL for an enemy this machine owns (our own, relayed back,
+                // or stale after a hand-off) never kills our real actor.
+                const auto& kstates = g_CoSyncPlayerManager.GetStates();
+                auto kIt = kstates.find(op.entityID);
+                if (kIt != kstates.end() && kIt->second.isLocallyOwned)
+                {
+                    LOG_UPDATED("[HealthSync] KILL entity=%u ignored -- this machine owns it (its own engine decides its death)",
+                        op.entityID);
+                    continue;
+                }
+            }
+            LOG_INFO("[HealthSync] Killing entity=%u killer=%u flags=%u", op.entityID, op.killer, op.flags);
             if (CoSyncNpcWorldSync::IsWorldActorEntityID(op.entityID) &&
                 CoSyncGameAPI::PuppetModeEnabled())
             {
-                // AI-alive enemy puppet: native death (SetLifeState(kDying) +
-                // KillDying) — real ragdoll/loot, and avoids Papyrus Kill on the
-                // proxy. Player proxies keep the Papyrus Kill path below.
-                CoSyncGameAPI::KillPuppet(actor);
+                // 0.4.1: the engine's own kill core on the puppet -- KillImpl
+                // plays ActionDeath through this machine's graph (the death
+                // animation), sends the death event with the killer, and gives
+                // kill credit when the killer is our player. The old direct
+                // SetLifeState(kDying) + KillDying (KillPuppet) is the fallback.
+                if (!CoSyncEnemySync::ReplayDeath(op.entityID, actor, op.killer, op.flags))
+                    CoSyncGameAPI::KillPuppet(actor);
             }
             else
             {
@@ -629,6 +664,12 @@ void CoSyncHealthSync::TickDamageDetection(double now)
             const auto& states = g_CoSyncPlayerManager.GetStates();
             auto sIt = states.find(p->entityID);
             if (sIt != states.end() && sIt->second.isLocallyOwned)
+                continue;
+            // 0.4.1: with the ModActorValue hook live, every hit this machine
+            // deals to an enemy goes out as an EHIT with its attacker
+            // (CoSyncEnemySync). Polling the HP drop as well would report it
+            // twice, without attribution.
+            if (CoSyncEnemySync::IsHitCaptureActive())
                 continue;
         }
         if (isWorldNpc && !localInCombat)

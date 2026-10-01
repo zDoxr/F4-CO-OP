@@ -1,6 +1,7 @@
 
 #include "CoSyncNet.h"
 #include "CoSyncCombatAuthority.h"
+#include "CoSyncEnemySync.h"
 #include "CoSyncWorldStateSync.h"
 #include "CoSyncWorldSpawnSync.h"
 #include "CoSyncNpcIdleSync.h"
@@ -258,6 +259,10 @@ static const char* SelfStateType(const std::string& msg)
         "SHOT",   // 0.3.5: the shooter must be the sender's own player or an NPC it owns
         "DLGP", "DLGQ",   // 0.3.5: a dialogue choice/request names the sender's own player
         "WM", "WD",   // U7: workshop-mode / legacy scrap notices name their sender too
+        // 0.4.1 enemy sync: an enemy's death and state come only from the
+        // machine that simulates it (a client used to be able to KILL any
+        // host enemy -- docs/ENEMY_SYNC_REPORT.md G1).
+        "KILL", "ENS",
     };
     const size_t bar = msg.find('|');
     if (bar == std::string::npos)
@@ -582,6 +587,7 @@ void CoSyncNet::Init(bool isHost)
     // round 128: reset NpcWorldSync maps so stale actor pointers from the
     // previous session don't shadow real actors in the new scan.
     CoSyncNpcWorldSync::Reset();
+    CoSyncEnemySync::Reset();
     CoSyncPowerArmorSync::Reset();
     CoSyncItemDropSync::Reset();
 
@@ -690,6 +696,7 @@ void CoSyncNet::Shutdown()
     // in mid-air in the player's solo game.
     CoSyncThrowableSync::Reset();
     CoSyncCombatAuthority::Reset();
+    CoSyncEnemySync::Reset();
     CoSyncWorldStateSync::Reset();
     CoSyncSharedDialogue::Reset();
 
@@ -1138,6 +1145,7 @@ void CoSyncNet::Tick(double now)
     g_lastTickStep = "FlushPendingSceneOps";         CoSyncSceneSync::FlushPendingSceneOps();
 
     g_lastTickStep = "FlushPendingHealthOps";        CoSyncHealthSync::FlushPendingHealthOps();
+    g_lastTickStep = "EnemySync::Tick";              CoSyncEnemySync::Tick(now);
     g_lastTickStep = "FlushPendingCorpses";          CoSyncHealthSync::FlushPendingCorpses();
     g_lastTickStep = "CoSyncChat::Tick";             CoSyncChat::Tick(now);
     g_lastTickStep = "CoSyncVoice::Tick";            CoSyncVoice::Tick(now);
@@ -1765,6 +1773,28 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
         return;
     }
 
+
+    // 0.4.1 enemy sync. ENS is self-state checked above (only an enemy's
+    // owner speaks for it). EHIT names a target the sender does not own; the
+    // sender must own the ATTACKER. The host passes both on; each machine
+    // applies what concerns it (only the target's owner applies an EHIT).
+    if (CoSyncEnemySync::IsEnemyMessage(msg))
+    {
+        if (checkSender && CoSyncEnemySync::IsHit(msg))
+        {
+            const char* bar = std::strchr(msg.c_str() + 5, '|');
+            const uint32_t attacker = bar ? static_cast<uint32_t>(std::strtoul(bar + 1, nullptr, 10)) : 0u;
+            if (!HostSenderOwns(senderEid, attacker))
+            {
+                LogUnauthorized("EHIT", conn, senderEid, attacker);
+                return;
+            }
+        }
+        if (isHostRole && conn != k_HSteamNetConnection_Invalid)
+            CoSyncTransport::SendExcept(msg, conn);
+        CoSyncEnemySync::OnReceive(msg);
+        return;
+    }
 
     if (CoSyncHealthSync::IsHP(msg))
     {

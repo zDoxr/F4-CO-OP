@@ -427,7 +427,12 @@ It also added:
 - KILL can no longer come from a non-owner (sender check in code).
 - UPDATE, ENS and EHIT never create entities (code paths).
 - No hook touches game-thread maps: they only use the guard set and queues.
-- Release build: 0 errors (section 13).
+- Release build (v145 toolset): 0 errors, 0 warnings.
+- **Main-menu load test passed (2026-09-30 19:02, log `CoSyncUpdated_2432.log`)** on the installed 1.11.240 game:
+  - log lines: `F4SEPlugin_Load version=0.4.1`, `kill core hooked at base+0xC61800`, `KillImpl hooked at base+0xCA00C0`, `ModActorValue hooked at base+0xCC9B70`, `Spell.Cast hooked at base+0x113F810`;
+  - `[EnemySync] ready: killGate=1 deathCapture=1 hitCapture=1 castCapture=1 hitEvent=1 classify=1/1 combatState=1`;
+  - the game ran for 85 s at the main menu with all hooks live and logged no errors or warnings.
+  - This proves only that every prologue matches and the hooks are safe to install. No session was played.
 
 **REQUIRES REAL FALLOUT 4 MULTIPLAYER TESTING (all NOT RUN)**
 1. One normal enemy attacks one player: host `ENS … combat=1 target=<player>`, and no duplicate damage.

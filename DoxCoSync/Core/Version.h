@@ -25,7 +25,7 @@
 //       every session message are refused until the content is verified).
 #define COSYNC_VERSION_MAJOR 0
 #define COSYNC_VERSION_MINOR 4
-#define COSYNC_VERSION_PATCH 0
+#define COSYNC_VERSION_PATCH 1
 #define COSYNC_VERSION_TAG   ""
 
 // Numeric form used on the wire. MINOR and PATCH must stay below 100 for the

@@ -18,6 +18,7 @@
 #include "CoSyncGameAPI.h"
 #include "CoSyncAnimationUtils.h"
 #include "CoSyncHealthSync.h"
+#include "CoSyncEnemySync.h"
 #include "CoSyncActorValueSafety.h"
 #include "CoSyncInventorySync.h"
 #include "CoSyncLootSync.h"
@@ -1764,52 +1765,14 @@ void CoSyncPlayerManager::HostSendNpcUpdates_Impl(double now)
             // Super Mutant) -- instead of just "nearest player".
             u.combatTargetEntityID = 0;
             Actor* realTarget = CoSyncGameAPI::GetCombatTargetActor(npc.actorRef);
+            // 0.4.1: the target is the engine's own (Actor+0x380, verified on
+            // 1.11.240 through the GetCombatTarget native sub_1410F8E00), as a
+            // network entity -- 0 when it is something no peer knows (an
+            // unsynced critter). The old "nearest player" fallback told every
+            // peer a target the NPC was not fighting (docs/ENEMY_SYNC_REPORT.md
+            // G5); a puppet's combat look comes from isCombatActive anyway.
             if (realTarget)
-            {
-                PlayerCharacter* lpForCmp = CoSyncGetPlayer();
-                if (lpForCmp && realTarget == reinterpret_cast<Actor*>(lpForCmp))
-                    u.combatTargetEntityID = CoSyncNet::GetMyEntityID();
-                else
-                    u.combatTargetEntityID = g_CoSyncEntities.GetEntityID(realTarget);
-            }
-
-            // ── Nearest-player fallback ──────────────────────────────────────
-            // Used only when the real target doesn't resolve to a synced entity
-            // (e.g. the NPC is fighting an unsynced local critter). The puppet
-            // still needs SOMEONE to fight so it doesn't stand idle while
-            // isCombatActive is true, so aim it at the closest player.
-            if (u.combatTargetEntityID == 0)
-            {
-                float bestDistSq = -1.f;
-
-                PlayerCharacter* localPlayer = CoSyncGetPlayer();
-                NiPoint3 lp, lr;
-                if (localPlayer && CoSyncGameAPI::GetActorWorldTransform(reinterpret_cast<Actor*>(localPlayer), lp, lr))
-                {
-                    const float dx = lp.x - pos.x, dy = lp.y - pos.y, dz = lp.z - pos.z;
-                    bestDistSq = dx * dx + dy * dy + dz * dz;
-                    u.combatTargetEntityID = CoSyncNet::GetMyEntityID();
-                }
-
-                for (auto& kvPlayer : m_playersByEntityID)
-                {
-                    CoSyncPlayer& pl = *kvPlayer.second;
-                    if (pl.createType != CoSyncEntityType::Player || !pl.hasSpawned || !pl.actorRef)
-                        continue;
-
-                    NiPoint3 pp, pr;
-                    if (!CoSyncGameAPI::GetActorWorldTransform(pl.actorRef, pp, pr))
-                        continue;
-
-                    const float dx = pp.x - pos.x, dy = pp.y - pos.y, dz = pp.z - pos.z;
-                    const float distSq = dx * dx + dy * dy + dz * dz;
-                    if (bestDistSq < 0.f || distSq < bestDistSq)
-                    {
-                        bestDistSq = distSq;
-                        u.combatTargetEntityID = pl.entityID;
-                    }
-                }
-            }
+                u.combatTargetEntityID = CoSyncEnemySync::EntityIdOf(realTarget);
 
             // 2026-08-16 pt.8 diag: "enemies only aggro the host" report --
             // this proves whether the OWNER's own native AI ever actually
@@ -1989,8 +1952,14 @@ void CoSyncPlayerManager::HostSendNpcUpdates_Impl(double now)
         if (isDead && !track.lastSentDead)
         {
             track.lastSentDead = true;
-            CoSyncTransport::Send(CoSyncHealthSync::SerializeKill(npc.entityID));
-            LOG_UPDATED("[HealthSync] TX KILL entity=%u", npc.entityID);
+            // 0.4.1: the KillImpl hook (CoSyncEnemySync) normally announced
+            // this death already, with its killer; this poll is the fallback.
+            if (!CoSyncEnemySync::WasDeathAnnounced(npc.entityID))
+            {
+                CoSyncEnemySync::NoteDeathAnnounced(npc.entityID);
+                CoSyncTransport::Send(CoSyncEnemySync::BuildKill(npc.entityID));
+                LOG_UPDATED("[HealthSync] TX KILL entity=%u (poll)", npc.entityID);
+            }
 
 
             auto items = CoSyncInventorySync::SnapshotInventory(actor);
@@ -2293,7 +2262,11 @@ void CoSyncPlayerManager::Tick()
         if (ent.actorRef && CoSyncNpcWorldSync::IsWorldActorEntityID(ent.entityID) &&
             IsRegisteredRemoteActor(ent.actorRef))
         {
-            CoSyncGameAPI::SetRuntimeEssential(ent.actorRef, !isMyOwnRealActor);
+            // 0.4.1: once the owner's KILL was applied, the engine kill runs as
+            // a queued task one frame later; re-arming the bit in between would
+            // turn that Dying into essential-down (a kneeling, living puppet).
+            CoSyncGameAPI::SetRuntimeEssential(ent.actorRef,
+                !isMyOwnRealActor && !CoSyncNpcWorldSync::IsEntityDead(ent.entityID));
         }
 
         if (!isMyOwnRealActor)

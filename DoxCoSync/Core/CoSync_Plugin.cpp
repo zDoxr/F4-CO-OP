@@ -22,6 +22,7 @@
 #include "CoSyncPlayer.h"
 #include "CoSyncGameAPI.h"
 #include "CoSyncCombatAuthority.h"
+#include "CoSyncEnemySync.h"
 #include "CoSyncWorldStateSync.h"
 #include "CoSyncWorldSpawnSync.h"
 #include "CoSyncNpcIdleSync.h"
@@ -618,6 +619,7 @@ bool F4SEPlugin_Load(const F4SEInterface* f4se)
     CoSyncPlayerLevelGuard::Install();   // before any save can load
     CoSyncProxyWeaponAuthority::Install();
     CoSyncCombatAuthority::Install();
+    CoSyncEnemySync::Install();
     InstallNpcGraphInputCapture();
     CoSyncWorldStateSync::Install();
     CoSyncWorldSpawnSync::Install();

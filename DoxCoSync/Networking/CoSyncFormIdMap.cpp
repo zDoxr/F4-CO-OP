@@ -282,6 +282,8 @@ namespace
             // Weapons/*
             { "EXP",  [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); } },
             { "SHOT", [](std::vector<std::string>& f, MapFn m) { D(f, 3, m); } },
+            // World/CoSyncEnemySync.cpp: ENS|eid|ver|combat|target|class|life|spell,spell
+            { "ENS",  [](std::vector<std::string>& f, MapFn m) { if (f.size() > 7) f[7] = MapHeadList(f[7], 10, m); } },
             { "WSD",  [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); D(f, 2, m); } },
             { "WSO",  [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); D(f, 2, m); } },
             { "WSE",  [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); } },

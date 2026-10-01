@@ -16,6 +16,7 @@
 #include "CoSyncPapyrusHelper.h"
 #include "CoSyncSpawnTasks.h"
 #include "CoSyncHealthSync.h"
+#include "CoSyncEnemySync.h"
 #include "CoSyncActorValueSafety.h"
 #include "EntitySerialization.h"
 #include "Packets_EntityCreate.h"
@@ -958,7 +959,14 @@ __declspec(noinline) static void TickScanWorldActors_Impl(double now)
             const bool nowDead  = (curHP <= 0.f) || IsActorDead(actor);
             if (nowDead && wasAlive)
             {
-                CoSyncTransport::Send(CoSyncHealthSync::SerializeKill(eid));
+                // 0.4.1: normally the KillImpl hook (CoSyncEnemySync) already
+                // sent this death, with the killer, the moment it happened.
+                // This poll is the fallback for deaths it could not see.
+                if (!CoSyncEnemySync::WasDeathAnnounced(eid))
+                {
+                    CoSyncEnemySync::NoteDeathAnnounced(eid);
+                    CoSyncTransport::Send(CoSyncEnemySync::BuildKill(eid));
+                }
                 s_deadEntities.insert(eid);
                 LOG_UPDATED("[NpcWorldSync] entity=%u died (hp=%.0f) — sent death update", eid, curHP);
                 s_lastNpcHP[eid] = 0.f;
@@ -970,29 +978,12 @@ __declspec(noinline) static void TickScanWorldActors_Impl(double now)
                 s_lastNpcHP[eid] = curHP;
             }
 
-            // Legendary rank: broadcast whenever it changes so the client
-            // applies the same rank the host's engine assigned at spawn.
-            if (legAVI)
-            {
-                float legVal = 0.f;
-                CoSyncAVSafety::SafeGetValue(actor, legAVI, legVal);
-                const int legRank = static_cast<int>(legVal);
-                auto legIt = s_lastNpcLegendary.find(eid);
-                if (legIt == s_lastNpcLegendary.end() || legIt->second != legRank)
-                {
-                    s_lastNpcLegendary[eid] = legRank;
-                    if (legRank > 0)
-                    {
-                        std::string pkt = "LGD|";
-                        pkt += std::to_string(eid);
-                        pkt += "|";
-                        pkt += std::to_string(legRank);
-                        CoSyncTransport::Send(pkt);
-                        LOG_UPDATED("[NpcWorldSync] Sending legendary rank: entity=%u rank=%d actor=%p",
-                            eid, legRank, static_cast<void*>(actor));
-                    }
-                }
-            }
+            // 0.4.1: the old "LGD" legendary-rank send is gone. Its AV
+            // (0x1DFDFB) is a REFR in Fallout4.esm, not an AVIF, so it never
+            // sent anything. Legendary status is the keyword EncTypeLegendary
+            // and the mutation is a scripted self-cast; both travel in ENS
+            // (CoSyncEnemySync, docs/ENEMY_SYNC_REPORT.md 1.4).
+            (void)legAVI;
         }
     }
 
@@ -1031,7 +1022,7 @@ __declspec(noinline) static void TickScanWorldActors_Impl(double now)
 
                 // Late joiners must see corpses as corpses, not idle clones.
                 if (s_deadEntities.count(kv.first))
-                    CoSyncTransport::Send(CoSyncHealthSync::SerializeKill(kv.first));
+                    CoSyncTransport::Send(CoSyncEnemySync::BuildKill(kv.first));
             }
             if (sentCount > 0)
                 LOG_INFO("[NpcWorldSync] Resent spawn info for %u world actors", sentCount);
