@@ -1907,12 +1907,42 @@ static void TickAlchEquipDiag(bool wantFp) noexcept
 static constexpr uint64_t kPoseFreshMs = 200;
 static constexpr uint64_t kPoseHoldMs  = 500;
 
+// 0.5.0: a proxy whose own graph has to play something the sender's pose
+// cannot carry (the reviver's Stimpak activation idle while its player is in
+// first person) gets bone replication paused for that long. ApplySkeleton then
+// returns false like the RELEASE tier, its re-stamp record ages out within
+// kReassertMaxAgeMs, and the proxy's graph animates on its own.
+static SRWLOCK                               g_suspendLock = SRWLOCK_INIT;
+static std::unordered_map<Actor*, uint64_t>  g_suspendUntil;
+
+static bool PoseSuspended(Actor* proxy, uint64_t nowMs) noexcept
+{
+    AcquireSRWLockShared(&g_suspendLock);
+    auto it = g_suspendUntil.find(proxy);
+    const bool on = it != g_suspendUntil.end() && nowMs < it->second;
+    ReleaseSRWLockShared(&g_suspendLock);
+    return on;
+}
+
+void SuspendPoseApply(Actor* proxy, uint32_t durationMs) noexcept
+{
+    if (!proxy) return;
+    AcquireSRWLockExclusive(&g_suspendLock);
+    if (durationMs == 0)
+        g_suspendUntil.erase(proxy);
+    else
+        g_suspendUntil[proxy] = GetTickCount64() + durationMs;
+    ReleaseSRWLockExclusive(&g_suspendLock);
+}
+
 bool ApplySkeleton(Actor* proxy, const CoSyncPlayerAnimation::SkeletonCapture& capture) noexcept
 {
     if (!s_initialized.load(std::memory_order_acquire)) return false;
     if (!proxy || !capture.valid) return false;
 
     const uint64_t nowMs = GetTickCount64();
+    if (PoseSuspended(proxy, nowMs))
+        return false;                                 // its own graph plays (SuspendPoseApply)
 
     // recvMs == 0 means a locally-produced capture (the IsEnabled() local
     // mirror path, which has no network component and so cannot go stale).

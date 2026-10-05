@@ -19,6 +19,7 @@
 #include "CoSyncProfiles.h"
 #include "CoSyncTeams.h"
 #include "CoSyncSettlementSync.h"
+#include "CoSyncReviveSync.h"
 #include "CoSyncWorkshopAuthority.h"
 #include "CoSyncChat.h"
 #include "CoSyncVoice.h"
@@ -1078,7 +1079,10 @@ namespace CoSyncPrismaUI
         players.erase(std::remove_if(players.begin(), players.end(),
             [](const CoSyncHudPlayer& p) { return p.isLocal; }), players.end());
 
-        const bool want = s_hudSessionLive.load() && !s_wantOpen && !players.empty();
+        // 0.5.0: your own downed / dead countdown (CoSyncReviveSync) keeps
+        // the view up even without teammate cards.
+        const CoSyncReviveSync::LocalStatus self = CoSyncReviveSync::GetLocalStatus(0.0);
+        const bool want = s_hudSessionLive.load() && !s_wantOpen && (!players.empty() || self.state != 0);
         if (!want)
         {
             if (s_hudShown && s_hud != 0 && s_api->IsValid(s_hud))
@@ -1158,7 +1162,9 @@ namespace CoSyncPrismaUI
         json += ",\"muted\":"; json += vs.muted ? "true" : "false";
         json += ",\"tx\":";    json += vs.transmitting ? "true" : "false";
         json += ",\"ptt\":";   json += vs.pushToTalk ? "true" : "false";
-        json += "}}";
+        json += "}";
+        json += ",\"self\":{\"state\":" + std::to_string(self.state) + ",\"secs\":" + std::to_string(self.secondsLeft);
+        json += ",\"reviver\":\"" + JsonEscape(self.reviver.c_str()) + "\"}}";
 
         if (json != s_hudLastJson)
         {

@@ -3,65 +3,88 @@
 #include <string>
 #include <cstdint>
 
-// Networked player bleedout/revive. Mirrors CoSyncHealthSync's shape: parse
-// incoming "DOWN|"/"REVIVEREQ|"/"REVIVED|" strings into a queue, apply on the
-// game thread in FlushPendingReviveOps(). Local-player down/give-up/revive-
-// apply logic lives in CoSynclocalplayer.cpp (it already owns the dead-player
-// gate this has to cooperate with); this module owns the wire format, the
-// remote-proxy presentation (isDowned flag + best-effort collapse/get-up
-// anim), and the revive-interaction channel started from CoSyncDoorHook.
+// Networked player bleedout / revive (0.5.0 rework).
+//
+// AUTHORITY: the HOST decides. It owns every downed player's clock, grants a
+// revive to exactly one reviver at a time, accepts its completion only from
+// that reviver, and declares death when the clock runs out. The downed
+// player's machine owns its own actor (bleedout, heal, respawn); a reviver's
+// machine owns its own Stimpak.
+//
+//   target  -> all     DOWN|<t>                  entered bleedout (host starts the clock)
+//   reviver -> host    RVCLAIM|<t>|<r>           "I want to revive t"
+//   host    -> all     RVGRANT|<t>|<r>           r is reviving t (everyone plays the animation)
+//   host    -> r       RVDENY|<t>|<r>|<reason>   refused (already being revived, expired, ...)
+//   r / host -> all    RVCANCEL|<t>|<r>          the revive stopped (moved away, no Stimpak, left)
+//   reviver -> host    RVDONE|<t>|<r>            the channel finished
+//   host    -> all     REVIVED|<t>|<r>           t is revived by r; r's machine now spends
+//                                                exactly ONE Stimpak (never earlier, never twice)
+//   target  -> all     REVIVED|<t>|0             back on their feet after dying (respawn)
+//   host    -> all     DIED|<t>                  the clock ran out: t died, no more revives
+//
+// ANIMATION: the engine's own "use a Stimpak on someone" activation idle --
+// the dyn_Activation idles 3rdPUseStimpakOnTarget / 1stPStimPakOnTarget /
+// PA*UseStimpakOnTarget (Fallout4.esm), which only play on a target that is
+// HumanRace with keyword playerCanStimpak (DefaultObject
+// KeywordPlayerCanStimpak: "an actor that can get a stimpak from the player
+// when in bleedout"). Every machine gives that keyword to a downed player
+// (proxy or its own player) and plays the idle through the engine's
+// activation action, exactly as PlayerCharacter's companion heal does
+// (sub_140D777D0 -> sub_140CFAE10(process, actor, 43, target base, target)),
+// so the engine itself picks the first-person / third-person / Power Armor
+// clip. On other machines the reviver's proxy plays it with bone
+// replication paused for the channel, so everyone sees it.
 namespace CoSyncReviveSync
 {
-    bool IsDown(const std::string& msg);
-    bool IsReviveReq(const std::string& msg);
-    bool IsRevived(const std::string& msg);
+    bool IsReviveMessage(const std::string& msg);
+    // senderEid: the entity bound to `conn` (host role), 0 when unknown.
+    void OnReceive(const std::string& msg, uint32_t conn, bool isHostRole, uint32_t senderEid);
 
     std::string SerializeDown(uint32_t entityID);
-    std::string SerializeReviveReq(uint32_t entityID, uint32_t reviverEntityID);
     std::string SerializeRevived(uint32_t entityID, uint32_t reviverEntityID);
 
-    void OnReceiveDown(const std::string& msg);
-    void OnReceiveReviveReq(const std::string& msg);
-    void OnReceiveRevived(const std::string& msg);
-
-    // Applies queued down/revived ops to remote proxies (and retries the
-    // local-player revive-apply once CoSynclocalplayer's respawn debounce
-    // says it's safe to touch actor values again). Call once per tick from
-    // the game thread, alongside CoSyncHealthSync::FlushPendingHealthOps.
+    // Game thread, every tick: queued network ops, host clock, the local
+    // revive channel.
     void FlushPendingReviveOps();
-
-    // Starts a local revive channel on `targetEntityID` (a downed proxy the
-    // local player just activated). Broadcasts REVIVEREQ immediately, then
-    // REVIVED after fReviveChannelSeconds if not interrupted. Safe to call
-    // repeatedly -- no-ops if a channel is already running or the target
-    // isn't actually marked down.
-    void BeginReviveAttempt(uint32_t targetEntityID);
-
-    // Per-frame upkeep for an in-progress local revive channel (distance/
-    // interrupt checks, completion). Call once per tick from the game thread.
     void TickReviveChannel(double now);
 
-    // True once, then clears itself: a REVIVED packet targeting the LOCAL
-    // player has arrived and is waiting to be applied. This module never
-    // touches the local player's own actor (health AV, SetNoBleedoutRecovery)
-    // itself -- CoSynclocalplayer.cpp owns that actor and its dead-player/
-    // respawn-debounce gate, so it calls this at the one point it has already
-    // confirmed actor-value access is safe again, and applies the heal there.
-    bool ConsumePendingLocalRevive(uint32_t& outReviverEntityID);
+    // The local player activated a downed player's proxy.
+    void BeginReviveAttempt(uint32_t targetEntityID);
 
-    // 0.3.3 (Stage 6): hovering a downed player shows "Revive" instead of the
-    // NPC "Talk" prompt. Hooks TESNPC's activate-text builder (TESNPC vtable
-    // slot 0x60 = sub_140656D60, 1.11.240). Install once at plugin load.
+    // ── Local downed player (CoSynclocalplayer owns the actor) ──────────────
+    void OnLocalDown();                   // just entered bleedout
+    bool ConsumePendingLocalRevive(uint32_t& outReviverEntityID);
+    // True once the player must die now: the host's DIED arrived, or no
+    // answer from the host long after the clock ran out (host gone).
+    bool ConsumeLocalDeath(double secondsDown);
+    void OnLocalUp();                     // standing again (revive or respawn)
+    // Seconds the player stays dead before respawning.
+    float RespawnSeconds();
+
+    // HUD overlay for the local player: state 0 ok / 1 downed / 2 dead.
+    struct LocalStatus
+    {
+        int         state = 0;
+        int         secondsLeft = 0;      // downed: until death; dead: until respawn
+        std::string reviver;              // downed: who is reviving you ("" = nobody)
+    };
+    LocalStatus GetLocalStatus(double now);
+
+    // Session end while downed: let the player recover instead of staying
+    // stuck in bleedout with the session's essential flag gone.
+    void ReleaseLocalDownOnSessionEnd();
+
+    // Host: a peer left -- its down clock and any revive it was part of end.
+    void HostOnPeerLeft(uint32_t entityID);
+
+    // "Revive" prompt over a downed player (TESNPC activate text hook).
     void InstallActivateTextHook();
 
-    // Session teardown -- clears queues/channel state. Call alongside
-    // CoSyncHealthSync::Reset().
     void Reset();
 
-    // [Revive] ini settings, read once from CoSync.ini and cached, same
-    // convention as CoSyncNet.cpp's ReadSaltInstanceIDSetting.
+    // [Revive] settings in CoSync.ini.
     bool  SettingEnabled();
-    float SettingGiveUpSeconds();
-    float SettingHealthPercent();
-    float SettingChannelSeconds();
+    float SettingDownedSeconds();     // fDownedSeconds, default 30
+    float SettingHealthPercent();     // fReviveHealthPercent, default 50
+    float SettingChannelSeconds();    // fReviveChannelSeconds, default 3
 }

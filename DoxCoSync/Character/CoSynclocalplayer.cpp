@@ -85,6 +85,7 @@ namespace
     // is safe to touch again -- this file never writes Health AV during the
     // down window itself, only at that one proven-safe point.
     double s_localDownedSince = 0.0;
+    double s_localDiedAt = 0.0;                 // 0.5.0: the downed clock ran out (respawn countdown)
     float  s_pendingLocalHealPercent = -1.f;   // -1 = nothing pending
     uint32_t s_localReviverEID = 0;
 
@@ -530,7 +531,7 @@ void CoSyncLocalPlayer::Tick(double now)
             {
                 // Edge: just entered bleedout. Block vanilla's own auto-
                 // recovery timer so the player stays down until a real revive
-                // (or the give-up timeout below) -- the native counterpart to
+                // (or the death clock below) -- the native counterpart to
                 // Follower Revive System's SetNoBleedoutRecovery(true).
                 static const BSFixedString kSetNoBleedoutRecovery("SetNoBleedoutRecovery");
                 VMArray<VMVariable> args;
@@ -539,18 +540,29 @@ void CoSyncLocalPlayer::Tick(double now)
                 CallFunctionNoWait(player, kSetNoBleedoutRecovery, args);
 
                 s_localDownedSince = now;
+                s_localDiedAt = 0.0;
                 s_recoveryReleased = false;
-                CoSyncTransport::Send(CoSyncReviveSync::SerializeDown(CoSyncNet::GetMyEntityID()));
+                // 0.5.0: DOWN + the host's revive clock + the keyword the
+                // engine's Stimpak activation idle needs on its target.
+                CoSyncReviveSync::OnLocalDown();
                 LOG_UPDATED("[LocalPlayer] Down -- blocked vanilla auto-recovery, broadcast DOWN");
             }
 
             if (!s_recoveryReleased)
             {
+                // 0.5.0: the host's clock decides (CoSyncReviveSync). Revived
+                // in time -> up with fReviveHealthPercent. Time ran out ->
+                // dead: no more revives, "YOU DIED" for fRespawnSeconds, then
+                // back up with full health where you fell (a real engine
+                // death would reload the save mid-session -- the crash the
+                // session's essential flag exists to prevent).
                 uint32_t reviverEID = 0;
-                const bool revived = CoSyncReviveSync::ConsumePendingLocalRevive(reviverEID);
-                const bool gaveUp  = !revived && s_deathPacketSent &&
-                    (now - s_localDownedSince) >= CoSyncReviveSync::SettingGiveUpSeconds();
-                if (revived || gaveUp)
+                const bool revived = s_localDiedAt == 0.0 && CoSyncReviveSync::ConsumePendingLocalRevive(reviverEID);
+                if (!revived && s_localDiedAt == 0.0 && s_deathPacketSent &&
+                    CoSyncReviveSync::ConsumeLocalDeath(now - s_localDownedSince))
+                    s_localDiedAt = now;
+                const bool respawn = s_localDiedAt > 0.0 && (now - s_localDiedAt) >= CoSyncReviveSync::RespawnSeconds();
+                if (revived || respawn)
                 {
                     // Release vanilla's own recovery.
                     static const BSFixedString kSetNoBleedoutRecovery("SetNoBleedoutRecovery");
@@ -569,11 +581,10 @@ void CoSyncLocalPlayer::Tick(double now)
                     // route as SetNoBleedoutRecovery (no direct actor-value
                     // write inside the down window). Max health is the last one
                     // this machine sent while alive.
-                    if (revived)
                     {
                         ActorValueInfo* healthAVI = GetHealthAVICached();
                         const float maxHP = (s_lastSentMaxHP > 0.f) ? s_lastSentMaxHP : 100.f;
-                        float amount = maxHP * (CoSyncReviveSync::SettingHealthPercent() / 100.0f);
+                        float amount = revived ? maxHP * (CoSyncReviveSync::SettingHealthPercent() / 100.0f) : maxHP;
                         if (amount < 1.f) amount = 1.f;
                         if (healthAVI)
                         {
@@ -583,13 +594,13 @@ void CoSyncLocalPlayer::Tick(double now)
                             VMVariable vamt; vamt.Set(&amount); rargs.Push(&vamt);
                             CallFunctionNoWait(player, kRestoreValue, rargs);
                         }
-                        LOG_UPDATED("[LocalPlayer] Revived by entity=%u -- recovery released, %.0f health restored",
-                            reviverEID, amount);
+                        if (revived)
+                            LOG_UPDATED("[LocalPlayer] Revived by entity=%u -- recovery released, %.0f health restored",
+                                reviverEID, amount);
+                        else
+                            LOG_UPDATED("[LocalPlayer] Respawned after death -- recovery released, %.0f health restored", amount);
                     }
-                    else
-                    {
-                        LOG_UPDATED("[LocalPlayer] Gave up (revive timeout) -- released vanilla auto-recovery");
-                    }
+                    CoSyncReviveSync::OnLocalUp();
 
                     s_pendingLocalHealPercent = revived ? CoSyncReviveSync::SettingHealthPercent() : -1.f;
                     s_localReviverEID = revived ? reviverEID : 0;

@@ -131,3 +131,25 @@ html, body {
 .voice.tx svg { filter: drop-shadow(0 0 0.4vh var(--hud)); }
 .voice.teamvoice .mode { color: rgb(230, 190, 90); }
 .voice.muted, .voice.nomic { color: var(--hit); }
+
+/* 0.5.0: your own downed / dead countdown, centred like the vanilla
+   bleedout prompt -- HUD type, red while downed, no panel. */
+.downed {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  transform: translate(-50%, -50%);
+  display: none;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--hit);
+  text-shadow: 0 0 0.8vh rgba(255, 60, 45, 0.55), 0 0 0.3vh rgba(0, 0, 0, 0.9);
+}
+.downed.on { display: block; }
+.downed .d-title { font-size: 3.2vh; letter-spacing: 0.35em; padding-left: 0.35em; }
+.downed .d-count { font-size: 9vh; line-height: 1; margin: 0.6vh 0; font-variant-numeric: tabular-nums; }
+.downed .d-sub { font-size: 1.7vh; letter-spacing: 0.06em; color: var(--hud); text-shadow: 0 0 0.5vh var(--hud-glow), 0 0 0.25vh rgba(0, 0, 0, 0.9); }
+.downed.urgent .d-count { animation: downPulse 1s ease-in-out infinite; }
+.downed.dead { color: rgb(200, 200, 200); text-shadow: 0 0 0.6vh rgba(0, 0, 0, 0.9); }
+.downed.dead .d-count { font-size: 5vh; }
+@keyframes downPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }

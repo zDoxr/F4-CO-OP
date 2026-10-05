@@ -1502,6 +1502,8 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
             const uint32_t leftEid = EntityIDFromSteamID(sid);
             for (auto it = s_connSenderEid.begin(); it != s_connSenderEid.end(); )
                 it = (it->second == leftEid) ? s_connSenderEid.erase(it) : std::next(it);
+            // 0.5.0: a downed player who left / a reviver who left.
+            CoSyncReviveSync::HostOnPeerLeft(leftEid);
         }
 
         LOG_INFO("[CoSyncNet] Peer left: '%s' sid=%llu (%zu remaining)",
@@ -1963,49 +1965,13 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
         return;
     }
 
-    // 0.3.3 (Stage 6): revive messages are sender-checked like the other
-    // self-state messages. DOWN: only about yourself. REVIVEREQ: only as the
-    // reviver. REVIVED: as the reviver, or about yourself (reviver 0 = got
-    // up unaided).
-    if (checkSender && (CoSyncReviveSync::IsDown(msg) || CoSyncReviveSync::IsReviveReq(msg) ||
-                        CoSyncReviveSync::IsRevived(msg)))
+    // 0.5.0: revive is host-arbitrated (CoSyncReviveSync). The host checks
+    // each message's sender itself (DOWN/DIED/REVIVED-0 only about yourself,
+    // RVCLAIM/RVDONE/RVCANCEL only as the reviver) and decides and relays;
+    // a client only ever applies what the host sent.
+    if (CoSyncReviveSync::IsReviveMessage(msg))
     {
-        const char* bar = std::strchr(msg.c_str(), '|');
-        char* end = nullptr;
-        const uint32_t target  = bar ? static_cast<uint32_t>(std::strtoul(bar + 1, &end, 10)) : 0u;
-        const uint32_t reviver = (end && *end == '|') ? static_cast<uint32_t>(std::strtoul(end + 1, nullptr, 10)) : 0u;
-        bool ok;
-        if (CoSyncReviveSync::IsDown(msg))           ok = (target == senderEid);
-        else if (CoSyncReviveSync::IsReviveReq(msg)) ok = (reviver == senderEid);
-        else                                          ok = (reviver == senderEid) || (reviver == 0 && target == senderEid);
-        if (!ok)
-        {
-            LogUnauthorized("REVIVE", conn, senderEid, target);
-            return;
-        }
-    }
-
-    if (CoSyncReviveSync::IsDown(msg))
-    {
-        if (isHostRole)
-            CoSyncTransport::Send(msg);
-        CoSyncReviveSync::OnReceiveDown(msg);
-        return;
-    }
-
-    if (CoSyncReviveSync::IsReviveReq(msg))
-    {
-        if (isHostRole)
-            CoSyncTransport::Send(msg);
-        CoSyncReviveSync::OnReceiveReviveReq(msg);
-        return;
-    }
-
-    if (CoSyncReviveSync::IsRevived(msg))
-    {
-        if (isHostRole)
-            CoSyncTransport::Send(msg);
-        CoSyncReviveSync::OnReceiveRevived(msg);
+        CoSyncReviveSync::OnReceive(msg, conn, isHostRole, isHostRole ? senderEid : 0u);
         return;
     }
 
@@ -2852,6 +2818,10 @@ void CoSyncNet::OnGNSDisconnected()
     CoSyncItemMods::Reset();
     CoSyncWorldSpawnSync::Reset();
     CoSyncNpcIdleSync::Reset();
+
+    // 0.5.0: never leave the player stuck in bleedout (no recovery) once
+    // the session -- and its essential flag -- is gone.
+    CoSyncReviveSync::ReleaseLocalDownOnSessionEnd();
 
     // Clear the Essential crash guard so solo play afterward is unaffected.
     CoSyncGameAPI::SetLocalPlayerEssential(false);

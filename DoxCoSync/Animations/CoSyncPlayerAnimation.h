@@ -111,6 +111,11 @@ namespace CoSyncPlayerAnimation
     // normal graph-var path rather than silently doing nothing this tick.
     bool ApplySkeleton(Actor* proxy, const SkeletonCapture& capture) noexcept;
 
+    // 0.5.0: pause bone replication on a proxy for `durationMs` (0 = resume
+    // now) so its own animation graph can play something the sender's pose
+    // does not carry (the revive Stimpak idle). Any thread.
+    void SuspendPoseApply(Actor* proxy, uint32_t durationMs) noexcept;
+
     // [Animations] bDeltaPositionLocomotion=2 OR =3 in CoSync.ini. Real
     // per-bone pose replication for remote player proxies (see the network
     // functions below), as opposed to =1's derived-locomotion approach for NPC

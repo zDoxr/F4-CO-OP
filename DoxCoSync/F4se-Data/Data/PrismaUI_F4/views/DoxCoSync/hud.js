@@ -3,7 +3,8 @@
  *   C++ -> JS : window.cosyncHud(json)
  *     { hud:[r,g,b], players:[{ id, name, level, hp, maxHp, rads, ap, maxAp, downed, hurt,
  *                               team, role, talking }],
- *       voice:{ on, mic, mode:'P'|'T', muted, tx, ptt } }   (team fields: CoSyncTeams)
+ *       voice:{ on, mic, mode:'P'|'T', muted, tx, ptt },     (team fields: CoSyncTeams)
+ *       self:{ state:0|1|2, secs, reviver } }                 (you: ok / downed / dead -- CoSyncReviveSync)
  * Pushed by CoSyncPrismaUI::TickHud only when the data changed (<= 10 Hz);
  * senders stream their vitals at 10 Hz with a 1 s exact resync.
  *
@@ -16,6 +17,10 @@
 
   const team = document.getElementById('team');
   const voice = document.getElementById('voice');
+  const downed = document.getElementById('downed');
+  const dTitle = document.getElementById('dTitle');
+  const dCount = document.getElementById('dCount');
+  const dSub = document.getElementById('dSub');
 
   // Microphone / speaker marks (inline SVG, HUD colour via currentColor).
   const MIC_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">' +
@@ -137,12 +142,33 @@
     }
   };
 
+  // Your own downed / dead state: a countdown in the middle of the screen.
+  let downKey = null;
+  const updateSelf = s => {
+    const st = s && s.state ? s.state : 0;
+    const key = st ? [st, s.secs, s.reviver || ''].join('|') : '';
+    if (key === downKey) return;
+    downKey = key;
+    downed.className = 'downed' + (st === 1 ? ' on' : '') + (st === 2 ? ' on dead' : '') + (st === 1 && s.secs <= 10 ? ' urgent' : '');
+    if (!st) return;
+    if (st === 1) {
+      dTitle.textContent = 'DOWNED';
+      dCount.textContent = String(Math.max(0, s.secs));
+      dSub.textContent = s.reviver ? s.reviver + ' is reviving you' : 'seconds until death  ·  a teammate with a Stimpak can revive you';
+    } else {
+      dTitle.textContent = 'YOU DIED';
+      dCount.textContent = String(Math.max(0, s.secs));
+      dSub.textContent = 'respawning';
+    }
+  };
+
   window.cosyncHud = json => {
     let data;
     try { data = JSON.parse(json); }
     catch (e) { console.error('[CoSyncHUD] bad JSON'); return; }
     if (data.hud) applyHud(data.hud);
     updateVoice(data.voice);
+    updateSelf(data.self);
 
     const players = data.players || [];
     const seen = new Set();
