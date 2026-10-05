@@ -60,6 +60,7 @@
 #include "CoSyncTeams.h"
 #include "CoSyncSettlementSync.h"
 #include "CoSyncPickpocket.h"
+#include "CoSyncElevatorSync.h"
 #include "CoSyncChat.h"
 #include "CoSyncVoice.h"
 #include "CoSyncWorkshopAuthority.h"
@@ -623,6 +624,7 @@ void CoSyncNet::Init(bool isHost)
     // entityIDs — clear alongside NpcWorldSync.
     CoSyncHealthSync::Reset();
     CoSyncReviveSync::Reset();
+    CoSyncElevatorSync::Reset();
     CoSyncOutfitSync::Reset();
     CoSyncProxyWeaponAuthority::Reset();
     CoSyncFormIdMap::Reset();
@@ -2508,6 +2510,12 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
         if (isHostRole)
             CoSyncTransport::SendExcept(msg, conn, /*reliable=*/false);
         CoSyncPlayerAnimation::OnReceiveBones(msg);
+        return;
+    }
+
+    if (CoSyncElevatorSync::IsElevatorMessage(msg))
+    {
+        CoSyncElevatorSync::OnReceive(msg, isHostRole);
         return;
     }
 

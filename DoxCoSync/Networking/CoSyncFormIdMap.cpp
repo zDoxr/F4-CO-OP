@@ -261,6 +261,7 @@ namespace
             { "PU",  [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); } },
             // World/*
             { "DOOR", [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); } },
+            { "ELEV", [](std::vector<std::string>& f, MapFn m) { D(f, 2, m); } },
             { "LOCK", [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); } },
             { "MM",   [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); } },
             { "WX",   [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); } },

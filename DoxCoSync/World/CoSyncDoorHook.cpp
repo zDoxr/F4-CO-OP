@@ -14,6 +14,7 @@
 #include "CoSyncReviveSync.h"
 #include "CoSyncPowerArmorSync.h"
 #include "CoSyncPickpocket.h"
+#include "CoSyncElevatorSync.h"
 
 #include "GameReferences.h"
 #include "GameForms.h"
@@ -285,6 +286,28 @@ static char __fastcall Detour_ActivateWorker(
         : 0;
     --tls_cs_door_in_activate;
 
+    // ── 0.5.0: elevators (CoSyncElevatorSync) ───────────────────────────────
+    // A load elevator's panel / doors are never replayed (a null-activator
+    // replay made the peer's LoadElevatorDoorScript close and block its
+    // doors). A moving elevator's control is replayed as ELEV, activated by
+    // each peer's own player, which is the only activator its master script
+    // accepts.
+    const CoSyncElevatorSync::Kind elevKind = (ri.refFormID != 0 && CoSyncNet::IsConnected())
+        ? CoSyncElevatorSync::Classify(ri.refFormID) : CoSyncElevatorSync::Kind::None;
+    if (elevKind == CoSyncElevatorSync::Kind::MovingControl)
+    {
+        if (actResult != 0 && activator && activator == static_cast<void*>(CoSyncGetPlayer()))
+            CoSyncElevatorSync::OnLocalControlActivated(ri.refFormID);
+        return actResult;
+    }
+    if (elevKind == CoSyncElevatorSync::Kind::LoadElevator)
+    {
+        static std::atomic<uint32_t> s_n{ 0 };
+        if (++s_n <= 10)
+            LOG_INFO("[DoorHook] load elevator ref 0x%08X not replicated (each player rides their own)", ri.refFormID);
+        return actResult;
+    }
+
     if (ri.refFormID != 0 && is_door_like(ri.formType) && CoSyncNet::IsConnected())
     {
         // Belt and braces: also consult the lock flag directly. A door can be
@@ -518,6 +541,11 @@ void CoSyncDoorHook::FlushPendingDoorOps()
             continue;
         }
 
+        if (CoSyncElevatorSync::Classify(refFormID) != CoSyncElevatorSync::Kind::None)
+        {
+            LOG_INFO("[DoorHook] FLUSH skipped elevator ref 0x%08X (ELEV / per-player ride)", refFormID);
+            continue;
+        }
         DoActivateRefr(static_cast<void*>(refr));
         LOG_UPDATED("[DoorHook] FLUSH applied refFormID=0x%08X", refFormID);
     }
