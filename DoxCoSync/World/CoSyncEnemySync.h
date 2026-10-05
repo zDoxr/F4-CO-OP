@@ -120,4 +120,8 @@ namespace CoSyncEnemySync
         ScopedHealthWrite& operator=(const ScopedHealthWrite&) = delete;
     };
     bool IsAuthoritativeHealthActive();
+
+    // 0.4.4: the entity changed owner in place -- per-entity sequences and
+    // owner/remote state start fresh.
+    void OnOwnershipChanged(uint32_t entityID);
 }

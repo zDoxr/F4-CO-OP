@@ -2,6 +2,27 @@
 
 ---
 
+## [0.4.4] — 2026-10-01
+
+### Faster NPC updates in crowded areas; no reset when ownership changes
+
+From the 0.4.3 two-instance test (host log `CoSyncUpdated_11008`, client `CoSyncUpdated_27064`, 17:23–17:42). **Built and load-tested only.**
+
+- **NPCs updated slowly in populated areas:** 37 NPCs shared a fixed budget of 24 sends per tick (~8–9 updates per second each, 871 sends skipped every 5 s), each ~430 bytes and sent reliable (one late packet stalls the whole stream). Now:
+  - every NPC has its own rate from its distance to the nearest player: 20 Hz within ~4,000 units, 10 Hz to ~10,000, 4 Hz beyond;
+  - an NPC that has not moved, turned or changed state only sends a 1 Hz keepalive, so the budget goes to the ones that move;
+  - NPC updates no longer carry the 32-float animation snapshot that puppets never used (0.4.3 drives them from the owner's locomotion channels);
+  - NPC updates are unreliable (each supersedes the last; receivers order them by timestamp). The host relays them the same way.
+- **NPCs glitch/reset when the host comes into range (or leaves):** a change of owner used to be DESTROY + a new entity. Every machine despawned its copy, showed or spawned another body, and reset its AI, weapon and animation (log 17:37:40: entities 65539–65547). Now the host sends `OWN|eid|newOwner|…`; the entity keeps its ID and its body:
+  - a client that takes over keeps simulating the very body it was showing;
+  - the host that takes back puts its persistent NPC exactly where its copy stood, then retires the copy;
+  - the previous owner's NPC becomes a puppet in place.
+
+  When the host leaves an area while a client is next to its NPCs, those NPCs are handed to the client instead of destroyed. If a client has no body for a handed-over NPC it answers `OWNNAK` and the old release is used.
+- Version 0.4.4 (network 404; new `OWN`, `OWNNAK`).
+
+---
+
 ## [0.4.3] — 2026-10-01
 
 ### NPC authority, corpses, enemy health bar, flashlights, mines

@@ -29,9 +29,13 @@
 //       corpses stay corpses (tombstones, Dead CREATE flag, contact-based
 //       timeouts), player flashlights (FL), real replicated mines (MINE/MINEX)
 //       that proxies cannot trigger, aggressor-less hits on proxies refused.
+// 0.4.4 (2026-10-01): NPC update scheduler (per-NPC distance-based rate,
+//       change-driven, no animation snapshot, unreliable stream) and
+//       in-place ownership transfer (OWN/OWNNAK) instead of destroy +
+//       re-create when the host leaves or comes back.
 #define COSYNC_VERSION_MAJOR 0
 #define COSYNC_VERSION_MINOR 4
-#define COSYNC_VERSION_PATCH 3
+#define COSYNC_VERSION_PATCH 4
 #define COSYNC_VERSION_TAG   ""
 
 // Numeric form used on the wire. MINOR and PATCH must stay below 100 for the

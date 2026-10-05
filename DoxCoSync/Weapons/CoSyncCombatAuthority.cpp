@@ -479,6 +479,12 @@ namespace
 
 namespace CoSyncCombatAuthority
 {
+    void OnOwnershipChanged(uint32_t entityID)
+    {
+        g_txSeq.erase(entityID);
+        g_rxSeq.erase(entityID);
+    }
+
     void Install()
     {
         LOG_REQUIREMENT("CoSyncCombatAuthority::Install", "Plugin load. Needs the verified 1.11.240 exe: every target's prologue is compared before hooking.");

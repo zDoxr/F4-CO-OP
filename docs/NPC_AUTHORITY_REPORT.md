@@ -286,3 +286,38 @@ Ordering questions:
 4. **Kill credit for explosion kills of host NPCs by a client** stays with the host's explosion copy (the engine builds explosion hits without an aggressor). Weapon kills keep their killer (0.4.1).
 5. **Combat target internals**: the gate pins combat entry to the owner's target, and the target is re-asserted once a second. A combat-controller-internal target switch (if one exists outside `sub_140D00F80`) would be corrected within 1 s. **INFERRED**.
 6. The enemy meter on a puppet shows while the owner's NPC fights **you** (engine rule: its combat group targets you). If it fights another player, you see it only after hitting it.
+
+
+---
+
+# Addendum 0.4.4 (same day, after the user's 0.4.3 test)
+
+User report: "updates for NPCs run slow in a big populated area" and "they glitch out when the host gets within range and it resets for the client".
+
+## Slow updates — root cause (VERIFIED, host log 11008)
+`[SendDiag] last 5s: sent=1604 … rotationSkipped=871` for 37 NPCs.
+- The fixed round-robin cap (24 NPC sends per call) gave each NPC ~8–9 Hz.
+- Every EU carried a ~430-byte animation snapshot that puppets no longer read.
+- Everything went out reliable: `tx reliable=3572` per 10 s, ~145 KB/s. One delayed packet holds back all later ones (head-of-line blocking).
+
+**Fix:** a per-NPC scheduler in `HostSendNpcUpdates_Impl` (20/10/4 Hz by distance to the nearest player, change-driven with a 1 Hz keepalive, safety ceiling 64 per call), no snapshot for world NPCs, and unreliable send + relay for world-NPC EU (receivers already order by timestamp and interpolate).
+
+## Reset on host arrival/departure — root cause (VERIFIED, logs 11008/27064 17:37:40)
+- Host: `Actor … (entity=65540..65544) left the area — removed`, then `Handoff: … released by <host> (away) -- <client> takes it over`.
+- Client: `Unbound entity=…`, `queued disable and delete`, `Showed the original ref … again`.
+
+Every change of owner was destroy + rediscovery under a new ID: the body was swapped, re-spawned (3D load, weapon re-equip, AI reset). The host's return reversed it with another swap.
+
+**Fix:** in-place ownership transfer, `OWN|eid|newOwner|x|y|z|rz` (host → all; host-only), `OWNNAK|me|eid` (client → host).
+
+| Machine | What it does |
+|---|---|
+| New owner (client) | keeps the puppet body it shows as its simulated actor (unregistered as remote, essential bit cleared, puppet gates released) |
+| New owner (host) | moves its persistent original to the puppet's exact transform, enables it, retires the puppet 0.75 s later |
+| Old owner | its actor becomes the puppet in place (registered remote; steered by the new owner's EU) or, if unloaded, is dropped until the owner's CREATE brings it back |
+| Everyone | owner field updated; shot (`SHOT`) and hit (`EHIT`) sequences and enemy-state records for that entity restart |
+
+- The host retakes an NPC only once its own copy is spawned and following the client's stream for 3 s.
+- When the host's NPC leaves the host's area while a client stands within 8,000 units of it, the NPC is handed to that client instead of destroyed.
+
+**Test:** host walks away from and back to NPCs next to the client. Expect host `Handoff: … in place, same entity` and `host takes over -- original … placed where the puppet was`, and client `now owned by … (in place)`. There must be no `Unbound` or `queued disable and delete` lines for those entities on the client.

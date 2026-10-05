@@ -4,6 +4,7 @@
 
 #include "CoSyncNpcWorldSync.h"
 #include "CoSyncPuppetAuthority.h"
+#include "CoSyncCombatAuthority.h"
 
 #include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
@@ -296,6 +297,15 @@ namespace
     // with the Dead flag for it must never build a new living body -- that is
     // what made enemies stand up and die a second time (Bug #2). A CREATE
     // WITHOUT the Dead flag means the owner reused the ID for a live actor.
+    // 0.4.4 in-place ownership transfer (see the header).
+    std::unordered_map<uint32_t, Actor*> s_puppetizedOwn;   // eid -> our own actor, steered as a puppet
+    std::unordered_set<uint32_t>         s_ownedClones;     // eid whose simulated actor here is a puppet clone we kept
+    struct CloneDespawn { Actor* clone; double at; };
+    std::vector<CloneDespawn>            s_cloneDespawns;   // host swap: the clone goes once the original shows
+    struct OwnOp { uint32_t eid; uint32_t newOwner; NiPoint3 pos; float rotZ; bool nak; uint32_t nakFrom; };
+    std::mutex                           s_ownMx;
+    std::vector<OwnOp>                   s_ownOps;
+
     struct CorpseTombstone { Actor* corpse; uint32_t corpseFormID; };
     std::unordered_map<uint32_t, CorpseTombstone> s_corpseTombstones;
 
@@ -520,6 +530,8 @@ namespace
 namespace CoSyncNpcWorldSync
 {
 static bool IsHandoffHeld(uint32_t refFormID, uint32_t baseFormID, const NiPoint3& pos);   // dynamic ownership, below
+static void HostTransferOwnership(uint32_t eid, uint32_t newOwner, double now);           // 0.4.4, below
+static uint32_t HostNearestClientFor(uint32_t eid, float maxDist);                       // 0.4.4, below
 
 // How far apart the host's reported position and this client's own copy of an
 // NPC may be before a bind is refused.
@@ -1134,6 +1146,21 @@ __declspec(noinline) static void TickScanWorldActors_Impl(double now)
 
 
         const bool wasDead = s_deadEntities.count(eid) != 0;
+
+        // 0.4.4: the host can no longer simulate it, but a client is right
+        // there: that client takes it over in place (same ID, same body)
+        // instead of everyone destroying and re-creating it.
+        if (isHost && !wasDead)
+        {
+            const uint32_t taker = HostNearestClientFor(eid, 8000.f);
+            if (taker != 0)
+            {
+                HostTransferOwnership(eid, taker, now);
+                LOG_UPDATED("[NpcWorldSync] Actor %p (entity=%u) left the host's area -- client %u is near it and takes it over in place",
+                    static_cast<void*>(actor), eid, taker);
+                continue;
+            }
+        }
 
         EntityDestroyPacket dp{};
         dp.entityID    = eid;
@@ -1750,6 +1777,13 @@ void Reset()
     s_deadEntities.clear();
     s_killedEntities.clear();
     s_corpseTombstones.clear();
+    s_puppetizedOwn.clear();
+    s_ownedClones.clear();
+    s_cloneDespawns.clear();
+    {
+        std::lock_guard<std::mutex> lk(s_ownMx);
+        s_ownOps.clear();
+    }
     s_companionEntities.clear();
     s_npcDeadSentAt.clear();
     s_knownDeadRefs.clear();
@@ -1989,6 +2023,11 @@ __declspec(noinline) static void ClientBindWorldActor_Impl(const EntityCreatePac
             s_killedEntities.erase(p.entityID);
         }
     }
+
+    // 0.4.4: our own actor already shows this entity (steered as a puppet
+    // after an in-place ownership transfer): nothing to bind or spawn.
+    if (s_puppetizedOwn.count(p.entityID))
+        return;
 
     // Host re-broadcasts CREATE every few seconds as a bind-retry mechanism.
     // Guard 1: entity already fully bound.
@@ -2786,21 +2825,19 @@ void HostTickOwnershipHandoff(double now)
 
     for (const Release& r : releases)
     {
-        // Hold it from the host's own scan unless the host IS the new owner.
-        if (r.to != hostEid)
+        // 0.4.4: transfer in place. The host takes an NPC back only once its
+        // own copy of it (the puppet of the client's NPC) is spawned and
+        // following the client's stream, so the host's body is where the
+        // client's is when the swap happens.
+        if (r.to == hostEid)
         {
-            if (r.ref != 0 && (r.ref & 0xFF000000u) != 0xFF000000u)
-                s_handoffHoldRef[r.ref] = now + kHandoffHoldSecs;
-            else
-                s_handoffHoldSpatial[MakeSpatialKey(r.base, r.pos)] = now + kHandoffHoldSecs;
+            const CoSyncPlayer* hp = g_CoSyncPlayerManager.GetPlayerByEntityID(r.eid);
+            if (!hp || !hp->hasSpawned || !hp->actorRef || !hp->m_hasRealTransform ||
+                NpcNowSeconds() - hp->m_spawnTime < 3.0)
+                continue;   // not ready here yet: next round
         }
-        EntityDestroyPacket d{};
-        d.entityID    = r.eid;
-        d.reasonFlags = 0;
-        CoSyncTransport::Send(SerializeEntityDestroy(d));
-        ClientUnbindWorldActor(r.eid, 0);
-        s_ownershipSince.erase(r.eid);
-        LOG_UPDATED("[NpcWorldSync] Handoff: entity=%u ref=0x%08X released by %u (away) -- %u is near it and takes it over",
+        HostTransferOwnership(r.eid, r.to == hostEid ? 0u : r.to, now);
+        LOG_UPDATED("[NpcWorldSync] Handoff: entity=%u ref=0x%08X from %u (away) to %u -- in place, same entity",
             r.eid, r.ref, r.from, r.to);
     }
 
@@ -2841,6 +2878,264 @@ void HostReleaseEntitiesOwnedBy(uint32_t ownerEntityID)
             owned.size(), ownerEntityID);
 }
 
+// ── 0.4.4 in-place ownership transfer ───────────────────────────────────────
+static void ResetNetTimeline(CoSyncPlayer* p)
+{
+    if (!p) return;
+    p->m_tfBuffer.clear();
+    p->m_hasAny = false;
+    p->m_hasRealTransform = false;
+    p->m_lastHostTime = 0.0;
+    p->m_hasMoveChannels = false;
+}
+
+// Applies "eid is now owned by newOwner (0 = host)" on this machine.
+// Returns false when this machine is the new owner but has no body for it.
+static bool ApplyOwnershipTransfer(uint32_t eid, uint32_t newOwner, double now)
+{
+    auto& states = const_cast<std::unordered_map<uint32_t, CoSyncEntityState>&>(g_CoSyncPlayerManager.GetStates());
+    auto sit = states.find(eid);
+    const uint32_t me = g_CoSyncPlayerManager.GetLocalEntityID();
+    const bool isHost = CoSyncNet::IsHost();
+    const bool newOwnedHere = (newOwner == 0) ? isHost : (newOwner == me);
+    if (sit == states.end() || !sit->second.hasCreate)
+        return !newOwnedHere;
+    CoSyncEntityState& st = sit->second;
+    const bool oldOwnedHere = st.isLocallyOwned;
+    CoSyncPlayer* p = g_CoSyncPlayerManager.GetPlayerByEntityID(eid);
+
+    if (newOwnedHere && !oldOwnedHere)
+    {
+        Actor* body = (p && p->hasSpawned && p->actorRef &&
+                       CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(p->actorRef))) ? p->actorRef : nullptr;
+        if (!body)
+            return false;
+        auto pz = s_puppetizedOwn.find(eid);
+        if (pz != s_puppetizedOwn.end() && pz->second == body)
+        {
+            // our own actor we were steering: it simply runs again
+            s_puppetizedOwn.erase(pz);
+            UnregisterRemoteActor(body);
+            CoSyncGameAPI::SetRuntimeEssential(body, false);
+            CoSyncPuppetAuthority::ForgetPuppet(body);
+            s_eidToActor[eid] = body;
+            s_actorToEID[body] = eid;
+        }
+        else
+        {
+            bool swapped = false;
+            if (isHost)
+            {
+                // The host keeps its world persistent: its own original NPC
+                // takes over, placed exactly where the puppet stands.
+                auto o = s_entityToDisabledOriginal.find(eid);
+                TESForm* of = (o != s_entityToDisabledOriginal.end()) ? LookupFormByID(o->second) : nullptr;
+                Actor* orig = (of && of->formType == kFormType_ACHR) ? static_cast<Actor*>(of) : nullptr;
+                if (orig && orig != body)
+                {
+                    NiPoint3 cp{}, cr{};
+                    CoSyncGameAPI::GetActorWorldTransform(body, cp, cr);
+                    TESObjectREFR* bodyRef = static_cast<TESObjectREFR*>(body);
+                    TESWorldSpace* ws = CALL_MEMBER_FN(bodyRef, GetWorldspace)();
+                    TESObjectCELL* cell = ws ? nullptr : bodyRef->parentCell;
+                    UInt32 nh = 0;
+                    MoveRefrToPosition(orig, &nh, cell, ws, &cp, &cr);
+                    CoSyncGameAPI::EnableProxyActor(orig);
+                    s_disabledOriginalRefs.erase(o->second);
+                    s_entityToDisabledOriginal.erase(o);
+                    UnregisterRemoteActor(body);
+                    CoSyncPuppetAuthority::ForgetPuppet(body);
+                    s_cloneDespawns.push_back({ body, now + 0.75 });
+                    p->actorRef = orig;
+                    g_CoSyncEntities.Remove(eid);
+                    g_CoSyncEntities.Register(eid, orig);
+                    s_eidToActor[eid] = orig;
+                    s_actorToEID[orig] = eid;
+                    swapped = true;
+                    LOG_UPDATED("[NpcWorldSync] entity=%u: host takes over -- original 0x%08X placed where the puppet was, puppet retires",
+                        eid, orig->formID);
+                }
+            }
+            if (!swapped)
+            {
+                // Keep the very body everyone has been looking at.
+                UnregisterRemoteActor(body);
+                CoSyncGameAPI::SetRuntimeEssential(body, false);
+                CoSyncPuppetAuthority::ForgetPuppet(body);
+                s_eidToActor[eid] = body;
+                s_actorToEID[body] = eid;
+                s_ownedClones.insert(eid);
+            }
+        }
+        s_spawnFallback.erase(eid);
+        st.isLocallyOwned = true;
+        ResetNetTimeline(p);
+    }
+    else if (!newOwnedHere && oldOwnedHere)
+    {
+        auto b = s_eidToActor.find(eid);
+        Actor* own = (b != s_eidToActor.end()) ? b->second : nullptr;
+        if (b != s_eidToActor.end())
+        {
+            s_actorToEID.erase(own);
+            s_eidToActor.erase(b);
+        }
+        const bool live = own && CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(own)) && own->parentCell &&
+                          !(own->flags & TESObjectREFR::kFlag_IsDisabled) && p && p->actorRef == own;
+        if (live)
+        {
+            // Our actor becomes the puppet of the new owner's NPC, in place.
+            if (s_ownedClones.erase(eid))
+                s_spawnFallback.insert(eid);
+            else
+                s_puppetizedOwn[eid] = own;
+            RegisterRemoteActor(own, p);
+        }
+        else
+        {
+            s_ownedClones.erase(eid);
+            g_CoSyncEntities.Remove(eid);
+            if (p) { p->actorRef = nullptr; p->hasSpawned = false; }
+            st.spawnQueued = false;
+        }
+        st.isLocallyOwned = false;
+        ResetNetTimeline(p);
+    }
+
+    st.lastCreate.ownerEntityID = newOwner;
+    st.hostAuthoritative = (newOwner == 0);
+    s_ownershipSince[eid] = now;
+    CoSyncCombatAuthority::OnOwnershipChanged(eid);
+    CoSyncEnemySync::OnOwnershipChanged(eid);
+    return true;
+}
+
+static void HostTransferOwnership(uint32_t eid, uint32_t newOwner, double now)
+{
+    auto it = g_CoSyncPlayerManager.GetStates().find(eid);
+    NiPoint3 pos{}, rot{};
+    if (CoSyncPlayer* p = g_CoSyncPlayerManager.GetPlayerByEntityID(eid))
+        if (p->hasSpawned && p->actorRef && CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(p->actorRef)))
+            CoSyncGameAPI::GetActorWorldTransform(p->actorRef, pos, rot);
+    if (pos.x == 0.f && pos.y == 0.f && it != g_CoSyncPlayerManager.GetStates().end())
+        pos = it->second.lastCreate.spawnPos;
+    char buf[160];
+    std::snprintf(buf, sizeof(buf), "OWN|%u|%u|%.1f|%.1f|%.1f|%.3f", eid, newOwner, pos.x, pos.y, pos.z, rot.z);
+    CoSyncTransport::Send(std::string(buf));
+    ApplyOwnershipTransfer(eid, newOwner, now);
+}
+
+// The nearest client (not the host) in the entity's location within maxDist
+// of where it last was. 0 = none.
+static uint32_t HostNearestClientFor(uint32_t eid, float maxDist)
+{
+    auto it = g_CoSyncPlayerManager.GetStates().find(eid);
+    if (it == g_CoSyncPlayerManager.GetStates().end() || !it->second.hasCreate)
+        return 0;
+    const EntityCreatePacket& c = it->second.lastCreate;
+    NiPoint3 npcPos = c.spawnPos;
+    if (const CoSyncPlayer* np = g_CoSyncPlayerManager.GetPlayerByEntityID(eid))
+        if (np->actorRef && CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(np->actorRef)))
+            npcPos = np->actorRef->pos;
+    const uint32_t hostEid = g_CoSyncPlayerManager.GetLocalEntityID();
+    uint32_t best = 0;
+    float bestD = maxDist * maxDist;
+    for (const auto& kv : g_CoSyncPlayerManager.GetAllPlayers())
+    {
+        const CoSyncPlayer* pl = kv.second.get();
+        if (!pl || pl->createType != CoSyncEntityType::Player || pl->entityID == hostEid || pl->isLocalPlayer)
+            continue;
+        uint32_t ws = 0xFFFFFFFFu, cell = 0;
+        if (!g_CoSyncPlayerManager.GetEntityLocation(pl->entityID, ws, cell))
+            continue;
+        const bool sameLoc = c.locWS != 0 ? ws == c.locWS : (ws == 0 && cell == c.locCell);
+        if (!sameLoc)
+            continue;
+        const float dx = pl->authoritativePos.x - npcPos.x, dy = pl->authoritativePos.y - npcPos.y, dz = pl->authoritativePos.z - npcPos.z;
+        const float d = dx * dx + dy * dy + dz * dz;
+        if (d < bestD) { bestD = d; best = pl->entityID; }
+    }
+    return best;
+}
+
+bool IsOwnershipMsg(const std::string& msg)
+{
+    return msg.rfind("OWN|", 0) == 0 || msg.rfind("OWNNAK|", 0) == 0;
+}
+
+void OnReceiveOwnership(const std::string& msg, bool isHostRole)
+{
+    LOG_REQUIREMENT("CoSyncNpcWorldSync::OnReceiveOwnership", "Game thread (CoSyncNet::OnReceive). Parses peer text defensively; only queues.");
+    OwnOp op{};
+    if (msg.rfind("OWNNAK|", 0) == 0)
+    {
+        if (!isHostRole)
+            return;   // only the host arbitrates ownership
+        if (std::sscanf(msg.c_str() + 7, "%u|%u", &op.nakFrom, &op.eid) != 2 || op.eid == 0)
+            return;
+        op.nak = true;
+    }
+    else
+    {
+        if (isHostRole)
+            return;   // ownership comes only from the host
+        if (std::sscanf(msg.c_str() + 4, "%u|%u|%f|%f|%f|%f", &op.eid, &op.newOwner, &op.pos.x, &op.pos.y, &op.pos.z, &op.rotZ) < 2 ||
+            !IsWorldActorEntityID(op.eid))
+            return;
+    }
+    std::lock_guard<std::mutex> lk(s_ownMx);
+    if (s_ownOps.size() < 1024)
+        s_ownOps.push_back(op);
+}
+
+void FlushPendingOwnership(double now)
+{
+    LOG_REQUIREMENT("CoSyncNpcWorldSync::FlushPendingOwnership", "Game thread, every CoSync tick.");
+    std::vector<OwnOp> ops;
+    {
+        std::lock_guard<std::mutex> lk(s_ownMx);
+        ops.swap(s_ownOps);
+    }
+    const uint32_t me = g_CoSyncPlayerManager.GetLocalEntityID();
+    for (const OwnOp& op : ops)
+    {
+        if (op.nak)
+        {
+            // The client we handed it to has no body for it: the old release.
+            auto it = g_CoSyncPlayerManager.GetStates().find(op.eid);
+            if (it == g_CoSyncPlayerManager.GetStates().end() || it->second.lastCreate.ownerEntityID != op.nakFrom)
+                continue;
+            EntityDestroyPacket d{};
+            d.entityID = op.eid;
+            d.reasonFlags = IsEntityDead(op.eid) ? kDestroyReason_Dead : 0u;
+            CoSyncTransport::Send(SerializeEntityDestroy(d));
+            ClientUnbindWorldActor(op.eid, d.reasonFlags);
+            LOG_UPDATED("[NpcWorldSync] entity=%u: client %u had no body for it -- released the old way", op.eid, op.nakFrom);
+            continue;
+        }
+        const bool ok = ApplyOwnershipTransfer(op.eid, op.newOwner, now);
+        if (!ok)
+        {
+            char buf[64];
+            std::snprintf(buf, sizeof(buf), "OWNNAK|%u|%u", me, op.eid);
+            CoSyncTransport::Send(std::string(buf));
+            LOG_UPDATED_WARN("[NpcWorldSync] entity=%u handed to us but we have no body for it -- refused (OWNNAK)", op.eid);
+        }
+        else
+        {
+            LOG_UPDATED("[NpcWorldSync] entity=%u now owned by %u (in place)", op.eid, op.newOwner);
+        }
+    }
+
+    for (auto it = s_cloneDespawns.begin(); it != s_cloneDespawns.end(); )
+    {
+        if (now < it->at) { ++it; continue; }
+        if (CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(it->clone)))
+            CoSyncGameAPI::DespawnProxyActor(it->clone);
+        it = s_cloneDespawns.erase(it);
+    }
+}
+
 void ForgetBinding(uint32_t entityID)
 {
     LOG_REQUIREMENT("CoSyncNpcWorldSync::ForgetBinding", "Game thread. Safe for an untracked entity. Only erases binding-map entries; never dereferences the (possibly freed) actor and never touches the player manager.");
@@ -2872,10 +3167,29 @@ void ClientUnbindWorldActor(uint32_t entityID, uint32_t reasonFlags)
         s_eidToActor.erase(it);
     }
 
+    // 0.4.4: our own real actor that was being steered as a puppet after we
+    // lost ownership returns to its own AI (never despawned: it is ours).
+    {
+        auto pz = s_puppetizedOwn.find(entityID);
+        if (pz != s_puppetizedOwn.end())
+        {
+            Actor* own = pz->second;
+            s_puppetizedOwn.erase(pz);
+            CoSyncPuppetAuthority::ForgetPuppet(own);
+            if (CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(own)))
+            {
+                UnregisterRemoteActor(own);
+                CoSyncGameAPI::SetRuntimeEssential(own, false);
+            }
+        }
+    }
+    // 0.4.4: a puppet clone we kept as our simulated actor is still a clone.
+    const bool boundIsOwnedClone = s_ownedClones.erase(entityID) != 0 && boundActor != nullptr;
+
     const bool hadFallback = s_spawnFallback.count(entityID) != 0;
     const bool isDead      = (reasonFlags & kDestroyReason_Dead) != 0 || s_killedEntities.count(entityID) != 0;
 
-    Actor* cloneToDespawn = nullptr;
+    Actor* cloneToDespawn = boundIsOwnedClone ? boundActor : nullptr;
     if (!boundActor && hadFallback)
     {
         CoSyncPlayer* proxy = g_CoSyncPlayerManager.GetPlayerByEntityID(entityID);

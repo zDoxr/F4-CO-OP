@@ -284,6 +284,7 @@ static const char* SelfStateType(const std::string& msg)
         // machine that speaks first (MINE's owner field must be the sender too:
         // only the placing machine announces a mine).
         "FL", "MINE", "MINEX",
+        "OWNNAK",   // 0.4.4: a client refuses a handover in its own name
     };
     const size_t bar = msg.find('|');
     if (bar == std::string::npos)
@@ -1154,6 +1155,7 @@ void CoSyncNet::Tick(double now)
     g_lastTickStep = "FlushPendingQuestObjectiveOps"; CoSyncQuestSync::FlushPendingQuestObjectiveOps();
     g_lastTickStep = "FlushPendingPowerArmorOps";    CoSyncPowerArmorSync::FlushPendingPowerArmorOps();
     g_lastTickStep = "FlushPendingNpcDeadOps";       CoSyncNpcWorldSync::FlushPendingNpcDeadOps();
+    g_lastTickStep = "FlushPendingOwnership";        CoSyncNpcWorldSync::FlushPendingOwnership(now);
     g_lastTickStep = "FlushPendingSpecialOps";       CoSyncSpecialSync::FlushPendingSpecialOps();
     g_lastTickStep = "FlushPendingVatsOps";          CoSyncVatsSync::FlushPendingVatsOps();
     g_lastTickStep = "FlushPendingOutfitOps";        CoSyncOutfitSync::FlushPendingOutfitOps();
@@ -1660,7 +1662,9 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
             // dropped anyway (ProcessEntityUpdate ignores the local entity and
             // entities this machine owns) -- measured 9365 wasted echoes in
             // one 16-minute two-player session.
-            CoSyncTransport::SendExcept(SerializeEntityUpdate(u), conn);
+            // 0.4.4: a world NPC's stream is relayed unreliable like it is sent.
+            CoSyncTransport::SendExcept(SerializeEntityUpdate(u), conn,
+                !CoSyncNpcWorldSync::IsWorldActorEntityID(u.entityID));
         }
 
         g_CoSyncPlayerManager.EnqueueEntityUpdate(u);
@@ -1804,6 +1808,14 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
         return;
     }
 
+
+    // 0.4.4: in-place ownership transfer. OWN comes only from the host (the
+    // receiver refuses it on the host); OWNNAK only goes to the host.
+    if (CoSyncNpcWorldSync::IsOwnershipMsg(msg))
+    {
+        CoSyncNpcWorldSync::OnReceiveOwnership(msg, isHostRole);
+        return;
+    }
 
     // 0.4.3: player flashlight state and mines (self-state checked above).
     if (CoSyncFlashlightSync::IsFlashlightMsg(msg))

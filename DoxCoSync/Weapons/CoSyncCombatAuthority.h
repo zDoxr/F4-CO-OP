@@ -57,4 +57,8 @@ namespace CoSyncCombatAuthority
 
     // Session start/end.
     void Reset();
+
+    // 0.4.4: the shooter entity changed owner in place; its shot sequence
+    // starts again from the new owner.
+    void OnOwnershipChanged(uint32_t entityID);
 }

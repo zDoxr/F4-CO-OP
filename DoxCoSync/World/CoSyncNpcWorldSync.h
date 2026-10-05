@@ -70,6 +70,26 @@ namespace CoSyncNpcWorldSync
     // that player's own scan then reports it and becomes its owner. GAME THREAD.
     void HostTickOwnershipHandoff(double now);
 
+    // 0.4.4 in-place ownership transfer. Until 0.4.3 every change of owner was
+    // a DESTROY followed by a new discovery under a new entity ID: every
+    // machine despawned its copy, re-showed or re-spawned another body and
+    // reset its AI, weapon and animation (the reported "glitch / reset when
+    // the host comes back in range", 2026-10-01 logs 11008/27064 17:37:40).
+    // Now the host sends
+    //     OWN|eid|newOwner|x|y|z|rz         (newOwner 0 = the host)
+    // and the entity keeps its ID and its body everywhere:
+    //   - the new owner turns the body it already shows (its puppet) into the
+    //     simulated actor -- a client keeps that very body; the host swaps to
+    //     its persistent original placed exactly where the puppet stood;
+    //   - the old owner turns its simulated actor into a puppet in place;
+    //   - everyone else only changes whose EU they expect.
+    // A new owner with no body for it answers OWNNAK|me|eid and the host falls
+    // back to the old release.
+    bool IsOwnershipMsg(const std::string& msg);
+    void OnReceiveOwnership(const std::string& msg, bool isHostRole);
+    // Game thread, every CoSync tick.
+    void FlushPendingOwnership(double now);
+
     // Fix #2 (spawn/despawn race, proven 2026-08-02): true while a world-actor
     // entity is still pending a proxy spawn (s_spawnFallback) or already bound
     // (s_eidToActor). The async clone-spawn task calls this on completion — a

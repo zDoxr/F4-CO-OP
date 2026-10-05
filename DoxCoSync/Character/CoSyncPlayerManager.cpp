@@ -1586,30 +1586,22 @@ void CoSyncPlayerManager::HostSendNpcUpdates_Impl(double now)
     // overload threshold; worst-case per-actor update interval is bounded by
     // trackedCount/kMaxWorldActorSendsPerTick calls). Players and companions
     // are exempt -- few in number, need full responsiveness.
-    static constexpr size_t kMaxWorldActorSendsPerTick = 24;
-    static uint32_t s_worldActorRotationCursor = 0;
-    std::unordered_set<uint32_t> allowedWorldActorsThisTick;
-    {
-        std::vector<uint32_t> worldActorIDs;
-        worldActorIDs.reserve(m_playersByEntityID.size());
-        for (auto& kv : m_playersByEntityID)
-        {
-            if (CoSyncNpcWorldSync::IsWorldActorEntityID(kv.first))
-                worldActorIDs.push_back(kv.first);
-        }
-        if (worldActorIDs.size() <= kMaxWorldActorSendsPerTick)
-        {
-            allowedWorldActorsThisTick.insert(worldActorIDs.begin(), worldActorIDs.end());
-        }
-        else
-        {
-            std::sort(worldActorIDs.begin(), worldActorIDs.end());
-            const size_t n = worldActorIDs.size();
-            for (size_t i = 0; i < kMaxWorldActorSendsPerTick; ++i)
-                allowedWorldActorsThisTick.insert(worldActorIDs[(s_worldActorRotationCursor + i) % n]);
-            s_worldActorRotationCursor = static_cast<uint32_t>((s_worldActorRotationCursor + kMaxWorldActorSendsPerTick) % n);
-        }
-    }
+    // 0.4.4: per-NPC scheduling replaces the fixed 24-per-tick round robin.
+    // 2026-10-01 host log 11008: 37 tracked NPCs got ~320 sends/s between
+    // them (~8.7 Hz each, 871 sends skipped per 5 s by the rotation), every
+    // send ~430 bytes and reliable -- slow and choppy in populated areas.
+    // Now each NPC has its own rate from its distance to the nearest player
+    // (20 Hz close, 10 Hz mid, 4 Hz far), an unchanged NPC only sends a 1 Hz
+    // keepalive, world NPCs no longer carry the 32-float animation snapshot
+    // (puppets never read it: their graph runs on the owner's locomotion
+    // channels and AE inputs), and their updates are unreliable (each one
+    // supersedes the last; the receiver orders them by timestamp), so one
+    // lost packet no longer stalls the stream behind it. The cap below is a
+    // safety ceiling only.
+    static constexpr int kMaxWorldActorSendsPerCall = 64;
+    int worldActorSendsLeft = kMaxWorldActorSendsPerCall;
+    struct NpcSendMemo { double lastSent = -100.0; NiPoint3 pos; float rotZ = 0.f; float speed = 0.f; float dir = 0.f; bool combat = false; uint32_t weapon = 0; };
+    static std::unordered_map<uint32_t, NpcSendMemo> s_npcSendMemo;
 
     for (auto& kv : m_playersByEntityID)
     {
@@ -1685,11 +1677,6 @@ void CoSyncPlayerManager::HostSendNpcUpdates_Impl(double now)
         // near their owner and few in number).
         if (CoSyncNpcWorldSync::IsWorldActorEntityID(npc.entityID))
         {
-            if (!allowedWorldActorsThisTick.count(npc.entityID))
-            {
-                ++s_dRotationSkipped;
-                continue;
-            }
 
             // 2026-08-08: this cap was 8192, but NpcWorldSync DISCOVERS creatures
             // out to 16384 and KEEPS them out to 20480 -- so every creature in the
@@ -1721,6 +1708,34 @@ void CoSyncPlayerManager::HostSendNpcUpdates_Impl(double now)
                 ++s_dOutOfRange;
                 continue;
             }
+
+            // 0.4.4 scheduling (see above).
+            NpcSendMemo& memo = s_npcSendMemo[npc.entityID];
+            const double interval = bestSq < 4096.f * 4096.f ? 0.05 : (bestSq < 10000.f * 10000.f ? 0.1 : 0.25);
+            if (now - memo.lastSent < interval || worldActorSendsLeft <= 0)
+            {
+                ++s_dRotationSkipped;
+                continue;
+            }
+            float chSpeed = 0.f, chDir = 0.f;
+            CoSyncPuppetAuthority::ReadMoveChannels(npc.actorRef, chSpeed, chDir);
+            const bool combatNow = npc.actorRef->IsInCombat();
+            const uint32_t weapNow = GetEquippedWeaponFormID(npc.actorRef);
+            const float mdx = pos.x - memo.pos.x, mdy = pos.y - memo.pos.y, mdz = pos.z - memo.pos.z;
+            float drz = rot.z - memo.rotZ;
+            while (drz > 3.14159265f) drz -= 6.2831853f;
+            while (drz < -3.14159265f) drz += 6.2831853f;
+            const bool changed = (mdx * mdx + mdy * mdy + mdz * mdz) > 1.0f || std::fabs(drz) > 0.01f ||
+                                 std::fabs(chSpeed - memo.speed) > 1.0f || std::fabs(chDir - memo.dir) > 0.01f ||
+                                 combatNow != memo.combat || weapNow != memo.weapon;
+            if (!changed && now - memo.lastSent < 1.0)
+            {
+                ++s_dRotationSkipped;
+                continue;
+            }
+            memo.lastSent = now; memo.pos = pos; memo.rotZ = rot.z; memo.speed = chSpeed; memo.dir = chDir;
+            memo.combat = combatNow; memo.weapon = weapNow;
+            --worldActorSendsLeft;
         }
 
         ++s_dSent;
@@ -1824,6 +1839,9 @@ void CoSyncPlayerManager::HostSendNpcUpdates_Impl(double now)
             }
         }
 
+        const bool isWorldNpcPuppetSource = CoSyncNpcWorldSync::IsWorldActorEntityID(npc.entityID) &&
+                                            st.lastCreate.type == CoSyncEntityType::NPC;
+        if (!isWorldNpcPuppetSource)
         {
             AnimVarSnapshot snap{};
             if (CoSyncAnimVarSystem::SaveAnimationVariables(npc.actorRef, snap))
@@ -1877,7 +1895,8 @@ void CoSyncPlayerManager::HostSendNpcUpdates_Impl(double now)
             }
         }
 
-        CoSyncTransport::Send(SerializeEntityUpdate(u));
+        // 0.4.4: world NPC transforms are a stream -- unreliable (see above).
+        CoSyncTransport::Send(SerializeEntityUpdate(u), !isWorldNpcPuppetSource);
     }
 
     if (now - s_lastSendDiag >= 5.0)

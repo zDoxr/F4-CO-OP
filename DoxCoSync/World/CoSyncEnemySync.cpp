@@ -1080,6 +1080,14 @@ namespace CoSyncEnemySync
     ScopedHealthWrite::ScopedHealthWrite()  { ++tls_healthWriteDepth; }
     ScopedHealthWrite::~ScopedHealthWrite() { --tls_healthWriteDepth; }
 
+    void OnOwnershipChanged(uint32_t entityID)
+    {
+        g_txHitSeq.erase(entityID);
+        g_rxHitSeq.erase(entityID);
+        g_owned.erase(entityID);
+        g_remote.erase(entityID);
+    }
+
     bool IsAuthoritativeHealthActive()
     {
         return g_cfgAuthoritativeHealth && g_origModAV != nullptr;
