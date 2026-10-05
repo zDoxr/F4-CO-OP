@@ -2204,15 +2204,29 @@ bool ApplySkeleton(Actor* proxy, const CoSyncPlayerAnimation::SkeletonCapture& c
     entry.lastTouchedMs = nowMs;
     SweepStaleBoneCaches();
 
-    if (applied > 0)
-        SafeUpdateDownward(root, proxy->formID);
+    // 2026-10-03 -- NO world-transform bake here (CoSync_crash_13400).
+    // ApplySkeleton runs from CoSync's tick, and the tick is the F4SE task
+    // pump inside the engine's "NonRendersafeAI" frame job (sub_140BD6170):
+    // a worker thread, in the same job list as the "Garbage" job that frees
+    // deferred-deleted NiObjects and muzzle flashes. UpdateDownwardPass is not
+    // a transform-only walk -- every node also runs its NiTimeControllers
+    // (weapon effects, muzzle flash, NiControllerManager blends), at time 0
+    // from our zeroed NiUpdateData. Run from this job right after a replayed
+    // Laser Musket shot, it called into a freed NiInterpolator under a
+    // BSEffectShaderPropertyColorController on the proxy's weapon effect, and
+    // the engine's own pass hit the next freed one and took the game down.
+    // ReassertPoseForGraphRoot writes these same matrices again and bakes
+    // them inside the engine's animation update for this actor (its own
+    // phase and thread), and the engine's downward pass follows that; a bake
+    // here was overwritten before the frame was drawn anyway (that is why the
+    // re-stamp exists).
 
     // 2026-08-24 -- RECEIVER-SIDE PROXY WITNESS. The sender-side witness proves
     // the capture streams a real walk (41 distinct RLeg_Thigh poses), the tier
     // is FRESH and OURS SURVIVES 55/55 -- yet the proxy's lower body looks
     // wrong. No log has ever shown what the PROXY actually holds. This reads
     // two named bones straight off (a) the received wire capture and (b) the
-    // proxy's own live node AFTER the downward-pass recompute, so consecutive
+    // proxy's own live node (world values as of the last engine pass), so consecutive
     // lines diff by eye: if WIRE moves but PROXY is frozen the loss is in the
     // apply/graph-fight; if WIRE is frozen the loss is upstream (send timing);
     // if both move but look wrong it is a coordinate/bind-space issue.
@@ -2335,9 +2349,12 @@ bool ApplySkeleton(Actor* proxy, const CoSyncPlayerAnimation::SkeletonCapture& c
         }
     }
 
+    // restamps: the re-stamp is now the only CoSync bake (see the 2026-10-03
+    // note above), so this line has to show it climbing in minimal mode too.
     if (s_applyCount % 300 == 1)
-        LOG_INFO("[PlayerAnim] ApplySkeleton #%u: applied %u/%u to proxy 0x%08X (cached=%zu missed=%u)",
-                 s_applyCount, applied, capture.count, proxy->formID, entry.nodesByHash.size(), missed);
+        LOG_INFO("[PlayerAnim] ApplySkeleton #%u: applied %u/%u to proxy 0x%08X (cached=%zu missed=%u) restamps=%llu",
+                 s_applyCount, applied, capture.count, proxy->formID, entry.nodesByHash.size(), missed,
+                 static_cast<unsigned long long>(g_reassertCount.load(std::memory_order_relaxed)));
 
     return applied > 0;
 }

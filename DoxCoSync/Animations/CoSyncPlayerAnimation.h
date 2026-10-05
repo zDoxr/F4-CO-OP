@@ -14,7 +14,7 @@ struct AnimVarSnapshot;
 //
 // Bone replication pipeline:
 //   CaptureBones(localPlayer) -> g_localCapture (per-frame, from local player tick)
-//   ApplySkeleton(proxyActor) -> writes g_localCapture bones to proxy + UpdateDownwardPass
+//   ApplySkeleton(proxyActor) -> writes g_localCapture bones to proxy (baked by the re-stamp)
 //
 // Enabled via "Animations -> Testing" radio in the Mod Config overlay tab.
 // Call Init() once at DLL load with the module base (for RVA resolution).
@@ -95,8 +95,9 @@ namespace CoSyncPlayerAnimation
     // SerializeSkeletonCapture. Main thread only, same as CaptureBones.
     const SkeletonCapture& GetLocalCapture() noexcept;
 
-    // Apply g_localCapture bones to proxy actor's skeleton, then call
-    // UpdateDownwardPass so the engine recomputes world transforms.
+    // Apply g_localCapture bones to proxy actor's skeleton. World transforms
+    // are recomputed by ReassertPoseForGraphRoot in the engine's animation
+    // update, not here (see the 2026-10-03 note in ApplySkeleton).
     // Replaces ApplyFromSnapshot when Testing is ON (main thread only).
     void ApplySkeleton(Actor* proxy) noexcept;
 

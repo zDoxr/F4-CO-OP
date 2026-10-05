@@ -21,6 +21,12 @@ From the 0.4.3 two-instance test (host log `CoSyncUpdated_11008`, client `CoSync
   When the host leaves an area while a client is next to its NPCs, those NPCs are handed to the client instead of destroyed. If a client has no body for a handed-over NPC it answers `OWNNAK` and the old release is used.
 - Version 0.4.4 (network 404; new `OWN`, `OWNNAK`).
 
+### Crash fix: remote player firing a Laser Musket (`CoSync_crash_13400`, 2026-10-03)
+
+- `ApplySkeleton` no longer runs the engine's full scene update (`UpdateDownwardPass`) on remote-player proxies from CoSync's tick. The tick runs on a worker thread in the engine's "NonRendersafeAI" job, alongside the "Garbage" job that frees muzzle flashes and released 3D. That pass also ran every animation controller in the proxy's tree at time 0, and after a replayed Laser Musket shot it called into a freed interpolator on the weapon effect.
+- The bone pose is still baked by the re-stamp in the engine's own animation update. The `ApplySkeleton #N` log line now shows `restamps=` to confirm it in game.
+- Built only; **not yet reproduced in game.**
+
 ---
 
 ## [0.4.3] — 2026-10-01
