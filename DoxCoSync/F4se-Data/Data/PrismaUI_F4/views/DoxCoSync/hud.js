@@ -2,8 +2,8 @@
  * CoSync teammate HUD. Passive: never takes input.
  *   C++ -> JS : window.cosyncHud(json)
  *     { hud:[r,g,b], players:[{ id, name, level, hp, maxHp, rads, ap, maxAp, downed, hurt,
- *                               faction, rank, banner, talking }],
- *       voice:{ on, mic, mode:'P'|'F', muted, tx, ptt } }   (faction fields: CoSyncFactions)
+ *                               team, role, talking }],
+ *       voice:{ on, mic, mode:'P'|'T', muted, tx, ptt } }   (team fields: CoSyncTeams)
  * Pushed by CoSyncPrismaUI::TickHud only when the data changed (<= 10 Hz);
  * senders stream their vitals at 10 Hz with a 1 s exact resync.
  *
@@ -57,7 +57,6 @@
     const who = el('span', 'who', top);
     const talk = el('span', 'talk', who);
     talk.innerHTML = TALK_SVG;
-    const flag = el('span', '', who);
     const name = el('span', 'name', who);
     const right = el('span', '', top);
     const bar = el('div', 'bar', root);
@@ -65,8 +64,8 @@
     const rads = el('div', 'rads', bar);
     const apWrap = el('div', 'ap', root);
     const ap = el('div', 'fill', apWrap);
-    const fac = el('div', 'faction', root);
-    return { root, flag, name, right, hp, rads, apWrap, ap, fac, bannerId: null, facText: null };
+    const teamLine = el('div', 'teamline', root);
+    return { root, name, right, hp, rads, apWrap, ap, teamLine, teamText: null };
   };
 
   const setText = (node, text) => { if (node.textContent !== text) node.textContent = text; };
@@ -85,21 +84,16 @@
 
     setText(c.name, p.name);
 
-    // Faction badge: pennant + rank / faction. Rebuilt only when it changes.
-    const bannerId = p.faction ? (p.banner || '') : '';
-    if (bannerId !== c.bannerId) {
-      c.bannerId = bannerId;
-      c.flag.innerHTML = bannerId && window.CoSyncBanners ? window.CoSyncBanners.html(bannerId, 'banner-hud') : '';
-    }
-    const facText = p.faction ? (p.rank || '') + '|' + p.faction : '';
-    if (facText !== c.facText) {
-      c.facText = facText;
-      c.fac.innerHTML = '';
-      c.fac.style.display = p.faction ? '' : 'none';
-      if (p.faction) {
-        const r = el('span', 'rank', c.fac);
-        r.textContent = p.rank || '';
-        c.fac.appendChild(document.createTextNode((p.rank ? '  ·  ' : '') + p.faction));
+    // Team line: role · team. Rebuilt only when it changes.
+    const teamText = p.team ? (p.role || '') + '|' + p.team : '';
+    if (teamText !== c.teamText) {
+      c.teamText = teamText;
+      c.teamLine.innerHTML = '';
+      c.teamLine.style.display = p.team ? '' : 'none';
+      if (p.team) {
+        const r = el('span', 'role', c.teamLine);
+        r.textContent = p.role || '';
+        c.teamLine.appendChild(document.createTextNode((p.role ? '  ·  ' : '') + p.team));
       }
     }
     if (p.downed) {
@@ -128,12 +122,12 @@
     if (key === voiceKey) return;
     voiceKey = key;
     voice.className = 'voice' + (on ? ' on' : '') + (on && v.tx ? ' tx' : '') +
-      (on && v.mode === 'F' ? ' faction' : '') + (on && v.muted ? ' muted' : '') + (on && !v.mic ? ' nomic' : '');
+      (on && v.mode === 'T' ? ' teamvoice' : '') + (on && v.muted ? ' muted' : '') + (on && !v.mic ? ' nomic' : '');
     if (!on) { voice.innerHTML = ''; return; }
     let text;
     if (!v.mic) text = 'NO MICROPHONE';
     else if (v.muted) text = 'MIC MUTED';
-    else text = (v.mode === 'F' ? 'FACTION' : 'PROXIMITY') + ' VOICE';
+    else text = (v.mode === 'T' ? 'TEAM' : 'PROXIMITY') + ' VOICE';
     voice.innerHTML = MIC_SVG;
     const mode = el('span', 'mode', voice);
     mode.textContent = text;

@@ -6,7 +6,7 @@ class TESObjectREFR;
 class NiPoint3;
 
 // Thin, SEH-guarded wrappers over the Fallout 4 1.11.240 workshop internals
-// verified in docs/WORKSHOP_FACTIONS_RE.md. Nothing here keeps engine
+// verified in docs/WORKSHOP_RE.md. Nothing here keeps engine
 // pointers; callers resolve what they need, use it, and let it go.
 // Game-side calls (everything except the pure getters) belong on CoSync's
 // tick or inside an engine hook, like every other engine call in CoSync.

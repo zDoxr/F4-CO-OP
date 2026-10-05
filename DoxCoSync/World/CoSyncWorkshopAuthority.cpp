@@ -6,7 +6,7 @@
 #include "ConsoleLogger.h"
 #include "CoSyncRequirementsLog.h"
 #include "CoSyncWorkshopEngine.h"
-#include "CoSyncFactions.h"
+#include "CoSyncTeams.h"
 #include "CoSyncWorldSync.h"
 #include "CoSyncWorld.h"
 #include "CoSyncNet.h"
@@ -60,7 +60,7 @@ extern PlayerCharacter* CoSyncGetPlayer();
 namespace
 {
     using namespace CoSyncWorkshopEngine;
-    using CoSyncFactions::WorkshopOp;
+    using CoSyncTeams::WorkshopOp;
 
     constexpr uint32_t kRecordType    = 'WSHP';
     constexpr uint32_t kRecordVersion = 1;
@@ -420,7 +420,7 @@ namespace
 
     void RefreshRules()
     {
-        const CoSyncFactions::Settings s = CoSyncFactions::GetSettings();
+        const CoSyncTeams::Rules s = CoSyncTeams::GetRules();
         s_freeBuild.store(s.freeBuild);
         s_limitMode.store(static_cast<int>(s.limitMode));
         s_customLimit.store(s.customLimit);
@@ -442,14 +442,16 @@ namespace
     }
 
     // Every settlement whose rules apply to an operation: the one it is done
-    // in, the one the object belongs to, and every CLAIMED settlement whose
-    // real build area contains the position.
-    std::vector<uint32_t> TerritoriesFor(uint32_t ws, uint32_t extraWs, const NiPoint3& pos)
+    // in, the one the object belongs to, and every ASSIGNED (team / personal)
+    // settlement whose real build area contains the position -- so removing
+    // world build restrictions never lets anyone build inside someone else's
+    // settlement from outside it.
+    std::vector<uint32_t> SettlementsFor(uint32_t ws, uint32_t extraWs, const NiPoint3& pos)
     {
         std::vector<uint32_t> list;
         if (ws) list.push_back(ws);
         if (extraWs && extraWs != ws) list.push_back(extraWs);
-        for (uint32_t t : CoSyncFactions::GetClaimedWorkshops())
+        for (uint32_t t : CoSyncTeams::GetAssignedSettlements())
             if (std::find(list.begin(), list.end(), t) == list.end() && OrigContains(t, pos))
                 list.push_back(t);
         return list;
@@ -457,8 +459,8 @@ namespace
 
     bool CheckAll(const std::string& key, uint32_t ws, uint32_t extraWs, const NiPoint3& pos, WorkshopOp op, std::string& why)
     {
-        for (uint32_t t : TerritoriesFor(ws, extraWs, pos))
-            if (!CoSyncFactions::CheckWorkshop(key, t, op, &why))
+        for (uint32_t t : SettlementsFor(ws, extraWs, pos))
+            if (!CoSyncTeams::CheckWorkshop(key, t, op, &why))
                 return false;
         return true;
     }
@@ -488,7 +490,7 @@ namespace
             DenyNote("Turrets, robots and other actors can only be built by the host in multiplayer.");
             return false;
         }
-        if (op == WorkshopOp::Build && s_limitMode.load() == static_cast<int>(CoSyncFactions::BuildLimitMode::Custom))
+        if (op == WorkshopOp::Build && s_limitMode.load() == static_cast<int>(CoSyncTeams::BuildLimitMode::Custom))
         {
             const uint32_t n = CountFor(c.ws), lim = s_customLimit.load();
             if (n >= lim)
@@ -631,7 +633,7 @@ namespace
     {
         // Custom and Unlimited replace the vanilla triangle/draw budget; the
         // custom object count is enforced by GateLocal and the host.
-        if (s_limitMode.load() != static_cast<int>(CoSyncFactions::BuildLimitMode::Default))
+        if (s_limitMode.load() != static_cast<int>(CoSyncTeams::BuildLimitMode::Default))
             return 0.0f;
         return g_origBudget();
     }
@@ -1471,7 +1473,7 @@ namespace
             if (!CheckAll(key, o.ws, 0, o.pos, WorkshopOp::Build, why)) return Deny(conn, 'P', cref, why);
             if (!s_freeBuild.load() && !OrigContains(o.ws, o.pos))
                 return Deny(conn, 'P', cref, "That spot is outside the settlement's build area.");
-            if (s_limitMode.load() == static_cast<int>(CoSyncFactions::BuildLimitMode::Custom))
+            if (s_limitMode.load() == static_cast<int>(CoSyncTeams::BuildLimitMode::Custom))
             {
                 const uint32_t n = CountFor(o.ws);
                 if (n >= s_customLimit.load())

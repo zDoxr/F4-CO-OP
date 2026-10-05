@@ -17,7 +17,8 @@
 #include "CoSyncWorldTransfer.h"
 #include "CoSyncContentSync.h"
 #include "CoSyncProfiles.h"
-#include "CoSyncFactions.h"
+#include "CoSyncTeams.h"
+#include "CoSyncSettlementSync.h"
 #include "CoSyncWorkshopAuthority.h"
 #include "CoSyncChat.h"
 #include "CoSyncVoice.h"
@@ -178,160 +179,6 @@ namespace
         return CoSyncTransport::IsHost() ? "HOST" : "CLIENT";
     }
 
-    // Custom faction banner images the player dropped into
-    // Data\PrismaUI_F4\views\DoxCoSync\banners\custom (file names only;
-    // the page loads them by relative path). Re-scanned every 5 s. Files that
-    // cannot be used are listed with the reason, so the Banner screen can say
-    // why an image is missing instead of silently skipping it.
-    struct BannerReject { std::string file; std::string why; };
-    std::vector<std::string>  s_bannerList;
-    std::vector<BannerReject> s_bannerRejects;
-
-    // What the first bytes say the file is: "png", "jpg", "webp", "svg", ""
-    // (none of them) or "?" (could not open).
-    std::string SniffImage(const std::string& path)
-    {
-        HANDLE f = CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
-                               OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-        if (f == INVALID_HANDLE_VALUE)
-            return "?";
-        unsigned char b[4096] = {};
-        DWORD got = 0;
-        ReadFile(f, b, sizeof(b), &got, nullptr);
-        CloseHandle(f);
-        static const unsigned char kPng[8] = { 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A };
-        if (got >= 8 && std::memcmp(b, kPng, 8) == 0) return "png";
-        if (got >= 3 && b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF) return "jpg";
-        if (got >= 12 && std::memcmp(b, "RIFF", 4) == 0 && std::memcmp(b + 8, "WEBP", 4) == 0) return "webp";
-        std::string head(reinterpret_cast<const char*>(b), got);
-        for (char& c : head) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
-        if (head.find("<svg") != std::string::npos) return "svg";
-        return "";
-    }
-
-    // FNV-1a of the whole file, cached by name + size + write time.
-    uint64_t HashFile(const std::string& path, const std::string& cacheKey)
-    {
-        static std::unordered_map<std::string, uint64_t> s_cache;
-        auto it = s_cache.find(cacheKey);
-        if (it != s_cache.end())
-            return it->second;
-        uint64_t h = 1469598103934665603ull;
-        HANDLE f = CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
-                               OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-        if (f != INVALID_HANDLE_VALUE)
-        {
-            static unsigned char buf[65536];
-            DWORD got = 0;
-            while (ReadFile(f, buf, sizeof(buf), &got, nullptr) && got > 0)
-                for (DWORD i = 0; i < got; ++i) { h ^= buf[i]; h *= 1099511628211ull; }
-            CloseHandle(f);
-        }
-        if (s_cache.size() > 512) s_cache.clear();
-        s_cache[cacheKey] = h;
-        return h;
-    }
-
-    void ScanCustomBanners()
-    {
-        static uint64_t s_nextScan = 0;
-        const uint64_t now = GetTickCount64();
-        if (now < s_nextScan)
-            return;
-        s_nextScan = now + 5000;
-        s_bannerList.clear();
-        s_bannerRejects.clear();
-
-        char exe[MAX_PATH] = {};
-        if (!GetModuleFileNameA(nullptr, exe, MAX_PATH))
-            return;
-        std::string dir(exe);
-        dir = dir.substr(0, dir.find_last_of("\\/") + 1) + "Data\\PrismaUI_F4\\views\\DoxCoSync\\banners\\custom\\";
-
-        struct Found { std::string name; uint64_t size; FILETIME mtime; };
-        std::vector<Found> files;
-        WIN32_FIND_DATAA fd{};
-        HANDLE h = FindFirstFileA((dir + "*").c_str(), &fd);
-        if (h == INVALID_HANDLE_VALUE)
-            return;
-        do
-        {
-            if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
-                files.push_back({ fd.cFileName, (static_cast<uint64_t>(fd.nFileSizeHigh) << 32) | fd.nFileSizeLow, fd.ftLastWriteTime });
-        } while (FindNextFileA(h, &fd) && files.size() < 256);
-        FindClose(h);
-        std::sort(files.begin(), files.end(), [](const Found& a, const Found& b) { return a.name < b.name; });
-
-        std::unordered_map<uint64_t, std::string> seen;   // content hash -> first file with it
-        for (const Found& f : files)
-        {
-            const std::string& name = f.name;
-            std::string lower = name;
-            for (char& c : lower) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
-            const size_t dot = lower.find_last_of('.');
-            const std::string ext = dot == std::string::npos ? "" : lower.substr(dot + 1);
-            const bool supported = ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "webp" || ext == "svg";
-            if (!supported)
-            {
-                static const char* const kOtherImages[] = { "gif", "bmp", "tga", "dds", "tif", "tiff", "avif", "heic", "ico", "jfif" };
-                for (const char* e : kOtherImages)
-                    if (ext == e)
-                        s_bannerRejects.push_back({ name, "." + ext + " is not supported. Save it as PNG, JPG, WEBP or SVG." });
-                continue;   // README.txt and other non-images: not banners, not errors
-            }
-            auto reject = [&](const std::string& why) { s_bannerRejects.push_back({ name, why }); };
-
-            bool badChar = false, space = false;
-            std::string suggest;
-            for (char c : name)
-            {
-                const bool ok = isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '.' || c == '-';
-                if (c == ' ') space = true;
-                else if (!ok) badChar = true;
-                suggest += ok ? c : '_';
-            }
-            if (space || badChar)
-            {
-                reject(std::string(space ? "Spaces are" : "Some characters are") + " not allowed in the name. Rename it to " +
-                       (suggest.size() <= 48 ? suggest : std::string("a shorter name")) + ".");
-                continue;
-            }
-            if (name.size() > 48)            { reject("The name is longer than 48 characters."); continue; }
-            if (f.size == 0)                 { reject("The file is empty."); continue; }
-            if (f.size > 8ull * 1024 * 1024) { reject("The file is larger than 8 MB."); continue; }
-
-            const std::string want = ext == "jpeg" ? "jpg" : ext;
-            const std::string real = SniffImage(dir + name);
-            if (real == "?") { reject("The file could not be opened."); continue; }
-            if (real != want)
-            {
-                if (!real.empty())
-                    reject("This is really a " + real + " image. Rename it to end in ." + real + ".");
-                else
-                    reject("Not a valid " + want + " image (damaged, or the wrong extension).");
-                continue;
-            }
-
-            const std::string key = name + "|" + std::to_string(f.size) + "|" +
-                std::to_string((static_cast<uint64_t>(f.mtime.dwHighDateTime) << 32) | f.mtime.dwLowDateTime);
-            const uint64_t hash = HashFile(dir + name, key);
-            auto dup = seen.find(hash);
-            if (dup != seen.end()) { reject("The same image as " + dup->second + "."); continue; }
-            seen.emplace(hash, name);
-
-            if (s_bannerList.size() < 64)
-                s_bannerList.push_back(name);
-            else
-                reject("Too many custom images (64 at most).");
-        }
-    }
-
-    const std::vector<std::string>& CustomBanners()
-    {
-        ScanCustomBanners();
-        return s_bannerList;
-    }
-
     bool ViewIsLive()
     {
         LOG_REQUIREMENT("(anonymous)::ViewIsLive", "Needs the PrismaUI API. Game thread only.");
@@ -488,28 +335,12 @@ namespace
             json += ",\"content\":" + CoSyncContentSync::BuildUiJson();
         }
 
-        // Factions, territory and workshop rules (CoSyncFactions /
-        // CoSyncWorkshopAuthority -- the host's decisions, never UI-owned).
-        json += ",\"factions\":" + CoSyncFactions::BuildUiJson();
+        // Teams, settlements and workshop rules (CoSyncTeams /
+        // CoSyncWorkshopAuthority / CoSyncSettlementSync -- the host's
+        // decisions, never UI-owned).
+        json += ",\"teams\":" + CoSyncTeams::BuildUiJson();
         json += ",\"workshop\":" + CoSyncWorkshopAuthority::BuildUiJson();
-        json += ",\"customBanners\":[";
-        {
-            bool firstBanner = true;
-            for (const std::string& b : CustomBanners())
-            {
-                if (!firstBanner) json += ",";
-                firstBanner = false;
-                json += "\"" + JsonEscape(b.c_str()) + "\"";
-            }
-        }
-        json += "],\"bannerRejects\":[";
-        for (size_t i = 0; i < s_bannerRejects.size(); ++i)
-        {
-            if (i) json += ",";
-            json += "{\"file\":\"" + JsonEscape(s_bannerRejects[i].file.c_str()) + "\",\"why\":\"" +
-                    JsonEscape(s_bannerRejects[i].why.c_str()) + "\"}";
-        }
-        json += "]";
+        json += ",\"settlement\":" + CoSyncSettlementSync::BuildUiJson(CoSyncTeams::GetLocalNearestWorkshop());
 
         json += ",\"voice\":" + BuildVoiceJson();
         json += ",\"build\":" + std::to_string(myBuild);
@@ -863,12 +694,12 @@ namespace
             else if (key == "mute")        CoSyncVoice::SetMuted(val == "1");
             PushState();
         }
-        else if (cmd.rfind("fac_", 0) == 0)
+        else if (cmd.rfind("team_", 0) == 0)
         {
-            // Faction / territory / workshop-settings request. Queued for
-            // CoSync's tick; the authority (host or solo) decides and the
-            // answer comes back in the next state push.
-            CoSyncFactions::QueueUiCommand(cmd, arg);
+            // Team / settlement / workshop-rules request. Queued for CoSync's
+            // tick; the authority (host or solo) decides and the answer comes
+            // back in the next state push.
+            CoSyncTeams::QueueUiCommand(cmd, arg);
         }
         else if (cmd == "controller_style")
         {
@@ -1135,11 +966,11 @@ namespace CoSyncPrismaUI
         LOG_INFO("[PrismaUI] Chat closed");
     }
 
-    // JS -> C++ (game thread): "send|G|text", "send|F|text", "close".
+    // JS -> C++ (game thread): "send|G|text", "send|T|text", "close".
     void OnChatCommand(const char* argument, void*)
     {
         const std::string a = argument ? argument : "";
-        if (a.rfind("send|", 0) == 0 && a.size() > 7 && (a[5] == 'G' || a[5] == 'F') && a[6] == '|')
+        if (a.rfind("send|", 0) == 0 && a.size() > 7 && (a[5] == 'G' || a[5] == 'T') && a[6] == '|')
             CoSyncChat::QueueSend(a[5], a.substr(7));
         else if (a == "close")
             CloseChat();
@@ -1311,12 +1142,11 @@ namespace CoSyncPrismaUI
             json += ",\"downed\":"; json += p.isDowned ? "true" : "false";
             json += ",\"talking\":"; json += CoSyncVoice::IsTalking(p.entityID) ? "true" : "false";
             json += ",\"hurt\":";   json += p.hurt ? "true" : "false";
-            CoSyncFactions::Badge badge;
-            if (CoSyncFactions::GetBadge(p.entityID, badge))
+            CoSyncTeams::Badge badge;
+            if (CoSyncTeams::GetBadge(p.entityID, badge))
             {
-                json += ",\"faction\":\"" + JsonEscape(badge.faction.c_str()) + "\"";
-                json += ",\"rank\":\"" + JsonEscape(badge.rank.c_str()) + "\"";
-                json += ",\"banner\":\"" + JsonEscape(badge.banner.c_str()) + "\"";
+                json += ",\"team\":\"" + JsonEscape(badge.team.c_str()) + "\"";
+                json += ",\"role\":\"" + std::string(CoSyncTeams::RoleName(badge.role)) + "\"";
             }
             json += "}";
         }

@@ -1,5 +1,5 @@
 #include "CoSyncProfiles.h"
-#include "CoSyncFactions.h"
+#include "CoSyncTeams.h"
 #include "CoSyncEquipHook.h"
 #include "CoSyncWorkshopAuthority.h"
 
@@ -1282,7 +1282,7 @@ namespace
         // Other world state kept in the same co-save ('CSYN' has one set of
         // callbacks per plugin). Outside s_mx: those modules call back into
         // Profiles (HostGetConnKey) under their own locks.
-        CoSyncFactions::SaveRecord(ser);
+        CoSyncTeams::SaveRecord(ser);
         CoSyncWorkshopAuthority::SaveRecord(ser);
     }
 
@@ -1295,7 +1295,7 @@ namespace
         {
             // Other modules' records are read without s_mx held (see OnSave).
             lk.unlock();
-            const bool other = CoSyncFactions::LoadRecord(ser, type, version, length) ||
+            const bool other = CoSyncTeams::LoadRecord(ser, type, version, length) ||
                                CoSyncWorkshopAuthority::LoadRecord(ser, type, version, length);
             lk.lock();
             if (other)
@@ -1332,7 +1332,7 @@ namespace
 
     void OnRevert(const F4SESerializationInterface*)
     {
-        CoSyncFactions::Revert();
+        CoSyncTeams::Revert();
         CoSyncWorkshopAuthority::Revert();
         std::lock_guard<std::mutex> lk(s_mx);
         s_profiles.clear();

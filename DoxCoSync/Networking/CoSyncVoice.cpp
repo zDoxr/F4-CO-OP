@@ -12,7 +12,7 @@
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
 #include "CoSyncProfiles.h"
-#include "CoSyncFactions.h"
+#include "CoSyncTeams.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncPrismaUI.h"
 
@@ -202,7 +202,7 @@ namespace
     std::atomic<bool> s_muted{ false };
     std::atomic<bool> s_tx{ false };
     std::atomic<bool> s_micOk{ false };
-    std::atomic<bool> s_inFaction{ false };
+    std::atomic<bool> s_inTeam{ false };
 
     struct OutFrame { char mode; uint32_t seq; std::string data; };
     std::mutex             s_outMx;
@@ -619,11 +619,11 @@ namespace
                 all.push_back({ static_cast<uint32_t>(p.conn), p.entityID });
 
         std::vector<std::pair<uint32_t, uint8_t>> out;   // (conn, gain)
-        if (mode == 'F')
+        if (mode == 'T')
         {
             std::vector<uint32_t> conns;
-            std::string faction;
-            if (senderKey.empty() || !CoSyncFactions::GetFactionAudience(senderKey, conns, faction))
+            std::string team;
+            if (senderKey.empty() || !CoSyncTeams::GetTeamAudience(senderKey, conns, team))
                 return;
             const std::unordered_set<uint32_t> allowed(conns.begin(), conns.end());
             for (const Rcpt& r : all)
@@ -767,7 +767,7 @@ namespace CoSyncVoice
         {
             if (!isHostRole || conn == 0 || senderEid == 0)
                 return;
-            if (!SplitHeader(msg, 6, 2, f, at) || f[0].size() != 1 || (f[0][0] != 'P' && f[0][0] != 'F'))
+            if (!SplitHeader(msg, 6, 2, f, at) || f[0].size() != 1 || (f[0][0] != 'P' && f[0][0] != 'T'))
                 return;
             const uint64_t nowMs = GetTickCount64();
             Budget& b = s_budget[conn];
@@ -798,19 +798,19 @@ namespace CoSyncVoice
         if (!s_session.load())
             return;
 
-        // Faction mode needs a faction; fall back to proximity when you leave it.
-        static uint64_t s_nextFactionCheck = 0;
+        // Team mode needs a team; fall back to proximity when you leave it.
+        static uint64_t s_nextTeamCheck = 0;
         const uint64_t nowMs = GetTickCount64();
-        if (nowMs >= s_nextFactionCheck)
+        if (nowMs >= s_nextTeamCheck)
         {
-            s_nextFactionCheck = nowMs + 1000;
-            CoSyncFactions::Badge badge;
-            const bool in = CoSyncFactions::GetBadge(CoSyncNet::GetMyEntityID(), badge) && !badge.faction.empty();
-            s_inFaction.store(in);
-            if (!in && s_mode.load() == 'F')
+            s_nextTeamCheck = nowMs + 1000;
+            CoSyncTeams::Badge badge;
+            const bool in = CoSyncTeams::GetBadge(CoSyncNet::GetMyEntityID(), badge) && !badge.team.empty();
+            s_inTeam.store(in);
+            if (!in && s_mode.load() == 'T')
             {
                 s_mode.store('P');
-                LOG_INFO("[Voice] Not in a faction any more -- back to proximity voice");
+                LOG_INFO("[Voice] Not in a team any more -- back to proximity voice");
             }
         }
 
@@ -842,9 +842,9 @@ namespace CoSyncVoice
 
     void CycleMode()
     {
-        const char next = (s_mode.load() == 'P' && s_inFaction.load()) ? 'F' : 'P';
+        const char next = (s_mode.load() == 'P' && s_inTeam.load()) ? 'T' : 'P';
         s_mode.store(next);
-        LOG_INFO("[Voice] Mode: %s", next == 'F' ? "faction" : "proximity");
+        LOG_INFO("[Voice] Mode: %s", next == 'T' ? "team" : "proximity");
     }
 
     void ToggleMute()
@@ -863,7 +863,7 @@ namespace CoSyncVoice
         s.muted = s_muted.load();
         s.transmitting = s_tx.load();
         s.pushToTalk = s_cfg.pttKey != 0;
-        s.inFaction = s_inFaction.load();
+        s.inTeam = s_inTeam.load();
         return s;
     }
 

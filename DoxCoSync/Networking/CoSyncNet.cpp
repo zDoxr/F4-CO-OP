@@ -57,7 +57,8 @@
 #include "CoSyncProxyLooks.h"
 #include "CoSyncCompanions.h"
 #include "CoSyncItemMods.h"
-#include "CoSyncFactions.h"
+#include "CoSyncTeams.h"
+#include "CoSyncSettlementSync.h"
 #include "CoSyncChat.h"
 #include "CoSyncVoice.h"
 #include "CoSyncWorkshopAuthority.h"
@@ -439,7 +440,8 @@ void CoSyncNet::Init(bool isHost)
     LOG_INFO("[CoSyncNet] Init() step: CoSyncWorldSync::Init done");
     CoSyncWorkshopSync::Init();
     LOG_INFO("[CoSyncNet] Init() step: CoSyncWorkshopSync::Init done");
-    CoSyncFactions::OnSessionStart(isHost);
+    CoSyncTeams::OnSessionStart(isHost);
+    CoSyncSettlementSync::OnSessionStart(isHost);
     CoSyncWorkshopAuthority::OnSessionStart(isHost);
     CoSyncChat::OnSessionStart();
     CoSyncVoice::OnSessionStart();
@@ -731,7 +733,8 @@ void CoSyncNet::Shutdown()
     CoSyncWorldSync::Shutdown();
     CoSyncWorkshopSync::Shutdown();
     CoSyncTimeSync::Shutdown();
-    CoSyncFactions::OnSessionEnd();
+    CoSyncTeams::OnSessionEnd();
+    CoSyncSettlementSync::OnSessionEnd();
     CoSyncWorkshopAuthority::OnSessionEnd();
     CoSyncChat::OnSessionEnd();
     CoSyncVoice::OnSessionEnd();
@@ -1398,11 +1401,18 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
         CoSyncProfiles::OnReceive(msg, conn, isHostRole);
         return;
     }
-    // Factions: FQ (request, host acts on the connection's identity only),
-    // FS/FR/FN (host -> clients).
-    if (CoSyncFactions::IsFactionMessage(msg))
+    // Teams: TQ (request, host acts on the connection's identity only),
+    // TS/TR/TN (host -> clients).
+    if (CoSyncTeams::IsTeamMessage(msg))
     {
-        CoSyncFactions::OnReceive(msg, conn, isHostRole);
+        CoSyncTeams::OnReceive(msg, conn, isHostRole);
+        return;
+    }
+    // Team / personal settlement state: SSR/SSI (host -> participants),
+    // SSD (participant -> host, checked against the settlement's audience).
+    if (CoSyncSettlementSync::IsSettlementMessage(msg))
+    {
+        CoSyncSettlementSync::OnReceive(msg, conn, isHostRole);
         return;
     }
     // Workshop: WKQ (request, host re-validates), WKA/WKV/WKX/WKR/WKC/WKN
@@ -1487,7 +1497,7 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
         LOG_INFO("[CoSyncNet] Peer left: '%s' sid=%llu (%zu remaining)",
             who.c_str(), (unsigned long long)sid, remaining);
 
-        CoSyncFactions::HostMarkDirty();
+        CoSyncTeams::HostMarkDirty();
 
         // W2: the NPCs this player owned have no simulating owner any more.
         if (sid != 0)
@@ -1632,9 +1642,10 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
             // 15s safety-net rebroadcast.
             CoSyncQuestSync::RequestFullStateBroadcast();
 
-            // Factions and territory: the newcomer needs the whole state,
+            // Teams and settlements: the newcomer needs the whole state,
             // and everyone's online list changed.
-            CoSyncFactions::HostOnPeerJoined(conn);
+            CoSyncTeams::HostOnPeerJoined(conn);
+            CoSyncSettlementSync::HostOnPeerJoined(conn);
             CoSyncWorkshopAuthority::HostOnPeerJoined(conn);
         }
 

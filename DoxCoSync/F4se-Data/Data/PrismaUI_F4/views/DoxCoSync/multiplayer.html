@@ -9,8 +9,8 @@
 <body>
   <!--
     0.3.4 layout: a RobCo-style terminal. The element ids below are the ones
-    multiplayer.js renders into (panel, crumb, title, screen, bannerArea,
-    rows, notice, list, desc, hints) plus the new status strip (status).
+    multiplayer.js renders into (panel, crumb, title, screen, rows, notice,
+    list, desc, hints) plus the status strip (status).
   -->
   <main class="panel" id="panel">
     <header class="panel-header">
@@ -30,7 +30,6 @@
       <nav class="col col-list list" id="list"></nav>
       <div class="col col-data">
         <div class="data-head">DATA</div>
-        <div class="banner-area" id="bannerArea"></div>
         <div class="rows" id="rows"></div>
         <div class="notice" id="notice"></div>
       </div>
@@ -43,7 +42,6 @@
   </main>
 
   <script src="../prisma_controller_glyphs.js"></script>
-  <script src="banners.js"></script>
   <script src="multiplayer.js"></script>
 </body>
 </html>

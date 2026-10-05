@@ -8,16 +8,16 @@ struct F4SESerializationInterface;
 // Authoritative, synchronized workshop building.
 //
 // GATE (every machine): the real engine operations are hooked
-// (docs/WORKSHOP_FACTIONS_RE.md) -- PlaceCurrentReference (build, move, wire),
+// (docs/WORKSHOP_RE.md) -- PlaceCurrentReference (build, move, wire),
 // ScrapReference, Store, and the Repair confirmation. Before each runs, the
-// player's faction / rank / territory permission (CoSyncFactions) and the
-// build limit are checked; a refused operation never happens.
+// player's settlement permission (CoSyncTeams: team / personal settlements)
+// and the build limit are checked; a refused operation never happens.
 //
 // AUTHORITY (host): a client's operation is only a REQUEST (WKQ|). The host
 // re-validates it against the sender's connection identity, the object's
-// real settlement link and position, and every claimed territory the
-// position lies in (so "remove world build restrictions" never bypasses
-// territory). Accepted -> the host applies it to its world (the persistent
+// real settlement link and position, and every assigned settlement the
+// position lies in (so "remove world build restrictions" never bypasses a
+// team or personal settlement). Accepted -> the host applies it to its world (the persistent
 // one) and broadcasts the RESULT (WKA/WKV/WKX/WKR) to everyone; refused ->
 // the sender is told (WKN|) and its local change is reverted.
 //

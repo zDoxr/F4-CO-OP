@@ -2818,7 +2818,7 @@ void CoSyncWorldSync::OnReceiveWorldSync(const WorldSyncPacket& p)
         return;
 
     // Record where this player is: proxy visibility, placement, NPC binding,
-    // territory claims and the spawn watchdog all depend on it.
+    // voice range and the spawn watchdog all depend on it.
     CoSyncPlayer* proxy = g_CoSyncPlayerManager.GetPlayerByEntityID(p.entityID);
     if (proxy)
     {

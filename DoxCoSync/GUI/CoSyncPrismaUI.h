@@ -59,7 +59,7 @@ namespace CoSyncPrismaUI
     void RequestOpenChat();
     bool IsChatOpen();
 
-    // Overhead name / faction / level tags (views/DoxCoSync/nameplates.html,
+    // Overhead name / team / level tags (views/DoxCoSync/nameplates.html,
     // CoSyncNameplates). CoSync tick, every frame; pushes only on change.
     void TickNameplates();
 }

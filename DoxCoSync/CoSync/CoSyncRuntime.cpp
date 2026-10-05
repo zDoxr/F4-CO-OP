@@ -5,7 +5,8 @@
 #include "CoSyncWorld.h"
 #include "CoSyncTransport.h"
 #include "CoSyncPlayerManager.h"
-#include "CoSyncFactions.h"
+#include "CoSyncTeams.h"
+#include "CoSyncSettlementSync.h"
 #include "CoSyncWorkshopAuthority.h"
 #include "CoSyncNet.h"
 #include "CoSyncLocalPlayer.h"
@@ -575,10 +576,14 @@ void CoSyncRuntime_TickGameThread()
     TickHook_ScheduleBoneTasks();
 
 
-    // Factions run in and out of a session: a solo player is their own
-    // authority and can manage their faction and territory offline.
-    g_lastTickStep = "RTGT:CoSyncFactions::Tick";
-    CoSyncFactions::Tick(now);
+    // Teams run in and out of a session: a solo player is their own
+    // authority and can manage their settlements offline.
+    g_lastTickStep = "RTGT:CoSyncTeams::Tick";
+    CoSyncTeams::Tick(now);
+
+    // Team / personal settlement state (ratings + workbench), host-authoritative.
+    g_lastTickStep = "RTGT:CoSyncSettlementSync::Tick";
+    CoSyncSettlementSync::Tick(now);
 
     // Workshop authority: installs the verified workshop hooks once a world
     // is loaded, then gates / replicates every build, move, scrap, repair.

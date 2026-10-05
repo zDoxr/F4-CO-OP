@@ -33,9 +33,13 @@
 //       change-driven, no animation snapshot, unreliable stream) and
 //       in-place ownership transfer (OWN/OWNNAK) instead of destroy +
 //       re-create when the host leaves or comes back.
+// 0.5.0 (2026-10-05): factions, ranks, territory and banners removed;
+//       teams (TQ/TS/TR/TN), team and personal settlements with host-
+//       authoritative settlement state (SSR/SSI/SSD), team chat / voice
+//       ('T' scope), plus the teams + bug-fix directive's other changes.
 #define COSYNC_VERSION_MAJOR 0
-#define COSYNC_VERSION_MINOR 4
-#define COSYNC_VERSION_PATCH 4
+#define COSYNC_VERSION_MINOR 5
+#define COSYNC_VERSION_PATCH 0
 #define COSYNC_VERSION_TAG   ""
 
 // Numeric form used on the wire. MINOR and PATCH must stay below 100 for the

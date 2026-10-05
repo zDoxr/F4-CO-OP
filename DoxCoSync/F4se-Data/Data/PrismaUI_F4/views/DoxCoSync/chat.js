@@ -1,7 +1,7 @@
 /*
  * CoSync chat box.
- *   C++ -> JS : window.cosyncChat(json)      new messages {seq, msgs:[{seq,scope,name,faction,text,me}]}
- *               window.cosyncChatOpen(scope) take input ("G" everyone / "F" faction)
+ *   C++ -> JS : window.cosyncChat(json)      new messages {seq, msgs:[{seq,scope,name,team,text,me}]}
+ *               window.cosyncChatOpen(scope) take input ("G" everyone / "T" team)
  *               window.cosyncChatHud(rgb)     HUD colour [r,g,b]
  *               window.cosyncChatTalk(json)   names heard on voice right now ["You","Ann"]
  *   JS -> C++ : window.cosync_chat("send|G|text" | "send|F|text" | "close")
@@ -25,21 +25,21 @@
   const native = cmd => { if (typeof window.cosync_chat === 'function') window.cosync_chat(cmd); };
 
   const setScope = s => {
-    scope = s === 'F' ? 'F' : 'G';
-    scopeEl.textContent = scope === 'F' ? 'FACTION' : 'ALL';
-    scopeEl.classList.toggle('f', scope === 'F');
+    scope = s === 'T' ? 'T' : 'G';
+    scopeEl.textContent = scope === 'T' ? 'TEAM' : 'ALL';
+    scopeEl.classList.toggle('t', scope === 'T');
   };
 
   const addLine = m => {
     const line = document.createElement('div');
-    line.className = 'line' + (m.scope === 'F' ? ' f' : '') + (m.scope === 'S' ? ' s' : '') + (m.me ? ' me' : '');
+    line.className = 'line' + (m.scope === 'T' ? ' t' : '') + (m.scope === 'S' ? ' s' : '') + (m.me ? ' me' : '');
     if (m.scope === 'S') {
       line.textContent = m.text;
     } else {
-      if (m.scope === 'F') {
+      if (m.scope === 'T') {
         const tag = document.createElement('span');
         tag.className = 'tag';
-        tag.textContent = '[' + (m.faction || 'FACTION') + ']';
+        tag.textContent = '[' + (m.team || 'TEAM') + ']';
         line.appendChild(tag);
       }
       const who = document.createElement('span');
@@ -99,7 +99,7 @@
   document.addEventListener('keydown', e => {
     if (!open) return;
     if (e.keyCode === 27) { e.preventDefault(); close(); return; }
-    if (e.keyCode === 9) { e.preventDefault(); setScope(scope === 'G' ? 'F' : 'G'); return; }
+    if (e.keyCode === 9) { e.preventDefault(); setScope(scope === 'G' ? 'T' : 'G'); return; }
     if (e.keyCode === 13) {
       e.preventDefault();
       const text = input.value.replace(/[|]/g, '/').trim();

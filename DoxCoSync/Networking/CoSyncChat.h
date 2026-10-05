@@ -3,14 +3,14 @@
 #include <cstdint>
 #include <string>
 
-// Global and faction text chat.
+// Global and team text chat.
 //
-//   client -> host   CHAT|<G|F>|<text>                     (text percent-encoded)
-//   host -> each     CHATM|<G|F>|<senderEid>|<name>|<faction>|<text>
+//   client -> host   CHAT|<G|T>|<text>                     (text percent-encoded)
+//   host -> each     CHATM|<G|T|S>|<senderEid>|<name>|<team>|<text>
 //
 // The HOST decides who a message reaches: the sender is the identity bound to
-// its connection (never a field in the message), faction messages go only to
-// the sender's faction's online members (CoSyncFactions), text must be valid
+// its connection (never a field in the message), team messages go only to
+// the sender's team's online members (CoSyncTeams), text must be valid
 // UTF-8 without control characters and at most kMaxBytes, and every sender is
 // rate limited. Clients never filter for privacy -- they only receive what
 // the host sent them.
@@ -30,7 +30,7 @@ namespace CoSyncChat
     // Sends queued messages (CoSync tick).
     void Tick(double now);
 
-    // From the chat box. scope 'G' = everyone, 'F' = my faction.
+    // From the chat box. scope 'G' = everyone, 'T' = my team.
     void QueueSend(char scope, const std::string& text);
 
     // Messages newer than `afterSeq` as JSON {"seq":N,"msgs":[...]}.

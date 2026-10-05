@@ -9,7 +9,7 @@
 #include "CoSyncPlayer.h"
 #include "CoSyncEntityTypes.h"
 #include "CoSyncOverlay.h"
-#include "CoSyncFactions.h"
+#include "CoSyncTeams.h"
 #include "CoSyncVoice.h"
 #include "CoSyncProfiles.h"
 #include "CoSyncPrismaUI.h"
@@ -165,8 +165,8 @@ namespace CoSyncNameplates
                 auto v = vitals.find(eid);
                 const std::string name = v != vitals.end() ? v->second.name : std::string("Player");
                 const int level = v != vitals.end() ? v->second.level : 0;
-                CoSyncFactions::Badge badge;
-                const bool hasBadge = CoSyncFactions::GetBadge(eid, badge) && !badge.faction.empty();
+                CoSyncTeams::Badge badge;
+                const bool hasBadge = CoSyncTeams::GetBadge(eid, badge) && !badge.team.empty();
 
                 drawn.push_back(p->actorRef);
                 if (!first) json += ",";
@@ -175,10 +175,7 @@ namespace CoSyncNameplates
                 json += ",\"name\":\"" + JsonEscape(name) + "\"";
                 json += ",\"level\":" + std::to_string(level);
                 if (hasBadge)
-                {
-                    json += ",\"faction\":\"" + JsonEscape(badge.faction) + "\"";
-                    json += ",\"rank\":\"" + JsonEscape(badge.rank) + "\"";
-                }
+                    json += ",\"team\":\"" + JsonEscape(badge.team) + "\"";
                 json += ",\"talking\":"; json += CoSyncVoice::IsTalking(eid) ? "true" : "false";
                 // 0.001 of the screen is under a pixel at 1080p: rounding keeps a
                 // still scene from re-pushing identical frames.

@@ -89,13 +89,9 @@ html, body {
 .bar .hp, .bar .rads, .ap .fill { transition: width 150ms linear; }
 .bar .hp { transition: width 150ms linear, background-color 120ms ease-out; }
 
-/* Faction badge: small pennant beside the name, rank and faction under the bars. */
-.banner { position: relative; display: inline-block; vertical-align: middle; }
-.banner .banner-svg, .banner .banner-img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
-.banner .banner-img { object-fit: cover; }
+/* Team line: role and team under the bars. */
 .mate .who { display: flex; align-items: center; gap: 0.7vh; min-width: 0; }
-.mate .banner-hud { width: 1.8vh; height: 2.25vh; flex: none; }
-.mate .faction {
+.mate .teamline {
   margin-top: 0.4vh;
   font-size: 1.45vh;
   letter-spacing: 0.04em;
@@ -104,7 +100,7 @@ html, body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.mate .faction .rank { color: var(--hud); }
+.mate .teamline .role { color: var(--hud); }
 
 /* Voice: a speaker mark beside a teammate's name while you hear them. */
 .mate .talk {
@@ -133,5 +129,5 @@ html, body {
 .voice .key { color: var(--hud-25); letter-spacing: 0.03em; }
 .voice.tx { color: var(--hud); text-shadow: 0 0 0.6vh var(--hud-glow); }
 .voice.tx svg { filter: drop-shadow(0 0 0.4vh var(--hud)); }
-.voice.faction .mode { color: rgb(230, 190, 90); }
+.voice.teamvoice .mode { color: rgb(230, 190, 90); }
 .voice.muted, .voice.nomic { color: var(--hit); }

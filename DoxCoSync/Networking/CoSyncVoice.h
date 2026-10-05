@@ -4,21 +4,21 @@
 #include <string>
 #include <vector>
 
-// Voice chat: proximity and faction, with no Steam dependency (GOG players
+// Voice chat: proximity and team, with no Steam dependency (GOG players
 // must be able to use it too), so it carries its own pipeline:
 //
 //   microphone (waveIn, 48 kHz mono 16-bit, 20 ms frames)
 //     -> Opus encoder (VOIP, 24 kbit/s, in-band FEC)            capture thread
-//     -> VOICE|<P|F>|<seq>|<opus bytes>     client -> host, UNRELIABLE
+//     -> VOICE|<P|T>|<seq>|<opus bytes>     client -> host, UNRELIABLE
 //     -> host picks the recipients and the gain for each one
-//     -> VOICEM|<eid>|<P|F>|<seq>|<gain>|<opus bytes>  host -> each, UNRELIABLE
+//     -> VOICEM|<eid>|<P|T>|<seq>|<gain>|<opus bytes>  host -> each, UNRELIABLE
 //     -> Opus decoder (loss concealment / FEC) -> XAudio2 voice  playback thread
 //
 // The HOST decides who hears what. The speaker is the identity bound to the
 // sending connection (never a field in the packet). Proximity: only players in
 // the same location (same exterior worldspace, or the same interior cell) and
 // within the HOST's [Voice] fRange, with the volume falling off from
-// fFullVolumeRange to fRange. Faction: only the speaker's faction's online
+// fFullVolumeRange to fRange. Team: only the speaker's team's online
 // members, at full volume, anywhere. A client plays what the host sent it and
 // nothing else.
 //
@@ -44,7 +44,7 @@ namespace CoSyncVoice
     // Keys ([Voice] in CoSync.ini). 0 = unbound.
     int  ModeKey();
     int  MuteKey();
-    void CycleMode();     // proximity <-> faction (faction only while in one)
+    void CycleMode();     // proximity <-> team (team only while in one)
     void ToggleMute();
 
     // ── Audio settings (0.3.3, Stage 8) ──────────────────────────────────
@@ -83,15 +83,15 @@ namespace CoSyncVoice
     {
         bool enabled      = false;   // [Voice] bEnabled and a session is running
         bool micOk        = false;   // the microphone opened
-        char mode         = 'P';     // 'P' proximity, 'F' faction
+        char mode         = 'P';     // 'P' proximity, 'T' team
         bool muted        = false;
         bool transmitting = false;   // sending right now
         bool pushToTalk   = false;   // false = voice activation
-        bool inFaction    = false;
+        bool inTeam       = false;
     };
     Status GetStatus();
 
     // Heard this player within the last ~350 ms (only players the host lets
-    // you hear, so the indicator never leaks a faction conversation).
+    // you hear, so the indicator never leaks a team conversation).
     bool IsTalking(uint32_t entityID);
 }

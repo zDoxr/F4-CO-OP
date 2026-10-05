@@ -21,7 +21,7 @@
   --hud-55:   rgba(18, 255, 21, 0.55);
   --hud-25:   rgba(18, 255, 21, 0.25);
   --hud-glow: rgba(18, 255, 21, 0.45);
-  --faction:  rgb(230, 190, 90);
+  --team:     rgb(230, 190, 90);
   --system:   rgba(200, 214, 200, 0.75);
 }
 
@@ -62,7 +62,7 @@ html, body {
 .line.faded { opacity: 0; }
 .line .who { font-weight: 700; letter-spacing: 0.03em; }
 .line .tag { font-weight: 700; color: var(--hud-55); margin-right: 0.6vh; }
-.line.f .tag, .line.f .who { color: var(--faction); text-shadow: 0 0 0.5vh rgba(230, 190, 90, 0.45); }
+.line.t .tag, .line.t .who { color: var(--team); text-shadow: 0 0 0.5vh rgba(230, 190, 90, 0.45); }
 .line.s { color: var(--system); font-style: italic; text-shadow: none; }
 .line.me .who { text-decoration: underline; text-decoration-color: var(--hud-25); }
 
@@ -86,7 +86,7 @@ html, body {
   letter-spacing: 0.08em;
   min-width: 8vh;
 }
-.scope.f { color: var(--faction); }
+.scope.t { color: var(--team); }
 .input {
   flex: 1;
   background: transparent;

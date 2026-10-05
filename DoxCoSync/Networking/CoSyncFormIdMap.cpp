@@ -145,6 +145,21 @@ namespace
         return out;
     }
 
+    // Semicolon list whose items are "fid:value" (decimal FormIDs).
+    std::string MapPairs(const std::string& s, MapFn map)
+    {
+        std::string out, tok;
+        std::stringstream ss(s);
+        bool first = true;
+        while (std::getline(ss, tok, ';'))
+        {
+            if (!first) out += ';';
+            first = false;
+            out += MapHead(tok, 10, map);
+        }
+        return out;
+    }
+
     // Item mods: "ITEM:MOD/MOD,ITEM:MOD" -- every number is a hex FormID.
     std::string MapModList(const std::string& s, MapFn map)
     {
@@ -334,19 +349,23 @@ namespace
                          }
                          f[1] = out;
                      } },
-            // World/CoSyncFactions.cpp
-            { "FQ", [](std::vector<std::string>& f, MapFn m)
+            // World/CoSyncSettlementSync.cpp: workbench + "form:count;..." lists
+            { "SSR", [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); if (f.size() > 2) f[2] = MapPairs(f[2], m); } },
+            { "SSI", [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); if (f.size() > 3) f[3] = MapPairs(f[3], m); } },
+            { "SSD", [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); if (f.size() > 3) f[3] = MapPairs(f[3], m); } },
+            // World/CoSyncTeams.cpp: requests naming a workbench
+            { "TQ", [](std::vector<std::string>& f, MapFn m)
                     {
-                        if (f.size() > 2 && (f[1] == "claim" || f[1] == "release" || f[1] == "rename_terr"))
+                        if (f.size() > 2 && (f[1] == "settle" || f[1] == "personal" || f[1] == "admin_release"))
                             D(f, 2, m);
                     } },
         };
         return s;
     }
 
-    // FS is a multi-line body whose "T|faction|workshop|name" lines carry a
-    // FormID; handled on the whole text because its lines contain '|'.
-    std::string MapFactionState(const std::string& msg, MapFn m)
+    // TS is a multi-line body whose "P|workshop|mode|team|owner|name" lines
+    // carry a FormID; handled on the whole text because its lines contain '|'.
+    std::string MapTeamState(const std::string& msg, MapFn m)
     {
         std::string out;
         std::stringstream ss(msg);
@@ -356,14 +375,14 @@ namespace
         {
             if (!firstLine) out += '\n';
             firstLine = false;
-            // the first line starts with "FS|" before the body's first record
+            // the first line starts with "TS|" before the body's first record
             std::string prefix;
             std::string body = line;
-            if (body.rfind("FS|", 0) == 0) { prefix = "FS|"; body = body.substr(3); }
-            if (body.rfind("T|", 0) == 0)
+            if (body.rfind("TS|", 0) == 0) { prefix = "TS|"; body = body.substr(3); }
+            if (body.rfind("P|", 0) == 0)
             {
                 std::vector<std::string> f = Fields(body);
-                D(f, 2, m);
+                D(f, 1, m);
                 body = Join(f);
             }
             out += prefix + body;
@@ -378,8 +397,8 @@ namespace
         if (bar == std::string::npos)
             return msg;
         const std::string tag = msg.substr(0, bar);
-        if (tag == "FS")
-            return MapFactionState(msg, map);
+        if (tag == "TS")
+            return MapTeamState(msg, map);
         const auto& schema = Schema();
         auto it = schema.find(tag);
         if (it == schema.end())

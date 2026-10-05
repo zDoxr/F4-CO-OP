@@ -34,7 +34,7 @@ namespace CoSyncProfiles
     // Host: a client identified itself (from WORLDREQ).
     void HostOnPlayerKey(uint32_t conn, const std::string& key, const std::string& name);
     // Host: the profile key a connection identified itself with ("" if none
-    // yet). Stable across sessions -- factions use it as the player identity.
+    // yet). Stable across sessions -- teams use it as the player identity.
     std::string HostGetConnKey(uint32_t conn);
     // Host: about to write the save that will be sent to a joining client.
     void HostBeforeWorldSave();

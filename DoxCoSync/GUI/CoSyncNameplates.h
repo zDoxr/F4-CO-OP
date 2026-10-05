@@ -2,7 +2,7 @@
 
 #include <string>
 
-// Overhead name / faction / level tags for the other players.
+// Overhead name / team / level tags for the other players.
 //
 // Screen positions come from the engine's own world-to-screen projection
 // (1.11.240 RVA 0xA37C90: F4SE 0.7.9 NiObjects.cpp WorldToScreen_Internal;
@@ -19,7 +19,7 @@
 namespace CoSyncNameplates
 {
     // CoSync tick. Builds the tag list as JSON
-    //   [{"id":N,"name":"...","level":N,"faction":"...","rank":"...","talking":b,"x":f,"y":f,"d":f}]
+    //   [{"id":N,"name":"...","level":N,"team":"...","talking":b,"x":f,"y":f,"d":f}]
     // Returns true when it differs from the last call (the caller pushes it).
     bool Build(bool sessionLive, std::string& json);
 }

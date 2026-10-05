@@ -8,7 +8,7 @@
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
 #include "CoSyncProfiles.h"
-#include "CoSyncFactions.h"
+#include "CoSyncTeams.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -26,7 +26,7 @@ namespace
         char        scope = 'G';
         uint32_t    senderEid = 0;
         std::string name;
-        std::string faction;
+        std::string team;
         std::string text;
         uint64_t    timeMs = 0;
     };
@@ -153,14 +153,14 @@ namespace
         return o;
     }
 
-    void Remember(char scope, uint32_t eid, const std::string& name, const std::string& faction, const std::string& text)
+    void Remember(char scope, uint32_t eid, const std::string& name, const std::string& team, const std::string& text)
     {
         Line l;
         l.seq = ++s_seq;
         l.scope = scope;
         l.senderEid = eid;
         l.name = name;
-        l.faction = faction;
+        l.team = team;
         l.text = text;
         l.timeMs = GetTickCount64();
         s_history.push_back(std::move(l));
@@ -180,32 +180,32 @@ namespace
     void HostDeliver(char scope, const std::string& senderKey, uint32_t senderEid,
                      const std::string& senderName, const std::string& text)
     {
-        std::string faction;
+        std::string team;
         std::vector<uint32_t> conns;   // 0 = the host
-        if (scope == 'F')
+        if (scope == 'T')
         {
-            if (!CoSyncFactions::GetFactionAudience(senderKey, conns, faction))
-                return;   // not in a faction: nobody to send to
+            if (!CoSyncTeams::GetTeamAudience(senderKey, conns, team))
+                return;   // not in a team: nobody to send to
         }
         else
         {
-            faction = CoSyncFactions::FactionNameOfKey(senderKey);
+            team = CoSyncTeams::TeamNameOfKey(senderKey);
             conns.push_back(0);
             for (const auto& p : CoSyncNet::HostGetPeers())
                 conns.push_back(p.conn);
         }
 
         const std::string wire = std::string("CHATM|") + scope + "|" + std::to_string(senderEid) + "|" +
-                                 Pct(senderName) + "|" + Pct(faction) + "|" + Pct(text);
+                                 Pct(senderName) + "|" + Pct(team) + "|" + Pct(text);
         for (uint32_t c : conns)
         {
             if (c == 0)
-                Remember(scope, senderEid, senderName, faction, text);
+                Remember(scope, senderEid, senderName, team, text);
             else
                 CoSyncTransport::SendTo(c, wire);
         }
         LOG_INFO("[Chat] %s message from '%s' (%zu bytes) to %zu recipient(s)",
-            scope == 'F' ? "faction" : "global", senderName.c_str(), text.size(), conns.size());
+            scope == 'T' ? "team" : "global", senderName.c_str(), text.size(), conns.size());
     }
 }
 
@@ -242,7 +242,7 @@ namespace CoSyncChat
             if (!isHostRole || conn == 0)
                 return;
             const std::vector<std::string> v = Split(msg.substr(5), '|', 2);
-            if (v.size() != 2 || (v[0] != "G" && v[0] != "F"))
+            if (v.size() != 2 || (v[0] != "G" && v[0] != "T"))
                 return;
             std::string text;
             if (!CleanText(Unpct(v[1]), text))
@@ -275,7 +275,7 @@ namespace CoSyncChat
         if (v.size() != 5 || v[0].size() != 1)
             return;
         const char scope = v[0][0];
-        if (scope != 'G' && scope != 'F' && scope != 'S')
+        if (scope != 'G' && scope != 'T' && scope != 'S')
             return;
         std::string text = Unpct(v[4]);
         if (text.size() > kMaxBytes + 64)
@@ -316,7 +316,7 @@ namespace CoSyncChat
 
     void QueueSend(char scope, const std::string& text)
     {
-        if (scope != 'G' && scope != 'F')
+        if (scope != 'G' && scope != 'T')
             return;
         std::lock_guard<std::mutex> lk(s_mx);
         if (s_outbox.size() < 16 && text.size() <= kMaxBytes * 2)
@@ -349,7 +349,7 @@ namespace CoSyncChat
             j += "{\"seq\":" + std::to_string(l.seq);
             j += ",\"scope\":\"" + std::string(1, l.scope) + "\"";
             j += ",\"name\":\"" + JsonEscape(l.name) + "\"";
-            j += ",\"faction\":\"" + JsonEscape(l.faction) + "\"";
+            j += ",\"team\":\"" + JsonEscape(l.team) + "\"";
             j += ",\"text\":\"" + JsonEscape(l.text) + "\"";
             j += ",\"me\":"; j += (l.senderEid != 0 && l.senderEid == me) ? "true" : "false";
             j += "}";

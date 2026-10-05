@@ -12,7 +12,7 @@
 #include <cstdint>
 
 // Every RVA and offset here is 1.11.240 and is cross-checked in
-// docs/WORKSHOP_FACTIONS_RE.md (IDA + CommonLibF4/Address Library + F4SE).
+// docs/WORKSHOP_RE.md (IDA + CommonLibF4/Address Library + F4SE).
 namespace
 {
     // Globals
