@@ -363,6 +363,7 @@ exit /b 0
     <ClInclude Include="Networking\CoSyncContentSync.h" />
     <ClInclude Include="World\CoSyncSaveLoad.h" />
     <ClInclude Include="World\CoSyncTeams.h" />
+    <ClInclude Include="Items\CoSyncPickpocket.h" />
     <ClInclude Include="World\CoSyncSettlementSync.h" />
     <ClInclude Include="World\CoSyncWorkshopEngine.h" />
     <ClInclude Include="World\CoSyncWorkshopAuthority.h" />
@@ -578,6 +579,7 @@ exit /b 0
     <ClCompile Include="Networking\CoSyncContentSync.cpp" />
     <ClCompile Include="World\CoSyncSaveLoad.cpp" />
     <ClCompile Include="World\CoSyncTeams.cpp" />
+    <ClCompile Include="Items\CoSyncPickpocket.cpp" />
     <ClCompile Include="World\CoSyncSettlementSync.cpp" />
     <ClCompile Include="World\CoSyncWorkshopEngine.cpp" />
     <ClCompile Include="World\CoSyncWorkshopAuthority.cpp" />

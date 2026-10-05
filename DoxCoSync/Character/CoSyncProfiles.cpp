@@ -404,6 +404,21 @@ namespace
     constexpr uintptr_t kTPS_CurrentOffset = 0x6C;
     float s_savedOffsetX[2] = { 0.f, 0.f };
     bool  s_offsetSaved = false;
+    // 0.5.0 (FaceGen camera still off-centre after 0.3.1): the shoulder offset
+    // above is not the only sideways term. ThirdPersonState's translation
+    // (IDA 1.11.240: update slot 11 sub_14102CD50 -> sub_141030BF0) also adds
+    // the skeleton CAMERA node's animated local translate (x, y) -- BGSBodyPart
+    // kCamera (21) = "Camera3rd [Cam3]", stored at ThirdPersonState+0xD0 by
+    // sub_14102D9F0 -- rotated by the ACTOR's heading, and adds that node's
+    // rotation (+pi/2 yaw) to the camera, whenever the INI setting
+    // bApplyCameraNodeAnimations:Camera is set (default 1; its value byte at
+    // 0x2F395A0 is read directly every frame). Behind the player that is the
+    // over-the-shoulder framing; once the editor swings the camera round to
+    // face the character it shifts the whole view sideways. The editor
+    // suspends the setting while it owns the camera and puts the player's
+    // value back the moment it lets go (RestoreCamera / Reset).
+    constexpr uintptr_t kRVA_ApplyCameraNodeAnims = 0x02F395A0;
+    int s_savedCamNodeAnims = -1;   // -1: not overridden
     constexpr uintptr_t kRVA_MinCurrentZoom = 0x02F393C0;   // fMinCurrentZoom:Camera value
     constexpr float kFaceExtraZoom = 0.25f;   // how far past the normal minimum the editor camera goes
     float s_savedZoom = -1.f;
@@ -984,11 +999,33 @@ namespace
         return (tps && cur == tps) ? tps : nullptr;
     }
 
-    // Holds the shoulder offset's sideways component at 0 so the character is
+    void SuspendCameraNodeAnimations()
+    {
+        auto* v = reinterpret_cast<uint8_t*>(Base() + kRVA_ApplyCameraNodeAnims);
+        if (s_savedCamNodeAnims < 0)
+        {
+            s_savedCamNodeAnims = *v;
+            LOG_INFO("[Profiles] Editor camera: camera-node animation suspended (was %d)", s_savedCamNodeAnims);
+        }
+        *v = 0;
+    }
+
+    void RestoreCameraNodeAnimations()
+    {
+        if (s_savedCamNodeAnims < 0)
+            return;
+        *reinterpret_cast<uint8_t*>(Base() + kRVA_ApplyCameraNodeAnims) = static_cast<uint8_t>(s_savedCamNodeAnims);
+        LOG_INFO("[Profiles] Editor camera: camera-node animation restored (%d)", s_savedCamNodeAnims);
+        s_savedCamNodeAnims = -1;
+    }
+
+    // Holds the shoulder offset's sideways component at 0 and keeps the
+    // skeleton camera node out of the camera position so the character is
     // centred (the engine may rewrite +0x60, so this runs every editor tick).
     // The originals are restored by RestoreCamera.
     void CentreCamera()
     {
+        SuspendCameraNodeAnimations();
         uint8_t* tps = ActiveThirdPersonState();
         if (!tps)
             return;
@@ -1048,6 +1085,7 @@ namespace
         }
         s_savedZoom = -1.f;
         s_offsetSaved = false;
+        RestoreCameraNodeAnimations();
     }
 
     // Where to put the player back: beside the host's proxy when it is in the
@@ -1648,6 +1686,7 @@ namespace CoSyncProfiles
         s_editorAt = 0.0;
         s_savedZoom = -1.f;
         s_offsetSaved = false;
+        RestoreCameraNodeAnimations();   // session ended inside the editor
         s_characterCreated = false;
         s_modQueue.clear();
         s_inheritedFrame = 0;

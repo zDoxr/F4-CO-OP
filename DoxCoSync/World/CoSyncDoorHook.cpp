@@ -13,6 +13,7 @@
 #include "CoSyncPlayer.h"
 #include "CoSyncReviveSync.h"
 #include "CoSyncPowerArmorSync.h"
+#include "CoSyncPickpocket.h"
 
 #include "GameReferences.h"
 #include "GameForms.h"
@@ -217,6 +218,19 @@ static char __fastcall Detour_ActivateWorker(
         {
             CoSyncReviveSync::BeginReviveAttempt(target->entityID);
             return 0; // suppress default activation -- no dialogue/loot on a downed player
+        }
+
+        // ── 0.5.0: another player is never "talked to" ──────────────────────
+        // Sneaking: the pickpocket exchange with that player's machine
+        // (CoSyncPickpocket), which opens the engine's own pickpocket menu
+        // once the victim's machine has said what can be taken. Otherwise
+        // the activation does nothing (no CoSync "Talk").
+        if (target && !target->isLocalPlayer && target->createType == CoSyncEntityType::Player &&
+            activator == static_cast<void*>(CoSyncGetPlayer()))
+        {
+            if (CoSyncPickpocket::IsPlayerSneaking())
+                CoSyncPickpocket::BeginAttempt(target->entityID);
+            return 0;
         }
     }
 

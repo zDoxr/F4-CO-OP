@@ -7,6 +7,7 @@
 #include "CoSyncPlayerManager.h"
 #include "CoSyncTeams.h"
 #include "CoSyncSettlementSync.h"
+#include "CoSyncPickpocket.h"
 #include "CoSyncWorkshopAuthority.h"
 #include "CoSyncNet.h"
 #include "CoSyncLocalPlayer.h"
@@ -584,6 +585,10 @@ void CoSyncRuntime_TickGameThread()
     // Team / personal settlement state (ratings + workbench), host-authoritative.
     g_lastTickStep = "RTGT:CoSyncSettlementSync::Tick";
     CoSyncSettlementSync::Tick(now);
+
+    // Player-to-player pickpocket exchange + "no Talk" on player proxies.
+    g_lastTickStep = "RTGT:CoSyncPickpocket::Tick";
+    CoSyncPickpocket::Tick(now);
 
     // Workshop authority: installs the verified workshop hooks once a world
     // is loaded, then gates / replicates every build, move, scrap, repair.

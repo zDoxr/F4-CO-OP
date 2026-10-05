@@ -59,6 +59,7 @@
 #include "CoSyncItemMods.h"
 #include "CoSyncTeams.h"
 #include "CoSyncSettlementSync.h"
+#include "CoSyncPickpocket.h"
 #include "CoSyncChat.h"
 #include "CoSyncVoice.h"
 #include "CoSyncWorkshopAuthority.h"
@@ -735,6 +736,7 @@ void CoSyncNet::Shutdown()
     CoSyncTimeSync::Shutdown();
     CoSyncTeams::OnSessionEnd();
     CoSyncSettlementSync::OnSessionEnd();
+    CoSyncPickpocket::Reset();
     CoSyncWorkshopAuthority::OnSessionEnd();
     CoSyncChat::OnSessionEnd();
     CoSyncVoice::OnSessionEnd();
@@ -1413,6 +1415,14 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
     if (CoSyncSettlementSync::IsSettlementMessage(msg))
     {
         CoSyncSettlementSync::OnReceive(msg, conn, isHostRole);
+        return;
+    }
+    // Player-to-player pickpocket: PPREQ/PPTAKE (thief -> victim) and
+    // PPINV/PPRES (victim -> thief), relayed by the host after checking the
+    // sending connection is the thief / victim the message names.
+    if (CoSyncPickpocket::IsPickpocketMessage(msg))
+    {
+        CoSyncPickpocket::OnReceive(msg, conn, isHostRole);
         return;
     }
     // Workshop: WKQ (request, host re-validates), WKA/WKV/WKX/WKR/WKC/WKN

@@ -353,6 +353,10 @@ namespace
             { "SSR", [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); if (f.size() > 2) f[2] = MapPairs(f[2], m); } },
             { "SSI", [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); if (f.size() > 3) f[3] = MapPairs(f[3], m); } },
             { "SSD", [](std::vector<std::string>& f, MapFn m) { D(f, 1, m); if (f.size() > 3) f[3] = MapPairs(f[3], m); } },
+            // Items/CoSyncPickpocket.cpp: "form:count;..." item lists
+            { "PPINV",  [](std::vector<std::string>& f, MapFn m) { if (f.size() > 4) f[4] = MapPairs(f[4], m); } },
+            { "PPTAKE", [](std::vector<std::string>& f, MapFn m) { if (f.size() > 4) f[4] = MapPairs(f[4], m); } },
+            { "PPRES",  [](std::vector<std::string>& f, MapFn m) { if (f.size() > 4) f[4] = MapPairs(f[4], m); } },
             // World/CoSyncTeams.cpp: requests naming a workbench
             { "TQ", [](std::vector<std::string>& f, MapFn m)
                     {
