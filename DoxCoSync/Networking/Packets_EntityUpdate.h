@@ -79,4 +79,12 @@ struct EntityUpdatePacket
     bool     hasMoveChannels = false;
     float    moveSpeed       = 0.f;
     float    moveDirection   = 0.f;
+
+    // 0.5.0: the owner's real weapon state for a world NPC -- the engine's
+    // ActorState::IsWeaponDrawn ((flags >> 1) & 7 >= 3). -1 = not sent (older
+    // build / not an NPC): the receiver falls back to "drawn while in combat".
+    // Until 0.5.0 that fallback was the ONLY source, so a friendly NPC walking
+    // with its gun out (settlers on guard, Preston, Brotherhood patrols) showed
+    // holstered on every peer, and one that holstered mid-fight kept it drawn.
+    int8_t   weaponDrawnState = -1;
 };

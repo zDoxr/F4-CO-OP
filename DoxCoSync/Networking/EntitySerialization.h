@@ -183,7 +183,8 @@ inline std::string SerializeEntityUpdate(const EntityUpdatePacket& p)
        << "|" << (p.isFiring ? 1 : 0)
        << "|" << (p.hasMoveChannels ? 1 : 0)
        << "|" << p.moveSpeed
-       << "|" << p.moveDirection;
+       << "|" << p.moveDirection
+       << "|" << static_cast<int>(p.weaponDrawnState);
 
     return ss.str();
 }
@@ -339,19 +340,29 @@ inline bool DeserializeEntityUpdate(const std::string& msg, EntityUpdatePacket& 
     }
 
     // 0.4.3 locomotion channels (world NPCs). Optional: a field that is missing
-    // or not finite leaves hasMoveChannels false.
+    // or not finite leaves hasMoveChannels false. The three fields are always
+    // present on the wire (hasMoveChannels 0 included), so the next field
+    // follows them.
     {
         std::string htok, stok, dtok;
-        if (!std::getline(ss, htok, '|') || htok != "1") return true;
-        if (!std::getline(ss, stok, '|') || !std::getline(ss, dtok)) return true;
+        if (!std::getline(ss, htok, '|')) return true;
+        if (!std::getline(ss, stok, '|') || !std::getline(ss, dtok, '|')) return true;
         const float sp = std::strtof(stok.c_str(), nullptr);
         const float dr = std::strtof(dtok.c_str(), nullptr);
-        if (std::isfinite(sp) && std::isfinite(dr) && sp >= 0.f && sp < 100000.f)
+        if (htok == "1" && std::isfinite(sp) && std::isfinite(dr) && sp >= 0.f && sp < 100000.f)
         {
             out.hasMoveChannels = true;
             out.moveSpeed       = sp;
             out.moveDirection   = dr;
         }
+    }
+
+    // 0.5.0 weapon drawn state (-1 / 0 / 1). Missing = -1.
+    {
+        std::string wtok;
+        if (!std::getline(ss, wtok, '|') || wtok.empty()) return true;
+        const long v = std::strtol(wtok.c_str(), nullptr, 10);
+        out.weaponDrawnState = (v == 0 || v == 1) ? static_cast<int8_t>(v) : static_cast<int8_t>(-1);
     }
 
     return true;

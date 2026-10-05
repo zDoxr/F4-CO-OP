@@ -1799,6 +1799,8 @@ void CoSyncPlayerManager::HostSendNpcUpdates_Impl(double now)
             CoSyncNet::SendAnimEdges(npc.actorRef, npc.entityID, s_npcAnimEdges[npc.entityID]);
         }
         u.isCombatActive        = npc.actorRef->IsInCombat();
+        // 0.5.0: what the NPC really holds, not inferred from combat.
+        u.weaponDrawnState      = npc.actorRef->actorState.IsWeaponDrawn() ? 1 : 0;
 
         if (u.isCombatActive)
         {
@@ -2624,8 +2626,12 @@ void CoSyncPlayerManager::Tick()
             // weapon state. The puppet's own AI (its combat is stopped every
             // update) otherwise holsters the weapon drawn below a moment later
             // -- the engine's idle-holster rule, see CoSyncProxyWeaponAuthority.
+            // 0.5.0: the owner's real weapon state when it is sent (a friendly
+            // NPC can walk with its weapon out, or holster mid-fight); the
+            // combat state only as the fallback for an older sender.
+            const bool wantDrawn = ent.m_pendingWeaponDrawn >= 0 ? (ent.m_pendingWeaponDrawn == 1) : ent.m_pendingCombatActive;
             if (ent.actorRef && !isMyOwnRealActor)
-                CoSyncProxyWeaponAuthority::SetReplicatedDrawn(ent.actorRef, ent.m_pendingCombatActive);
+                CoSyncProxyWeaponAuthority::SetReplicatedDrawn(ent.actorRef, wantDrawn);
             // 0.4.3: the owner's fight, with the owner's target, becomes the
             // puppet's engine combat state (CoSyncPuppetAuthority). Local
             // combat entries for any other target are refused by its gate.
@@ -2646,14 +2652,18 @@ void CoSyncPlayerManager::Tick()
                     }
                 }
                 CoSyncPuppetAuthority::ApplyOwnerCombat(ent.entityID, ent.actorRef, ent.m_pendingCombatActive, localTarget, NowSeconds());
+                // 0.5.0: own package only while the owner's NPC is in dialogue.
+                CoSyncPuppetAuthority::SetPackageExempt(ent.actorRef, ent.m_pendingInDialog);
             }
-            if (combatStateEdge && ent.actorRef)
+            if (wantDrawn != ent.m_lastPuppetDrawn && ent.actorRef)
             {
-                CoSyncEquipHook::DrawWeaponEngine(ent.actorRef, ent.m_pendingCombatActive);
-                LOG_UPDATED("[PlayerMgr] puppet entity=%u %s weapon (owner combat %s, target=%u)",
-                    ent.entityID, ent.m_pendingCombatActive ? "draws" : "holsters",
-                    ent.m_pendingCombatActive ? "start" : "end", ent.m_pendingCombatTarget);
+                CoSyncEquipHook::DrawWeaponEngine(ent.actorRef, wantDrawn);
+                LOG_UPDATED("[PlayerMgr] puppet entity=%u %s weapon (owner %s, combat=%d, target=%u)",
+                    ent.entityID, wantDrawn ? "draws" : "holsters",
+                    ent.m_pendingWeaponDrawn >= 0 ? "weapon state" : "combat fallback",
+                    ent.m_pendingCombatActive ? 1 : 0, ent.m_pendingCombatTarget);
             }
+            ent.m_lastPuppetDrawn = wantDrawn;
             ent.m_lastCombatActive = ent.m_pendingCombatActive;
             ent.m_lastCombatTarget = ent.m_pendingCombatTarget;
         }

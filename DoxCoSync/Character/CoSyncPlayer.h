@@ -332,6 +332,10 @@ public:
 
     bool     m_lastCombatActive     = false;
     bool     m_pendingCombatActive  = false;
+    // 0.5.0: the owner's weapon state (EU weaponDrawnState); -1 = unknown,
+    // then the puppet follows m_pendingCombatActive as before.
+    int8_t   m_pendingWeaponDrawn   = -1;
+    bool     m_lastPuppetDrawn      = false;
     uint32_t m_pendingCombatTarget  = 0;
     uint32_t m_lastCombatTarget     = 0;
 

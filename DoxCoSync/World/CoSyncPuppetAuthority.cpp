@@ -16,6 +16,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace
 {
@@ -26,11 +27,28 @@ namespace
     constexpr uintptr_t kRVA_SetDirection = 0x00D355C0;   // (AIProcess*, float) -> writes middleHigh+0xC0
     constexpr uintptr_t kRVA_QueueStartCombat = 0x00C46B90;  // (taskQueue, actor, target, char) -> task 97
     constexpr uintptr_t kRVA_TaskQueue    = 0x032FF808;   // qword: the engine task queue (kill core uses it too)
+    // 0.5.0 package gate (IDA 2026-10-05):
+    //   sub_140C57A20(Actor*) -> TESPackage*  "which package should this actor
+    //   run now": the forced/scene package (vfunc +0x2D8), else the first
+    //   package of its list whose conditions pass (QualifyAsCurrentPackage),
+    //   else its default; the combat package replaces it while a combat
+    //   controller exists (Actor+0x328). It ends with sub_14075EAA0(pkg, actor)
+    //   (per-actor package init). Callers: the package selector
+    //   sub_140CF4810 (which installs the answer through sub_140CF1650 only
+    //   when it differs from the current one) and the per-actor AI update
+    //   sub_140C63BC0.
+    constexpr uintptr_t kRVA_ChoosePackage   = 0x00C57A20;
+    constexpr uintptr_t kRVA_InitPackage     = 0x0075EAA0;
+    constexpr uint32_t  kHoldPackageFormID   = 0x001A94EAu;   // DN121_PrisonerStayAtSelfNoComments: Travel to self, no conditions
+    constexpr size_t    kActor_ForcedPkgVfn  = 0x2D8;          // vtable byte offset (728)
+    constexpr uintptr_t kActor_CombatCtrl    = 0x328;
 
     constexpr uint8_t kPro_CombatEntry[20] = { 0x48,0x8B,0xC4,0x53,0x56,0x57,0x41,0x56,0x48,0x81,0xEC,0x48,0x01,0x00,0x00,0x48,0x83,0x79,0x10,0x00 };
     constexpr uint8_t kPro_SetSpeed[18]    = { 0x48,0x8B,0x41,0x08,0x48,0x85,0xC0,0x74,0x08,0xF3,0x0F,0x11,0x88,0x28,0x04,0x00,0x00,0xC3 };
     constexpr uint8_t kPro_SetDir[18]      = { 0x48,0x8B,0x41,0x08,0x48,0x85,0xC0,0x74,0x08,0xF3,0x0F,0x11,0x88,0xC0,0x00,0x00,0x00,0xC3 };
     constexpr uint8_t kPro_QueueStart[19]  = { 0x48,0x89,0x5C,0x24,0x08,0x48,0x89,0x6C,0x24,0x10,0x48,0x89,0x74,0x24,0x18,0x57,0x48,0x81,0xEC };
+    constexpr uint8_t kPro_ChoosePkg[21]   = { 0x48,0x89,0x6C,0x24,0x10,0x48,0x89,0x74,0x24,0x18,0x48,0x89,0x7C,0x24,0x20,0x41,0x56,0x48,0x83,0xEC,0x40 };
+    constexpr uint8_t kPro_InitPkg[14]     = { 0x40,0x53,0x56,0x48,0x83,0xEC,0x28,0x83,0xB9,0xC0,0x00,0x00,0x00,0xFF };
 
     constexpr uintptr_t kActor_Process      = 0x300;   // AIProcess*
     constexpr uintptr_t kProcess_MiddleHigh = 0x08;
@@ -41,6 +59,9 @@ namespace
     using CombatEntry_t = char(__fastcall*)(void*, Actor*, Actor*, int64_t);
     using SetChannel_t  = int64_t(__fastcall*)(void*, float);
     using QueueStart_t  = void(__fastcall*)(void*, Actor*, Actor*, char);
+    using ChoosePkg_t   = void*(__fastcall*)(Actor*);
+    using InitPkg_t     = void(__fastcall*)(void*, Actor*);
+    using ForcedPkg_t   = void*(__fastcall*)(Actor*);
 
     uintptr_t     g_base = 0;
     bool          g_installed = false;
@@ -50,6 +71,14 @@ namespace
     SetChannel_t  g_origSetSpeed = nullptr;
     SetChannel_t  g_origSetDir = nullptr;
     QueueStart_t  g_queueStart = nullptr;
+    bool          g_cfgPackageGate = true;
+    ChoosePkg_t   g_origChoosePkg = nullptr;
+    InitPkg_t     g_initPkg = nullptr;
+    std::atomic<void*> g_holdPkg{ nullptr };   // resolved on the game thread once forms exist
+
+    // Puppets whose own package must run (owner in dialogue / a shared scene).
+    SRWLOCK                    g_pkgLock = SRWLOCK_INIT;
+    std::unordered_set<Actor*> g_pkgExempt;
 
     // ── Combat gate state (hook: any thread; writers: game thread) ──────────
     std::mutex                             g_combatMx;
@@ -73,6 +102,7 @@ namespace
 
     // ── Diagnostics ─────────────────────────────────────────────────────────
     std::atomic<uint32_t> g_dRefusedEntries{ 0 }, g_dAllowedEntries{ 0 }, g_dSpeedOverrides{ 0 }, g_dDirOverrides{ 0 };
+    std::atomic<uint32_t> g_dPackageHolds{ 0 };
     uint32_t g_dStarts = 0, g_dStops = 0;
 
     uint64_t NowMs() { return GetTickCount64(); }
@@ -138,6 +168,55 @@ namespace
         ini = ini.substr(0, ini.find_last_of("\\/") + 1) + "Data\\F4SE\\Plugins\\CoSync.ini";
         g_cfgCombatGate = GetPrivateProfileIntA("Puppet", "bCombatGate", 1, ini.c_str()) != 0;
         g_cfgMovement   = GetPrivateProfileIntA("Puppet", "bMovementChannels", 1, ini.c_str()) != 0;
+        g_cfgPackageGate = GetPrivateProfileIntA("Puppet", "bPackageGate", 1, ini.c_str()) != 0;
+    }
+
+    // The actor's forced (scene / quest-alias override) package, as
+    // sub_140C57A20 reads it first. nullptr on any fault.
+    __declspec(noinline) void* SafeForcedPackage(Actor* a)
+    {
+        __try
+        {
+            void** vt = *reinterpret_cast<void***>(a);
+            return reinterpret_cast<ForcedPkg_t>(vt[kActor_ForcedPkgVfn / sizeof(void*)])(a);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return nullptr; }
+    }
+
+    __declspec(noinline) bool SafeInitPackage(void* pkg, Actor* a)
+    {
+        __try { g_initPkg(pkg, a); return true; }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
+    bool PackageExempt(Actor* a)
+    {
+        AcquireSRWLockShared(&g_pkgLock);
+        const bool ex = g_pkgExempt.count(a) != 0;
+        ReleaseSRWLockShared(&g_pkgLock);
+        return ex;
+    }
+
+    // A puppet is driven by its owner (position, locomotion, combat, idles,
+    // furniture). Its OWN package -- sandbox, patrol, travel, follow --
+    // otherwise keeps choosing destinations, furniture, idles and pathing on
+    // this machine and fights every replicated update: the friendly-NPC
+    // desync (enemies were mostly hidden by their combat package, which is
+    // still chosen normally). A puppet runs a package that keeps it where it
+    // is instead; the engine installs it through its own selector.
+    void* __fastcall Detour_ChoosePackage(Actor* actor)
+    {
+        void* hold = g_holdPkg.load(std::memory_order_acquire);
+        if (hold && actor && CoSyncEnemySync::IsGuardedPuppet(actor) &&
+            !SafeReadPtr(actor, kActor_CombatCtrl) &&     // combat: the owner's fight (combat gate)
+            !PackageExempt(actor) &&
+            !SafeForcedPackage(actor) &&                  // a scene / quest override runs as before
+            SafeInitPackage(hold, actor))
+        {
+            g_dPackageHolds.fetch_add(1, std::memory_order_relaxed);
+            return hold;
+        }
+        return g_origChoosePkg(actor);
     }
 
     // ── Detours ─────────────────────────────────────────────────────────────
@@ -271,8 +350,54 @@ namespace CoSyncPuppetAuthority
                 }
             }
         }
-        LOG_INFO("[PuppetAuthority] ready: combatGate=%d movementChannels=%d (ini bCombatGate=%d bMovementChannels=%d)",
-            CombatGateActive() ? 1 : 0, MovementOverrideActive() ? 1 : 0, g_cfgCombatGate ? 1 : 0, g_cfgMovement ? 1 : 0);
+        if (g_cfgPackageGate &&
+            PrologueOk(kRVA_ChoosePackage, kPro_ChoosePkg, sizeof(kPro_ChoosePkg), "package chooser") &&
+            PrologueOk(kRVA_InitPackage, kPro_InitPkg, sizeof(kPro_InitPkg), "package init"))
+        {
+            g_initPkg = reinterpret_cast<InitPkg_t>(g_base + kRVA_InitPackage);
+            HookOne(kRVA_ChoosePackage, reinterpret_cast<void*>(&Detour_ChoosePackage),
+                    reinterpret_cast<void**>(&g_origChoosePkg), "package chooser");
+        }
+        LOG_INFO("[PuppetAuthority] ready: combatGate=%d movementChannels=%d packageGate=%d (ini bCombatGate=%d bMovementChannels=%d bPackageGate=%d)",
+            CombatGateActive() ? 1 : 0, MovementOverrideActive() ? 1 : 0, g_origChoosePkg ? 1 : 0,
+            g_cfgCombatGate ? 1 : 0, g_cfgMovement ? 1 : 0, g_cfgPackageGate ? 1 : 0);
+    }
+
+    void SetPackageExempt(Actor* puppet, bool exempt)
+    {
+        if (!g_origChoosePkg || !puppet)
+            return;
+        // Forms exist by the time puppets do: resolve the hold package here.
+        if (!g_holdPkg.load(std::memory_order_relaxed))
+        {
+            static bool s_tried = false;
+            if (!s_tried)
+            {
+                s_tried = true;
+                TESForm* f = LookupFormByID(kHoldPackageFormID);
+                if (f && f->formType == kFormType_PACK)
+                {
+                    g_holdPkg.store(f, std::memory_order_release);
+                    LOG_INFO("[PuppetAuthority] package gate: puppets hold with package 0x%08X", kHoldPackageFormID);
+                }
+                else
+                    LOG_ERROR("[PuppetAuthority] package gate: hold package 0x%08X missing -- gate off", kHoldPackageFormID);
+            }
+        }
+        AcquireSRWLockShared(&g_pkgLock);
+        const bool has = g_pkgExempt.count(puppet) != 0;
+        ReleaseSRWLockShared(&g_pkgLock);
+        if (has == exempt)
+            return;
+        AcquireSRWLockExclusive(&g_pkgLock);
+        if (exempt) g_pkgExempt.insert(puppet);
+        else g_pkgExempt.erase(puppet);
+        ReleaseSRWLockExclusive(&g_pkgLock);
+    }
+
+    bool PackageGateActive()
+    {
+        return g_origChoosePkg != nullptr && g_holdPkg.load(std::memory_order_relaxed) != nullptr;
     }
 
     void Reset()
@@ -286,6 +411,9 @@ namespace CoSyncPuppetAuthority
         g_moveByProcess.clear();
         ReleaseSRWLockExclusive(&g_moveLock);
         g_processOfPuppet.clear();
+        AcquireSRWLockExclusive(&g_pkgLock);
+        g_pkgExempt.clear();
+        ReleaseSRWLockExclusive(&g_pkgLock);
     }
 
     bool CombatGateActive()
@@ -395,6 +523,9 @@ namespace CoSyncPuppetAuthority
             ReleaseSRWLockExclusive(&g_moveLock);
             g_processOfPuppet.erase(it);
         }
+        AcquireSRWLockExclusive(&g_pkgLock);
+        g_pkgExempt.erase(puppet);
+        ReleaseSRWLockExclusive(&g_pkgLock);
     }
 
     void TickDiagnostics(double now)
@@ -419,11 +550,12 @@ namespace CoSyncPuppetAuthority
         }
 
         const uint32_t refused = g_dRefusedEntries.exchange(0), allowed = g_dAllowedEntries.exchange(0),
-                       sp = g_dSpeedOverrides.exchange(0), dr = g_dDirOverrides.exchange(0);
-        if (refused || allowed || sp || dr || g_dStarts || g_dStops)
+                       sp = g_dSpeedOverrides.exchange(0), dr = g_dDirOverrides.exchange(0),
+                       holds = g_dPackageHolds.exchange(0);
+        if (refused || allowed || sp || dr || g_dStarts || g_dStops || holds)
             LOG_UPDATED("[PuppetAuthority] last 10 s: local combat entries refused=%u allowed(owner's target)=%u | owner combat started=%u stopped=%u | "
-                        "locomotion channel writes replaced: speed=%u direction=%u | puppets steered=%zu",
-                refused, allowed, g_dStarts, g_dStops, sp, dr, g_processOfPuppet.size());
+                        "locomotion channel writes replaced: speed=%u direction=%u | puppets steered=%zu | own packages replaced by hold=%u",
+                refused, allowed, g_dStarts, g_dStops, sp, dr, g_processOfPuppet.size(), holds);
         g_dStarts = g_dStops = 0;
     }
 }

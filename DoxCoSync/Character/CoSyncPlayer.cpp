@@ -475,6 +475,7 @@ void CoSyncPlayer::ApplyUpdate(const EntityUpdatePacket& u)
 
     m_pendingCombatActive = u.isCombatActive;
     m_pendingCombatTarget = u.combatTargetEntityID;
+    m_pendingWeaponDrawn  = u.weaponDrawnState;
     m_pendingInDialog     = u.isInDialog;
     if (u.hasMoveChannels)
     {

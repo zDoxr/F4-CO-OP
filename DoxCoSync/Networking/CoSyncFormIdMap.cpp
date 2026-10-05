@@ -244,7 +244,14 @@ namespace
         static const std::unordered_map<std::string, Rule> s = {
             // Networking/EntitySerialization.h
             { "EC",  [](std::vector<std::string>& f, MapFn m) { D(f, 3, m); D(f, 8, m); D(f, 9, m); D(f, 10, m); } },
-            { "EU",  [](std::vector<std::string>& f, MapFn m) { if (f.size() >= 16) { D(f, -8, m); D(f, -4, m); } } },
+            // EU: weapon right after the optional anim-var block (f[7] == "1" ->
+            // 6 more fields), throwable 4 fields later. Indexed from the front:
+            // the old from-the-end indices (-8/-4) silently moved onto the
+            // dialog/firing flags when 0.4.3 appended the locomotion fields.
+            { "EU",  [](std::vector<std::string>& f, MapFn m) {
+                if (f.size() < 9) return;
+                const int w = (f[7] == "1") ? 14 : 8;
+                D(f, w, m); D(f, w + 4, m); } },
             // World/CoSyncWorldSync.cpp
             { "WS",  [](std::vector<std::string>& f, MapFn m) { D(f, 6, m); D(f, 7, m); } },
             { "WBF", [](std::vector<std::string>& f, MapFn m) { D(f, 2, m); D(f, 9, m); D(f, 10, m); D(f, 11, m); D(f, 12, m); } },

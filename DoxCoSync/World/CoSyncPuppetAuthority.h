@@ -46,6 +46,15 @@ namespace CoSyncPuppetAuthority
     bool CombatGateActive();
     bool MovementOverrideActive();
 
+    // 0.5.0 package gate ([Puppet] bPackageGate). Out of combat a puppet runs
+    // a hold-in-place package instead of its own sandbox/patrol/travel AI, so
+    // it stops choosing its own destinations, furniture and idles against the
+    // owner's replicated ones. Scene/forced packages and the combat package
+    // are untouched. Game thread: exempt = run the puppet's own package
+    // (its owner's NPC is in dialogue).
+    void SetPackageExempt(Actor* puppet, bool exempt);
+    bool PackageGateActive();
+
     // Owner side: the actor's raw engine locomotion channels. False when it has
     // no middle-high process (low-process actors have no channels).
     bool ReadMoveChannels(Actor* actor, float& speed, float& direction);
