@@ -235,40 +235,18 @@ static char __fastcall Detour_ActivateWorker(
         }
     }
 
-    // ── CLIENT: no control over dialogue ────────────────────────────────────
-    // The host owns the story. Quest stages and objectives are already
-    // suppressed on clients (CoSyncQuestHook / CoSyncQuestObjectiveHook), but
-    // that only stops the CONSEQUENCE -- a client could still open dialogue
-    // and drive scenes the host never sees. Blocking here stops it at the
-    // source: no activation, so the DialogueMenu never opens and there is
-    // nothing to select.
-    //
-    // Done at this hook deliberately. The alternative -- letting the menu open
-    // and force-closing it -- needs UIMessageManager::SendUIMessage, whose
-    // f4se 0.7.8 address (0x01A89170) targets runtime 1.10.163 while this
-    // project runs 1.11.221; unverified RVAs are exactly what has burned this
-    // codebase repeatedly. This hook (kActivateWorker_RVA) is already
-    // installed and proven for door sync.
-    //
-    // KNOWN COST: base formType 45 is TESNPC, which covers DEAD actors too, so
-    // this also blocks a client looting corpses and interacting with their own
-    // companion. Narrowing it to live actors needs a life-state read we do not
-    // have a verified offset for yet -- deliberately not guessed here.
-    if (ri.refFormID != 0
-        && ri.formType == 45              // kFormType_NPC_ (an actor's base)
-        && CoSyncNet::IsConnected()
-        && !CoSyncNet::IsHost())
-    {
-        static std::atomic<uint32_t> s_blocked{ 0 };
-        const uint32_t n = ++s_blocked;
-        if (n <= 10 || n % 50 == 0)
-            LOG_INFO("[DialogGate] [CLIENT] blocked activation #%u of actor ref=0x%08X "
-                     "(host owns dialogue)", n, ri.refFormID);
-        // 0.3.5: tell the host who wants to talk to whom; the host's
-        // conversation is then shared with this client (CoSyncSharedDialogue).
-        CoSyncSharedDialogue::OnClientTalkAttempt(ri.refFormID);
-        return 0;
-    }
+    // ── 0.5.1 (Bug #7): clients talk to NPCs again ──────────────────────────
+    // This used to refuse a CLIENT's activation of EVERY actor (base formType
+    // 45) -- "the host owns dialogue" -- which took away NPC Talk, looting
+    // corpses and commanding a companion on every client (2026-10-05 client
+    // log: "[DialogGate] [CLIENT] blocked activation" for each try). Only
+    // PLAYER-to-player interaction is restricted, and that is decided above:
+    // another player's proxy is never "talked to" (Pickpocket while sneaking,
+    // Revive while downed, nothing otherwise). Every NPC now goes through
+    // the engine's own activation -- Fallout 4's normal dialogue on this
+    // machine; quest stages it sets reach the host as QSREQ (CoSyncQuestHook,
+    // 0.4.2), and the host's own conversations are still shared with nearby
+    // clients (CoSyncSharedDialogue).
     // ── Run the real activation FIRST, then broadcast only if it worked ─────
     // 2026-08-04 (list item #6): this used to send DOOR| BEFORE calling the
     // original, with no check of whether the door was locked, jammed, owned by

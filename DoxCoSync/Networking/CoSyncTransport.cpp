@@ -122,11 +122,41 @@ void CoSyncTransport::Shutdown()
 bool CoSyncTransport::IsInitialized() { return s_initialized; }
 bool CoSyncTransport::IsHost() { return s_isHost; }
 
+namespace
+{
+    std::atomic<bool>     s_clientOutsideSession{ false };
+    std::atomic<uint32_t> s_droppedOutside{ 0 };
+
+    bool IsJoinProtocol(const std::string& msg)
+    {
+        static const char* const kAllowed[] = { "CS", "WORLD", "PROFILEUP|", "CHAT|", "CHATM|", "VER|", "DISCONNECT|" };
+        for (const char* p : kAllowed)
+            if (msg.rfind(p, 0) == 0)
+                return true;
+        return false;
+    }
+}
+
+void CoSyncTransport::SetClientOutsideSession(bool outside)
+{
+    if (s_clientOutsideSession.exchange(outside) != outside)
+        LOG_INFO("[Transport] Client %s the host's world: session messages %s",
+            outside ? "is outside" : "is joining", outside ? "held back (join protocol only)" : "allowed");
+}
+
 void CoSyncTransport::Send(const std::string& msg, bool reliable)
 {
     if (!s_initialized)
     {
         LOG_EVERY_MS(5000, LOG_WARN("[Transport] Send called while not initialized"));
+        return;
+    }
+
+    if (!IsHost() && s_clientOutsideSession.load(std::memory_order_relaxed) && !IsJoinProtocol(msg))
+    {
+        const uint32_t n = s_droppedOutside.fetch_add(1, std::memory_order_relaxed) + 1;
+        if (n <= 5 || n % 500 == 0)
+            LOG_INFO("[Transport] held back #%u (not in the host's world yet): %.40s", n, msg.c_str());
         return;
     }
 

@@ -26,6 +26,14 @@ namespace CoSyncTransport
     // other packet type.
     void Send(const std::string& msg, bool reliable = true);
 
+    // 0.5.1 lobby: a client that waits in the lobby, plays its own New Game
+    // intro, or waits for the host's intro is not in the host's world.
+    // While set, Send() passes only the join protocol (content check, WORLD*,
+    // the character upload, chat, the version / disconnect handshake) -- the
+    // client's hooks (quest stages, doors, equips...) must not reach the
+    // host's world from a different one.
+    void SetClientOutsideSession(bool outside);
+
     // Host: one client only.
     void SendTo(HSteamNetConnection conn, const std::string& msg, bool reliable = true);
 

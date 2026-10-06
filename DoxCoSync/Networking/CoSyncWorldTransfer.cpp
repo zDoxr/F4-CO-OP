@@ -193,7 +193,14 @@ namespace
     uint32_t s_inCrc[2] = { 0, 0 };
     uint64_t s_inReceived = 0;
 
-    void SetPhase(CoSyncWorldTransfer::ClientPhase p) { s_phase.store(static_cast<int>(p)); }
+    void SetPhase(CoSyncWorldTransfer::ClientPhase p)
+    {
+        s_phase.store(static_cast<int>(p));
+        // 0.5.1 lobby: outside the host's world, the client sends only the
+        // join protocol (CoSyncTransport::SetClientOutsideSession).
+        using P = CoSyncWorldTransfer::ClientPhase;
+        CoSyncTransport::SetClientOutsideSession(p == P::Lobby || p == P::Intro || p == P::WaitingHost);
+    }
 
     void Fail(const char* reason)
     {
