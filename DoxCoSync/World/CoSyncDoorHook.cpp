@@ -1,4 +1,5 @@
 #define WIN32_LEAN_AND_MEAN
+#include "f4se/GameExtraData.h"
 #include <Windows.h>
 
 #include "CoSyncDoorHook.h"
@@ -51,6 +52,22 @@ static constexpr uintptr_t kActivateWorker_RVA  = 0x005144B0;
 static constexpr uintptr_t kSetOpenState_RVA    = 0x00305A90;
 
 // Door-like form types (from FO4_Wrld door_hook.cpp field notes).
+// 0.5.4: a LOAD door (ExtraTeleport, 0x2B) moves only the player who uses it
+// -- every machine's player takes their own. Replaying one ran the engine's
+// teleport activation with no activator on the other machine: the host's
+// Vault 111 exit (Vault111InteriorAutoLoadDoorREF 0x1F180) was "applied" on
+// the client at 22:30:36 (2026-10-05), and the client's own way out through
+// it later stalled in a 23 s load.
+__declspec(noinline) static bool IsLoadDoor(void* refr) noexcept
+{
+    __try
+    {
+        TESObjectREFR* r = static_cast<TESObjectREFR*>(refr);
+        return r && r->extraDataList && r->extraDataList->HasType(kExtraData_Teleport);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+}
+
 static constexpr bool is_door_like(uint8_t ftype) noexcept
 {
     return ftype == 0x1F || ftype == 0x20 || ftype == 0x24 || ftype == 0x29;
@@ -295,8 +312,9 @@ static char __fastcall Detour_ActivateWorker(
         // reported "activated" while a script re-locks it, and a locked door
         // must never be replayed as an open on a peer.
         const bool locked = CoSyncDoorHook::IsRefLocked(refr);
+        const bool loadDoor = IsLoadDoor(refr);
 
-        if (actResult != 0 && !locked)
+        if (actResult != 0 && !locked && !loadDoor)
         {
             char buf[32];
             std::snprintf(buf, sizeof(buf), "DOOR|%u", ri.refFormID);
@@ -525,6 +543,11 @@ void CoSyncDoorHook::FlushPendingDoorOps()
         if (CoSyncElevatorSync::Classify(refFormID) != CoSyncElevatorSync::Kind::None)
         {
             LOG_INFO("[DoorHook] FLUSH skipped elevator ref 0x%08X (ELEV / per-player ride)", refFormID);
+            continue;
+        }
+        if (IsLoadDoor(refr))
+        {
+            LOG_INFO("[DoorHook] FLUSH skipped load door 0x%08X (each player takes their own)", refFormID);
             continue;
         }
         DoActivateRefr(static_cast<void*>(refr));

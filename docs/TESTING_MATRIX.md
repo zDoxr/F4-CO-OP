@@ -149,3 +149,56 @@ Setup: gbe_fork two-instance rig or two PCs. Keep `[Session] bPVP=0` unless a ro
 | 22 | PVE: shoot each other | No damage | `hit(s) by my player on another player refused (PVE)` |
 | 23 | H menu: Player Damage → PVP; shoot once | One drop the size of the shot, no drain | one `TX DMG ... attacker=` per hit |
 | 24 | Any load (CONTINUE, door, elevator, join, respawn) | The CoSync loading screen | `[Loading] LoadingMenu up` / `closed` |
+
+---
+
+# 0.5.6 — Vault 111 intro, cryopods, Pip-Boy, elevator (built, NOT yet run in game)
+
+Report: `docs/VAULT111_INTRO_REPORT.md`. Every machine logs its phase: `[CoSyncVault111] phase: ...`.
+Pass = every row on both logs. Repeat each scenario at least twice.
+
+## 0.5.6-1 Host only (New Game)
+
+| # | Step | Expect | Log evidence |
+|---|------|--------|--------------|
+| 1 | New Game, play to the lift | Vanilla | `phase: PreWar` |
+| 2 | Into the vault, suit, pod, freeze, wake | Vanilla, untouched; all residents in their pods | `Intro detected -- Vanilla Cryopod sequence started`, `Player assigned to Cryopod ... pod 0`, six `Cryopod left empty` |
+| 3 | Control back | Not moved (host) | `Vanilla Cryopod sequence completed ... Reapplying`, `phase: VaultExplore` |
+| 4 | Skeleton Pip-Boy, console, gear door | Vanilla | `Pip-Boy event completed (the host's own)`, `Elevator gate state changed` |
+| 5 | Bridge, platform, menus, ride up | Vanilla; outside | `lowered to the bridge`, `rising with this player`, `left Vault 111` |
+
+## 0.5.6-2 Host + 1 client
+
+| # | Step | Expect | Log evidence |
+|---|------|--------|--------------|
+| 1 | Shared New Game to the vault (0.5.3 flow) | Both in the vault | `INTRO|vault` |
+| 2 | Pods | H in the scripted pod, C in pod 1 (`0xCA2B4`) on H's screen; on C's screen C in the scripted pod and H in pod 1; pods 2–6 have their vanilla resident | both: `Player assigned to Cryopod` with the same EntityID→pod list; `resident ... left a player's cryopod` once |
+| 3 | Freeze / Kellogg / wake | Each machine's own cutscene, no snapping | no `QS apply` for MQ101 > 600 on C; C: `QS quest=0x0001ED86 stage=... not applied`; no NPC entity in `0xCA260` |
+| 4 | Control back | C stands in front of pod 1, H at the scripted pod, both screens agree | C: `stood in front of my own cryopod (pod 1)`; both: `entity=... (stood at its pod)` |
+| 5 | H takes the skeleton Pip-Boy first | C gets a Pip-Boy (if it has none) without being pulled anywhere | H: `Pip-Boy event completed`; C: `Pip-Boy fallback applied` |
+| 6 | H plugs into the console | Only H sits; C's gear door opens too | C: no stage 7 applied; C: `QS ... stage=9` applied, `Elevator gate state changed` |
+| 7 | H rides up first | C's elevator still comes down for C, C's platform still works | C: no `WSE` applied for `0x20C3A`/`0x8C94A`; C: `QS quest=0x0001CC2A stage=10 not applied`, `stage=15 deferred` |
+| 8 | C rides up | C outside | C: `left Vault 111`, `deferred stage quest=0x0001CC2A stage=15 applied now` |
+
+## 0.5.6-3 Host + 3 clients
+
+| # | Step | Expect |
+|---|------|--------|
+| 1 | Pods | Four different pods, pods 4–6 vanilla, same EntityID→pod list on all four logs |
+| 2 | Wake | Each client in front of its own pod; nobody overlaps |
+
+## 0.5.6-4 Late join
+
+| # | Step | Expect | Log evidence |
+|---|------|--------|--------------|
+| 1 | Join while H is in the pod sequence | Waits in the lobby | H: `joins wait in the lobby: the host is in the vanilla Vault 111 sequence` |
+| 2 | H wakes | Joiner comes in next to H, with Pip-Boy + jumpsuit, no intro replay | `Inventory Initialization ... giving the Pip-Boy back`; joiner `phase: VaultExplore` |
+| 3 | Join after H left the vault | Joiner outside with H, Pip-Boy | joiner `phase: Complete` |
+
+## 0.5.6-5 / -6 Elevator from both sides
+
+| # | Step | Expect |
+|---|------|--------|
+| 1 | C does the console and rides first, H later | H's gear door opens (C's QSREQ 9), H's platform still works; H defers C's stage 15+ |
+| 2 | Both on the platform together | Each gets the menus and both ride up |
+

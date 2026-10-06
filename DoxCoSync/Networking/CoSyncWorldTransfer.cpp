@@ -1,3 +1,4 @@
+#include "CoSyncVault111.h"
 #include "CoSyncWorldTransfer.h"
 
 #include "CoSyncSaveLoad.h"
@@ -314,6 +315,12 @@ namespace
     {
         if (!CoSyncWorld::IsWorldReady() || CoSyncRuntime_IsMenuOpen("LoadingMenu") ||
             CoSyncRuntime_IsMenuOpen("LooksMenu") || CoSyncRuntime_IsMenuOpen("SPECIALMenu"))
+            return false;
+        // 0.5.6: not while the host is in Vault 111's vanilla sequence (the
+        // walk to the pods, the freeze, the wake-up): a joiner would arrive in
+        // the middle of someone else's cutscene. They come in once the host
+        // is awake (CoSyncVault111).
+        if (CoSyncVault111::HostHoldsJoins())
             return false;
         return CoSyncSaveLoad::EngineCanSave() != 0;   // -1 = gate unavailable: try the save
     }

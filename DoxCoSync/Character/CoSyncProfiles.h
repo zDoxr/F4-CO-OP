@@ -58,6 +58,15 @@ namespace CoSyncProfiles
     // before that the local player still wears the HOST's face and gear.
     bool IsCharacterApplied();
 
+    // 0.5.6 (CoSyncVault111): the Pip-Boy for a player who missed the shared
+    // Pip-Boy event -- the same engine add + equip the join fallback below
+    // (ReplaceInventory / the fresh-start check) has always used. Main thread.
+    // 0 = already carried (an extra copy from the console swap is removed),
+    // 1 = given now, -1 = could not.
+    int EnsurePipBoy(const char* why);
+    // How many of this item the local player carries. Main thread.
+    int LocalItemCount(uint32_t formID);
+
     // True while the character editor flow owns the player (Vault 111 room).
     bool IsEditorBusy();
 

@@ -9,6 +9,7 @@
 #include "CoSyncSettlementSync.h"
 #include "CoSyncPickpocket.h"
 #include "CoSyncSessionRules.h"
+#include "CoSyncVault111.h"
 #include "CoSyncSharedIntro.h"
 #include "CoSyncLoadingScreen.h"
 #include "CoSyncElevatorSync.h"
@@ -601,6 +602,8 @@ void CoSyncRuntime_TickGameThread()
     CoSyncSessionRules::Tick(now);
 
     // 0.5.3: the shared New Game intro (SPECIAL timing, Vault 111, cryopods).
+    g_lastTickStep = "RTGT:CoSyncVault111::Tick";
+    CoSyncVault111::Tick(now);   // before SharedIntro: it reads this phase
     g_lastTickStep = "RTGT:CoSyncSharedIntro::Tick";
     CoSyncSharedIntro::Tick(now);
     g_lastTickStep = "RTGT:CoSyncElevatorSync::Tick";

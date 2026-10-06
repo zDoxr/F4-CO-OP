@@ -1,4 +1,5 @@
 #define WIN32_LEAN_AND_MEAN
+#include "CoSyncVault111.h"
 #include "CoSyncProxyLooks.h"
 #include <Windows.h>
 
@@ -652,6 +653,13 @@ __declspec(noinline) static void TickScanWorldActors_Impl(double now)
         if (refr->flags & TESObjectREFR::kFlag_IsDisabled)
             return;
 
+        // 0.5.6: PrewarVault111 exists only for the intro's cryopod sequence;
+        // its people (the Vault-Tec staff, the residents walking to their
+        // pods, the spouse, Kellogg's party) play that machine's own vanilla
+        // scenes and are never synced (CoSyncVault111).
+        if (CoSyncVault111::IsIntroLocalActor(refr))
+            return;
+
         // Already-tracked actors (including our own AI-disabled clone-
         // fallback proxies, which use the REAL NPC's base form — the
         // dynamic-base-form check above only excludes the player-proxy
@@ -1139,6 +1147,11 @@ __declspec(noinline) static void TickScanWorldActors_Impl(double now)
             }
         }
 
+        // 0.5.6: an actor that went into PrewarVault111 (the spouse walking
+        // to the pods) is that machine's cutscene from now on.
+        if (keep && regActor && CoSyncVault111::IsIntroLocalActor(regActor))
+            keep = false;
+
         if (!keep)
             departed.push_back(regActor);
     }
@@ -1165,7 +1178,9 @@ __declspec(noinline) static void TickScanWorldActors_Impl(double now)
         bool isCompanion = s_companionEntities.count(eid) != 0;
         if (!isCompanion && CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(actor)))
             isCompanion = SafeIsPlayerTeammate(actor);
-        if (isHost && !wasDead && !isCompanion)
+        const bool introLocal = CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(actor)) &&
+                                CoSyncVault111::IsIntroLocalActor(actor);
+        if (isHost && !wasDead && !isCompanion && !introLocal)
         {
             const uint32_t taker = HostNearestClientFor(eid, 8000.f);
             if (taker != 0)

@@ -1,4 +1,5 @@
 #define WIN32_LEAN_AND_MEAN
+#include "CoSyncVault111.h"
 #include <Windows.h>
 
 #include "CoSyncWorldStateSync.h"
@@ -382,6 +383,16 @@ namespace
             SafeDamage(ref, dmg);
             if (SafeStage(ref) >= op.b) { ++g_applied; return 1; }
             return 0;        // unloaded refs may not transition until their 3D exists: retry
+        }
+        // 0.5.6: Vault 111's own refs (the two intro cells, the exit's
+        // triggers and markers) follow this machine's scripts until this
+        // player is out: the host's exit disabled the client's elevator
+        // trigger (WSE|134202|0, 2026-10-05 22:30:03) and its magic door to
+        // the post-war vault (WSE|1346408|0, 22:24:09). CoSyncVault111.
+        if ((op.kind == Kind::Open || op.kind == Kind::Enable) && CoSyncVault111::IgnoreWorldStateFor(ref))
+        {
+            ++g_already;
+            return -1;
         }
         if (op.kind == Kind::Open)
         {

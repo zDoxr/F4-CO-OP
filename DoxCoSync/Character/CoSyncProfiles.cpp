@@ -133,6 +133,7 @@ namespace
     // Vanilla forms that every character keeps / starts with.
     constexpr UInt32 kPipBoyFormID    = 0x00021B3B;  // Pip-Boy (never removed)
     constexpr UInt32 kVaultSuitFormID = 0x0001EED7;  // Vault 111 jumpsuit (fresh start)
+    constexpr UInt32 kPipBoyDustyFormID = 0x0006D7B8;  // PipboyDusty (from the Vault 111 skeleton)
     constexpr int    kFreshSpecial    = 4;           // 7 x 4 = 28 = vanilla 7 + 21 points
 
     constexpr uint32_t kRecordType    = 'PROF';
@@ -656,6 +657,14 @@ namespace
     {
         if (!p.hasPos)
             return false;
+        // 0.5.6: PrewarVault111 (0xCA260) only exists inside the intro's
+        // cryopod sequence; a player who left in there comes back next to the
+        // host instead (joins wait while the host is inside that sequence).
+        if (p.posInterior && p.posSpace == 0x000CA260)
+        {
+            LOG_INFO("[Profiles] Saved position is inside the pre-war Vault 111 (the intro) -- staying at the host's spot");
+            return false;
+        }
         TESForm* f = LookupFormByID(p.posSpace);
         TESObjectCELL* cell = nullptr;
         TESWorldSpace* ws = nullptr;
@@ -1764,5 +1773,43 @@ namespace CoSyncProfiles
         s_paExitStarted = 0.0;
         s_originCell = nullptr;
         s_originWorld = nullptr;
+    }
+
+    int LocalItemCount(uint32_t formID)
+    {
+        PlayerCharacter* pc = CoSyncGetPlayer();
+        if (!pc)
+            return 0;
+        Profile inv;
+        CaptureInventory(pc, inv);
+        int n = 0;
+        for (const auto& it : inv.items)
+            if (it.first == formID)
+                n += it.second;
+        return n;
+    }
+
+    int EnsurePipBoy(const char* why)
+    {
+        PlayerCharacter* pc = CoSyncGetPlayer();
+        if (!pc)
+            return -1;
+        const int real = LocalItemCount(kPipBoyFormID);
+        const int dusty = LocalItemCount(kPipBoyDustyFormID);
+        if (real > 1)
+        {
+            // The gear console adds the Pip-Boy even when the shared event
+            // already gave one: keep a single, worn copy.
+            if (TESForm* pip = LookupFormByID(kPipBoyFormID))
+                CoSyncGameAPI::NativeRemoveItem(reinterpret_cast<TESObjectREFR*>(pc), pip, static_cast<UInt32>(real - 1));
+            GiveStartingItem(pc, kPipBoyFormID, "Pip-Boy");
+            LOG_INFO("[Profiles] Pip-Boy: %d copies carried -- kept one", real);
+            return 0;
+        }
+        if (real > 0 || dusty > 0)
+            return 0;   // has one (the vanilla dusty one from the skeleton counts)
+        LOG_INFO("[Profiles] Pip-Boy fallback (%s): this player has none -- giving it", why ? why : "");
+        GiveStartingItem(pc, kPipBoyFormID, "Pip-Boy");
+        return LocalItemCount(kPipBoyFormID) > 0 ? 1 : -1;
     }
 }

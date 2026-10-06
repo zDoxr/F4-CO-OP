@@ -1,5 +1,6 @@
 #define WIN32_LEAN_AND_MEAN
 #include "CoSyncSharedIntro.h"
+#include "CoSyncVault111.h"
 #include <Windows.h>
 
 #include "CoSyncQuestHook.h"
@@ -108,7 +109,7 @@ static void __fastcall Detour_SetCurrentStageID(
         // 70/65/75/85 itself; forwarded as QSREQ they pushed the host past the
         // Vault-Tec rep (2026-10-05 21:33:01). The host's stages still arrive
         // (applied past this hook) and run their fragments here.
-        if (thisObj && CoSyncSharedIntro::BlockClientStage(thisObj->formID))
+        if (thisObj && CoSyncSharedIntro::BlockClientStage(thisObj->formID, aiStageID))
         {
             LOG_UPDATED("[QuestHook] [CLIENT] quest=0x%08X stage=%d not set here -- the shared intro follows the host's story",
                 thisObj->formID, aiStageID);
@@ -119,6 +120,15 @@ static void __fastcall Detour_SetCurrentStageID(
         if (!thisObj) return;
         const uint32_t qid = thisObj->formID;
         if (qid == 0 || (qid & 0xFF000000u) == 0xFF000000u) return;
+        // 0.5.6: this player's own Vault 111 moment (the pod, the wake-up, the
+        // Pip-Boy, the console, the ride out): it ran here, for this player,
+        // and is nobody else's -- not asked of the host (CoSyncVault111).
+        if (CoSyncVault111::ClassifyStage(qid, aiStageID) == CoSyncVault111::StagePolicy::Personal)
+        {
+            LOG_UPDATED("[QuestHook] [CLIENT] quest=0x%08X stage=%d set here only -- this player's own Vault 111 moment",
+                qid, aiStageID);
+            return;
+        }
         CoSyncQuestSync::RequestQuestStage(qid, aiStageID, CoSyncNet::GetMyEntityID());
         LOG_UPDATED("[QuestHook] [CLIENT] quest=0x%08X stage=%d set here -- asked the host to apply it for everyone",
             qid, aiStageID);

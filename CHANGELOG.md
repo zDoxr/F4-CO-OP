@@ -2,6 +2,20 @@
 
 ---
 
+## [0.5.6] — 2026-10-06
+
+### Vault 111 for every player (built only; not yet run in game)
+
+Report: `docs/VAULT111_INTRO_REPORT.md`. New module `World/CoSyncVault111`.
+
+- **Client stuck in Vault 111 after the host left (root cause, logs 2026-10-05 22:30):** the host's own exit was copied onto the client while the client was still inside. That happened three ways: the host's elevator-down trigger disabling itself (`WSE`), the host's MQ102 stage 10 (its fragment disables the platform trigger the ride starts from), and the host's auto-load door replay. Each machine now runs its own way out. Vault 111's triggers and markers are not taken from another machine until that player is out. MQ102 stages after the exit wait until the player has left too.
+- **The cryopod sequence plays vanilla on every machine:** from the vault on (MQ101 600+), the stages of the walk, freeze and wake-up stay on each machine, and so do MQ102's Pip-Boy, console and exit stages. MQ102 3 (doors) and 9 (gear door) are host-authoritative shared world state. Nobody is pulled into the gear console by someone else's stage 7 any more. NPCs in PrewarVault111 are not synced. The host's lobby holds new players while the host is in the sequence.
+- **Cryopods:** one host-written list (host, then join order). Each player gets their own pod. Pods nobody has keep their vanilla occupant. More than 7 players: the rest stand in the aisle. After waking, each client is stood in front of its own pod, so every machine's positions agree.
+- **Pip-Boy:** the session remembers the Pip-Boy event (MQ102 stage 4/7 on any player, persisted through the host). Every player without a Pip-Boy gets one through the same engine add + equip the late-join fallback uses. It is never given mid-scene, and an extra copy from the console is removed.
+- Quest tracking announced only one tracked quest per scan (MQ101 + MQ102 flipped it twice per scan).
+- Load doors are never replayed (the earlier uncommitted DoorHook change). The uncommitted `vaultExitElevatorSCRIPT` ElevatorSync hunk was reverted: that script is a trigger and cannot be ridden by activation.
+- Version 0.5.6 (new `V111|` messages).
+
 ## [0.5.5] — 2026-10-06
 
 - **Proxies froze for ~5 s, then moved again (0.5.4 regression):** the one-tick-per-frame gate found the `Main::Update` pump by stack-walking. In game the walk almost never reached it (logs 9644/16780: `Main::Update=0 other=3600` per 30 s), so every tick was skipped until the 600-pump safety net gave up. That meant about 5 s with no CoSync tick at all: no packets applied, nothing sent. The gate is removed and the tick runs on every pump again, as before 0.5.4. The pose bake and name fixes from 0.5.4 stay; in-game they showed `bakeFailures=0` and the name switching from "2nd Player" to the username.

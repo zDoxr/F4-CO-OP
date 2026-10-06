@@ -12,6 +12,7 @@
 #include "CoSyncRuntime.h"
 #include "CoSyncWorld.h"
 #include "CoSyncWorldTransfer.h"
+#include "CoSyncVault111.h"
 #include "ConsoleLogger.h"
 #include "CoSyncRequirementsLog.h"
 
@@ -38,6 +39,7 @@ namespace
     // ── Fallout4.esm (read from the ESM, 2026-10-05) ────────────────────────
     constexpr uint32_t kQuestMQ101          = 0x0001ED86;   // War Never Changes
     constexpr uint32_t kQuestTutorial       = 0x00160147;   // runs alongside the intro
+    constexpr uint32_t kQuestMQ102          = 0x0001CC2A;   // Out of Time (Vault 111 wake-up)
     constexpr uint32_t kWorldPrewar         = 0x000A7FF4;   // SanctuaryHillsWorld
     constexpr uint32_t kCellPrewarVault111  = 0x000CA260;   // the freeze
     constexpr uint32_t kCellVault111Cryo    = 0x000016D8;   // the wake-up (same layout)
@@ -45,17 +47,6 @@ namespace
     constexpr float    kMirrorPos[3] = { -80303.f, 90828.f, 7856.f };
     constexpr float    kMirrorRotZ   = 2.54f;
 
-    // The scripted player pod and the six resident pods, in the order players
-    // are given them (nearest the player pod first, then the spouse's row).
-    struct Pod { float x, y, z, rz; };
-    constexpr Pod kPlayerPod = { 640.f, -288.f, -72.f, 0.f };
-    constexpr Pod kSlots[] = {
-        { 384.f, -288.f, -72.f, 0.f },       { 128.f, -288.f, -72.f, 0.f },       { -64.f, -288.f, -72.f, 0.f },
-        { 832.f, -736.f, -72.f, 3.14159f },  { 384.f, -736.f, -72.f, 3.14159f },  { 128.f, -736.f, -72.f, 3.14159f },
-    };
-    constexpr size_t kSlotCount = sizeof(kSlots) / sizeof(kSlots[0]);
-    constexpr float  kInPodRadius = 90.f;       // standing in a pod (XY)
-    constexpr float  kResidentRadius = 60.f;    // a resident seated in a slot pod (XY)
 
     // Host state.
     bool   s_hostSpecialOpen = false;    // its SPECIAL menu was open last tick
@@ -73,9 +64,6 @@ namespace
     std::mutex             s_vaultMx;
     std::vector<VaultCall> s_vaultCalls;
 
-    // Residents disabled on this machine.
-    std::unordered_set<uint32_t> s_disabledResidents;
-    double                       s_nextResidentScan = 0.0;
 
     double Now() { return static_cast<double>(GetTickCount64()) / 1000.0; }
 
@@ -108,73 +96,6 @@ namespace
         NiPoint3 r(0.f, 0.f, rotZ);
         UInt32 nullHandle = 0;
         MoveRefrToPosition(reinterpret_cast<TESObjectREFR*>(pc), &nullHandle, cell, ws, &p, &r);
-    }
-
-    // Other players in a stable order (entity ID) -- each gets a pod slot.
-    int SlotOf(uint32_t entityID)
-    {
-        std::vector<uint32_t> others;
-        const uint32_t me = CoSyncNet::GetMyEntityID();
-        for (const auto& kv : g_CoSyncPlayerManager.GetAllPlayers())
-        {
-            const CoSyncPlayer* p = kv.second.get();
-            if (p && !p->isLocalPlayer && p->entityID != me && p->createType == CoSyncEntityType::Player)
-                others.push_back(p->entityID);
-        }
-        std::sort(others.begin(), others.end());
-        for (size_t i = 0; i < others.size(); ++i)
-            if (others[i] == entityID)
-                return static_cast<int>(i % kSlotCount);   // more players than pods: stacked
-        return -1;
-    }
-
-    // Residents leave the six resident pods (on this machine), so the other
-    // players can be shown there. The spouse (spouse pod), the player pod and
-    // anyone walking the aisle are untouched.
-    __declspec(noinline) void ScanResidentsImpl(TESObjectCELL* cell, PlayerCharacter* pc, std::vector<TESObjectREFR*>& out)
-    {
-        for (UInt32 i = 0; i < cell->objectList.count; ++i)
-        {
-            TESObjectREFR* r = cell->objectList.entries[i];
-            if (!r || r->formType != kFormType_ACHR || r == reinterpret_cast<TESObjectREFR*>(pc))
-                continue;
-            for (const Pod& s : kSlots)
-            {
-                const float dx = r->pos.x - s.x, dy = r->pos.y - s.y;
-                if (dx * dx + dy * dy <= kResidentRadius * kResidentRadius && std::fabs(r->pos.z - s.z) < 150.f)
-                {
-                    out.push_back(r);
-                    break;
-                }
-            }
-        }
-    }
-
-    __declspec(noinline) bool SafeScanResidents(TESObjectCELL* cell, PlayerCharacter* pc, std::vector<TESObjectREFR*>& out)
-    {
-        __try { ScanResidentsImpl(cell, pc, out); return true; }
-        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
-    }
-
-    void ClearResidents(PlayerCharacter* pc)
-    {
-        TESObjectCELL* cell = pc->parentCell;
-        if (!cell)
-            return;
-        std::vector<TESObjectREFR*> found;
-        if (!SafeScanResidents(cell, pc, found))
-            return;
-        for (TESObjectREFR* r : found)
-        {
-            const CoSyncPlayer* asPlayer = g_CoSyncPlayerManager.GetPlayerByActorFormID(r->formID);
-            if (asPlayer && asPlayer->createType == CoSyncEntityType::Player)
-                continue;   // another player's proxy shown in its pod
-            if (!s_disabledResidents.insert(r->formID).second)
-                continue;
-            CoSyncGameAPI::DisableWorldActor(r);
-            LOG_UPDATED("[SharedIntro] resident 0x%08X left its cryopod (base 0x%08X) -- the pod is for a player",
-                r->formID, r->baseForm ? r->baseForm->formID : 0);
-        }
     }
 
     void HostTick(double now, PlayerCharacter* pc)
@@ -234,8 +155,9 @@ namespace
         if (!vault)
             return;
         const VaultCall& c = calls.front();
-        // Beside the one who arrived (they are all on the same lift platform).
-        const int slot = (std::max)(0, SlotOf(c.eid) + 1);
+        // Beside the one who arrived (they are all on the same lift platform),
+        // spread by the cryopod list (CoSyncVault111).
+        const int slot = (std::max)(1, CoSyncVault111::PodIndexOf(CoSyncNet::GetMyEntityID()));
         const NiPoint3 pos(c.x + 60.f * static_cast<float>(slot % 3), c.y + 60.f * static_cast<float>(slot / 3), c.z);
         Teleport(pc, vault, nullptr, pos, pc->rot.z);
         s_wasInVault = true;
@@ -263,23 +185,36 @@ namespace CoSyncSharedIntro
         return SessionLive() && CoSyncWorld::IsWorldReady() && IsIntroRunning();
     }
 
-    bool BlockClientStage(uint32_t /*questFormID*/)
+    bool BlockClientStage(uint32_t questFormID, int stage)
     {
-        // Every stage: in the intro the host's story is the only one. The
-        // client's own fragments still run when the host's stages arrive
-        // (applied past the hook), they just cannot start a branch of their own.
-        return !CoSyncTransport::IsHost() && IsSharedIntro();
+        // MQ101 before the vault only: the shared pre-war story. The client's
+        // MQ101 fragments still run when the host's stages arrive (applied
+        // past the hook), they just cannot start a branch of their own.
+        // 0.5.3 blocked EVERY quest -- that also stopped the client's own
+        // wake-up progress (MQ102 "Out of Time" stage 0 refused at 22:24:11,
+        // the Pip-Boy, the exit), so its Vault 111 exit elevator never came.
+        // 0.5.6: from the vault on (MQ101 600+) each machine plays its own
+        // vanilla sequence (CoSyncVault111).
+        return !CoSyncTransport::IsHost() && IsSharedIntro() && CoSyncVault111::IsLockstepBlocked(questFormID, stage);
     }
 
     bool HostRefusesRequest(uint32_t questFormID)
     {
+        // The intro's story and the tutorial prompts are the host's; a
+        // client's own progress elsewhere (MQ102 after waking...) stays on
+        // that client and is not pushed into the host's world.
+        // 0.5.6: MQ102's shared world stages (3 doors, 9 gear door) are let
+        // through even while the host is still waking up; its per-player
+        // stages never get this far (CoSyncVault111).
         return questFormID == kQuestMQ101 || questFormID == kQuestTutorial ||
-               (IsSharedIntro() && CoSyncTransport::IsHost());
+               (IsSharedIntro() && CoSyncTransport::IsHost() && questFormID != kQuestMQ102);
     }
 
     bool GetMirrorSpot(uint32_t& worldspace, NiPoint3& pos, float& rotZ)
     {
-        if (!IsIntroRunning())
+        // 0.5.6: the mirror only before the vault (joins are held while the
+        // host is inside it; after the wake-up the intro is over).
+        if (!IsIntroRunning() || CoSyncVault111::GetPhase() != CoSyncVault111::Phase::PreWar)
             return false;
         worldspace = kWorldPrewar;
         pos = NiPoint3(kMirrorPos[0], kMirrorPos[1], kMirrorPos[2]);
@@ -291,28 +226,6 @@ namespace CoSyncSharedIntro
     {
         s_characterMade = true;
         s_specialShown = false;
-    }
-
-    bool RemapProxyIntoPod(uint32_t entityID, NiPoint3& pos, NiPoint3& rot)
-    {
-        PlayerCharacter* pc = CoSyncGetPlayer();
-        if (!pc || !SessionLive() || !InPodRoom(SafeCellID(reinterpret_cast<TESObjectREFR*>(pc))))
-            return false;
-        const float dx = pos.x - kPlayerPod.x, dy = pos.y - kPlayerPod.y;
-        if (dx * dx + dy * dy > kInPodRadius * kInPodRadius || std::fabs(pos.z - kPlayerPod.z) > 150.f)
-            return false;   // not in the scripted pod: shown where they are
-        const int slot = SlotOf(entityID);
-        if (slot < 0)
-            return false;
-        const Pod& s = kSlots[slot];
-        // Same place inside the pod, turned with it.
-        const float turn = s.rz - kPlayerPod.rz;
-        const float c = std::cos(turn), sn = std::sin(turn);
-        pos.x = s.x + dx * c - dy * sn;
-        pos.y = s.y + dx * sn + dy * c;
-        pos.z = s.z + (pos.z - kPlayerPod.z);
-        rot.z += turn;
-        return true;
     }
 
     bool IsIntroMessage(const std::string& msg)
@@ -359,11 +272,6 @@ namespace CoSyncSharedIntro
         else
             ClientTick(pc);
         VaultTick(pc);
-        if (now >= s_nextResidentScan && InPodRoom(SafeCellID(reinterpret_cast<TESObjectREFR*>(pc))))
-        {
-            s_nextResidentScan = now + 1.0;
-            ClearResidents(pc);
-        }
     }
 
     void Reset()
@@ -379,8 +287,6 @@ namespace CoSyncSharedIntro
             std::lock_guard<std::mutex> lk(s_vaultMx);
             s_vaultCalls.clear();
         }
-        s_disabledResidents.clear();
-        s_nextResidentScan = 0.0;
     }
 }
 

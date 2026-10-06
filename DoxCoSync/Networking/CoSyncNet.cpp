@@ -59,6 +59,7 @@
 #include "CoSyncItemMods.h"
 #include "CoSyncTeams.h"
 #include "CoSyncSessionRules.h"
+#include "CoSyncVault111.h"
 #include "CoSyncSharedIntro.h"
 #include "CoSyncSettlementSync.h"
 #include "CoSyncPickpocket.h"
@@ -628,6 +629,7 @@ void CoSyncNet::Init(bool isHost)
     CoSyncReviveSync::Reset();
     CoSyncSessionRules::Reset();
     CoSyncSharedIntro::Reset();
+    CoSyncVault111::Reset();
     CoSyncElevatorSync::Reset();
     CoSyncOutfitSync::Reset();
     CoSyncProxyWeaponAuthority::Reset();
@@ -745,6 +747,7 @@ void CoSyncNet::Shutdown()
     CoSyncPickpocket::Reset();
     CoSyncSessionRules::Reset();
     CoSyncSharedIntro::Reset();
+    CoSyncVault111::Reset();
     CoSyncWorkshopAuthority::OnSessionEnd();
     CoSyncChat::OnSessionEnd();
     CoSyncVoice::OnSessionEnd();
@@ -1457,6 +1460,12 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
     if (CoSyncSharedIntro::IsIntroMessage(msg))
     {
         CoSyncSharedIntro::OnReceive(msg, isHostRole);
+        return;
+    }
+    // 0.5.6: Vault 111 -- cryopods, the Pip-Boy, the way out (CoSyncVault111).
+    if (CoSyncVault111::IsVaultMessage(msg))
+    {
+        CoSyncVault111::OnReceive(msg, isHostRole);
         return;
     }
     // 0.5.1 lobby (Bug #3/#4): a client waiting in the lobby, or playing its

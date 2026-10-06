@@ -1,3 +1,4 @@
+#include "CoSyncVault111.h"
 #include "CoSyncSharedIntro.h"
 #include "CoSyncPlayer.h"
 #include "CoSyncPuppetAuthority.h"
@@ -773,11 +774,11 @@ void CoSyncPlayer::ApplyProxyTransform(const NiPoint3& pos, const NiPoint3& rot)
     }
     else
     {
-        // 0.5.3: in the Vault 111 cryo rooms every player stands in "the"
-        // player pod on their own machine; here each other player is shown in
-        // a resident pod of their own (CoSyncSharedIntro).
+        // 0.5.3/0.5.6: in the Vault 111 cryo rooms every player stands in
+        // "the" player pod on their own machine during the vanilla sequence;
+        // here each other player is shown in their own pod (CoSyncVault111).
         NiPoint3 shownPos = pos, shownRot = rot;
-        CoSyncSharedIntro::RemapProxyIntoPod(entityID, shownPos, shownRot);
+        CoSyncVault111::RemapProxyIntoPod(entityID, shownPos, shownRot);
         CoSyncGameAPI::PositionRemoteActor(actorRef, shownPos, shownRot);
 
         // 0.3.4: PositionRemoteActor moves the character controller with

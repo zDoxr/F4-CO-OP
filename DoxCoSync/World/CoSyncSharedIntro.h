@@ -26,9 +26,9 @@ class NiPoint3;
 //                                  host -> all  INTRO|state|<special 0/1> (5 s)
 //   Vault 111: the first player inside PrewarVault111 brings everyone still
 //     outside.                     any  -> all  INTRO|vault|<eid>|x|y|z
-//   Cryopods: on every machine the residents leave the six resident pods and
-//     the other players are shown there, one each (stacked past six); each
-//     player is in the scripted player pod on their own machine.
+//   From the vault on (MQ101 600+) this module steps back: the cryopod
+//     sequence is each machine's own vanilla one, the pods and the way out are
+//     CoSyncVault111's (0.5.6).
 namespace CoSyncSharedIntro
 {
     // MQ101 running and not completed (any session state).
@@ -36,8 +36,8 @@ namespace CoSyncSharedIntro
     // ...and a CoSync session is live.
     bool IsSharedIntro();
 
-    // Quest hook: a client must not set this stage itself (lockstep).
-    bool BlockClientStage(uint32_t questFormID);
+    // Quest hook: a client must not set this stage itself (pre-war lockstep).
+    bool BlockClientStage(uint32_t questFormID, int stage);
     // QuestSync: the host refuses this client stage request.
     bool HostRefusesRequest(uint32_t questFormID);
 
@@ -45,10 +45,6 @@ namespace CoSyncSharedIntro
     bool GetMirrorSpot(uint32_t& worldspace, NiPoint3& pos, float& rotZ);
     // Profiles: the player's character was just made (mirror done).
     void OnLocalCharacterMade();
-
-    // CoSyncPlayer: a remote player standing in the scripted player pod is
-    // shown in their own resident pod. True when pos/rot were changed.
-    bool RemapProxyIntoPod(uint32_t entityID, NiPoint3& pos, NiPoint3& rot);
 
     bool IsIntroMessage(const std::string& msg);
     void OnReceive(const std::string& msg, bool isHostRole);

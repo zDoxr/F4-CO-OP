@@ -78,4 +78,12 @@ namespace CoSyncQuestSync
     // Returns true while FlushPendingQuestOps / FlushPendingQuestObjectiveOps
     // is applying remote state — used by objective hooks to suppress echo.
     bool IsRemoteApplying();
+
+    // 0.5.6 (CoSyncVault111): this machine's current stage of a quest
+    // (-1 = not a quest here), and re-queues for a stage that waited until
+    // this player left Vault 111 -- applied / requested exactly as if it had
+    // just arrived.
+    int  GetLocalStage(uint32_t questFormID);
+    void QueueStageApply(uint32_t questFormID, int stage);
+    void QueueStageRequest(uint32_t senderEntityID, uint32_t questFormID, int stage);
 }

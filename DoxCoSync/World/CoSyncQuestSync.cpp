@@ -1,4 +1,5 @@
 #include "CoSyncSharedIntro.h"
+#include "CoSyncVault111.h"
 #include "CoSyncQuestSync.h"
 
 #include "CoSyncRequirementsLog.h"
@@ -290,6 +291,25 @@ static void ApplyClientStageRequests(std::vector<QuestReqOp>& reqs)
                 op.sender, op.questFormID, op.stage);
             continue;
         }
+        // 0.5.6: Vault 111's per-player scripted stages stay on that player's
+        // machine; a stage of someone who already left waits until the host
+        // has left too (CoSyncVault111).
+        {
+            const CoSyncVault111::StagePolicy pol = CoSyncVault111::ClassifyStage(op.questFormID, op.stage);
+            if (pol == CoSyncVault111::StagePolicy::Personal)
+            {
+                LOG_UPDATED("[QuestSync] QSREQ quest=0x%08X stage=%d from entity=%u not applied here -- that player's own Vault 111 moment",
+                    op.questFormID, op.stage, op.sender);
+                continue;
+            }
+            if (pol == CoSyncVault111::StagePolicy::Defer)
+            {
+                CoSyncVault111::DeferStage(true, op.sender, op.questFormID, op.stage);
+                LOG_UPDATED("[QuestSync] QSREQ quest=0x%08X stage=%d from entity=%u deferred -- the host is still inside Vault 111",
+                    op.questFormID, op.stage, op.sender);
+                continue;
+            }
+        }
         // 0.5.3: the intro is the host's story alone.
         if (CoSyncSharedIntro::HostRefusesRequest(op.questFormID))
         {
@@ -501,6 +521,13 @@ void CoSyncQuestSync::FlushPendingQuestOps()
 
     for (const QuestStartOp& op : starts)
     {
+        // 0.5.6: MQ101 / MQ102 start and finish on this machine's own
+        // vanilla sequence while this player is in Vault 111 (CoSyncVault111).
+        if (CoSyncVault111::IgnoreQuestLifecycle(op.questFormID))
+        {
+            LOG_UPDATED("[QuestSync] QS_ST quest=0x%08X not applied -- this player's own Vault 111 sequence starts it", op.questFormID);
+            continue;
+        }
         // Always mark as remote-started so TickLocalQuests doesn't echo it back.
         s_remoteStarted.insert(op.questFormID);
 
@@ -546,6 +573,25 @@ void CoSyncQuestSync::FlushPendingQuestOps()
         // failing helper ambiguous (lookup+cast vs. the stage setter). These
         // two lines make the next occurrence self-identifying instead of
         // costing another rebuild to bisect.
+        // 0.5.6: another player's Vault 111 moment is not run here; their
+        // progress after leaving waits until this player has left too.
+        {
+            const CoSyncVault111::StagePolicy pol = CoSyncVault111::ClassifyStage(op.questFormID, op.stage);
+            if (pol == CoSyncVault111::StagePolicy::Personal)
+            {
+                LOG_UPDATED("[QuestSync] QS quest=0x%08X stage=%d not applied -- another player's own Vault 111 moment",
+                    op.questFormID, op.stage);
+                continue;
+            }
+            if (pol == CoSyncVault111::StagePolicy::Defer)
+            {
+                CoSyncVault111::DeferStage(false, 0, op.questFormID, op.stage);
+                LOG_UPDATED("[QuestSync] QS quest=0x%08X stage=%d deferred -- this player is still inside Vault 111",
+                    op.questFormID, op.stage);
+                continue;
+            }
+        }
+
         LOG_UPDATED("[QuestSync] QS apply: resolving quest=0x%08X stage=%d",
             op.questFormID, op.stage);
 
@@ -560,6 +606,8 @@ void CoSyncQuestSync::FlushPendingQuestOps()
 
     for (const QuestDoneOp& op : dones)
     {
+        if (CoSyncVault111::IgnoreQuestLifecycle(op.questFormID))
+            continue;   // 0.5.6: see the starts above
         TESForm* form = SafeLookupForm(op.questFormID);
         if (!form) { LOG_UPDATED_WARN("[QuestSync] QS_DONE: quest 0x%08X not found", op.questFormID); continue; }
 
@@ -756,6 +804,7 @@ void CoSyncQuestSync::FlushPendingQuestObjectiveOps()
 
     for (const QuestObjAllOp& op : allOps)
     {
+        if (CoSyncVault111::IgnoreObjective(op.questFormID)) continue;   // 0.5.6: personal in Vault 111
         TESQuest* quest = SafeLookupAndCastQuest(op.questFormID);
         if (!quest) { LOG_WARN("[QuestSync] QS_OBJ_ALL: quest 0x%08X not found or not a TESQuest", op.questFormID); continue; }
 
@@ -765,6 +814,7 @@ void CoSyncQuestSync::FlushPendingQuestObjectiveOps()
 
     for (const QuestObjSetOp& op : setOps)
     {
+        if (CoSyncVault111::IgnoreObjective(op.questFormID)) continue;   // 0.5.6: personal in Vault 111
         TESQuest* quest = SafeLookupAndCastQuest(op.questFormID);
         if (!quest) { LOG_WARN("[QuestSync] QS_OBJ_SET: quest 0x%08X not found or not a TESQuest", op.questFormID); continue; }
 
@@ -775,6 +825,7 @@ void CoSyncQuestSync::FlushPendingQuestObjectiveOps()
 
     for (const QuestObjDispOp& op : dispOps)
     {
+        if (CoSyncVault111::IgnoreObjective(op.questFormID)) continue;   // 0.5.6: personal in Vault 111
         TESQuest* quest = SafeLookupAndCastQuest(op.questFormID);
         if (!quest) { LOG_WARN("[QuestSync] QS_OBJ_DISP: quest 0x%08X not found or not a TESQuest", op.questFormID); continue; }
 
@@ -948,6 +999,11 @@ __declspec(noinline) static void TickLocalQuests_Impl(double now)
     DataHandler* dh = *g_dataHandler;
     tArray<TESForm*>& questArr = dh->arrQUST;
     uint32_t myID = CoSyncNet::GetMyEntityID();
+    // 0.5.6: one tracked quest per scan. With two quests flagged active at
+    // once (MQ101 + MQ102 at the Vault 111 wake-up) the loop announced both,
+    // flipping s_lastTrackedQuest -- two QS_TRK every scan, both ways, for as
+    // long as the pair stayed flagged (2026-10-06 client log, 14:09-14:13).
+    bool trackedSeenThisScan = false;
 
     for (uint32_t i = 0; i < static_cast<uint32_t>(questArr.count); ++i)
     {
@@ -1000,7 +1056,9 @@ __declspec(noinline) static void TickLocalQuests_Impl(double now)
             // to s_clientTrackedQuest), progressively locking it out. Live log:
             // client TX 10 vs host TX 3, i.e. "only the client can change
             // quests".
-            if (formID != s_lastTrackedQuest)
+            const bool firstTracked = !trackedSeenThisScan;
+            trackedSeenThisScan = true;
+            if (firstTracked && formID != s_lastTrackedQuest)
             {
                 s_lastTrackedQuest = formID;
                 char tbuf[64];
@@ -1116,6 +1174,9 @@ void CoSyncQuestSync::OnReceiveQuestTrack(const std::string& msg)
     if (questFormID == 0) return;
     if (sender != 0 && sender == CoSyncNet::GetMyEntityID()) return;
 
+    // 0.5.6: in Vault 111 each player follows their own MQ101 / MQ102 (two
+    // machines adopting each other's choice flipped it every 0.4 s, 2026-10-06).
+    if (CoSyncVault111::IgnoreTrack(questFormID)) return;
     LOG_INFO("[QuestSync] RX QS_TRK quest=0x%08X", questFormID);
     std::lock_guard<std::mutex> lk(s_mutex);
     s_pendingTrack = questFormID;
@@ -1255,4 +1316,27 @@ void CoSyncQuestSync::TickLocalQuests(double now)
     {
         LOG_ERROR("[QuestSync] Applying the tracked-quest update hit an error -- caught");
     }
+}
+
+// ─── 0.5.6: CoSyncVault111 helpers ──────────────────────────────────────────
+
+int CoSyncQuestSync::GetLocalStage(uint32_t questFormID)
+{
+    TESQuest* quest = SafeLookupAndCastQuest(questFormID);
+    return quest ? static_cast<int>(GetQuestCurrentStage(quest)) : -1;
+}
+
+void CoSyncQuestSync::QueueStageApply(uint32_t questFormID, int stage)
+{
+    if (questFormID == 0) return;
+    std::lock_guard<std::mutex> lk(s_mutex);
+    s_pending.push_back({ questFormID, stage });
+}
+
+void CoSyncQuestSync::QueueStageRequest(uint32_t senderEntityID, uint32_t questFormID, int stage)
+{
+    if (questFormID == 0 || !CoSyncNet::IsHost()) return;
+    std::lock_guard<std::mutex> lk(s_mutex);
+    if (s_pendingReqs.size() < 256)
+        s_pendingReqs.push_back({ senderEntityID, questFormID, stage });
 }
