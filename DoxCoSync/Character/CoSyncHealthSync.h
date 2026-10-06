@@ -25,7 +25,8 @@ namespace CoSyncHealthSync
     // (no stable formID). May return nullptr if unresolved. Cached.
     ActorValueInfo* GetRadsActorValue();
     std::string SerializeKill(uint32_t entityID);
-    std::string SerializeDmg(uint32_t entityID, float amount);
+    // 0.5.1: DMG|<entity>|<amount>|<attacker entity, 0 = unknown/not a player>
+    std::string SerializeDmg(uint32_t entityID, float amount, uint32_t attackerEid = 0);
 
 
     void OnReceiveHP(const std::string& msg);

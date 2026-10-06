@@ -58,6 +58,7 @@
 #include "CoSyncCompanions.h"
 #include "CoSyncItemMods.h"
 #include "CoSyncTeams.h"
+#include "CoSyncSessionRules.h"
 #include "CoSyncSettlementSync.h"
 #include "CoSyncPickpocket.h"
 #include "CoSyncElevatorSync.h"
@@ -624,6 +625,7 @@ void CoSyncNet::Init(bool isHost)
     // entityIDs — clear alongside NpcWorldSync.
     CoSyncHealthSync::Reset();
     CoSyncReviveSync::Reset();
+    CoSyncSessionRules::Reset();
     CoSyncElevatorSync::Reset();
     CoSyncOutfitSync::Reset();
     CoSyncProxyWeaponAuthority::Reset();
@@ -739,6 +741,7 @@ void CoSyncNet::Shutdown()
     CoSyncTeams::OnSessionEnd();
     CoSyncSettlementSync::OnSessionEnd();
     CoSyncPickpocket::Reset();
+    CoSyncSessionRules::Reset();
     CoSyncWorkshopAuthority::OnSessionEnd();
     CoSyncChat::OnSessionEnd();
     CoSyncVoice::OnSessionEnd();
@@ -1439,6 +1442,12 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
     if (CoSyncWorldTransfer::IsTransferMessage(msg))
     {
         CoSyncWorldTransfer::OnReceive(msg, conn, isHostRole);
+        return;
+    }
+    // 0.5.1 (Bug #8): the host's session rules (PVE / PVP).
+    if (CoSyncSessionRules::IsRulesMessage(msg))
+    {
+        CoSyncSessionRules::OnReceive(msg, isHostRole);
         return;
     }
     // 0.5.1 lobby (Bug #3/#4): a client waiting in the lobby, or playing its

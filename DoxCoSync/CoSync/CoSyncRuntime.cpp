@@ -8,6 +8,7 @@
 #include "CoSyncTeams.h"
 #include "CoSyncSettlementSync.h"
 #include "CoSyncPickpocket.h"
+#include "CoSyncSessionRules.h"
 #include "CoSyncElevatorSync.h"
 #include "CoSyncWorkshopAuthority.h"
 #include "CoSyncNet.h"
@@ -590,6 +591,10 @@ void CoSyncRuntime_TickGameThread()
     // Player-to-player pickpocket exchange + "no Talk" on player proxies.
     g_lastTickStep = "RTGT:CoSyncPickpocket::Tick";
     CoSyncPickpocket::Tick(now);
+
+    // 0.5.1: the host's PVE / PVP rule, re-sent every 5 s.
+    g_lastTickStep = "RTGT:CoSyncSessionRules::Tick";
+    CoSyncSessionRules::Tick(now);
     g_lastTickStep = "RTGT:CoSyncElevatorSync::Tick";
     CoSyncElevatorSync::Tick(now);
 

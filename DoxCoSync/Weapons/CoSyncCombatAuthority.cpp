@@ -13,6 +13,7 @@
 #include "CoSyncGameAPI.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
+#include "CoSyncSessionRules.h"
 #include "TickHook.h"
 #include "ConsoleLogger.h"
 #include "CoSyncRequirementsLog.h"
@@ -105,6 +106,12 @@ namespace
     std::atomic<uint32_t> g_gatedHits{ 0 };
     std::atomic<uint32_t> g_lastGatedAggressor{ 0 };
     std::atomic<uint32_t> g_gatedProxyEnvHits{ 0 };   // 0.4.3: aggressor-less hits on player proxies
+    std::atomic<uint32_t> g_refusedPveHits{ 0 };       // 0.5.1: player-on-player hits refused in PVE
+
+    // 0.5.1: last aggressor per player proxy (DoHitMe, any thread).
+    struct LastHit { uint32_t aggressorFormID; double when; };
+    std::mutex                              g_lastHitMx;
+    std::unordered_map<Actor*, LastHit>     g_lastHitOnProxy;
     uint32_t g_txCount = 0, g_rxCount = 0, g_replayed = 0, g_animOnly = 0, g_skippedWeapon = 0,
              g_skippedStale = 0, g_skippedDead = 0, g_animAccepted = 0, g_animRejected = 0;
 
@@ -198,6 +205,21 @@ namespace
             if (h != 0)
             {
                 TESObjectREFR* agg = RefFromHandle(h);
+                // 0.5.1 (Bug #8): PVE (the default) -- our player never
+                // damages another player. Refused before the engine applies
+                // anything: no health change, no stagger, nothing to relay.
+                if (agg && target && CoSyncEnemySync::IsPlayerProxy(target) &&
+                    agg == reinterpret_cast<TESObjectREFR*>(CoSyncGetPlayer()) &&
+                    !CoSyncSessionRules::IsPvpEnabled())
+                {
+                    g_refusedPveHits.fetch_add(1, std::memory_order_relaxed);
+                    return;
+                }
+                if (agg && target && CoSyncEnemySync::IsPlayerProxy(target))
+                {
+                    std::lock_guard<std::mutex> lk(g_lastHitMx);
+                    g_lastHitOnProxy[target] = LastHit{ SafeReadU32(agg, 0x14), NowSec() };
+                }
                 if (agg && SafeFormType(agg) == kFormType_ACHR && IsRegisteredRemoteActor(static_cast<Actor*>(agg)))
                 {
                     // The aggressor is simulated on another machine: that machine
@@ -510,6 +532,22 @@ namespace CoSyncCombatAuthority
                 reinterpret_cast<void*>(&Detour_DoHitMe), reinterpret_cast<void**>(&g_origDoHitMe), "Actor::DoHitMe");
     }
 
+    uint32_t RecentAggressorFormID(Actor* proxy, double maxAgeSec)
+    {
+        if (!proxy)
+            return 0;
+        std::lock_guard<std::mutex> lk(g_lastHitMx);
+        auto it = g_lastHitOnProxy.find(proxy);
+        if (it == g_lastHitOnProxy.end())
+            return 0;
+        if (NowSec() - it->second.when > maxAgeSec)
+        {
+            g_lastHitOnProxy.erase(it);
+            return 0;
+        }
+        return it->second.aggressorFormID;
+    }
+
     bool IsShot(const std::string& msg)
     {
         return msg.rfind("SHOT|", 0) == 0;
@@ -557,6 +595,9 @@ namespace CoSyncCombatAuthority
             const uint32_t refused = g_refusedNative.exchange(0);
             const uint32_t gated   = g_gatedHits.exchange(0);
             const uint32_t envGated = g_gatedProxyEnvHits.exchange(0);
+            const uint32_t pveRefused = g_refusedPveHits.exchange(0);
+            if (pveRefused)
+                LOG_UPDATED("[CombatAuthority] last 10 s: %u hit(s) by my player on another player refused (PVE)", pveRefused);
             if (g_txCount || g_rxCount || refused || gated || envGated)
                 LOG_UPDATED("[CombatAuthority] last 10 s: tx=%u rx=%u replayed=%u animOnly(explosive)=%u weaponMismatch=%u stale=%u deadShooter=%u "
                             "| attack anim accepted=%u rejected=%u | proxy native fires refused=%u (last 0x%08X) | remote-aggressor hits refused=%u (last 0x%08X) "
@@ -580,5 +621,9 @@ namespace CoSyncCombatAuthority
         }
         g_txSeq.clear();
         g_rxSeq.clear();
+        {
+            std::lock_guard<std::mutex> lk(g_lastHitMx);
+            g_lastHitOnProxy.clear();
+        }
     }
 }

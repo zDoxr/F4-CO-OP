@@ -335,9 +335,15 @@
           desc: 'Connection details, for troubleshooting.' });
         list.push({ key: 'settings', label: 'Settings', go: 'settings',
           desc: 'Your multiplayer name and controller options.' });
-        if (role() === 'HOST')
+        if (role() === 'HOST') {
+          const pvp = !!(state.rules && state.rules.pvp);
+          list.push({ key: 'pvp', label: pvp ? 'Player Damage: PVP' : 'Player Damage: PVE', action: 'pvp_toggle',
+            meta: pvp ? 'PVP' : 'PVE',
+            desc: pvp ? 'Players can damage each other. Select to switch to PVE (no player damage).'
+                      : 'Players cannot damage each other (default). Select to switch to PVP.' });
           list.push({ key: 'stop', label: 'Stop Hosting', action: 'stop',
             desc: 'Close your game to other players. Everyone connected will be disconnected.' });
+        }
         if (role() === 'CLIENT')
           list.push({ key: 'leave', label: 'Leave Game', action: 'stop',
             desc: 'Disconnect from the host.' });
@@ -1178,6 +1184,7 @@
       case 'steam_host': sound('ok'); native('steam_host'); break;
       case 'steam_invite': sound('ok'); native('steam_invite'); break;
       case 'stop':    sound('ok'); native('stop'); break;
+      case 'pvp_toggle': sound('ok'); native('pvp|' + ((state.rules && state.rules.pvp) ? '0' : '1')); break;
       case 'stop_root': sound('cancel'); native('stop'); goRoot(); break;
       case 'leave_back': sound('cancel'); native('stop'); goRoot(); break;
       case 'refresh': sound('ok'); native('search_start'); break;

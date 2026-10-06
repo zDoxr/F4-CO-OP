@@ -11,6 +11,8 @@
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
 #include "CoSyncOverlay.h"
+#include "CoSyncSessionRules.h"
+#include "CoSyncCombatAuthority.h"
 
 #include "GameReferences.h"
 #include "GameForms.h"
@@ -147,11 +149,13 @@ std::string CoSyncHealthSync::SerializeKill(uint32_t entityID)
     return ss.str();
 }
 
-std::string CoSyncHealthSync::SerializeDmg(uint32_t entityID, float amount)
+std::string CoSyncHealthSync::SerializeDmg(uint32_t entityID, float amount, uint32_t attackerEid)
 {
     LOG_REQUIREMENT("CoSyncHealthSync::SerializeDmg", "Just turns a damage amount into text. Doesn't touch the game at all.");
     std::ostringstream ss;
     ss << "DMG|" << entityID << "|" << amount;
+    if (attackerEid != 0)
+        ss << "|" << attackerEid;
     return ss.str();
 }
 
@@ -167,6 +171,7 @@ struct HealthOp
     float    ap       = -1.f;  // SetHealth only, current action points (-1 = absent)
     float    apMax    = 0.f;
     uint32_t killer   = 0;     // Kill only (0.4.1): the killer's entity, 0 = unknown
+                               // Damage (0.5.1): the attacker's entity, 0 = unknown
     uint32_t flags    = 0;     // Kill only: bit0 = ragdoll instantly
 };
 
@@ -309,7 +314,11 @@ void CoSyncHealthSync::OnReceiveDmg(const std::string& msg)
         return;
     }
 
-    float amount = std::strtof(end + 1, nullptr);
+    char* amtEnd = nullptr;
+    float amount = std::strtof(end + 1, &amtEnd);
+    uint32_t attacker = 0;
+    if (amtEnd && *amtEnd == '|')
+        attacker = static_cast<uint32_t>(std::strtoul(amtEnd + 1, nullptr, 10));
     if (!(amount > 0.f) || amount > 100000.f)
     {
         LOG_WARN("[HealthSync] DMG amount out of range: '%s'", msg.c_str());
@@ -320,11 +329,37 @@ void CoSyncHealthSync::OnReceiveDmg(const std::string& msg)
     op.type     = HealthOp::Damage;
     op.entityID = entityID;
     op.current  = amount;
+    op.killer   = attacker;
 
     {
         std::lock_guard<std::mutex> lk(s_opMutex);
         s_pendingOps.push_back(op);
     }
+}
+
+// 0.5.1: is this entity a PLAYER (this machine's, or another player's proxy)?
+static bool IsPlayerEntity(uint32_t eid)
+{
+    if (eid == 0)
+        return false;
+    if (eid == CoSyncNet::GetMyEntityID())
+        return true;
+    const CoSyncPlayer* p = g_CoSyncPlayerManager.GetPlayerByEntityID(eid);
+    return p && p->createType == CoSyncEntityType::Player;
+}
+
+// 0.5.1: entity of an actor seen on this machine, by form ID (our player, a
+// player proxy or a synced NPC), 0 when unknown.
+static uint32_t EntityOfActorFormID(uint32_t formID)
+{
+    if (formID == 0)
+        return 0;
+    if (PlayerCharacter* pc = CoSyncGetPlayer())
+        if (pc->formID == formID)
+            return CoSyncNet::GetMyEntityID();
+    if (const CoSyncPlayer* p = g_CoSyncPlayerManager.GetPlayerByActorFormID(formID))
+        return p->entityID;
+    return 0;
 }
 
 // Applies real damage via Papyrus Actor.DamageValue(ActorValue, float).
@@ -374,6 +409,13 @@ void CoSyncHealthSync::FlushPendingHealthOps()
         {
             if (op.entityID == myEntityID)
             {
+                // 0.5.1 (Bug #8): PVE -- another player's damage is never
+                // applied here, whatever the sender's machine thought.
+                if (op.killer != 0 && !CoSyncSessionRules::IsPvpEnabled() && IsPlayerEntity(op.killer))
+                {
+                    LOG_UPDATED("[HealthSync] RX DMG %.1f from player entity=%u refused -- the session is PVE", op.current, op.killer);
+                    continue;
+                }
                 // Someone damaged MY proxy in THEIR world — I take it for real.
                 PlayerCharacter* player = CoSyncGetPlayer();
                 if (player)
@@ -762,10 +804,28 @@ void CoSyncHealthSync::TickDamageDetection(double now)
 
         if (drop >= 1.0f)
         {
-            CoSyncTransport::Send(SerializeDmg(p->entityID, drop));
-            LOG_UPDATED("[HealthSync] TX DMG entity=%u amount=%.1f (%s, hp %.1f->%.1f)",
-                p->entityID, drop,
-                isWorldNpc ? "world NPC, client report" : "player proxy",
+            uint32_t attackerEid = 0;
+            if (!isWorldNpc)
+            {
+                // 0.5.1: a player's health belongs to that player's machine.
+                // The hit seen here is reported; the proxy itself goes back to
+                // the value it had (the owner's HP -- for teammates -- or full),
+                // so nothing here can ever re-report it.
+                CoSyncAVSafety::SafeForceDamage(p->actorRef, healthAVI, drop);
+                it->second = prev;
+                const uint32_t aggFid = CoSyncCombatAuthority::RecentAggressorFormID(p->actorRef, 1.0);
+                attackerEid = EntityOfActorFormID(aggFid);
+                if (IsPlayerEntity(attackerEid) && !CoSyncSessionRules::IsPvpEnabled())
+                {
+                    LOG_UPDATED("[HealthSync] %.1f damage to player entity=%u by player entity=%u not sent -- the session is PVE",
+                        drop, p->entityID, attackerEid);
+                    continue;
+                }
+            }
+            CoSyncTransport::Send(SerializeDmg(p->entityID, drop, attackerEid));
+            LOG_UPDATED("[HealthSync] TX DMG entity=%u amount=%.1f attacker=%u (%s, hp %.1f->%.1f)",
+                p->entityID, drop, attackerEid,
+                isWorldNpc ? "world NPC, client report" : "player proxy (proxy restored: owner decides)",
                 cur + drop, cur);
         }
     }

@@ -41,6 +41,8 @@
 //
 // Wire:  SHOT|shooterEid|seq|weaponFormID|equipIndex|targetEid|flags
 //        flags bit0 = explosive projectile (animation only on receivers)
+class Actor;
+
 namespace CoSyncCombatAuthority
 {
     // Plugin load. MinHook on Fire and DoHitMe, prologue-checked; each hook
@@ -54,6 +56,11 @@ namespace CoSyncCombatAuthority
     // Game thread, every CoSync tick: sends this machine's recorded shots,
     // replays queued remote shots, logs a 10 s summary.
     void Tick(double now);
+
+    // 0.5.1 (Bug #8): the actor that last hit this player proxy here (its
+    // form ID, recorded by the DoHitMe hook) if that was within maxAgeSec,
+    // else 0. Lets the HP-drop relay say who caused the damage.
+    uint32_t RecentAggressorFormID(Actor* proxy, double maxAgeSec);
 
     // Session start/end.
     void Reset();

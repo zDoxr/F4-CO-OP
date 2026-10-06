@@ -18,6 +18,7 @@
 #include "CoSyncContentSync.h"
 #include "CoSyncProfiles.h"
 #include "CoSyncTeams.h"
+#include "CoSyncSessionRules.h"
 #include "CoSyncSettlementSync.h"
 #include "CoSyncReviveSync.h"
 #include "CoSyncWorkshopAuthority.h"
@@ -342,6 +343,11 @@ namespace
         // Teams, settlements and workshop rules (CoSyncTeams /
         // CoSyncWorkshopAuthority / CoSyncSettlementSync -- the host's
         // decisions, never UI-owned).
+        json += ",\"rules\":{\"pvp\":";
+        json += CoSyncSessionRules::IsPvpEnabled() ? "true" : "false";
+        json += ",\"canEdit\":";
+        json += CoSyncSessionRules::CanEdit() ? "true" : "false";
+        json += "}";
         json += ",\"teams\":" + CoSyncTeams::BuildUiJson();
         json += ",\"workshop\":" + CoSyncWorkshopAuthority::BuildUiJson();
         json += ",\"settlement\":" + CoSyncSettlementSync::BuildUiJson(CoSyncTeams::GetLocalNearestWorkshop());
@@ -547,6 +553,13 @@ namespace
         {
             LOG_INFO("[PrismaUI] Multiplayer: close requested by menu");
             CloseMultiplayer();
+        }
+        else if (cmd == "pvp")
+        {
+            // 0.5.1 (Bug #8): host only -- PVE (default) / PVP.
+            if (CoSyncSessionRules::CanEdit())
+                CoSyncSessionRules::HostSetPvp(arg == "1");
+            PushState();
         }
         else if (cmd == "anim_mode")
         {
