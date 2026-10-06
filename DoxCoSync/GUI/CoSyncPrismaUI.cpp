@@ -325,7 +325,6 @@ namespace
             case CoSyncWorldTransfer::ClientPhase::Ready:       phase = "ready";       break;
             case CoSyncWorldTransfer::ClientPhase::Failed:      phase = "failed";      break;
             case CoSyncWorldTransfer::ClientPhase::Lobby:       phase = "lobby";       break;
-            case CoSyncWorldTransfer::ClientPhase::Intro:       phase = "intro";       break;
             case CoSyncWorldTransfer::ClientPhase::WaitingHost: phase = "waitinghost"; break;
             default: break;
             }
@@ -1214,13 +1213,6 @@ namespace CoSyncPrismaUI
             want = s_loadingWant;
             status = s_loadingStatus;
         }
-        if (!want)
-        {
-            if (s_loadingShown && s_loadingView != 0 && s_api->IsValid(s_loadingView))
-                s_api->Hide(s_loadingView);
-            s_loadingShown = false;
-            return;
-        }
         if (s_loadingView == 0 || !s_api->IsValid(s_loadingView))
         {
             s_loadingDomReady.store(false);
@@ -1241,6 +1233,15 @@ namespace CoSyncPrismaUI
             s_api->SetOrder(s_loadingView, 100000);
             s_api->RegisterConsoleCallback(s_loadingView, OnConsoleMessage);
             LOG_INFO("[PrismaUI] Created loading screen view %llu", (unsigned long long)s_loadingView);
+            if (!want)
+                s_api->Hide(s_loadingView);   // created ahead of the first load
+        }
+        if (!want)
+        {
+            if (s_loadingShown)
+                s_api->Hide(s_loadingView);
+            s_loadingShown = false;
+            return;
         }
         if (!s_loadingShown)
         {
@@ -1360,10 +1361,10 @@ namespace CoSyncPrismaUI
     // whenever the two differed, so the teammate HUD switched itself off on
     // the first in-game tick ("TickHud called off PrismaUI's game thread")
     // and never showed. The update now goes to PrismaUI's thread.
-    void SetLoadingView(bool show, const char* status)
+    bool SetLoadingView(bool show, const char* status)
     {
         if (!s_api)
-            return;
+            return false;
         {
             std::lock_guard<std::mutex> lk(s_loadingMx);
             s_loadingWant = show;
@@ -1374,9 +1375,13 @@ namespace CoSyncPrismaUI
         // engine's menu processing -- creating or showing a view from inside
         // it could change the menu stack mid-update.
         if (s_loadingPending.exchange(true))
-            return;
+            return true;
         if (!s_api->DispatchToGameThread(LoadingOnGameThread, nullptr))
+        {
             s_loadingPending.store(false);
+            return false;
+        }
+        return true;
     }
 
     void TickHud()

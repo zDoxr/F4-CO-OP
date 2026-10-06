@@ -434,7 +434,7 @@ namespace
     constexpr float kFaceExtraZoom = 0.25f;   // how far past the normal minimum the editor camera goes
     float s_savedZoom = -1.f;
 
-    enum class EditorStage { None, MoveAway, Arriving, ThirdPerson, Opening, Open, Returning };
+    enum class EditorStage { None, MoveAway, ThirdPerson, Opening, Open, Special, SpecialOpen, Returning };
     EditorStage    s_editorStage = EditorStage::None;
     double         s_editorAt    = 0.0;   // next step time / stage deadline
     double         s_editorSince = 0.0;
@@ -952,6 +952,24 @@ namespace
             PapyrusRestoreValue(pc, hp, 100000.f);
     }
 
+    // 0.5.2: the shared world is a New Game still in Fallout 4's intro --
+    // MQ101 "War Never Changes" (Fallout4.esm 0x1ED86) running and not
+    // completed: pre-war Sanctuary, the walk to Vault 111, the cryo sleep.
+    // TESQuest flags WORD at +0xF4: 0x1 running, 0x80 stopping, 0x2 completed
+    // (the IsRunning / IsCompleted natives, as CoSyncQuestSync reads them).
+    __declspec(noinline) bool InPreWarIntro()
+    {
+        TESForm* q = LookupFormByID(0x0001ED86);
+        if (!q || q->formType != kFormType_QUST)
+            return false;
+        __try
+        {
+            const uint16_t flags = *reinterpret_cast<const uint16_t*>(reinterpret_cast<const uint8_t*>(q) + 0xF4);
+            return (flags & 0x1) && !(flags & 0x80) && !(flags & 0x2);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
     void ApplyFresh(PlayerCharacter* pc)
     {
         LOG_INFO("[Profiles] No saved character in this world -- creating a fresh one");
@@ -964,8 +982,16 @@ namespace
         // host's save, so this strips the host's gear from the copy. The
         // Pip-Boy is given back and equipped by ReplaceInventory -- without it
         // the game has no inventory, map or data screens at all.
-        ReplaceInventory(pc, {}, {}, /*freshStart*/ true);
-        s_freshStarterCheck = true;
+        // 0.5.2: during a shared New Game's intro the player keeps what the
+        // intro gives (pre-war clothes); the Pip-Boy and the jumpsuit come
+        // the normal way, in Vault 111.
+        if (InPreWarIntro())
+            LOG_INFO("[Profiles] Shared New Game intro -- keeping the intro's own outfit, no Pip-Boy yet");
+        else
+        {
+            ReplaceInventory(pc, {}, {}, /*freshStart*/ true);
+            s_freshStarterCheck = true;
+        }
         HealFully(pc);
         s_characterCreated = false;
         // Character creation: the vanilla face/body editor, full mode.
@@ -1121,94 +1147,35 @@ namespace
         RestoreCameraNodeAnimations();
     }
 
-    // Where to put the player back: beside the host's proxy when it is in the
-    // world, otherwise where they stood before (the host's spot in the save).
-    void ReturnDestination(TESObjectCELL*& cell, TESWorldSpace*& ws, NiPoint3& pos, NiPoint3& rot)
+    // Game.ShowSPECIALMenu (1.11.240: native thunk sub_14112A0B0 ->
+    // sub_140AFFB40(), which queues "show SPECIALMenu" on the UI message
+    // queue; no arguments). IDA 2026-10-05.
+    bool ShowSpecialMenu()
     {
-        cell = s_originCell; ws = s_originWorld; pos = s_originPos; rot = s_originRot;
-        for (const CoSyncNet::RosterEntry& r : CoSyncNet::GetRoster())
-        {
-            if (!r.isHost || r.isLocal)
-                continue;
-            const CoSyncPlayer* host = g_CoSyncPlayerManager.GetPlayerByEntityID(r.entityID);
-            TESObjectREFR* ref = host ? reinterpret_cast<TESObjectREFR*>(host->actorRef) : nullptr;
-            if (!ref)
-                break;
-            // The host's REAL location from its WorldSync reports -- NOT the
-            // proxy's own cell: WorldSync rebuilds proxies into the local
-            // player's cell, so while we were in the editor room the host's
-            // proxy lived "in Vault 111" too, and returning there stranded
-            // the player in the vault (user test 2026-09-26).
-            TESWorldSpace* hws = nullptr;
-            TESObjectCELL* hcell = nullptr;
-            if (host->lastRemoteWorldspaceID == 0xFFFFFFFF)
-                break;   // no WorldSync report yet
-            if (host->lastRemoteWorldspaceID)
-            {
-                TESForm* f = LookupFormByID(host->lastRemoteWorldspaceID);
-                if (f && f->formType == kFormType_WRLD)
-                    hws = reinterpret_cast<TESWorldSpace*>(f);
-            }
-            else if (host->lastRemoteCellFormID && host->lastRemoteCellFormID != kEditorCellID)
-            {
-                TESForm* f = LookupFormByID(host->lastRemoteCellFormID);
-                if (f && f->formType == kFormType_CELL)
-                    hcell = static_cast<TESObjectCELL*>(f);
-            }
-            if (!hws && !hcell)
-                break;   // host location unknown yet: back to where we loaded in
-            ws = hws; cell = hcell;
-            pos = NiPoint3(ref->pos.x + 96.f, ref->pos.y, ref->pos.z);   // beside, not inside, the host
-            rot = NiPoint3(0.f, 0.f, ref->rot.z);
-            break;
-        }
+        static const uint8_t kPrologue[9] = { 0x40, 0x53, 0x48, 0x83, 0xEC, 0x20, 0x48, 0x8B, 0x1D };
+        const uintptr_t fn = Base() + 0x00AFFB40;
+        if (std::memcmp(reinterpret_cast<const void*>(fn), kPrologue, sizeof(kPrologue)) != 0)
+            return false;
+        reinterpret_cast<void(*)()>(fn)();
+        return true;
     }
 
     // One step of the editor flow. GAME THREAD.
     void EditorStep(PlayerCharacter* pc, double now)
     {
-        TESObjectREFR* ref = reinterpret_cast<TESObjectREFR*>(pc);
-        UInt32 nullHandle = 0;
         switch (s_editorStage)
         {
         case EditorStage::MoveAway:
         {
+            // 0.5.2: the character is made where the player stands -- in the
+            // host's pre-war house during a shared New Game, wherever they
+            // joined otherwise. (Until 0.5.1 the player was moved into Vault
+            // 111's cryo room for the editor and back again.)
             if (now < s_editorAt)
                 return;
-            s_originWorld = CALL_MEMBER_FN(ref, GetWorldspace)();
-            s_originCell  = s_originWorld ? nullptr : ref->parentCell;
-            s_originPos   = NiPoint3(ref->pos.x, ref->pos.y, ref->pos.z);
-            s_originRot   = NiPoint3(0.f, 0.f, ref->rot.z);
             s_wasFirstPerson = IsFirstPerson();
-
-            TESForm* f = LookupFormByID(kEditorCellID);
-            TESObjectCELL* cell = (f && f->formType == kFormType_CELL) ? static_cast<TESObjectCELL*>(f) : nullptr;
-            if (!cell)
-            {
-                // Should not happen with Fallout4.esm; still let them customize in place.
-                LOG_WARN("[Profiles] Editor room (cell 0x%08X) not found -- opening the editor in place", kEditorCellID);
-                s_editorStage = EditorStage::ThirdPerson;
-                s_editorAt = now;
-                return;
-            }
-            NiPoint3 pos(kEditorPos[0], kEditorPos[1], kEditorPos[2]);
-            NiPoint3 rot(0.f, 0.f, kEditorRotZ);
-            LOG_INFO("[Profiles] Moving the new character to their Vault 111 cryopod for the editor");
-            MoveRefrToPosition(ref, &nullHandle, cell, nullptr, &pos, &rot);
-            s_editorStage = EditorStage::Arriving;
-            s_editorAt = now + 30.0;   // stop waiting for the room after 30 s
-            return;
-        }
-        case EditorStage::Arriving:
-        {
-            const bool there   = ref->parentCell && ref->parentCell->formID == kEditorCellID;
-            const bool settled = there && !CoSyncRuntime_IsMenuOpen("LoadingMenu") && CoSyncWorld::IsWorldReady();
-            if (!settled && now < s_editorAt)
-                return;
-            if (!settled)
-                LOG_WARN("[Profiles] Editor room did not finish loading in 30 s -- opening the editor anyway");
             s_editorStage = EditorStage::ThirdPerson;
-            s_editorAt = now + 1.0;       // let the room and the player's 3D settle
+            s_editorAt = now + 0.5;
             return;
         }
         case EditorStage::ThirdPerson:
@@ -1249,27 +1216,48 @@ namespace
                 FrameFaceCamera(pc);
                 return;
             }
-            if (s_editorAt == 0.0)
-                LOG_WARN("[Profiles] The character editor did not open -- returning the player");
-            else
-                s_characterCreated = true;   // finished the editor: from now on this is a saved character
             RestoreCamera(pc);
-            TESObjectCELL* cell; TESWorldSpace* ws; NiPoint3 pos, rot;
-            ReturnDestination(cell, ws, pos, rot);
-            if (cell || ws)
+            if (s_editorAt == 0.0)
             {
-                LOG_INFO("[Profiles] Character editor closed -- returning the player to the session");
-                MoveRefrToPosition(ref, &nullHandle, cell, ws, &pos, &rot);
+                LOG_WARN("[Profiles] The character editor did not open");
+                s_editorStage = EditorStage::Returning;
+                s_editorAt = now;
+                return;
             }
-            s_editorStage = EditorStage::Returning;
-            s_editorAt = now + 30.0;
+            // 0.5.2: then the game's own SPECIAL menu -- the Vault-Tec
+            // registration, SPECIAL points and the character's name
+            // (SPECIALMenuEvent::NameChangedEvent).
+            s_editorStage = EditorStage::Special;
+            s_editorAt = now + 0.5;
             return;
         }
+        case EditorStage::Special:
+            if (now < s_editorAt)
+                return;
+            if (ShowSpecialMenu())
+                LOG_INFO("[Profiles] Opening the SPECIAL menu (points and name)");
+            else
+                LOG_WARN("[Profiles] SPECIAL menu unavailable on this game version -- skipped");
+            s_editorStage = EditorStage::SpecialOpen;
+            s_editorSince = now;
+            s_editorAt = 0.0;
+            return;
+        case EditorStage::SpecialOpen:
+            if (CoSyncRuntime_IsMenuOpen("SPECIALMenu"))
+            {
+                s_editorAt = now;   // seen open
+                return;
+            }
+            if (s_editorAt == 0.0 && now - s_editorSince < 10.0)
+                return;             // not up yet
+            s_characterCreated = true;   // finished: from now on this is a saved character
+            LOG_INFO("[Profiles] Character creation finished");
+            s_editorStage = EditorStage::Returning;
+            s_editorAt = now + 5.0;
+            return;
         case EditorStage::Returning:
         {
-            // (If the session itself is in Vault 111 the timeout ends this.)
-            const bool away    = !(ref->parentCell && ref->parentCell->formID == kEditorCellID);
-            const bool settled = away && !CoSyncRuntime_IsMenuOpen("LoadingMenu") && CoSyncWorld::IsWorldReady();
+            const bool settled = !CoSyncRuntime_IsMenuOpen("LoadingMenu") && CoSyncWorld::IsWorldReady();
             if (!settled && now < s_editorAt)
                 return;
             if (s_wasFirstPerson)
@@ -1653,30 +1641,6 @@ namespace CoSyncProfiles
         LOG_INFO("[Profiles] Uploaded character (%zu bytes, level %u, %zu items)", msg.size(), p.level, p.items.size());
     }
 
-    void ClientUploadIntroCharacter()
-    {
-        // 0.5.1 (Bug #4): the character this player just made in Fallout 4's
-        // own intro -- face, body and sex from the mirror, SPECIAL and name
-        // from the Vault-Tec rep, what they carried out of Vault 111 and where
-        // they stand -- becomes their profile in the host's world. Marked
-        // finished, so joining restores it instead of opening CoSync's editor.
-        if (CoSyncNet::IsHost() || !CoSyncTransport::IsInitialized())
-            return;
-        Profile p;
-        CaptureCtx ctx{ &p, false };
-        if (!RunGuarded(CaptureThunk, &ctx, "Capturing the intro character") || !ctx.ok)
-        {
-            LOG_WARN("[Profiles] Could not capture the intro character -- the editor will open in the host's world");
-            return;
-        }
-        p.created = true;
-        s_characterCreated = true;
-        const std::string msg = "PROFILEUP|" + GetMyProfileKey() + "|" + Serialize(p);
-        CoSyncTransport::Send(msg);
-        LOG_INFO("[Profiles] Uploaded the character from my own intro (%zu bytes, level %u, %zu items, looks=%d)",
-            msg.size(), p.level, p.items.size(), p.hasLooks ? 1 : 0);
-    }
-
     const char* GetClientStatus() { return s_status; }
 
     bool IsEditorBusy() { return s_editorStage != EditorStage::None || s_openLooksMenu; }
@@ -1685,6 +1649,10 @@ namespace CoSyncProfiles
     {
         LOG_REQUIREMENT("CoSyncProfiles::ClientStripInheritedInventory", "Client, main thread, right after the host's world loaded.");
         if (CoSyncNet::IsHost() || !EngineOk())
+            return;
+        // 0.5.2: in a shared New Game's intro nobody carries anything yet but
+        // the intro's own clothes -- nothing of the host's to remove.
+        if (InPreWarIntro())
             return;
         // In the host's Power Armor: the Tick path ejects first and strips
         // once out (wiping worn pieces mid-armor breaks the frame).

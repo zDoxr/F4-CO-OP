@@ -117,6 +117,13 @@ namespace
     Dtor_t  g_origDtor  = nullptr;
 
     std::atomic<bool>     s_menuAlive{ false };
+    // 0.5.2: a load is often several LoadingMenus back to back (2026-10-05
+    // client log: closed 21:02:29.132, up again .162). Hiding on each close
+    // let the vanilla screen show until the next show arrived -- the reported
+    // flicker. The screen stays up this long after the last one closes.
+    std::atomic<uint64_t> s_menuClosedAtMs{ 0 };
+    constexpr uint64_t    kLingerMs = 1500;
+    bool                  s_viewPrimed = false;   // the page is created (hidden) before the first load
     std::atomic<uint64_t> s_reasonUntilMs[static_cast<int>(CoSyncLoading::Reason::Count)] = {};
     std::atomic<bool>     s_showing{ false };
     std::mutex            s_applyMx;
@@ -141,7 +148,9 @@ namespace
         const bool joining = phase == P::Downloading || phase == P::Loading;
         const bool respawn = ReasonActive(CoSyncLoading::Reason::Respawn);
         const bool newGame = ReasonActive(CoSyncLoading::Reason::NewGame);
-        const bool show = s_menuAlive.load() || joining || respawn || newGame;
+        const uint64_t closedAt = s_menuClosedAtMs.load();
+        const bool lingering = closedAt != 0 && GetTickCount64() - closedAt < kLingerMs;
+        const bool show = s_menuAlive.load() || lingering || joining || respawn || newGame;
 
         std::string status;
         char buf[64];
@@ -155,12 +164,18 @@ namespace
         else if (phase == P::Loading)
             status = "Joining the host's world";
         else if (newGame)
-            status = "Starting a new game";
+            status = "Waiting for the host's game";
         else
             status = "Syncing Commonwealth";
 
         std::lock_guard<std::mutex> lk(s_applyMx);
         const uint64_t now = NowMs();
+        if (!s_viewPrimed && !show)
+        {
+            // Build the page once, hidden, so a load never waits for it.
+            s_viewPrimed = CoSyncPrismaUI::SetLoadingView(false, status.c_str());
+            return;
+        }
         if (show == s_lastShow && status == s_lastStatus && (!show || now < s_nextRefreshMs))
             return;
         s_lastShow = show;
@@ -183,6 +198,7 @@ namespace
     {
         if (s_menuAlive.exchange(false))
             LOG_INFO("[Loading] LoadingMenu closed");
+        s_menuClosedAtMs.store(GetTickCount64());
         void* r = g_origDtor ? g_origDtor(self, flags) : nullptr;
         Apply();
         return r;

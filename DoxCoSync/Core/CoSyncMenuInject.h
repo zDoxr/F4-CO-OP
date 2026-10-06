@@ -32,9 +32,3 @@ void CoSyncMenuInject_PauseMenuKeyActivate();
 // PrismaUI menu directly.
 void CoSyncMenuInject_OnMultiplayerHotkey();
 
-// 0.5.1 lobby (Bug #3/#4), any thread: the host started a New Game, so this
-// client starts its own from the main menu. The MainMenu per-frame poll calls
-// the menu's own BGSCodeObj.StartNewGame() -- exactly what its "New" confirm
-// button does (MainMenu.as NEW_CONFIRM_STATE -> MainMenu callback 3) -- once
-// the menu reports IsMainMenuReady. Gives up after 60 s.
-void CoSyncMenuInject_RequestLobbyNewGame();

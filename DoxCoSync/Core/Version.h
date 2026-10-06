@@ -42,9 +42,13 @@
 //       points), PVE default + host PVP rule, SteamID identity, client NPC
 //       talk, team-only vitals, main-menu lobby, shared loading screen,
 //       per-player companions.
+// 0.5.2 (2026-10-05): the New Game intro is played together in the host's
+//       world (WORLDGO removed, WORLDWAIT|starting), character creation in
+//       place + the SPECIAL menu, settlement ratings land exactly on the
+//       host's values, no loading-screen flicker between loading menus.
 #define COSYNC_VERSION_MAJOR 0
 #define COSYNC_VERSION_MINOR 5
-#define COSYNC_VERSION_PATCH 1
+#define COSYNC_VERSION_PATCH 2
 #define COSYNC_VERSION_TAG   ""
 
 // Numeric form used on the wire. MINOR and PATCH must stay below 100 for the

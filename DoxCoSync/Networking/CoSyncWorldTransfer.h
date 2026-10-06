@@ -16,12 +16,12 @@
 //   C->H  WORLDREQ|<build>|<profileKey>|<name>|<ready>
 //         ready 0 = the client is at its main menu (it can start a New Game),
 //               1 = it already has a world (its finished intro, or a save)
-//   H->C  WORLDWAIT|lobby|intro            0.5.1 lobby: no world to give yet
-//                                          (host at the main menu / host still
-//                                          in its New Game intro) -- kept in
-//                                          the lobby, the world follows later
-//   H->C  WORLDGO|new                      0.5.1: the host started a New Game:
-//                                          start your own and play the intro
+//   H->C  WORLDWAIT|lobby|starting         lobby: no world to give yet (host at
+//                                          the main menu / its world cannot be
+//                                          saved yet, e.g. its own mirror in a
+//                                          New Game) -- the world follows as
+//                                          soon as it can be saved; a shared
+//                                          New Game's intro is played together
 //   H->C  WORLDBEGIN|<id>|<fosSize>|<coSize>|<fosCrc>|<coCrc>
 //   H->C  WORLDCHUNK|<id>|<file 0=fos,1=co>|<offset>|<bytes...>
 //   H->C  WORLDEND|<id>
@@ -40,9 +40,8 @@ namespace CoSyncWorldTransfer
         Ready,         // host world loaded -- session may start
         Failed,
         // 0.5.1 lobby (Bug #3/#4)
-        Lobby,         // connected at the main menu, host has no world yet
-        Intro,         // playing our own New Game intro (host started one)
-        WaitingHost,   // intro done / own game: the host is still in its intro
+        Lobby,         // connected, host at the main menu
+        WaitingHost,   // the host's game is starting (not saveable yet)
     };
 
     // True for every WORLD* message (so the caller can route it here).
@@ -58,16 +57,11 @@ namespace CoSyncWorldTransfer
     // Client: called when the transport connects (main thread).
     void ClientBegin(const std::string& profileKey, const std::string& name);
 
-    // 0.5.1: the local player has finished Fallout 4's own New Game intro
-    // (MQ101 done / Out of Time started / been in the Commonwealth). False at
-    // the main menu and all through the pre-war and Vault 111 sequence.
-    bool IsLocalIntroComplete();
-
     // 0.5.1: a client still in the lobby / its own intro must not take the
     // host's session traffic (entities, quests, time...) into a world that is
     // not the host's. True once it is joining or in the host's world.
     bool ClientAcceptsSessionTraffic();
-    // "lobby" / "intro" / "" -- what the client is waiting for (UI).
+    // "lobby" / "starting" / "" -- what the client is waiting for (UI).
     std::string GetClientWaitReason();
 
     // F4SE kMessage_PostLoadGame (main thread).

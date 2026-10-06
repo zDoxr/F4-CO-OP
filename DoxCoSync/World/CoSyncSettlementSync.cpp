@@ -86,9 +86,26 @@ namespace
         __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
     }
 
+    // Makes the CURRENT value equal `v` (what the host reads and sends).
+    // 0.5.2: this was SetBase(v). A rating's current value is base + the
+    // modifiers the engine and this machine's own WorkshopParentScript keep
+    // on the workshop -- a placed defense adds its Safety as one -- so the
+    // client ended at host value + its own modifier, its script folded that
+    // back into the base, and the next write added the host's value on top
+    // again: one turret on a shared settlement climbed to the 999 display cap.
+    // Shifting the base by (target - current) lands exactly on the host's
+    // value whatever the modifiers are, and is a no-op once it is there.
     __declspec(noinline) bool WriteAV(TESObjectREFR* ref, ActorValueInfo* avi, float v)
     {
-        __try { ref->actorValueOwner.SetBase(avi, v); return true; }
+        __try
+        {
+            const float cur  = ref->actorValueOwner.GetValue(avi);
+            const float base = ref->actorValueOwner.GetBase(avi);
+            if (!std::isfinite(cur) || !std::isfinite(base))
+                return false;
+            ref->actorValueOwner.SetBase(avi, base + (v - cur));
+            return true;
+        }
         __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
     }
 

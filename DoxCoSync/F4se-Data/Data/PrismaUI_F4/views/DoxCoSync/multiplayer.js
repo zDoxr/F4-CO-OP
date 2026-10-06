@@ -99,8 +99,7 @@
       case 'downloading': return ['Downloading ' + state.transfer.percent + '%', ''];
       case 'loading':     return ['Loading…', ''];
       case 'lobby':       return ['In the lobby', 'dim'];
-      case 'intro':       return ['Playing the intro', ''];
-      case 'waitinghost': return ['Waiting for the host', 'dim'];
+      case 'waitinghost': return ['Host starting…', 'dim'];
       case 'ready':       return ['Loaded', ''];
       case 'failed':      return ['Failed', 'bad'];
     }
@@ -389,7 +388,7 @@
         }
         if (!inGame() && role() === 'HOST')
           return { head: 'Lobby open',
-            text: 'Players can join now and wait here. Choose NEW (everyone plays the intro and makes a character), CONTINUE or LOAD -- the others follow you into your game.' };
+            text: 'Players can join now and wait here. Choose NEW, CONTINUE or LOAD -- the others follow you into your game. In a NEW game they arrive after your character creation and make theirs in the house with you.' };
         if (status() === 'STARTING')
           return { head: 'Starting…', text: 'Opening your game to the network.' };
         if (status() === 'FAILED')
@@ -533,11 +532,9 @@
           case 'loading':
             return { head: 'Loading the world…', text: 'Entering the host’s world. If the game asks you to confirm anything, choose Yes.' };
           case 'lobby':
-            return { head: 'In the lobby', text: 'Waiting for the host to start. When the host chooses NEW you start your own New Game; CONTINUE or LOAD brings you into the host’s game.' };
-          case 'intro':
-            return { head: 'New Game', text: 'Play the intro and create your character (face, body, SPECIAL, name). When you leave Vault 111 you join the host’s game with that character.' };
+            return { head: 'In the lobby', text: 'Waiting for the host to start. NEW, CONTINUE or LOAD -- you join the host’s game automatically. In a NEW game everyone plays the intro together and creates their character there.' };
           case 'waitinghost':
-            return { head: 'Waiting for the host', text: 'The host is still in the intro. You join the host’s game as soon as the host leaves Vault 111.' };
+            return { head: 'The host’s game is starting', text: 'You join as soon as the host’s game can be saved (after the host’s own character creation in a New Game).' };
         }
         if (inHostWorld()) {
           if (state.profile === 'CREATING')

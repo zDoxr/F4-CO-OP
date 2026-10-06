@@ -11,7 +11,6 @@
 #include "CoSyncRequirementsLog.h"
 #include "CoSyncContentSync.h"
 #include "CoSyncRuntime.h"
-#include "CoSyncMenuInject.h"
 #include "CoSyncLoadingScreen.h"
 
 #include "GameForms.h"
@@ -147,10 +146,6 @@ namespace
     std::vector<LobbyWaiter> s_lobby;
     double s_hostJoinableSinceMs = 0.0;   // world loaded + intro done, continuously since
 
-    // Fallout4.esm forms (master file: stable FormIDs), read from the ESM.
-    constexpr uint32_t kQuestMQ101        = 0x0001ED86;   // War Never Changes (the intro)
-    constexpr uint32_t kQuestMQ102        = 0x0001CC2A;   // Out of Time (starts at the vault exit)
-    constexpr uint32_t kWorldCommonwealth = 0x0000003C;
 
     // ── Client state ────────────────────────────────────────────────────────
     std::atomic<int> s_phase{ static_cast<int>(CoSyncWorldTransfer::ClientPhase::Idle) };
@@ -165,7 +160,6 @@ namespace
     std::string s_lastKey, s_lastName;          // what ClientBegin sent (re-request after the intro)
     std::mutex  s_waitMutex;
     std::string s_waitReason;                   // "lobby" / "intro"
-    double      s_introDoneSinceMs = 0.0;       // own intro complete, continuously since
 
     // Papyrus Game.QuitToMainMenu native (registered at 0x1411263D7): static,
     // no arguments -- queues GameScript's FadeThenMainMenuCallback, the same
@@ -204,6 +198,12 @@ namespace
         // doors and equips there must not reach the host's world.
         using P = CoSyncWorldTransfer::ClientPhase;
         CoSyncTransport::SetClientOutsideSession(p != P::Ready && p != P::Idle);
+        // The host's game is starting: a CoSync load as far as this player
+        // is concerned (the loading screen until the download begins).
+        if (p == P::WaitingHost)
+            CoSyncLoading::Begin(CoSyncLoading::Reason::NewGame, 600.0);
+        else
+            CoSyncLoading::End(CoSyncLoading::Reason::NewGame);
     }
 
     void Fail(const char* reason)
@@ -306,50 +306,16 @@ namespace
 
 namespace
 {
-    // TESQuest: flags WORD at +0xF4 (bit 0x2 = completed, the IsCompleted
-    // native's test), current stage WORD at +0x2B4 (the GetCurrentStageID
-    // native) -- the offsets CoSyncQuestSync already reads (IDA-verified).
-    __declspec(noinline) bool ReadQuest(uint32_t formID, uint16_t& flags, uint16_t& stage)
+    // Host: its world can be handed out right now -- loaded, no load screen,
+    // not in the character editor or the SPECIAL menu, and the engine's own
+    // can-save gate open (it refuses during the New Game opening, menus,
+    // dialogue scenes...). HostSaveAndQueue saves at exactly this point.
+    bool HostWorldJoinableNow()
     {
-        TESForm* q = LookupFormByID(formID);
-        if (!q || q->formType != kFormType_QUST)
+        if (!CoSyncWorld::IsWorldReady() || CoSyncRuntime_IsMenuOpen("LoadingMenu") ||
+            CoSyncRuntime_IsMenuOpen("LooksMenu") || CoSyncRuntime_IsMenuOpen("SPECIALMenu"))
             return false;
-        __try
-        {
-            flags = *reinterpret_cast<const uint16_t*>(reinterpret_cast<const uint8_t*>(q) + 0xF4);
-            stage = *reinterpret_cast<const uint16_t*>(reinterpret_cast<const uint8_t*>(q) + 0x2B4);
-            return true;
-        }
-        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
-    }
-
-    __declspec(noinline) uint32_t PlayerWorldspaceID()
-    {
-        __try
-        {
-            TESObjectREFR* ref = reinterpret_cast<TESObjectREFR*>(CoSyncGetPlayer());
-            if (!ref) return 0;
-            TESWorldSpace* ws = CALL_MEMBER_FN(ref, GetWorldspace)();
-            return ws ? reinterpret_cast<TESForm*>(ws)->formID : 0;
-        }
-        __except (EXCEPTION_EXECUTE_HANDLER) { return 0; }
-    }
-
-    // The vanilla intro (MQ101: pre-war Sanctuary, the Vault-Tec rep's
-    // SPECIAL/name, Vault 111 and the cryopods) is over once MQ101 is
-    // completed or Out of Time (MQ102) has begun -- both happen as the player
-    // rides the elevator out of Vault 111. Being in the Commonwealth
-    // worldspace covers saves and alternate starts that skip those quests.
-    bool LocalIntroComplete()
-    {
-        if (!CoSyncWorld::IsWorldReady() || !CoSyncGetPlayer())
-            return false;
-        uint16_t flags = 0, stage = 0;
-        if (ReadQuest(kQuestMQ101, flags, stage) && (flags & 0x2))
-            return true;
-        if (ReadQuest(kQuestMQ102, flags, stage) && ((flags & 0x2) || stage > 0))
-            return true;
-        return PlayerWorldspaceID() == kWorldCommonwealth;
+        return CoSyncSaveLoad::EngineCanSave() != 0;   // -1 = gate unavailable: try the save
     }
 }
 
@@ -377,11 +343,6 @@ namespace CoSyncWorldTransfer
                 CoSyncTransport::SendTo(conn, "WORLDERR|version_mismatch");
                 return;
             }
-            if (!CoSyncWorld::IsWorldReady())
-            {
-                CoSyncTransport::SendTo(conn, "WORLDERR|host_not_in_game");
-                return;
-            }
             // 0.4.0 join gate: the world (the host's save) goes only to a
             // client whose plugins/archives the host has verified -- a save
             // loaded without one of its plugins drops that plugin's content.
@@ -401,42 +362,20 @@ namespace CoSyncWorldTransfer
             const bool clientReady = f.size() > 4 && f[4] == "1";
             CoSyncProfiles::HostOnPlayerKey(conn, key, name);
 
-            // 0.5.1 lobby (Bug #3/#4). No world to give yet: the host is at
-            // the main menu (lobby), or in its New Game intro -- the world it
-            // would save is the pre-war Sanctuary / Vault 111 it is playing
-            // through, and a client loaded into that lands in the cryo room.
+            // Lobby (0.5.1/0.5.2). No world to give yet: the host is at the
+            // main menu, or its world cannot be saved right now -- the New
+            // Game's opening, the host's own mirror / character creation, a
+            // load screen. The client waits; the host's world (also the
+            // pre-war intro of a shared New Game) follows as soon as it can
+            // be saved (Tick).
+            (void)clientReady;
             const bool hostHasWorld = CoSyncWorld::IsWorldReady();
-            if (!hostHasWorld || !IsLocalIntroComplete())
+            if (!hostHasWorld || !HostWorldJoinableNow())
             {
-                if (hostHasWorld && !clientReady)
-                {
-                    // The host is in its intro and the client is at its main
-                    // menu: it plays Fallout 4's own intro too (character
-                    // creation, FaceGen, SPECIAL, name) and asks again once
-                    // it is out of Vault 111.
-                    s_worldRequestedConns.erase(conn);
-                    CoSyncTransport::SendTo(conn, "WORLDGO|new");
-                    LOG_INFO("[WorldXfer] conn=%u ('%s') joined during my intro -- it starts its own New Game", conn, name.c_str());
-                    return;
-                }
-                s_lobby.push_back({ conn, !clientReady });
-                CoSyncTransport::SendTo(conn, hostHasWorld ? "WORLDWAIT|intro" : "WORLDWAIT|lobby");
+                s_lobby.push_back({ conn, false });
+                CoSyncTransport::SendTo(conn, hostHasWorld ? "WORLDWAIT|starting" : "WORLDWAIT|lobby");
                 LOG_INFO("[WorldXfer] conn=%u ('%s') waits in the lobby (%s) -- %zu waiting",
-                    conn, name.c_str(), hostHasWorld ? "host still in the intro" : "host at the main menu", s_lobby.size());
-                return;
-            }
-
-            // 0.5.1 (Bug #4): a player with no character in this world who
-            // joins from the main menu plays Fallout 4's own intro first (the
-            // real character creation), then joins with that character --
-            // instead of CoSync's stand-in editor in the Vault 111 cryo room.
-            // A player joining from inside a game of their own keeps the
-            // in-world editor (there is no main menu to start the intro from).
-            if (!clientReady && !CoSyncProfiles::HostHasFinishedCharacter(key))
-            {
-                s_worldRequestedConns.erase(conn);
-                CoSyncTransport::SendTo(conn, "WORLDGO|new");
-                LOG_INFO("[WorldXfer] conn=%u ('%s') has no character here yet -- it plays the intro first", conn, name.c_str());
+                    conn, name.c_str(), hostHasWorld ? "host's world not ready to save yet" : "host at the main menu", s_lobby.size());
                 return;
             }
 
@@ -470,35 +409,13 @@ namespace CoSyncWorldTransfer
                 std::lock_guard<std::mutex> lk(s_waitMutex);
                 s_waitReason = reason;
             }
-            const bool intro = reason == "intro";
-            SetPhase(intro ? ClientPhase::WaitingHost : ClientPhase::Lobby);
-            LOG_INFO("[WorldXfer] In the host's lobby -- %s", intro ? "the host is still in its intro" : "the host is at the main menu");
-            CoSyncGameAPI::QueueNotification(intro ? "CoSync: waiting for the host to leave Vault 111"
-                                                   : "CoSync: in the lobby -- waiting for the host to start the game");
+            const bool starting = reason == "starting";
+            SetPhase(starting ? ClientPhase::WaitingHost : ClientPhase::Lobby);
+            LOG_INFO("[WorldXfer] In the host's lobby -- %s", starting ? "the host's game is starting" : "the host is at the main menu");
+            CoSyncGameAPI::QueueNotification(starting ? "CoSync: the host's game is starting -- you join in a moment"
+                                                      : "CoSync: in the lobby -- waiting for the host to start the game");
             return;
         }
-        if (msg.rfind("WORLDGO|new", 0) == 0)
-        {
-            {
-                std::lock_guard<std::mutex> lk(s_waitMutex);
-                s_waitReason = "intro";
-            }
-            s_introDoneSinceMs = 0.0;
-            if (CoSyncWorld::IsWorldReady())
-            {
-                // Already in a game of our own: no main menu to start a New
-                // Game from. Wait for the host's intro to end instead.
-                LOG_INFO("[WorldXfer] The host started a New Game; I am already in a game -- waiting for the host's intro to end");
-                ClientBegin(s_lastKey, s_lastName);
-                return;
-            }
-            SetPhase(ClientPhase::Intro);
-            LOG_INFO("[WorldXfer] The host started a New Game -- starting mine (Fallout 4's own intro)");
-            CoSyncLoading::Begin(CoSyncLoading::Reason::NewGame, 30.0);
-            CoSyncMenuInject_RequestLobbyNewGame();
-            return;
-        }
-
         if (msg.rfind("WORLDBEGIN|", 0) == 0)
         {
             auto f = SplitHeader(msg, 6, payload);
@@ -601,8 +518,7 @@ namespace CoSyncWorldTransfer
         if (!s_lobby.empty() && CoSyncTransport::IsInitialized() && CoSyncTransport::IsHost())
         {
             const double nowMs = static_cast<double>(GetTickCount64());
-            const bool joinable = CoSyncWorld::IsWorldReady() && !CoSyncRuntime_IsMenuOpen("LoadingMenu") &&
-                                  IsLocalIntroComplete();
+            const bool joinable = HostWorldJoinableNow();
             if (!joinable)
                 s_hostJoinableSinceMs = 0.0;
             else if (s_hostJoinableSinceMs == 0.0)
@@ -620,27 +536,6 @@ namespace CoSyncWorldTransfer
                     if (!s_saveQueued)
                         s_saveRetryAtMs = nowMs + 500.0;
                 }
-            }
-        }
-
-        // 0.5.1 lobby, client: our own intro is over (out of Vault 111) --
-        // the character we just made goes to the host, then we ask for the
-        // host's world (the host holds us until its intro is over too).
-        if (GetClientPhase() == ClientPhase::Intro && CoSyncTransport::IsInitialized() && !CoSyncTransport::IsHost())
-        {
-            const double nowMs = static_cast<double>(GetTickCount64());
-            const bool done = CoSyncWorld::IsWorldReady() && !CoSyncRuntime_IsMenuOpen("LoadingMenu") &&
-                              IsLocalIntroComplete();
-            if (!done)
-                s_introDoneSinceMs = 0.0;
-            else if (s_introDoneSinceMs == 0.0)
-                s_introDoneSinceMs = nowMs;
-            else if (nowMs - s_introDoneSinceMs >= 2000.0)
-            {
-                s_introDoneSinceMs = 0.0;
-                LOG_INFO("[WorldXfer] My intro is complete -- sending my new character and asking for the host's world");
-                CoSyncProfiles::ClientUploadIntroCharacter();
-                ClientBegin(s_lastKey, s_lastName);
             }
         }
 
@@ -760,46 +655,22 @@ namespace CoSyncWorldTransfer
 
     void OnNewGame()
     {
-        // The engine's own New Game load (and its LoadingMenu) takes over.
-        CoSyncLoading::End(CoSyncLoading::Reason::NewGame);
         if (s_inHostWorld.exchange(false))
             LOG_INFO("[WorldXfer] New game started -- saving is allowed again");
 
-        // 0.5.1 lobby (Bug #4): the HOST pressed New Game. Every player
-        // waiting at their own main menu starts a New Game too and plays
-        // Fallout 4's intro -- character creation, FaceGen and sex, the
-        // Vault-Tec SPECIAL and name -- instead of being dropped into a
-        // finished world's cryo room. They ask for the world again when their
-        // intro is over; anyone already in a game keeps waiting.
+        // 0.5.2: a New Game from the lobby is played TOGETHER. Everyone
+        // waiting stays in the lobby and gets the host's world -- the pre-war
+        // intro -- as soon as it can be saved (after the host's own mirror),
+        // then makes their character in place (CoSyncProfiles editor + the
+        // SPECIAL menu with the name).
         if (CoSyncTransport::IsInitialized() && CoSyncTransport::IsHost() && !s_lobby.empty())
-        {
-            size_t sent = 0;
-            for (auto it = s_lobby.begin(); it != s_lobby.end();)
-            {
-                if (it->canStartNewGame)
-                {
-                    s_worldRequestedConns.erase(it->conn);
-                    CoSyncTransport::SendTo(it->conn, "WORLDGO|new");
-                    ++sent;
-                    it = s_lobby.erase(it);
-                }
-                else
-                    ++it;
-            }
-            LOG_INFO("[WorldXfer] New Game from the lobby -- %zu player(s) start their own intro, %zu wait for mine to end",
-                sent, s_lobby.size());
-        }
-    }
-
-    bool IsLocalIntroComplete()
-    {
-        return LocalIntroComplete();
+            LOG_INFO("[WorldXfer] New Game from the lobby -- %zu player(s) join my intro once it can be saved", s_lobby.size());
     }
 
     bool ClientAcceptsSessionTraffic()
     {
         const ClientPhase p = GetClientPhase();
-        return p != ClientPhase::Lobby && p != ClientPhase::Intro && p != ClientPhase::WaitingHost;
+        return p != ClientPhase::Lobby && p != ClientPhase::WaitingHost;
     }
 
     std::string GetClientWaitReason()
@@ -821,7 +692,6 @@ namespace CoSyncWorldTransfer
         s_worldRequestedConns.clear();
         s_lobby.clear();
         s_hostJoinableSinceMs = 0.0;
-        s_introDoneSinceMs = 0.0;
         {
             std::lock_guard<std::mutex> lk(s_waitMutex);
             s_waitReason.clear();

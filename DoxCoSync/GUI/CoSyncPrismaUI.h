@@ -56,7 +56,8 @@ namespace CoSyncPrismaUI
 
     // 0.5.1 (Bug #9): the CoSync loading screen view (loading.html), any
     // thread. Driven only by CoSyncLoading, which decides when and what.
-    void SetLoadingView(bool show, const char* status);
+    // Returns false while PrismaUI is not available yet.
+    bool SetLoadingView(bool show, const char* status);
 
     // Text chat box (views/DoxCoSync/chat.html): shown during a session,
     // takes keyboard focus while typing. Any thread.

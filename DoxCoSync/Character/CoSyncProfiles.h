@@ -50,9 +50,6 @@ namespace CoSyncProfiles
 
     // Client: upload one last snapshot right now (before leaving).
     void ClientUploadNow();
-    // Client, 0.5.1: upload the character made in this player's own New Game
-    // intro (lobby flow), marked finished.
-    void ClientUploadIntroCharacter();
 
     // UI: "", "RESTORING", "CREATING", "CUSTOMIZING", "READY".
     const char* GetClientStatus();
