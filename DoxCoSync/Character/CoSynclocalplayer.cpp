@@ -22,6 +22,7 @@
 #include "CoSyncOverlay.h"
 #include "CoSyncPapyrusHelper.h"
 #include "CoSyncVMFormArg.h"
+#include "CoSyncLoadingScreen.h"
 
 #include "GameForms.h"
 #include "GameFormComponents.h"
@@ -668,6 +669,11 @@ void CoSyncLocalPlayer::Tick(double now)
                     s_localReviverEID = revived ? reviverEID : 0;
                     s_respawnPending = !revived;
                     s_recoveryReleased = true;
+                    // 0.5.1 (Bug #9): a respawn is a CoSync load -- the one
+                    // loading screen covers it until the player stands at
+                    // the save point (expires on its own if anything stalls).
+                    if (!revived)
+                        CoSyncLoading::Begin(CoSyncLoading::Reason::Respawn, 10.0);
                 }
             }
 
@@ -747,6 +753,9 @@ void CoSyncLocalPlayer::Tick(double now)
                 {
                     s_respawnPending = false;
                     CoSyncReviveSync::MoveToRespawnPoint();
+                    // A move inside the loaded area has no engine loading
+                    // menu: keep the screen up while the player is placed.
+                    CoSyncLoading::Begin(CoSyncLoading::Reason::Respawn, 1.5);
                 }
                 CoSyncReviveSync::OnLocalUp();
                 s_localDownedSince = 0.0;

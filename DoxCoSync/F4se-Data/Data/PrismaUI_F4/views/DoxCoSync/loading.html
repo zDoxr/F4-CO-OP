@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CoSync Loading Screen</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden}
+body{font-family:Arial,Helvetica,sans-serif}
+.screen{height:100%;display:grid;place-items:center;position:relative;background:#000}
+.grain{position:absolute;inset:-30%;opacity:.035;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.75' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");animation:grain .15s steps(2) infinite}
+.center{text-align:center;position:relative;z-index:2}
+.loader{width:170px;height:170px;position:relative;margin:auto;filter:drop-shadow(0 0 13px rgba(218,177,91,.16))}
+.ring{position:absolute;inset:8px;border:5px solid #d9b15b;border-radius:50%;border-left-color:transparent;border-bottom-color:transparent;animation:spin 1.9s linear infinite}
+.ring2{position:absolute;inset:29px;border:5px solid #a67c34;border-radius:50%;border-right-color:transparent;border-top-color:transparent;animation:spinReverse 1.25s linear infinite}
+.core{position:absolute;left:68px;top:68px;width:34px;height:34px;border:5px solid #e5c16c;transform:rotate(45deg);background:#080704;animation:pulse 1.7s ease-in-out infinite}
+.core:after{content:"";position:absolute;inset:7px;background:#d8ae55}
+.tick{position:absolute;inset:-5px;border-radius:50%;border:1px solid rgba(217,177,91,.15);animation:pulseRing 1.7s ease-in-out infinite}
+.logo{margin-top:30px;color:#e3bd68}
+.name{font-size:clamp(38px,6vw,66px);font-weight:800;letter-spacing:9px;text-indent:9px;text-shadow:0 0 14px rgba(227,189,104,.18)}
+.tag{margin-top:8px;font-size:10px;letter-spacing:6px;text-indent:6px;color:#806b43}
+.status{margin-top:26px;font-size:10px;letter-spacing:3px;color:#55472e}
+.dots span{animation:blink 1.2s infinite}
+.dots span:nth-child(2){animation-delay:.2s}
+.dots span:nth-child(3){animation-delay:.4s}
+.bar{width:210px;height:1px;background:#211b12;margin:18px auto 0;overflow:hidden}
+.bar i{display:block;width:65px;height:1px;background:#a9843d;animation:progress 2.2s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes spinReverse{to{transform:rotate(-360deg)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 5px rgba(229,193,108,.15)}50%{box-shadow:0 0 20px rgba(229,193,108,.5)}}
+@keyframes pulseRing{0%,100%{transform:scale(.94);opacity:.25}50%{transform:scale(1.06);opacity:.8}}
+@keyframes progress{0%{transform:translateX(-70px)}50%{transform:translateX(210px)}100%{transform:translateX(210px)}}
+@keyframes blink{0%,45%{opacity:0}50%,100%{opacity:1}}
+@keyframes grain{0%{transform:translate(0,0)}50%{transform:translate(2%,-1%)}100%{transform:translate(-1%,2%)}}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="center">
+    <div class="loader">
+      <div class="tick"></div>
+      <div class="ring"></div>
+      <div class="ring2"></div>
+      <div class="core"></div>
+    </div>
+    <div class="logo">
+      <div class="name">CoSync</div>
+      <div class="tag">MULTIPLAYER</div>
+    </div>
+    <div class="status"><span id="statusText">SYNCING COMMONWEALTH</span><span class="dots"><span>.</span><span>.</span><span>.</span></span></div>
+    <div class="bar"><i></i></div>
+  </div>
+  <div class="grain"></div>
+</div>
+<script>
+/* CoSync: the one loading screen (0.5.1). Design: DoxCoSync/LoadingScreen/Loading screen.html.
+ * C++ -> JS: window.cosyncLoading(text) sets the status line (CoSyncLoading). */
+(function () {
+  var el = document.getElementById('statusText');
+  window.cosyncLoading = function (text) {
+    var t = (text && String(text).length) ? String(text).toUpperCase() : 'SYNCING COMMONWEALTH';
+    if (el && el.textContent !== t) el.textContent = t;
+  };
+})();
+</script>
+</body>
+</html>

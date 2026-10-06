@@ -9,6 +9,7 @@
 #include "CoSyncSettlementSync.h"
 #include "CoSyncPickpocket.h"
 #include "CoSyncSessionRules.h"
+#include "CoSyncLoadingScreen.h"
 #include "CoSyncElevatorSync.h"
 #include "CoSyncWorkshopAuthority.h"
 #include "CoSyncNet.h"
@@ -531,6 +532,8 @@ void CoSyncRuntime_TickGameThread()
     CoSyncTeleport::PollHotkeys();
     g_lastTickStep = "RTGT:PrismaHud";
     CoSyncPrismaUI::TickHud();
+    g_lastTickStep = "RTGT:LoadingScreen";
+    CoSyncLoading::Tick();
     g_lastTickStep = "RTGT:Nameplates";
     CoSyncPrismaUI::TickNameplates();
 

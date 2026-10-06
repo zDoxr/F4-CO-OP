@@ -12,6 +12,7 @@
 #include "CoSyncContentSync.h"
 #include "CoSyncRuntime.h"
 #include "CoSyncMenuInject.h"
+#include "CoSyncLoadingScreen.h"
 
 #include "GameForms.h"
 #include "GameReferences.h"
@@ -490,6 +491,7 @@ namespace CoSyncWorldTransfer
             }
             SetPhase(ClientPhase::Intro);
             LOG_INFO("[WorldXfer] The host started a New Game -- starting mine (Fallout 4's own intro)");
+            CoSyncLoading::Begin(CoSyncLoading::Reason::NewGame, 30.0);
             CoSyncMenuInject_RequestLobbyNewGame();
             return;
         }
@@ -755,6 +757,8 @@ namespace CoSyncWorldTransfer
 
     void OnNewGame()
     {
+        // The engine's own New Game load (and its LoadingMenu) takes over.
+        CoSyncLoading::End(CoSyncLoading::Reason::NewGame);
         if (s_inHostWorld.exchange(false))
             LOG_INFO("[WorldXfer] New game started -- saving is allowed again");
 

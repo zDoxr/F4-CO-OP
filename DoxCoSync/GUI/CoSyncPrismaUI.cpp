@@ -1190,6 +1190,70 @@ namespace CoSyncPrismaUI
         }
     }
 
+    // ── The CoSync loading screen (0.5.1, Bug #9) ─────────────────────────
+    // One full-screen view above everything; CoSyncLoading decides when.
+    constexpr const char* kLoadingViewPath = "DoxCoSync/loading.html";
+    PrismaView        s_loadingView = 0;
+    std::atomic<bool> s_loadingDomReady{ false };
+    std::atomic<bool> s_loadingPending{ false };
+    bool              s_loadingShown = false;
+    std::mutex        s_loadingMx;
+    bool              s_loadingWant = false;
+    std::string       s_loadingStatus;
+    std::string       s_loadingPushed;
+
+    void LoadingOnGameThread(void*)
+    {
+        s_loadingPending.store(false);
+        if (!s_api)
+            return;
+        bool want;
+        std::string status;
+        {
+            std::lock_guard<std::mutex> lk(s_loadingMx);
+            want = s_loadingWant;
+            status = s_loadingStatus;
+        }
+        if (!want)
+        {
+            if (s_loadingShown && s_loadingView != 0 && s_api->IsValid(s_loadingView))
+                s_api->Hide(s_loadingView);
+            s_loadingShown = false;
+            return;
+        }
+        if (s_loadingView == 0 || !s_api->IsValid(s_loadingView))
+        {
+            s_loadingDomReady.store(false);
+            s_loadingPushed.clear();
+            s_loadingView = s_api->CreateView(kLoadingViewPath, [](PrismaView v)
+            {
+                s_loadingDomReady.store(true);
+                LOG_INFO("[PrismaUI] Loading screen view %llu DOM ready", (unsigned long long)v);
+            });
+            if (s_loadingView == 0)
+            {
+                LOG_ERROR("[PrismaUI] CreateView('%s') failed", kLoadingViewPath);
+                return;
+            }
+            // Passive and on top of every other CoSync view (HUD, chat,
+            // nameplates, the Multiplayer menu).
+            s_api->SetViewRole(s_loadingView, PRISMA_UI_API::ViewRole::kWidget);
+            s_api->SetOrder(s_loadingView, 100000);
+            s_api->RegisterConsoleCallback(s_loadingView, OnConsoleMessage);
+            LOG_INFO("[PrismaUI] Created loading screen view %llu", (unsigned long long)s_loadingView);
+        }
+        if (!s_loadingShown)
+        {
+            s_api->Show(s_loadingView);
+            s_loadingShown = true;
+        }
+        if (s_loadingDomReady.load() && status != s_loadingPushed)
+        {
+            s_loadingPushed = status;
+            s_api->InteropCall(s_loadingView, "cosyncLoading", status.c_str());
+        }
+    }
+
     // ── Overhead nameplates (PrismaUI's game thread) ───────────────────────
     constexpr const char* kPlatesViewPath = "DoxCoSync/nameplates.html";
     PrismaView        s_plates = 0;
@@ -1296,6 +1360,25 @@ namespace CoSyncPrismaUI
     // whenever the two differed, so the teammate HUD switched itself off on
     // the first in-game tick ("TickHud called off PrismaUI's game thread")
     // and never showed. The update now goes to PrismaUI's thread.
+    void SetLoadingView(bool show, const char* status)
+    {
+        if (!s_api)
+            return;
+        {
+            std::lock_guard<std::mutex> lk(s_loadingMx);
+            s_loadingWant = show;
+            s_loadingStatus = status ? status : "";
+        }
+        // Always through PrismaUI's dispatcher, never inline: the callers
+        // include the LoadingMenu's own frame update and destructor, i.e. the
+        // engine's menu processing -- creating or showing a view from inside
+        // it could change the menu stack mid-update.
+        if (s_loadingPending.exchange(true))
+            return;
+        if (!s_api->DispatchToGameThread(LoadingOnGameThread, nullptr))
+            s_loadingPending.store(false);
+    }
+
     void TickHud()
     {
         LOG_REQUIREMENT("CoSyncPrismaUI::TickHud", "CoSync tick. Throttled to 10 Hz; the view work runs on PrismaUI's game thread and pushes to the page only when the data changed.");

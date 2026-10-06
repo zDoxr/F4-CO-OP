@@ -16,6 +16,7 @@
 #include "CoSyncGameAPI.h"
 #include "CoSyncPrismaUI.h"
 #include "CoSyncWorld.h"
+#include "CoSyncLoadingScreen.h"
 
 #include <atomic>
 #include "CoSync_Main.h"
@@ -865,6 +866,9 @@ namespace
         {
             PollMultiplayerRowActivation(movie->movieRoot);
             PollLobbyNewGame(movie->movieRoot);
+            // At the main menu CoSync's tick may not run: keep the loading
+            // screen's state current from here too (join download).
+            CoSyncLoading::Tick();
         }
 
         return result;

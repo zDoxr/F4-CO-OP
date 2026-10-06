@@ -577,6 +577,8 @@ bool F4SEPlugin_Load(const F4SEInterface* f4se)
     CoSyncContentSync::ApplyPendingInstall();
 
     InjectLoadingScreenTexture();
+    // 0.5.1 (Bug #9): the one CoSync loading screen follows every LoadingMenu.
+    CoSyncLoading::InstallLoadingMenuHooks();
 
     InitializeCriticalSection(&g_vehLock);
     AddVectoredExceptionHandler(1, CoSync_VEH);
