@@ -2,6 +2,10 @@
 
 ---
 
+## [0.5.5] — 2026-10-06
+
+- **Proxies froze for ~5 s, then moved again (0.5.4 regression):** the one-tick-per-frame gate found the `Main::Update` pump by stack-walking. In game the walk almost never reached it (logs 9644/16780: `Main::Update=0 other=3600` per 30 s), so every tick was skipped until the 600-pump safety net gave up. That meant about 5 s with no CoSync tick at all: no packets applied, nothing sent. The gate is removed and the tick runs on every pump again, as before 0.5.4. The pose bake and name fixes from 0.5.4 stay; in-game they showed `bakeFailures=0` and the name switching from "2nd Player" to the username.
+
 ## [0.5.4] — 2026-10-06
 
 ### Remote-player proxy flicker and identity (built only; not yet run in game)

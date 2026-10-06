@@ -624,102 +624,28 @@ void CoSyncRuntime_TickGameThread()
 
 namespace
 {
-    // 0.5.4 -- ONE CoSync tick per frame.
+    // The CoSync tick runs on EVERY F4SE task-queue pump.
     //
-    // F4SE runs permanent tasks after EVERY call of MessageQueueProcessTask
-    // (sub_140C45150), and in game the engine makes two of those per frame
-    // (IDA 1.11.240):
-    //   * Main::Update (sub_140C339D0), call at 0xC3488B -> returns to
-    //     0xC34890, on the main thread, near the end of the frame, only while
-    //     no menu pauses the game (UI::numPauseGame, UI+0x1E0, == 0) and
-    //     Main+0x2A is clear;
-    //   * the "NonRendersafeAI" frame job (sub_140BD6170 -> sub_140C365F0),
-    //     call at 0xC3660E -> returns to 0xC36613, on a job worker.
-    // So the whole tick -- every proxy SetPosition / MoveRefrToPosition /
-    // root write / pose write, every frame-counted delay -- ran twice per
-    // frame, at two points of the frame and on two threads. The 2026-10-05
-    // logs show it: 600 TickAnimVars calls per 5 s against 300 engine
-    // animation updates of the same proxy (restamps), and [ThreadDiag]
-    // alternating between one fixed thread and rotating workers.
+    // F4SE runs permanent tasks after every MessageQueueProcessTask
+    // (sub_140C45150), and in game the engine pumps twice per frame -- from
+    // Main::Update (returns to 0xC34890) and from the "NonRendersafeAI" job
+    // (returns to 0xC36613), IDA 1.11.240 -- so this runs ~2x per frame.
     //
-    // The tick now runs on the Main::Update pump. Any other pump (the AI job,
-    // loading-screen pumps) runs it only when the Main::Update pump will not
-    // run this frame -- the engine's own condition, read from the same
-    // fields -- so menus and loading screens keep ticking as before.
-    constexpr uintptr_t kRVA_MainUpdatePumpReturn = 0x00C34890;
-    constexpr uintptr_t kRVA_UISingleton          = 0x030E8930;   // g_ui
-    constexpr uintptr_t kRVA_MainSingleton        = 0x032DD130;   // Main::Update's `this`
-    constexpr uintptr_t kUI_NumPauseGame          = 0x1E0;
-    constexpr uintptr_t kMain_SkipUpdateByte      = 0x2A;
-
-    __declspec(noinline) bool CalledFromMainUpdatePump() noexcept
-    {
-        static const uintptr_t s_target =
-            reinterpret_cast<uintptr_t>(GetModuleHandleA(nullptr)) + kRVA_MainUpdatePumpReturn;
-        void* frames[12] = {};
-        const USHORT n = RtlCaptureStackBackTrace(0, 12, frames, nullptr);
-        for (USHORT i = 0; i < n; ++i)
-            if (reinterpret_cast<uintptr_t>(frames[i]) == s_target)
-                return true;
-        return false;
-    }
-
-    // Will (or did) Main::Update pump the queue this frame?
-    __declspec(noinline) bool MainUpdatePumpsThisFrame() noexcept
-    {
-        __try
-        {
-            const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandleA(nullptr));
-            const uint8_t* ui   = *reinterpret_cast<uint8_t* const*>(base + kRVA_UISingleton);
-            const uint8_t* main = *reinterpret_cast<uint8_t* const*>(base + kRVA_MainSingleton);
-            if (!ui || !main)
-                return false;
-            return *reinterpret_cast<const uint32_t*>(ui + kUI_NumPauseGame) == 0 &&
-                   main[kMain_SkipUpdateByte] == 0;
-        }
-        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
-    }
-
+    // 0.5.4 tried to keep only the Main::Update pump by stack-walking for its
+    // return address. That works at the main menu but almost never in game
+    // (2026-10-06 logs 9644/16780: "Main::Update=0 other=3600" per 30 s): the
+    // walk does not reach the engine frame there. Every in-game tick was then
+    // skipped until a 600-pump safety net gave up -- ~5 s with no CoSync tick
+    // at all, the proxies frozen, then moving again (user report). Reverted to
+    // the pre-0.5.4 behaviour until the pump can be told apart reliably.
     class CoSyncMainThreadTickTask final : public ITaskDelegate
     {
     public:
         void Run() override
         {
             LOG_REQUIREMENT("CoSyncMainThreadTickTask::Run", "Invoked by the game's main-thread task queue. No other precondition beyond being called from that queue.");
-            const bool mainPump = CalledFromMainUpdatePump();
-            if (mainPump)
-                s_skipsSinceMain = 0;
-            // Safety net: if the Main::Update pump is never recognised (stack
-            // walk blocked by another hook on the same function), never starve
-            // the tick -- fall back to ticking on every pump, as before 0.5.4.
-            else if (MainUpdatePumpsThisFrame() && s_skipsSinceMain < kMaxSkipsWithoutMain)
-            {
-                if (++s_skipsSinceMain == kMaxSkipsWithoutMain)
-                    LOG_WARN("[CoSyncRuntime] Main::Update pump not seen for %u skipped pumps -- "
-                             "ticking on every pump again (stack walk cannot see 0x%08X)",
-                        kMaxSkipsWithoutMain, (unsigned)kRVA_MainUpdatePumpReturn);
-                ++s_skipped;
-                return;   // this frame's tick belongs to the Main::Update pump
-            }
-            ++(mainPump ? s_onMain : s_onOther);
-            const double now = NowSeconds();
-            if (now - s_lastReport >= 30.0)
-            {
-                LOG_INFO("[CoSyncRuntime] tick pumps last %.0fs: Main::Update=%llu other=%llu skipped(duplicate in frame)=%llu",
-                    s_lastReport > 0.0 ? now - s_lastReport : 0.0,
-                    (unsigned long long)s_onMain, (unsigned long long)s_onOther, (unsigned long long)s_skipped);
-                s_lastReport = now;
-                s_onMain = s_onOther = s_skipped = 0;
-            }
             CoSyncRuntime_TickGameThread();
         }
-
-    private:
-        // Only ever touched under F4SE's task-queue lock (one pump at a time).
-        static constexpr uint32_t kMaxSkipsWithoutMain = 600;   // ~10 s of frames
-        uint64_t s_onMain = 0, s_onOther = 0, s_skipped = 0;
-        uint32_t s_skipsSinceMain = 0;
-        double   s_lastReport = 0.0;
     };
 }
 

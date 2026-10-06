@@ -91,3 +91,11 @@ The six scenarios (1 client; 3 clients in every direction; movement and combat; 
 - `Pitch` arrives in degrees and is clamped as radians (`[PitchDiag]` clamps every sample). It doesn't affect bone-replicated players, but it is still wrong.
 - `PositionRemoteActor` still writes the root's world transform from the tick. The bones catch up at the next engine/animation pass, within the same frame now that the tick runs at the end of `Main::Update`.
 - If flicker remains: check `bakeFailures`, then whether the engine's own pass still churns `kGeomArray`. A breakpoint on `sub_14217ED30` / `sub_14217EDC0` for the proxy's root would show it.
+
+## 7. 0.5.5 follow-up: the tick gate is reverted
+
+First in-game run of 0.5.4 (2026-10-06 13:23–13:33, host `9644`, client `16780`). The user reported: "the proxy will randomly stop then starts back up after about 5 seconds".
+
+- **Cause (my 0.5.4 change):** the gate recognised the `Main::Update` pump by stack-walking for return address 0xC34890. At the main menu that works (`Main::Update=1700` per 30 s). In game it almost never does (`Main::Update=0 other=3600`). The in-game ticks come from a fixed thread (22300) alternating with workers, and that thread isn't the one recognised at the menu (18712), so the walk does not reach the engine frame there. Every pump was skipped until 600 had passed (~5 s at 120 pumps/s). The logs show `Main::Update pump not seen for 600 skipped pumps` repeating on both machines, matching the stalls.
+- **Fix:** the gate is removed and the tick runs on every pump again (2× per frame, as before 0.5.4). Section 2b still describes a real issue. A proper fix needs a reliable per-frame anchor, not a stack walk.
+- **Confirmed working from 0.5.4 in the same run:** `bakedNodes=103/111 bakeFailures=0` on both machines, no crashes, and `[CoSyncProxy] NAME … shown as 'gse orca' (was '2nd Player')`. The proxy respawns at 13:26:06, 13:28:14 and 13:30:22 each followed a real load (engine freed the proxy), not a loop.

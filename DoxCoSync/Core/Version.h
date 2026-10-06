@@ -52,9 +52,11 @@
 // 0.5.4 (2026-10-06): remote-player proxy flicker -- transform-only pose bake
 //       (no more zero-context BSFadeNode downward pass), one CoSync tick per
 //       frame, proxy shows its owner's username instead of "2nd Player".
+// 0.5.5 (2026-10-06): the one-tick-per-frame gate removed -- in game it
+//       skipped every tick for ~5 s at a time (proxies froze).
 #define COSYNC_VERSION_MAJOR 0
 #define COSYNC_VERSION_MINOR 5
-#define COSYNC_VERSION_PATCH 4
+#define COSYNC_VERSION_PATCH 5
 #define COSYNC_VERSION_TAG   ""
 
 // Numeric form used on the wire. MINOR and PATCH must stay below 100 for the
