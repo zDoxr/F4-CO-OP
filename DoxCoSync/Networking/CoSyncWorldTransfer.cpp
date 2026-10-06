@@ -197,10 +197,13 @@ namespace
     void SetPhase(CoSyncWorldTransfer::ClientPhase p)
     {
         s_phase.store(static_cast<int>(p));
-        // 0.5.1 lobby: outside the host's world, the client sends only the
-        // join protocol (CoSyncTransport::SetClientOutsideSession).
+        // 0.5.1 lobby: until the host's world is loaded here, the client is
+        // in a world of its own (lobby, its intro, its own save while the
+        // world downloads) and sends only the join protocol
+        // (CoSyncTransport::SetClientOutsideSession) -- its quest stages,
+        // doors and equips there must not reach the host's world.
         using P = CoSyncWorldTransfer::ClientPhase;
-        CoSyncTransport::SetClientOutsideSession(p == P::Lobby || p == P::Intro || p == P::WaitingHost);
+        CoSyncTransport::SetClientOutsideSession(p != P::Ready && p != P::Idle);
     }
 
     void Fail(const char* reason)

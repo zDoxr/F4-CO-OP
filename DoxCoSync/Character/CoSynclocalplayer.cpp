@@ -551,6 +551,14 @@ void CoSyncLocalPlayer::Tick(double now)
         {
             LOG_UPDATED_WARN("[LocalPlayer] engine essential bit was OFF during the session -- re-asserting");
             CoSyncGameAPI::SetLocalPlayerEssential(true);
+            // Still off: an Actor.SetEssential(false) override on the player
+            // (ExtraEssentialProtected wins over the base flag). Do not fight
+            // a script every second -- look again in 30 s.
+            if (!CoSyncGameAPI::IsActorEssentialNow(player))
+            {
+                LOG_UPDATED_WARN("[LocalPlayer] the player carries a non-essential override (a script's Actor.SetEssential) -- a lethal hit is a real death until it is lifted; re-checking in 30 s");
+                s_nextEssentialCheck = now + 30.0;
+            }
         }
     }
 
