@@ -4,7 +4,6 @@
 #include "CoSyncWorkshopAuthority.h"
 
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncWorkshopEngine.h"
 #include "CoSyncTeams.h"
 #include "CoSyncWorldSync.h"
@@ -1780,7 +1779,6 @@ namespace CoSyncWorkshopAuthority
 
     void OnReceive(const std::string& msg, uint32_t conn, bool isHostRole)
     {
-        LOG_REQUIREMENT("CoSyncWorkshopAuthority::OnReceive", "CoSync tick. Untrusted input: the host re-validates every request against the sender's connection identity and the real object.");
         if (msg.size() > 8192)
             return;
         std::lock_guard<std::recursive_mutex> lk(s_mx);

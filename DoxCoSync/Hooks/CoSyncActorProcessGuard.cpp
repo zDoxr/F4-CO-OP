@@ -5,7 +5,6 @@
 
 #include "ConsoleLogger.h"
 #include "MinHook.h"
-#include "CoSyncRequirementsLog.h"
 
 #include <atomic>
 #include <cstdint>
@@ -75,7 +74,6 @@ namespace
 
     bool HasAlreadyFaulted(void* actor)
     {
-        LOG_REQUIREMENT("HasAlreadyFaulted", "Just checks a stored pointer value against a list. No game state involved, and the pointer itself is never dereferenced.");
         std::lock_guard<std::mutex> lk(s_faultedActorsMutex);
         for (int i = 0; i < s_faultedActorCount; ++i)
             if (s_faultedActors[i] == actor)
@@ -85,7 +83,6 @@ namespace
 
     void RecordFault(void* actor)
     {
-        LOG_REQUIREMENT("RecordFault", "Just stores a pointer value in a list. No game state involved, and the pointer itself is never dereferenced.");
         std::lock_guard<std::mutex> lk(s_faultedActorsMutex);
         for (int i = 0; i < s_faultedActorCount; ++i)
             if (s_faultedActors[i] == actor)
@@ -115,7 +112,6 @@ namespace
     std::atomic<uint64_t> s_callCount{ 0 };
     void LogHeartbeat()
     {
-        LOG_REQUIREMENT("LogHeartbeat", "Just counts calls. No game state involved, and deliberately does not print anything by design.");
         ++s_callCount;
     }
 }
@@ -127,7 +123,6 @@ namespace
 // strip the __try/__except scope.
 __declspec(noinline) static void CallOriginalSafe(ActorProcessFn fn, void* rcx, void* rdx)
 {
-    LOG_REQUIREMENT("CallOriginalSafe", "Needs a valid pointer to the real game function. The object passed in may reference an actor that has already gone away, so this is guarded to catch a crash safely instead of taking down the game.");
     __try
     {
         fn(rcx, rdx);
@@ -140,7 +135,6 @@ __declspec(noinline) static void CallOriginalSafe(ActorProcessFn fn, void* rcx, 
 
 static void __fastcall Detour_ActorProcessFn(void* rcx, void* rdx)
 {
-    LOG_REQUIREMENT("Detour_ActorProcessFn", "Needs the hook to already be installed at the real function entry point. Skips anything that has already caused a crash before -- note this can end up skipping more than just the one actor that first faulted.");
     LogHeartbeat();
 
     if (!g_origFn)
@@ -154,7 +148,6 @@ static void __fastcall Detour_ActorProcessFn(void* rcx, void* rdx)
 
 void InstallActorProcessGuard()
 {
-    LOG_REQUIREMENT("InstallActorProcessGuard", "Must not already be installed. The hardcoded game address needs to point at the real function entry for this game build, and the module base address needs to resolve correctly.");
     if (g_hookInstalled.exchange(true))
         return;
 
@@ -192,7 +185,6 @@ void InstallActorProcessGuard()
 
 void UninstallActorProcessGuard()
 {
-    LOG_REQUIREMENT("UninstallActorProcessGuard", "Needs the hook to currently be installed, and the module base address to match what it was at install time.");
     if (!g_hookInstalled.exchange(false))
         return;
 

@@ -12,7 +12,6 @@
 #include "CoSyncPlayerManager.h"
 #include "CoSyncPlayer.h"
 #include "CoSyncAnimationUtils.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncVMFormArg.h"
 #include "GameForms.h"
 #include "GameReferences.h"
@@ -154,7 +153,6 @@ static NiPoint3 s_localChassisPos;
 // needs no new Papyrus events.
 static void TickLocalPowerArmorPieces()
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::TickLocalPowerArmorPieces", "Needs an active connection and a player who's actually in power armor (both checked first). Reading the equipped pieces is done safely.");
     if (!CoSyncNet::IsConnected())
         return;
 
@@ -241,7 +239,6 @@ static RelocAddr<SwitchFromPowerArmorFn> g_switchFromPowerArmor(0x0098BE40);
 
 __declspec(noinline) static bool SafeSwitchFromPowerArmorNative(Actor* actor)
 {
-    LOG_REQUIREMENT("(global)::SafeSwitchFromPowerArmorNative", "Needs a valid actor (checked by the caller). Ejects them from power armor safely, catching any crash along the way.");
     if (!actor) return false;
     __try
     {
@@ -301,7 +298,6 @@ namespace
 
 void CoSyncPowerArmorSync::MarkActorPowerArmorState(uint32_t actorFormID, bool inPowerArmor)
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::MarkActorPowerArmorState", "Just updates a small internal list. The caller already made sure the actor is valid.");
     if (actorFormID == 0) return;
     if (inPowerArmor)
         s_locallyKnownInPA.insert(actorFormID);
@@ -311,13 +307,11 @@ void CoSyncPowerArmorSync::MarkActorPowerArmorState(uint32_t actorFormID, bool i
 
 bool CoSyncPowerArmorSync::IsActorKnownInPowerArmor(uint32_t actorFormID)
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::IsActorKnownInPowerArmor", "Just checks a small internal list. No game state needed.");
     return actorFormID != 0 && s_locallyKnownInPA.count(actorFormID) != 0;
 }
 
 bool CoSyncPowerArmorSync::IsPowerArmor(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::IsPowerArmor", "Just checks the text of a message. No game state needed.");
     return msg.rfind("PA|", 0) == 0;
 }
 
@@ -329,7 +323,6 @@ std::string CoSyncPowerArmorSync::SerializePowerArmor(
     const uint32_t  pieceFormIDs[6],
     const NiPoint3& chassisPos)
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::SerializePowerArmor", "Just turns power armor info into text. Needs valid values for who's sending it and what armor/pieces are involved.");
     // Position sits right after chassisRefFormID and BEFORE the entering
     // flag, on BOTH branches -- so ParsePowerArmor can read it identically
     // before the two branches diverge on trailing piece data.
@@ -371,7 +364,6 @@ static bool ParsePowerArmor(const std::string& msg,
     float     outHealth[6])
 {
     for (int i = 0; i < 6; ++i) outHealth[i] = -1.f;
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::ParsePowerArmor", "Reads power armor info back out of text. Just needs a real message and somewhere to write the result.");
     memset(outPieces, 0, 6 * sizeof(uint32_t));
     outChassisPos = NiPoint3();
 
@@ -637,7 +629,6 @@ void CoSyncPowerArmorSync::NotifyPowerArmor(
     const uint32_t  pieceFormIDs[6],
     const NiPoint3& chassisPos)
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::NotifyPowerArmor", "Needs an active connection and a real armor frame to talk about (both checked first) before sending.");
     if (!CoSyncNet::IsConnected())
         return;
 
@@ -682,7 +673,6 @@ void CoSyncPowerArmorSync::OnReceivePowerArmor(const std::string& msg)
     uint32_t chassisRefFormID  = 0;
     bool     entering          = false;
 
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::OnReceivePowerArmor", "Needs to know our own player ID so it can tell a genuine message apart from our own message bouncing back.");
     uint32_t pieces[6] = {};
     float    pieceHealth[6];
     NiPoint3 chassisPos;
@@ -730,7 +720,6 @@ void CoSyncPowerArmorSync::OnReceivePowerArmor(const std::string& msg)
 // same noinline convention (load-bearing under /GL+/LTCG).
 __declspec(noinline) static TESForm* SafeLookupForm(uint32_t formID)
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::SafeLookupForm", "Looks up a game object by ID. If the other player sends a bad ID, it fails safely instead of crashing.");
     __try
     {
         return LookupFormByID(formID);
@@ -743,7 +732,6 @@ __declspec(noinline) static TESForm* SafeLookupForm(uint32_t formID)
 
 __declspec(noinline) static TESObjectREFR* SafeLookupAndCastRefr(uint32_t formID)
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::SafeLookupAndCastRefr", "Looks up a game object by ID and checks its type. If the other player sends a bad ID, it fails safely instead of crashing.");
     __try
     {
         TESForm* form = LookupFormByID(formID);
@@ -1332,7 +1320,6 @@ __declspec(noinline) static int SafeCollectStacks(TESObjectREFR* ref, TESForm* f
 
 __declspec(noinline) static bool SafeKeywordFormHas(const BGSKeywordForm* kf, uint32_t kwFormID)
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::SafeKeywordFormHas", "kf may be any pointer; walks kf->keywords[0..numKeywords) under SEH and compares formIDs, never calls the HasKeyword virtual");
     __try
     {
         if (!kf || !kf->keywords || kf->numKeywords == 0 || kf->numKeywords > 512)
@@ -1350,7 +1337,6 @@ __declspec(noinline) static bool SafeKeywordFormHas(const BGSKeywordForm* kf, ui
 
 __declspec(noinline) static bool SafeIsPowerArmorFrameBase(TESForm* base)
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::SafeIsPowerArmorFrameBase", "base may be null; TESFurniture derives from TESObjectACTI whose keywordForm sits at 0xD0 (F4SE layout)");
     __try
     {
         if (!base || base->formType != kFormType_FURN)
@@ -1375,7 +1361,6 @@ __declspec(noinline) static bool SafeIsRefPowerArmorFrame(TESObjectREFR* ref)
 
 __declspec(noinline) static bool SafeActorInPowerArmorByRace(Actor* actor)
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::SafeActorInPowerArmorByRace", "actor may be null; reads Actor::race (0x418) -- the engine swaps an actor's race to PowerArmorRace while it occupies a frame");
     __try
     {
         if (!actor) return false;
@@ -1387,7 +1372,6 @@ __declspec(noinline) static bool SafeActorInPowerArmorByRace(Actor* actor)
 
 __declspec(noinline) static uint32_t SafeGetFurnitureHandle(Actor* actor)
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::SafeGetFurnitureHandle", "actor may be null; walks actor->middleProcess->unk08->furnitureHandle1 (F4SE Data08 offset 0x3A4) under SEH");
     __try
     {
         if (!actor || !actor->middleProcess || !actor->middleProcess->unk08)
@@ -1407,7 +1391,6 @@ __declspec(noinline) static TESObjectREFR* ResolveHandle_Impl(uint32_t handle)
 
 __declspec(noinline) static TESObjectREFR* SafeResolveHandle(uint32_t handle)
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::SafeResolveHandle", "handle may be any value; LookupREFRByHandle runs inside ResolveHandle_Impl (kept SEH-free because NiPointer has a destructor) and this wrapper catches faults");
     __try
     {
         if (handle == 0 || handle == 0xFFFFFFFFu) return nullptr;
@@ -1419,7 +1402,6 @@ __declspec(noinline) static TESObjectREFR* SafeResolveHandle(uint32_t handle)
 __declspec(noinline) static TESObjectREFR* FindNearestPowerArmorFrameByKeyword(
     const NiPoint3& pos, float radius, uint32_t excludeRefFormID)
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::FindNearestPowerArmorFrameByKeyword", "requires CoSyncGetPlayer() with a valid parentCell; scans cell->objectList under SEH for enabled FURN refs whose base carries a power-armor frame keyword (any base form, unlike FindLocalChassisInCell)");
     __try
     {
         PlayerCharacter* pc = CoSyncGetPlayer();
@@ -1449,7 +1431,6 @@ __declspec(noinline) static TESObjectREFR* FindNearestPowerArmorFrameByKeyword(
 
 __declspec(noinline) static int GatherChassisArmorPieces(TESObjectREFR* chassis, uint32_t* out, int cap)
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::GatherChassisArmorPieces", "chassis may be null; walks chassis->inventoryList under SEH collecting ARMO formIDs");
     int count = 0;
     __try
     {
@@ -1472,7 +1453,6 @@ __declspec(noinline) static int GatherChassisArmorPieces(TESObjectREFR* chassis,
 // Frame inventory signature: ARMO + AMMO items with total counts.
 __declspec(noinline) static void GatherFrameSignature(TESObjectREFR* frame, std::vector<PaInvItem>& out)
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::GatherFrameSignature", "frame may be null; walks frame->inventoryList and Stack chains under SEH; out is a caller-owned reference so this frame has no unwindable locals");
     __try
     {
         if (!frame || !frame->inventoryList) return;
@@ -1564,7 +1544,6 @@ bool CoSyncPowerArmorSync::IsCoSyncManagedFrame(uint32_t localRefFormID)
 // ── (1) Enter/exit fallback ─────────────────────────────────────────────────
 static void TickLocalPowerArmorFallback()
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::TickLocalPowerArmorFallback", "Needs an active connection and a valid player (both checked). Only acts when the race-based PA signal disagrees with the Papyrus-reported state for longer than the grace period.");
     if (!CoSyncNet::IsConnected())
         return;
     PlayerCharacter* pc = CoSyncGetPlayer();
@@ -1737,13 +1716,11 @@ static bool ParseFrameInventory(const std::string& msg, PaInvOp& op)
 
 bool CoSyncPowerArmorSync::IsPowerArmorInventory(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::IsPowerArmorInventory", "Just checks the text of a message. No game state needed.");
     return msg.rfind("PAI|", 0) == 0;
 }
 
 void CoSyncPowerArmorSync::OnReceivePowerArmorInventory(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::OnReceivePowerArmorInventory", "Network thread; pure parsing plus a self-echo check. The frame is touched later on the game thread.");
     PaInvOp op{};
     if (!ParseFrameInventory(msg, op))
     {
@@ -1762,7 +1739,6 @@ void CoSyncPowerArmorSync::OnReceivePowerArmorInventory(const std::string& msg)
 
 __declspec(noinline) static void TickFrameInventoryScan_Impl(double now)
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::TickFrameInventoryScan_Impl", "Requires a valid player with parentCell; iterates cell->objectList and frame inventories through SEH leaf helpers; caller wraps in SEH.");
     PlayerCharacter* pc = CoSyncGetPlayer();
     if (!pc) return;
     TESObjectCELL* cell = reinterpret_cast<TESObjectREFR*>(pc)->parentCell;
@@ -2114,7 +2090,6 @@ void CoSyncPowerArmorSync::Reset()
         s_ownLastBroadcast = 0.0;
     }
     s_localEntryDenied.store(false);
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::Reset", "No FO4 engine state involved -- clears the frame-inventory / fallback session state for a new session.");
     {
         std::lock_guard<std::mutex> lk(s_invMutex);
         s_pendingInv.clear();
@@ -2234,7 +2209,6 @@ static void TickAnimatedEnters()
 
 void CoSyncPowerArmorSync::FlushPendingPowerArmorOps()
 {
-    LOG_REQUIREMENT("CoSyncPowerArmorSync::FlushPendingPowerArmorOps", "Needs the player manager to be ready, and checks each stand-in character is actually spawned before touching it. The armor frame's position is set when it's first created, not moved afterward.");
 
     HostTickOwnership(NowSecondsPA());
     TickAnimatedEnters();

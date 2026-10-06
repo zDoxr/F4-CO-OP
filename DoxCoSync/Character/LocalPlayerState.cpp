@@ -1,13 +1,11 @@
 #include "LocalPlayerState.h"
 #include "LocalPlayerStateGlobals.h"
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 #include "GameReferences.h"
 #include "Relocation.h"
 
 void CaptureLocalPlayerState(PlayerCharacter* pc)
 {
-    LOG_REQUIREMENT("CaptureLocalPlayerState", "Needs a valid player character to read from. It's fine if the player isn't in a cell yet.");
     if (!pc)
     {
         LOG_WARN("[LocalPlayerState] Couldn't save player state -- no player character yet");

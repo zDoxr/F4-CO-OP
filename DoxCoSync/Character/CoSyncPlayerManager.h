@@ -10,7 +10,6 @@
 #include "Packets_EntityCreate.h"
 #include "Packets_EntityUpdate.h"
 #include "CoSyncEntityState.h"
-#include "CoSyncRequirementsLog.h"
 
 struct InboxItem
 {
@@ -51,8 +50,8 @@ public:
     // CoSyncEntityState::lastContactLocalTime). Game thread. Never creates a state.
     void NoteAuthoritativeContact(uint32_t entityID);
 
-    void SetLocalEntityID(uint32_t id) { LOG_REQUIREMENT("CoSyncPlayerManager::SetLocalEntityID", "Just stores the given ID, no other requirement."); m_localEntityID = id; }
-    uint32_t GetLocalEntityID() const { LOG_REQUIREMENT("CoSyncPlayerManager::GetLocalEntityID", "Just returns the already-stored local entity ID."); return m_localEntityID; }
+    void SetLocalEntityID(uint32_t id) { m_localEntityID = id; }
+    uint32_t GetLocalEntityID() const { return m_localEntityID; }
 
     CoSyncPlayer& GetOrCreateByEntityID(uint32_t entityID);
 
@@ -96,11 +95,11 @@ public:
 
 
     const std::unordered_map<uint32_t, CoSyncEntityState>&
-        GetStates() const { LOG_REQUIREMENT("CoSyncPlayerManager::GetStates", "Just returns the already-built entity state list."); return m_statesByEntityID; }
+        GetStates() const { return m_statesByEntityID; }
 
 
     const std::unordered_map<uint32_t, std::unique_ptr<CoSyncPlayer>>&
-        GetAllPlayers() const { LOG_REQUIREMENT("CoSyncPlayerManager::GetAllPlayers", "Just returns the already-built player list."); return m_playersByEntityID; }
+        GetAllPlayers() const { return m_playersByEntityID; }
 
     // Live count of actual players (self + remote player proxies), excluding
     // world NPCs/companions. Both host and client maintain this map identically,

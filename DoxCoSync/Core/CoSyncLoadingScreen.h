@@ -1,8 +1,5 @@
 #pragma once
 
-// The vanilla loading menu's background (LoadingMenuBG.dds, embedded).
-void InjectLoadingScreenTexture();
-
 // 0.5.1 (Bug #9): THE CoSync loading screen -- one place decides when it is
 // up and what it says; every load goes through it.
 //

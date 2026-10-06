@@ -154,7 +154,6 @@ namespace
     __declspec(noinline) void SnapshotContainer_Impl(TESObjectREFR* ctr,
                                                      std::unordered_map<uint32_t,int32_t>& out)
     {
-        LOG_REQUIREMENT("CoSyncContainerSync::SnapshotContainer_Impl", "Needs a valid container. Walks the container's item list directly without its own crash guard, so whoever calls this must wrap it in one.");
         BGSInventoryList* invList = ctr->inventoryList;
         if (!invList) return;
 
@@ -211,7 +210,6 @@ static void QueueContainerOp(uint32_t ctrFID, uint32_t itemFID, int32_t count, b
 
 void CoSyncContainerSync::TickDeposits(double now)
 {
-    LOG_REQUIREMENT("CoSyncContainerSync::TickDeposits", "Needs an active connection and a nearby container already found. Looks the container back up every check since it can become stale after a cell change.");
     if (!CoSyncNet::IsConnected()) return;
     if ((now - s_lastDepositPoll) < kDepositPollInterval) return;
     s_lastDepositPoll = now;
@@ -271,7 +269,6 @@ void CoSyncContainerSync::TickDeposits(double now)
 
 void CoSyncContainerSync::OnReceiveContainerDeposit(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncContainerSync::OnReceiveContainerDeposit", "Parses a deposit message from the other player. All the fields are checked here, and the actual work is queued up so nothing touches the game engine off the main thread.");
     const char* s = msg.c_str() + 5;
     char* e = nullptr;
     uint32_t ctrFID = static_cast<uint32_t>(std::strtoul(s, &e, 10));

@@ -7,7 +7,6 @@
 #include "GameForms.h"
 #include "TickHook.h"
 #include "LocalPlayerState.h"
-#include "CoSyncRequirementsLog.h"
 
 RelocPtr<PlayerCharacter*> g_player(0x032DD370);
 
@@ -81,7 +80,6 @@ extern RelocAddr<_LookupFormByID> LookupFormByID;
 // LookupFormByID for some other reason -- kept as a backstop.
 __declspec(noinline) static PlayerCharacter* SafeLookupAndCastPlayer()
 {
-    LOG_REQUIREMENT("(global)::SafeLookupAndCastPlayer", "Looks up the player using the engine's fixed player ID (0x14). The safety wrapper here is just a backup in case of a bad pointer, not a sign of a known crash.");
     __try
     {
         TESForm* form = LookupFormByID(0x00000014);
@@ -97,7 +95,6 @@ __declspec(noinline) static PlayerCharacter* SafeLookupAndCastPlayer()
 
 PlayerCharacter* CoSyncGetPlayer()
 {
-    LOG_REQUIREMENT("(global)::CoSyncGetPlayer", "Just calls SafeLookupAndCastPlayer(). Safe to call every frame, even before a save is loaded — returns nothing until the player exists.");
     return SafeLookupAndCastPlayer();
 }
 

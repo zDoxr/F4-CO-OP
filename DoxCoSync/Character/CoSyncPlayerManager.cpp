@@ -6,7 +6,6 @@
 #include "CoSyncFlashlightSync.h"
 #include <iterator>
 
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncTransport.h"
 #include "CoSyncPlayer.h"
 #include "CoSyncProxyLooks.h"
@@ -82,9 +81,7 @@ static constexpr uint32_t kDebugNpcEntityID = 36865;
 
 static double NowSeconds()
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::NowSeconds", "Just reads the system clock. Needs Windows to report a working timer, which it always does.");
     static double s_freq = [] {
-        LOG_REQUIREMENT("CoSyncPlayerManager::NowSeconds::lambda", "Just reads the system clock. Needs Windows to report a working timer, which it always does.");
         LARGE_INTEGER f{};
         QueryPerformanceFrequency(&f);
         return double(f.QuadPart);
@@ -108,13 +105,11 @@ namespace
 
 static void QueueWeaponVerify(uint32_t entityID, uint32_t formID)
 {
-    LOG_REQUIREMENT("(anonymous)::QueueWeaponVerify", "Just adds an entry to a list, nothing else needed.");
     s_weaponVerifyQueue.push_back({ entityID, formID, NowSeconds() + 2.0 });
 }
 
 static void ProcessWeaponVerifyQueue()
 {
-    LOG_REQUIREMENT("(anonymous)::ProcessWeaponVerifyQueue", "Needs the player manager to be set up. Checks each entry's actor is real before touching it.");
     const double now = NowSeconds();
     for (size_t vi = 0; vi < s_weaponVerifyQueue.size(); )
     {
@@ -202,7 +197,6 @@ static void ProcessWeaponVerifyQueue()
 
 static EntityCreatePacket MakeHostDebugNpcCreate(uint32_t localEntityID)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::MakeHostDebugNpcCreate", "Just builds a packet from the given entity ID, no game state touched.");
     EntityCreatePacket p{};
 
     p.entityID = kDebugNpcEntityID;
@@ -236,7 +230,6 @@ static CoSyncPlayer* FindAnyRemoteClientPlayerProxy(
     std::unordered_map<uint32_t, CoSyncEntityState>& statesByEntityID,
     uint32_t localEntityID)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::FindAnyRemoteClientPlayerProxy", "Needs the player and state lists to exist. Checks each candidate has actually spawned before using it.");
     for (auto& kv : playersByEntityID)
     {
         CoSyncPlayer& pl = *kv.second;
@@ -261,7 +254,6 @@ static CoSyncPlayer* FindAnyRemoteClientPlayerProxy(
 
 void CoSyncPlayerManager::EnqueueEntityCreate(const EntityCreatePacket& p)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::EnqueueEntityCreate", "Just queues the packet for later. Skips it if it's our own entity or a host-only debug NPC.");
 
     if (p.entityID != 0 && p.entityID == m_localEntityID)
     {
@@ -285,7 +277,6 @@ void CoSyncPlayerManager::EnqueueEntityCreate(const EntityCreatePacket& p)
 
 void CoSyncPlayerManager::EnqueueEntityUpdate(const EntityUpdatePacket& p)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::EnqueueEntityUpdate", "Just queues the packet for later. Skips the host-only debug NPC packet.");
 
     if (p.entityID == kDebugNpcEntityID && !CoSyncNet::IsHost())
         return;
@@ -305,7 +296,6 @@ void CoSyncPlayerManager::EnqueueEntityUpdate(const EntityUpdatePacket& p)
 
 void CoSyncPlayerManager::EnqueueEntityDestroy(const EntityDestroyPacket& p)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::EnqueueEntityDestroy", "Just queues the packet for later. Skips it if it's blank, our own entity, or a host-only debug NPC.");
     if (p.entityID == 0 || p.entityID == m_localEntityID)
         return;
 
@@ -325,7 +315,6 @@ void CoSyncPlayerManager::EnqueueEntityDestroy(const EntityDestroyPacket& p)
 
 void CoSyncPlayerManager::ProcessInbox()
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::ProcessInbox", "Grabs the queued packets and hands each one to the right handler.");
     std::deque<InboxItem> inbox;
 
     {
@@ -360,7 +349,6 @@ void CoSyncPlayerManager::ProcessInbox()
 
 CoSyncEntityState& CoSyncPlayerManager::GetOrCreateState(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::GetOrCreateState", "Just looks up (or creates) an entry by entity ID.");
     auto it = m_statesByEntityID.find(entityID);
     if (it != m_statesByEntityID.end())
         return it->second;
@@ -375,7 +363,6 @@ CoSyncEntityState& CoSyncPlayerManager::GetOrCreateState(uint32_t entityID)
 
 CoSyncPlayer& CoSyncPlayerManager::GetOrCreateByEntityID(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::GetOrCreateByEntityID", "Just looks up (or creates) a player entry by entity ID. It has no actor yet until spawning happens separately.");
     auto it = m_playersByEntityID.find(entityID);
     if (it != m_playersByEntityID.end())
         return *it->second;
@@ -393,7 +380,6 @@ CoSyncPlayer& CoSyncPlayerManager::GetOrCreateByEntityID(uint32_t entityID)
 
 CoSyncPlayer* CoSyncPlayerManager::GetPlayerByEntityID(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::GetPlayerByEntityID", "Just a lookup. Returns null safely if the entity ID isn't known -- callers still need to check for that.");
     auto it = m_playersByEntityID.find(entityID);
     if (it != m_playersByEntityID.end())
         return it->second.get();
@@ -402,7 +388,6 @@ CoSyncPlayer* CoSyncPlayerManager::GetPlayerByEntityID(uint32_t entityID)
 
 CoSyncPlayer* CoSyncPlayerManager::GetPlayerByActorFormID(uint32_t actorFormID)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::GetPlayerByActorFormID", "Scans the player list for a match. Returns null if the form ID is blank or not found.");
     if (actorFormID == 0)
         return nullptr;
 
@@ -417,7 +402,6 @@ CoSyncPlayer* CoSyncPlayerManager::GetPlayerByActorFormID(uint32_t actorFormID)
 
 int CoSyncPlayerManager::GetConnectedPlayerCount() const
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::GetConnectedPlayerCount", "Just counts entries in the player list, nothing else needed.");
     int n = 0;
     for (const auto& kv : m_playersByEntityID)
         if (kv.second && kv.second->createType == CoSyncEntityType::Player)
@@ -427,7 +411,6 @@ int CoSyncPlayerManager::GetConnectedPlayerCount() const
 
 void CoSyncPlayerManager::ProcessEntityCreate(const EntityCreatePacket& p)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::ProcessEntityCreate", "Needs a valid entity ID that isn't our own player. Doesn't spawn anything directly -- just queues the spawn for later once the world is ready.");
     if (p.entityID == 0 || p.entityID == m_localEntityID)
         return;
 
@@ -532,7 +515,6 @@ void CoSyncPlayerManager::ProcessEntityCreate(const EntityCreatePacket& p)
 
 void CoSyncPlayerManager::ProcessEntityUpdate(const EntityUpdatePacket& u)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::ProcessEntityUpdate", "Needs a valid entity ID that isn't our own player, and that entity must already have a recorded spawn before this applies the update.");
     if (u.entityID == 0 || u.entityID == m_localEntityID)
     {
         static int s_selfDropDiag = 0;
@@ -632,7 +614,6 @@ void CoSyncPlayerManager::NoteEntityDestroyed(uint32_t entityID)
 
 void CoSyncPlayerManager::ProcessEntityDestroy(const EntityDestroyPacket& d)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::ProcessEntityDestroy", "Needs a valid entity ID that isn't our own player or a host-only debug NPC before it hands off to the despawn logic.");
     if (d.entityID == 0 || d.entityID == m_localEntityID)
         return;
 
@@ -656,7 +637,6 @@ void CoSyncPlayerManager::ProcessEntityDestroy(const EntityDestroyPacket& d)
 
 void CoSyncPlayerManager::DespawnAllRemote(const char* reason)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::DespawnAllRemote", "Game thread, session end. Collects every remote entity ID first, then tears each one down.");
     std::vector<uint32_t> ids;
     ids.reserve(m_playersByEntityID.size() + m_statesByEntityID.size());
     for (const auto& kv : m_playersByEntityID)
@@ -687,7 +667,6 @@ void CoSyncPlayerManager::DespawnAllRemote(const char* reason)
 
 void CoSyncPlayerManager::DespawnEntity(uint32_t entityID, const char* reason)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::DespawnEntity", "Needs a valid entity ID that isn't our own player. Only touches the actor once it confirms the proxy and its actor both exist.");
     if (entityID == 0 || entityID == m_localEntityID)
         return;
 
@@ -706,7 +685,6 @@ void CoSyncPlayerManager::DespawnEntity(uint32_t entityID, const char* reason)
                 m_pendingCreates.end(),
                 [entityID](const EntityCreatePacket& p)
                 {
-                    LOG_REQUIREMENT("CoSyncPlayerManager::DespawnEntity::lambda", "Just compares two entity IDs, nothing else needed.");
                     return p.entityID == entityID;
                 }),
             m_pendingCreates.end());
@@ -786,7 +764,6 @@ void CoSyncPlayerManager::DespawnEntity(uint32_t entityID, const char* reason)
 
 void CoSyncPlayerManager::UnregisterEntityIDOnly(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::UnregisterEntityIDOnly", "Needs a valid entity ID that isn't our own player. Only removes list entries, never touches an actor.");
     if (entityID == 0 || entityID == m_localEntityID)
         return;
 
@@ -814,7 +791,6 @@ void CoSyncPlayerManager::UnregisterEntityIDOnly(uint32_t entityID)
 __declspec(noinline) static void PumpDeferredSpawns_Impl(
     CoSyncPlayerManager* self, const EntityCreatePacket& p)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::PumpDeferredSpawns_Impl", "For companion packets, needs the linked reference ID (sent by the other player) to resolve to a real actor. The caller wraps this in a safety net since that lookup isn't checked here.");
     if (p.type == CoSyncEntityType::Companion)
     {
         const uint32_t refFormID = p.reserved0;
@@ -896,7 +872,6 @@ __declspec(noinline) static void PumpDeferredSpawns_Impl(
 __declspec(noinline) static void PumpDeferredSpawnsSafe(
     CoSyncPlayerManager* self, const EntityCreatePacket& p)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::PumpDeferredSpawnsSafe", "Needs a valid manager instance. Wraps the spawn logic in a safety net in case the peer sent a bad reference ID.");
     __try
     {
         PumpDeferredSpawns_Impl(self, p);
@@ -910,7 +885,6 @@ __declspec(noinline) static void PumpDeferredSpawnsSafe(
 
 void CoSyncPlayerManager::PumpDeferredSpawns()
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::PumpDeferredSpawns", "Waits until the world is fully loaded before processing a queued spawn. Spawns are held, not lost, while it isn't ready yet.");
     static bool s_warned = false;
 
     if (!CoSyncWorld::IsWorldReady())
@@ -1181,7 +1155,6 @@ static std::unordered_map<uint32_t, uint32_t> s_companionRefToEntityID;
 // zero protection beforehand.
 void CoSyncPlayerManager::HostScanCompanions_Impl(double now)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::HostScanCompanions_Impl", "Currently does nothing on purpose -- safe to call any time, touches no game state.");
     // Companion ownership fix: this used to blindly auto-claim ANY
     // IsPlayerTeammate() actor found in the host's own local cell as
     // host-owned (p.ownerEntityID = m_localEntityID, unconditional),
@@ -1206,7 +1179,6 @@ void CoSyncPlayerManager::HostScanCompanions_Impl(double now)
 
 void CoSyncPlayerManager::HostScanCompanions(double now)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::HostScanCompanions", "Just forwards to the real scan function, wrapped in a safety net since that one isn't guarded itself.");
     __try
     {
         HostScanCompanions_Impl(now);
@@ -1224,7 +1196,6 @@ void CoSyncPlayerManager::HostScanCompanions(double now)
 // every remote NPC, every 50ms while host+connected.
 __declspec(noinline) static uint32_t GetEquippedWeaponFormID(Actor* actor)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::GetEquippedWeaponFormID", "Checks the actor and its internal data are valid before reading its equipped-items list. Wrapped in a safety net since that's raw engine memory.");
     __try
     {
         if (!actor || !actor->middleProcess || !actor->middleProcess->unk08)
@@ -1258,7 +1229,6 @@ static double s_lastHealthSend = 0.0;
 static constexpr uint32_t kHealthAVI_FormID = 0x0002D4;
 static ActorValueInfo* GetHealthAVICached()
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::GetHealthAVICached", "Needs the game's data to be loaded so it can look up the Health stat definition.");
     static ActorValueInfo* s_avi = nullptr;
     if (!s_avi)
     {
@@ -1356,7 +1326,6 @@ static void LogEntityOwnershipDiag(double now)
 // calibration since both are measuring the same game's movement speeds.
 static bool ReadDeltaPositionLocomotionSetting()
 {
-    LOG_REQUIREMENT("(global)::ReadDeltaPositionLocomotionSetting", "Reads an optional settings file. If it's missing, it just falls back to off, which keeps the old behavior.");
     static int s_cached = -1;
     if (s_cached >= 0)
         return s_cached != 0;
@@ -1569,7 +1538,6 @@ static void LogNpcSyncHealthDiag(double now)
 // with no outer backstop before this fix.
 void CoSyncPlayerManager::HostSendNpcUpdates_Impl(double now)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::HostSendNpcUpdates_Impl", "Needs an active connection. Only touches an actor once it's spawned and this machine is the one driving it. Wrapped in a safety net by the caller.");
     if (!CoSyncNet::IsConnected())
         return;
 
@@ -2089,7 +2057,6 @@ void CoSyncPlayerManager::HostSendNpcUpdates_Impl(double now)
 
 void CoSyncPlayerManager::HostSendNpcUpdates(double now)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::HostSendNpcUpdates", "Just forwards to the real update function, wrapped in a safety net since it reads raw engine data for every tracked NPC.");
     __try
     {
         HostSendNpcUpdates_Impl(now);
@@ -2105,7 +2072,6 @@ static void HostDebugNpcHardSnap(
     std::unordered_map<uint32_t, CoSyncEntityState>& statesByEntityID,
     uint32_t localEntityID)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::HostDebugNpcHardSnap", "Needs a spawned remote player proxy and a spawned debug NPC before it can move the NPC to match.");
 
     CoSyncPlayer* remotePlayer = FindAnyRemoteClientPlayerProxy(
         playersByEntityID,
@@ -2153,7 +2119,6 @@ static void HostDebugNpcHardSnap(
 // target issues StartCombat(target).
 __declspec(noinline) static void DoCombatToggle_Impl(Actor* actor, const BSFixedString& fn, Actor* target)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::DoCombatToggle_Impl", "Needs a real actor and a valid script function name to start or stop combat. Some proxies lack a script object and can crash the scripting engine, so the caller wraps this in a safety net.");
     VMArray<VMVariable> args;
     if (target)
     {
@@ -2166,7 +2131,6 @@ __declspec(noinline) static void DoCombatToggle_Impl(Actor* actor, const BSFixed
 
 static bool SafeCombatToggle(Actor* actor, const BSFixedString& fn, Actor* target)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::SafeCombatToggle", "Wraps the combat toggle in a safety net so a script-less proxy fails gracefully instead of crashing the game.");
     __try { DoCombatToggle_Impl(actor, fn, target); return true; }
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
@@ -2235,7 +2199,6 @@ bool CoSyncPlayerManager::ReleaseIfFreed(CoSyncPlayer& ent)
 
 void CoSyncPlayerManager::Tick()
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::Tick", "Runs each per-entity step in turn (position, animation, weapons, combat, dialog, pipboy); each step checks its own actor is valid. A breadcrumb marks which step is running so a crash shows exactly where it happened.");
     static const BSFixedString kUnequipItem("UnequipItem");
     static const BSFixedString kEquipItem("EquipItem");
     static const BSFixedString kStartCombat("StartCombat");
@@ -2829,7 +2792,6 @@ void CoSyncPlayerManager::Tick()
 
 void CoSyncPlayerManager::NoteAuthoritativeContact(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::NoteAuthoritativeContact", "Game thread. Only stamps an existing state.");
     auto it = m_statesByEntityID.find(entityID);
     if (it != m_statesByEntityID.end())
         it->second.lastContactLocalTime = NowSeconds();
@@ -2837,7 +2799,6 @@ void CoSyncPlayerManager::NoteAuthoritativeContact(uint32_t entityID)
 
 void CoSyncPlayerManager::HandleTimeouts(double now)
 {
-    LOG_REQUIREMENT("CoSyncPlayerManager::HandleTimeouts", "Goes through the tracked entities and hands any that timed out to the despawn function, which handles its own safety checks.");
     constexpr double kEntityTimeoutSec = 15.0;
 
     // 2026-08-02: a cell transition (exterior->interior) stops packet

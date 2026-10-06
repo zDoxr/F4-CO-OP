@@ -1,5 +1,4 @@
 ﻿#include "PlayerStatePacket.h"
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 
 #include <sstream>
@@ -11,7 +10,6 @@
 
 static double GetNowSeconds()
 {
-    LOG_REQUIREMENT("PlayerStatePacket::GetNowSeconds", "Just reads the system clock. No game state needed -- Windows always provides a working timer.");
     LARGE_INTEGER f{}, c{};
     QueryPerformanceFrequency(&f);
     QueryPerformanceCounter(&c);
@@ -20,7 +18,6 @@ static double GetNowSeconds()
 
 static bool Split(const std::string& s, char delim, std::vector<std::string>& out)
 {
-    LOG_REQUIREMENT("PlayerStatePacket::Split", "Simple string-splitting helper. No game state involved.");
     out.clear();
     std::string cur;
     for (char ch : s)
@@ -38,7 +35,6 @@ static bool Split(const std::string& s, char delim, std::vector<std::string>& ou
 
 static bool Parse3f(const std::string& s, float& a, float& b, float& c)
 {
-    LOG_REQUIREMENT("PlayerStatePacket::Parse3f", "Needs exactly 3 comma-separated numbers to succeed. Returns false otherwise.");
     std::vector<std::string> p;
     Split(s, ',', p);
     if (p.size() != 3) return false;
@@ -50,7 +46,6 @@ static bool Parse3f(const std::string& s, float& a, float& b, float& c)
 
 static bool Parse2i(const std::string& s, int& a, int& b)
 {
-    LOG_REQUIREMENT("PlayerStatePacket::Parse2i", "Needs exactly 2 comma-separated numbers to succeed. Returns false otherwise.");
     std::vector<std::string> p;
     Split(s, ',', p);
     if (p.size() != 2) return false;
@@ -61,7 +56,6 @@ static bool Parse2i(const std::string& s, int& a, int& b)
 
 static bool Parse4f(const std::string& s, float& a, float& b, float& c, float& d)
 {
-    LOG_REQUIREMENT("PlayerStatePacket::Parse4f", "Needs exactly 4 comma-separated numbers to succeed. Returns false otherwise.");
     std::vector<std::string> p;
     Split(s, ',', p);
     if (p.size() != 4) return false;
@@ -74,13 +68,11 @@ static bool Parse4f(const std::string& s, float& a, float& b, float& c, float& d
 
 bool IsPlayerStateString(const std::string& msg)
 {
-    LOG_REQUIREMENT("IsPlayerStateString", "Simple string check. No game state involved.");
     return msg.rfind("STATE:", 0) == 0;
 }
 
 bool SerializePlayerStateToString(const LocalPlayerState& st, std::string& out)
 {
-    LOG_REQUIREMENT("SerializePlayerStateToString", "Just formats whatever values are already given. No game state involved.");
     std::ostringstream ss;
     ss.setf(std::ios::fixed);
     ss.precision(2);
@@ -102,7 +94,6 @@ bool SerializePlayerStateToString(const LocalPlayerState& st, std::string& out)
 
 bool DeserializePlayerStateFromString(const std::string& msg, LocalPlayerState& out)
 {
-    LOG_REQUIREMENT("DeserializePlayerStateFromString", "Needs a well-formed state packet with all its expected fields. A malformed packet is safely rejected, never crashes.");
     if (!IsPlayerStateString(msg))
         return false;
 

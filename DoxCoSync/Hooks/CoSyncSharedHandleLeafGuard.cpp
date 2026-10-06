@@ -5,7 +5,6 @@
 
 #include "ConsoleLogger.h"
 #include "MinHook.h"
-#include "CoSyncRequirementsLog.h"
 
 #include <atomic>
 #include <cstdint>
@@ -33,7 +32,6 @@ namespace
 
     bool HasAlreadyFaulted(void* handle)
     {
-        LOG_REQUIREMENT("HasAlreadyFaulted", "Doesn't touch the game -- just checks a handle value against an internal list, never reads through the pointer itself.");
         std::lock_guard<std::mutex> lk(s_faultedHandlesMutex);
         for (int i = 0; i < s_faultedHandleCount; ++i)
             if (s_faultedHandles[i] == handle)
@@ -43,7 +41,6 @@ namespace
 
     void RecordFault(void* handle)
     {
-        LOG_REQUIREMENT("RecordFault", "Doesn't touch the game -- just stores a handle value in an internal list, never reads through the pointer itself.");
         std::lock_guard<std::mutex> lk(s_faultedHandlesMutex);
         for (int i = 0; i < s_faultedHandleCount; ++i)
             if (s_faultedHandles[i] == handle)
@@ -58,7 +55,6 @@ namespace
     std::atomic<uint64_t> s_sentinelGuardCount{ 0 };
     void LogHeartbeat()
     {
-        LOG_REQUIREMENT("LogHeartbeat", "Doesn't touch the game -- just counts calls and occasionally logs a status line.");
         const uint64_t n = ++s_callCount;
         if (n == 1 || n % 20000 == 0)
         {
@@ -75,7 +71,6 @@ namespace
 // CoSyncLocomotionCalcGuard.cpp's CallOriginalSafe for the same lesson.
 __declspec(noinline) static float CallOriginalSafe(SharedHandleLeafFn fn, void* rcx)
 {
-    LOG_REQUIREMENT("CallOriginalSafe", "Needs a valid link back to the real game function. The data passed in might still be garbage the earlier checks missed, so this relies on a safety guard to catch that instead of crashing.");
     __try
     {
         return fn(rcx);
@@ -89,7 +84,6 @@ __declspec(noinline) static float CallOriginalSafe(SharedHandleLeafFn fn, void* 
 
 static float __fastcall Detour_SharedHandleLeafFn(void* rcx)
 {
-    LOG_REQUIREMENT("Detour_SharedHandleLeafFn", "Needs the hook to already be installed. The incoming data might be empty or an 'uninitialized' marker from a freshly spawned actor -- both are checked before calling through to the real game function.");
     LogHeartbeat();
 
     if (!g_origFn)
@@ -110,7 +104,6 @@ static float __fastcall Detour_SharedHandleLeafFn(void* rcx)
 
 void InstallSharedHandleLeafGuard()
 {
-    LOG_REQUIREMENT("InstallSharedHandleLeafGuard", "Must not already be installed, and needs the game's module to resolve correctly so the hook lands on the right function for this game build.");
     if (g_hookInstalled.exchange(true))
         return;
 
@@ -148,7 +141,6 @@ void InstallSharedHandleLeafGuard()
 
 void UninstallSharedHandleLeafGuard()
 {
-    LOG_REQUIREMENT("UninstallSharedHandleLeafGuard", "The hook must currently be installed, and the game's module needs to resolve to the same base address used when it was installed.");
     if (!g_hookInstalled.exchange(false))
         return;
 

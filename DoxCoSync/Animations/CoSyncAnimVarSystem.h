@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <vector>
 #include <cstring>
-#include "CoSyncRequirementsLog.h"
 
 class Actor;
 
@@ -32,14 +31,13 @@ struct AnimVarSnapshot
 
     bool operator==(const AnimVarSnapshot& other) const
     {
-        LOG_REQUIREMENT("AnimVarSnapshot::operator==", "Doesn't touch the game. Just needs a valid snapshot to compare against.");
         if (booleans != other.booleans) return false;
         if (memcmp(floats, other.floats, sizeof(floats)) != 0) return false;
         if (memcmp(integers, other.integers, sizeof(integers)) != 0) return false;
         return true;
     }
 
-    bool operator!=(const AnimVarSnapshot& other) const { LOG_REQUIREMENT("AnimVarSnapshot::operator!=", "Doesn't touch the game. Just needs a valid snapshot -- passes the comparison to operator==."); return !(*this == other); }
+    bool operator!=(const AnimVarSnapshot& other) const { return !(*this == other); }
 
     size_t Serialize(uint8_t* buffer, size_t bufferSize) const;
 

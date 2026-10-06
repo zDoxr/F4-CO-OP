@@ -8,7 +8,6 @@
 #include "CoSyncVoice.h"
 
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
 #include "CoSyncProfiles.h"
@@ -714,7 +713,6 @@ namespace CoSyncVoice
 {
     void OnSessionStart()
     {
-        LOG_REQUIREMENT("CoSyncVoice::OnSessionStart", "CoSync tick. Starts the capture and playback threads when [Voice] bEnabled.");
         LoadConfig();
         StopThreads();
         {

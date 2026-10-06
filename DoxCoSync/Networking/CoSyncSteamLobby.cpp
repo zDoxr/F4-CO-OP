@@ -7,7 +7,6 @@
 #include "GNS_Session.h"
 #include "CoSync_Main.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 
 #include <mutex>
 #include <unordered_map>
@@ -139,7 +138,6 @@ std::string CoSyncSteamLobby::LastError()
 
 void CoSyncSteamLobby::Tick(double now)
 {
-    LOG_REQUIREMENT("CoSyncSteamLobby::Tick", "CoSync tick. Polls Steam async results; cheap when idle.");
     std::lock_guard<std::mutex> lk(s_mutex);
     const bool anythingToDo = s_wantHost || s_createCall || s_lobby || s_joinLobbyWanted || s_joinCall || s_browsing;
     if (!anythingToDo)

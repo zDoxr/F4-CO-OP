@@ -5,7 +5,6 @@
 
 #include "ConsoleLogger.h"
 #include "MinHook.h"
-#include "CoSyncRequirementsLog.h"
 
 #include <atomic>
 #include <cstdint>
@@ -66,7 +65,6 @@ namespace
 
     void RecordReturn(float v)
     {
-        LOG_REQUIREMENT("RecordReturn", "Doesn't touch the game at all — just keeps simple stats on a value the real engine function already returned.");
         if (v == kNeutralScale)
             ++s_retNeutral;
         else
@@ -92,7 +90,6 @@ namespace
 
     void LogStats(const char* why)
     {
-        LOG_REQUIREMENT("LogStats", "Doesn't touch the game at all — just reads its own stat counters.");
         const uint64_t neutral = s_retNeutral.load();
         const uint64_t other   = s_retOther.load();
         const uint32_t minB    = s_retMinBits.load();
@@ -123,7 +120,6 @@ namespace
 // __try/__except scope.
 __declspec(noinline) static float CallOriginalSafe(ActorAudioScaleFn fn, void* subsystem, void* actor)
 {
-    LOG_REQUIREMENT("CallOriginalSafe", "Needs a valid pointer to the real engine function. The subsystem pointer is already known non-null by this point, but nothing past that is verified, so this still keeps a safety net around the call.");
     __try
     {
         return fn(subsystem, actor);
@@ -139,7 +135,6 @@ __declspec(noinline) static float CallOriginalSafe(ActorAudioScaleFn fn, void* s
 
 static float __fastcall Detour_ActorAudioScaleFn(void* subsystem, void* actor)
 {
-    LOG_REQUIREMENT("Detour_ActorAudioScaleFn", "Needs the hook to already be installed so it has the real function to call. The subsystem pointer comes from the game itself, and the real function uses it without checking for null, so this checks it instead.");
     const uint64_t n = ++s_callCount;
 
     if (!subsystem)
@@ -172,7 +167,6 @@ static float __fastcall Detour_ActorAudioScaleFn(void* subsystem, void* actor)
 
 void InstallActorAudioScaleGuard()
 {
-    LOG_REQUIREMENT("InstallActorAudioScaleGuard", "Must not already be installed. Needs the saved game address to still point at the right function for this game version, and needs the module handle lookup to succeed.");
     if (g_hookInstalled.exchange(true))
         return;
 
@@ -211,7 +205,6 @@ void InstallActorAudioScaleGuard()
 
 void UninstallActorAudioScaleGuard()
 {
-    LOG_REQUIREMENT("UninstallActorAudioScaleGuard", "The hook must currently be installed, and the module handle lookup must resolve to the same base address used when it was installed.");
     if (!g_hookInstalled.exchange(false))
         return;
 

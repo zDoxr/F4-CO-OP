@@ -5,7 +5,6 @@
 
 #include "ConsoleLogger.h"
 #include "MinHook.h"
-#include "CoSyncRequirementsLog.h"
 
 #include <atomic>
 #include <cstdint>
@@ -76,7 +75,6 @@ namespace
 
     bool HasAlreadyFaulted(void* actor)
     {
-        LOG_REQUIREMENT("HasAlreadyFaulted", "Checks whether this actor already crashed the movement-speed call before, so it can be skipped instead of crashing again.");
         std::lock_guard<std::mutex> lk(s_faultedActorsMutex);
         for (int i = 0; i < s_faultedActorCount; ++i)
             if (s_faultedActors[i] == actor)
@@ -86,7 +84,6 @@ namespace
 
     void RecordFault(void* actor)
     {
-        LOG_REQUIREMENT("RecordFault", "Remembers an actor that crashed the movement-speed call, so it's never tried again this session.");
         std::lock_guard<std::mutex> lk(s_faultedActorsMutex);
         for (int i = 0; i < s_faultedActorCount; ++i)
             if (s_faultedActors[i] == actor)
@@ -105,7 +102,6 @@ namespace
     std::atomic<uint64_t> s_callCount{ 0 };
     void LogHeartbeat()
     {
-        LOG_REQUIREMENT("LogHeartbeat", "Prints a periodic status line so it's easy to confirm this hook is still running and see how many actors have been skipped.");
         const uint64_t n = ++s_callCount;
         if (n == 1 || n % 5000 == 0)
         {
@@ -134,7 +130,6 @@ namespace
 // never fires and strip it).
 __declspec(noinline) static float CallOriginalSafe(MovementHandleFn fn, void* rcx, void* rdx)
 {
-    LOG_REQUIREMENT("CallOriginalSafe", "Calls the real engine function safely. A freshly spawned actor can have unset internal data here, so this catches the crash instead of letting it take down the game.");
     __try
     {
         return fn(rcx, rdx);
@@ -148,7 +143,6 @@ __declspec(noinline) static float CallOriginalSafe(MovementHandleFn fn, void* rc
 
 static float __fastcall Detour_MovementHandleFn(void* rcx, void* rdx)
 {
-    LOG_REQUIREMENT("Detour_MovementHandleFn", "Runs every time the game asks an actor for its movement speed. Needs the hook to be installed, and skips actors that are null or already known to crash this call.");
     LogHeartbeat();
 
     if (!g_origFn)
@@ -176,7 +170,6 @@ static float __fastcall Detour_MovementHandleFn(void* rcx, void* rdx)
 
 void InstallMovementHandleGuard()
 {
-    LOG_REQUIREMENT("InstallMovementHandleGuard", "Only runs once. Hooks the engine's movement-speed function so a bad actor pointer can't crash the game.");
     if (g_hookInstalled.exchange(true))
         return;
 
@@ -214,7 +207,6 @@ void InstallMovementHandleGuard()
 
 void UninstallMovementHandleGuard()
 {
-    LOG_REQUIREMENT("UninstallMovementHandleGuard", "Only runs if the hook is currently installed. Removes the movement-speed hook cleanly.");
     if (!g_hookInstalled.exchange(false))
         return;
 

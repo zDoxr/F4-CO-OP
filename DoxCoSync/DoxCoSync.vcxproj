@@ -193,7 +193,10 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(ProjectDir)Lib;$(ProjectDir)ThirdParty/GNS/Lib;$(ProjectDir)ThirdParty/MinHook/Lib;$(ProjectDir)ThirdParty/Opus/Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>common.lib;f4se_common.lib;GameNetworkingSockets.lib;crypt32.lib;secur32.lib;iphlpapi.lib;minhook.x64.lib;opus.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>common.lib;f4se_common.lib;GameNetworkingSockets.lib;crypt32.lib;secur32.lib;iphlpapi.lib;minhook.x64.lib;opus.lib;winmm.lib;delayimp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <!-- 0.5.8: loaded at plugin start from Data\F4SE\Plugins\CoSync\ (CoSync_Plugin.cpp),
+           so the whole mod installs into Data with Vortex / Mod Organizer. -->
+      <DelayLoadDLLs>GameNetworkingSockets.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
       <!-- 2026-08-04: emit a linker map so the VEH's "DoxCoSync.dll+0xRVA"
            crash lines can be resolved to an actual function name. Without it
@@ -223,29 +226,15 @@ if exist "$(PapyrusOutputDir)\CoSync.pex" copy /Y "$(PapyrusOutputDir)\CoSync.pe
 if exist "$(PapyrusOutputDir)\CoSyncQuest.pex" copy /Y "$(PapyrusOutputDir)\CoSyncQuest.pex" "$(FO4DataDir)\Scripts\CoSyncQuest.pex"
 if exist "$(PapyrusOutputDir)\CoSyncPlayer.pex" copy /Y "$(PapyrusOutputDir)\CoSyncPlayer.pex" "$(FO4DataDir)\Scripts\CoSyncPlayer.pex"
 if exist "$(SolutionDir)F4se-Data\Data\CoSync.esp" copy /Y "$(SolutionDir)F4se-Data\Data\CoSync.esp" "$(FO4DataDir)\CoSync.esp"
-rem GameNetworkingSockets runtime (+ abseil/libcrypto/libprotobuf). F4SE loads
-rem plugins with plain LoadLibrary, so these are resolved from the GAME ROOT
-rem (exe dir), not from F4SE\Plugins. A game reinstall/update wiped them on
-rem 2026-09-22 and DoxCoSync failed to load with error 126. Copy only if missing.
-for %%D in (GameNetworkingSockets.dll abseil_dll.dll libcrypto-3-x64.dll libprotobuf.dll) do if not exist "$(FO4DataDir)\..\%%D" if exist "$(ProjectDir)F4se-Data\GameRoot\%%D" copy "$(ProjectDir)F4se-Data\GameRoot\%%D" "$(FO4DataDir)\..\%%D"
+rem GameNetworkingSockets runtime (+ abseil/libcrypto/libprotobuf). 0.5.8: delay-loaded
+rem from Data\F4SE\Plugins\CoSync\ (no files next to Fallout4.exe any more).
+if not exist "$(FO4DataDir)\F4SE\Plugins\CoSync" mkdir "$(FO4DataDir)\F4SE\Plugins\CoSync"
+for %%D in (GameNetworkingSockets.dll abseil_dll.dll libcrypto-3-x64.dll libprotobuf.dll) do if exist "$(ProjectDir)F4se-Data\GameRoot\%%D" copy /Y "$(ProjectDir)F4se-Data\GameRoot\%%D" "$(FO4DataDir)\F4SE\Plugins\CoSync\%%D"
 rem PrismaUI views (HTML/CSS/JS/fonts) -> Data\PrismaUI_F4\views\DoxCoSync\
 if exist "$(ProjectDir)F4se-Data\Data\PrismaUI_F4\views\DoxCoSync" xcopy /E /Y /I "$(ProjectDir)F4se-Data\Data\PrismaUI_F4\views\DoxCoSync" "$(FO4DataDir)\PrismaUI_F4\views\DoxCoSync\"
 rem CoSync.ini: deliberately NOT /Y -- this is user-editable config, so ship the
 rem default once and never overwrite a local change on a later rebuild.
 if not exist "$(FO4DataDir)\F4SE\Plugins\CoSync.ini" if exist "$(SolutionDir)F4se-Data\Data\F4SE\Plugins\CoSync.ini" copy "$(SolutionDir)F4se-Data\Data\F4SE\Plugins\CoSync.ini" "$(FO4DataDir)\F4SE\Plugins\CoSync.ini"
-rem 2026-07-21: RE-ENABLED with a fundamentally different, safer technique.
-rem The original approach (hand-assembled minimal NiNode from scratch, no
-rem validation tooling) hung the game the first time it went live -- see
-rem CHANGELOG [0.0.39]/[0.0.40]. Replaced entirely: these 91 files are the
-rem REAL game meshes extracted directly from Fallout4 - Meshes.ba2/
-rem MeshesExtra.ba2 (a hand-written BA2 reader, not a NIF writer), with only
-rem the root NiNode's scale float overwritten to 0.0 in place -- header,
-rem block table, and all other bytes are byte-identical to the shipped game
-rem asset. Each patch site was verified against the expected post-scale
-rem byte shape (collision ref + plausible child count) before being
-rem accepted; 6 candidates that didn't match were left untouched rather
-rem than guessed at. See CHANGELOG [0.0.41] for the full methodology.
-if exist "$(ProjectDir)F4se-Data\Data\Meshes\LoadScreenArt" xcopy /Y /I "$(ProjectDir)F4se-Data\Data\Meshes\LoadScreenArt\*.nif" "$(FO4DataDir)\Meshes\LoadScreenArt\"
 exit /b 0
       </Command>
     </PostBuildEvent>
@@ -651,9 +640,6 @@ exit /b 0
     <ClCompile Include="Hooks\CoSyncFirstPersonGraph.cpp" />
   </ItemGroup>
   <!-- Papyrus script: compiled by PapyrusCompiler.exe as a custom build step -->
-  <ItemGroup>
-    <ResourceCompile Include="Core\CoSync.rc" />
-  </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="$(SolutionDir)F4se-Data\Data\Scripts\Scripts\CoSync.psc">
       <Message>Compiling Papyrus script %(Filename)%(Extension)</Message>

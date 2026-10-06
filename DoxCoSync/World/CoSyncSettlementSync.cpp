@@ -4,7 +4,6 @@
 #include "CoSyncSettlementSync.h"
 
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
 #include "CoSyncTeams.h"
@@ -515,7 +514,6 @@ namespace CoSyncSettlementSync
 
     void OnReceive(const std::string& msg, uint32_t conn, bool isHostRole)
     {
-        LOG_REQUIREMENT("CoSyncSettlementSync::OnReceive", "CoSync tick. Untrusted input: the host checks the sender takes part in the settlement.");
         if (msg.size() > 64 * 1024)
             return;
         const char kind = msg[2];

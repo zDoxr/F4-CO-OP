@@ -7,7 +7,6 @@
 #include "CoSyncTransport.h"
 #include "CoSyncGameAPI.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 
 #include <atomic>
 #include <string>
@@ -76,7 +75,6 @@ namespace CoSyncSessionRules
 
     void OnReceive(const std::string& msg, bool isHostRole)
     {
-        LOG_REQUIREMENT("CoSyncSessionRules::OnReceive", "Clients take the host's rules; the host ignores RULES from anyone.");
         if (isHostRole || msg.size() < 7)
             return;
         const bool pvp = msg[6] == '1';

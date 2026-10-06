@@ -3,7 +3,6 @@
 
 #include "CoSyncItemDropSync.h"
 
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
@@ -166,7 +165,6 @@ static void HostAllocateDrop(uint32_t baseFormID, uint32_t refFormID, const NiPo
 
 __declspec(noinline) static void ScanForLocalDrops_Impl(double now)
 {
-    LOG_REQUIREMENT("CoSyncItemDropSync::ScanForLocalDrops_Impl", "Needs a valid player who's currently in a cell. Wrapped in a crash guard by the caller.");
     PlayerCharacter* localPlayer = CoSyncGetPlayer();
     if (!localPlayer)
         return;
@@ -341,7 +339,6 @@ __declspec(noinline) static void ProcessDespawnOps_Impl(const std::vector<Despaw
 
 void Tick(double now)
 {
-    LOG_REQUIREMENT("CoSyncItemDropSync::Tick", "Safe to call every tick. All the risky work happens in guarded helper functions.");
     if (!CoSyncNet::IsConnected())
         return;
 
@@ -371,7 +368,6 @@ bool IsDropGone(const std::string& msg)   { return msg.rfind("DROPGONE|", 0) == 
 
 void OnReceiveDropSeen(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncItemDropSync::OnReceiveDropSeen", "Host-only. Needs a properly formatted DROPSEEN message.");
     if (!CoSyncNet::IsHost())
         return;
 
@@ -390,7 +386,6 @@ void OnReceiveDropSeen(const std::string& msg)
 
 void OnReceiveDropCreate(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncItemDropSync::OnReceiveDropCreate", "Needs a properly formatted DROPCREATE message.");
     const char* s = msg.c_str() + 11; // skip "DROPCREATE|"
     char* e = nullptr;
     const uint32_t entityID   = static_cast<uint32_t>(std::strtoul(s, &e, 10)); if (!e || *e != '|') return; s = e + 1;
@@ -410,7 +405,6 @@ void OnReceiveDropCreate(const std::string& msg)
 
 void OnReceiveDropGone(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncItemDropSync::OnReceiveDropGone", "Needs a properly formatted DROPGONE message.");
     const char* s = msg.c_str() + 9; // skip "DROPGONE|"
     char* e = nullptr;
     const uint32_t entityID = static_cast<uint32_t>(std::strtoul(s, &e, 10));
@@ -423,7 +417,6 @@ void OnReceiveDropGone(const std::string& msg)
 
 void NotifyLocalPickup(uint32_t refFormID)
 {
-    LOG_REQUIREMENT("CoSyncItemDropSync::NotifyLocalPickup", "Doesn't touch the game. Does nothing if the ref isn't a drop we're tracking.");
     auto it = s_localRefToEntity.find(refFormID);
     if (it == s_localRefToEntity.end())
         return;

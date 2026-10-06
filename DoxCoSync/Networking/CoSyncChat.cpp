@@ -4,7 +4,6 @@
 #include "CoSyncChat.h"
 
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
 #include "CoSyncProfiles.h"
@@ -232,7 +231,6 @@ namespace CoSyncChat
 
     void OnReceive(const std::string& msg, uint32_t conn, bool isHostRole)
     {
-        LOG_REQUIREMENT("CoSyncChat::OnReceive", "CoSync tick. Untrusted text: the host validates and picks recipients by the sender's connection identity.");
         if (msg.size() > 2048)
             return;
         std::lock_guard<std::mutex> lk(s_mx);

@@ -2548,7 +2548,6 @@ static int g_boneRepModeCache = -1;
 
 bool IsBoneReplicationEnabled()
 {
-    LOG_REQUIREMENT("(global)::IsBoneReplicationEnabled", "Reads an optional settings file. If it's missing, it just falls back to off, which keeps the old behavior.");
     if (g_boneRepModeCache >= 0)
         return g_boneRepModeCache == 2 || g_boneRepModeCache == 3;
 
@@ -2589,7 +2588,6 @@ bool IsMinimalMode()
 
 bool IsFirstPersonCaptureEnabled()
 {
-    LOG_REQUIREMENT("(global)::IsFirstPersonCaptureEnabled", "Reads the same settings file as bone replication. If it's missing, it defaults to on -- this only matters in first person, which doesn't currently work anyway, so 'on' is the safe default.");
     // Minimal preset bundles first-person capture on -- no companion key needed.
     if (IsMinimalMode()) return true;
     static int s_cached = -1;
@@ -2922,7 +2920,6 @@ namespace
 
 void OnReceiveBones(const std::string& msg)
 {
-    LOG_REQUIREMENT("(global)::OnReceiveBones", "Needs a well-formed skeleton-data message. Bad or cut-off data is dropped without touching what's already stored for that entity. Each bone carries its own ID, so a packet can be read as soon as it arrives, no other state needed.");
     if (!IsBonesPacket(msg))
         return;
 

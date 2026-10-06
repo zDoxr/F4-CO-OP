@@ -7,7 +7,6 @@
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
 #include "CoSyncWorldSync.h"
-#include "CoSyncRequirementsLog.h"
 
 #include "GameWorkshop.h"
 #include "GameReferences.h"
@@ -54,7 +53,6 @@ __declspec(noinline) static bool SafeReadRefSnapshot(
     TESObjectREFR* ref, uint32_t& refFormID, uint32_t& baseFormID,
     float& posX, float& posY, float& posZ)
 {
-    LOG_REQUIREMENT("CoSyncWorkshopScrapHook::SafeReadRefSnapshot", "Needs a non-null reference. Wrapped in a crash guard so a transient or invalid reference fails safely instead of crashing.");
     __try
     {
         refFormID = ref->formID;
@@ -76,7 +74,6 @@ static void __fastcall Detour_ScrapReference(
     NiPointer<TESObjectREFR>*  akRef,
     void*                      materials)
 {
-    LOG_REQUIREMENT("CoSyncWorkshopScrapHook::Detour_ScrapReference", "Needs the hook to be correctly installed on the real scrap function, and the networking layer to be initialized for the connection/host/entity-ID calls used when broadcasting.");
     // round 94 diagnostic: unconditional fire-heartbeat, confirms the
     // round-93 RVA fix (kScrapReference_RVA) is actually being reached.
     {
@@ -128,8 +125,6 @@ static void __fastcall Detour_ScrapReference(
 
 void InstallWorkshopScrapHook()
 {
-    LOG_REQUIREMENT("InstallWorkshopScrapHook",
-        "Needs the target offset to be the verified real entry point of the workshop scrap function.");
 
     if (g_hookInstalled.exchange(true))
         return;
@@ -202,7 +197,6 @@ void InstallWorkshopScrapHook()
 
 void UninstallWorkshopScrapHook()
 {
-    LOG_REQUIREMENT("UninstallWorkshopScrapHook", "Needs the hook to have already been installed (guarded by a flag) before disabling and removing it.");
     if (!g_hookInstalled.exchange(false))
         return;
 

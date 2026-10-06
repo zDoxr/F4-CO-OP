@@ -2,7 +2,6 @@
 
 #include "../Animations/CoSyncPlayerAnimation.h"
 #include "CoSyncFirstPersonGraph.h"
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 #include "CoSyncNet.h"
 #include "CoSyncGameAPI.h"
@@ -115,7 +114,6 @@ namespace
 
     static ActorValueInfo* GetHealthAVICached()
     {
-        LOG_REQUIREMENT("CoSyncLocalPlayer::GetHealthAVICached", "Needs the game's data to be loaded so it can look up the Health stat definition.");
         static ActorValueInfo* s_avi = nullptr;
         if (!s_avi)
         {
@@ -128,7 +126,6 @@ namespace
 
     static ActorValueInfo* GetAPAVICached()
     {
-        LOG_REQUIREMENT("CoSyncLocalPlayer::GetAPAVICached", "Needs the game's data to be loaded so it can look up the Action Points stat definition. Safe to cache even if the lookup fails.");
         static ActorValueInfo* s_avi = nullptr;
         if (!s_avi)
         {
@@ -191,9 +188,7 @@ namespace
 
     double NowSeconds()
     {
-        LOG_REQUIREMENT("CoSyncLocalPlayer::NowSeconds", "Just reads the system clock. Needs Windows to report a working timer, which it always does.");
         static double s_freq = [] {
-            LOG_REQUIREMENT("CoSyncLocalPlayer::NowSeconds::lambda", "Just reads the system clock. Needs Windows to report a working timer, which it always does.");
             LARGE_INTEGER f{};
             QueryPerformanceFrequency(&f);
             return double(f.QuadPart);
@@ -207,26 +202,22 @@ namespace
 
     float VectorLength(const NiPoint3& v)
     {
-        LOG_REQUIREMENT("CoSyncLocalPlayer::VectorLength", "Just needs a valid 3D point to measure.");
         return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
     }
 
     NiPoint3 VectorSubtract(const NiPoint3& a, const NiPoint3& b)
     {
-        LOG_REQUIREMENT("CoSyncLocalPlayer::VectorSubtract", "Just needs two valid 3D points.");
         return NiPoint3{ a.x - b.x, a.y - b.y, a.z - b.z };
     }
 
     NiPoint3 VectorScale(const NiPoint3& v, float scale)
     {
-        LOG_REQUIREMENT("CoSyncLocalPlayer::VectorScale", "Just needs a valid 3D point and a number to scale it by.");
         return NiPoint3{ v.x * scale, v.y * scale, v.z * scale };
     }
 
 
     NiPoint3 CalculateVelocity(const NiPoint3& currentPos, const NiPoint3& prevPos, double deltaTime)
     {
-        LOG_REQUIREMENT("CoSyncLocalPlayer::CalculateVelocity", "Guards against a near-zero time step itself, so it won't divide by almost-zero.");
         if (deltaTime < 0.0001)
             return NiPoint3{ 0.f, 0.f, 0.f };
 
@@ -239,7 +230,6 @@ namespace
 
     bool HasMovedSignificantly(const NiPoint3& current, const NiPoint3& previous)
     {
-        LOG_REQUIREMENT("CoSyncLocalPlayer::HasMovedSignificantly", "Just needs two valid points and the configured movement threshold.");
         NiPoint3 delta = VectorSubtract(current, previous);
         float distance = VectorLength(delta);
         return distance > s_movementThreshold;
@@ -248,7 +238,6 @@ namespace
 
     bool HasRotatedSignificantly(const NiPoint3& current, const NiPoint3& previous)
     {
-        LOG_REQUIREMENT("CoSyncLocalPlayer::HasRotatedSignificantly", "Just needs two valid rotations and the configured rotation threshold.");
 
         float deltaX = fabsf(current.x - previous.x);
         float deltaY = fabsf(current.y - previous.y);
@@ -265,7 +254,6 @@ namespace
     // unguarded pattern already fixed in CoSyncPlayerManager.cpp::GetEquippedWeaponFormID.
     __declspec(noinline) static uint32_t GetLocalEquippedWeaponFormID_Impl(Actor* player)
     {
-        LOG_REQUIREMENT("CoSyncLocalPlayer::GetLocalEquippedWeaponFormID_Impl", "Needs a valid player. Walks raw engine data that's only checked for non-null, not fully validated -- the caller wraps this in a safety net.");
         uint32_t equippedWeapFormID = 0;
         if (player->middleProcess && player->middleProcess->unk08)
         {
@@ -295,7 +283,6 @@ namespace
     // OutfitSync uses successfully on both machines.
     __declspec(noinline) static uint32_t GetEquippedWeaponFromInventory_Impl(Actor* player)
     {
-        LOG_REQUIREMENT("CoSyncLocalPlayer::GetEquippedWeaponFromInventory_Impl", "Needs a valid player with an inventory list to scan. The caller wraps this in a safety net.");
         BGSInventoryList* invList = player->inventoryList;
         if (!invList)
             return 0;
@@ -328,7 +315,6 @@ namespace
 
     static uint32_t GetEquippedWeaponFromInventory(Actor* player)
     {
-        LOG_REQUIREMENT("CoSyncLocalPlayer::GetEquippedWeaponFromInventory", "Needs a valid player. Wraps the inventory scan in a safety net.");
         uint32_t result = 0;
         __try
         {
@@ -343,7 +329,6 @@ namespace
 
     uint32_t GetLocalEquippedWeaponFormID(Actor* player)
     {
-        LOG_REQUIREMENT("CoSyncLocalPlayer::GetLocalEquippedWeaponFormID", "Needs a valid player. Wraps the raw engine data walk in a safety net so a fault is caught instead of crashing the game.");
         uint32_t middleProcessResult = 0;
         __try
         {
@@ -382,7 +367,6 @@ namespace
 
 void CoSyncLocalPlayer::Init()
 {
-    LOG_REQUIREMENT("CoSyncLocalPlayer::Init", "Just needs this module to not already be started.");
     if (s_initialized)
         return;
 
@@ -398,7 +382,6 @@ void CoSyncLocalPlayer::Init()
 
 void CoSyncLocalPlayer::Shutdown()
 {
-    LOG_REQUIREMENT("CoSyncLocalPlayer::Shutdown", "Just needs this module to already be started.");
     if (!s_initialized)
         return;
 
@@ -410,7 +393,6 @@ void CoSyncLocalPlayer::Shutdown()
 
 Actor* CoSyncLocalPlayer::GetLocalPlayerActor()
 {
-    LOG_REQUIREMENT("CoSyncLocalPlayer::GetLocalPlayerActor", "Needs a save to be loaded so the player exists. Callers must still check the result isn't null.");
     return CoSyncGetPlayer();
 }
 
@@ -424,7 +406,6 @@ Actor* CoSyncLocalPlayer::GetLocalPlayerActor()
 // poll while the other never saw it (confirmed via log correlation).
 bool CoSyncLocalPlayer::IsLocallyConfirmedDead()
 {
-    LOG_REQUIREMENT("CoSyncLocalPlayer::IsLocallyConfirmedDead", "Just reads this file's own death-tracking flag, safe to call from anywhere.");
     // 0.3.3 (Stage 6): only real death. A downed (bleedout) player keeps
     // capturing and sending animation so others see the downed pose.
     return s_deathPacketSent && s_localTrulyDead;
@@ -437,7 +418,6 @@ void CoSyncLocalPlayer::OnGameLoaded()
 
 bool CoSyncLocalPlayer::GetLocalTransform(NiPoint3& outPos, NiPoint3& outRot)
 {
-    LOG_REQUIREMENT("CoSyncLocalPlayer::GetLocalTransform", "Needs the local player to exist before reading its position and rotation.");
     Actor* player = GetLocalPlayerActor();
     if (!player)
         return false;
@@ -447,7 +427,6 @@ bool CoSyncLocalPlayer::GetLocalTransform(NiPoint3& outPos, NiPoint3& outRot)
 
 void CoSyncLocalPlayer::ForceUpdate()
 {
-    LOG_REQUIREMENT("CoSyncLocalPlayer::ForceUpdate", "Needs this module to already be started for the forced resend to happen.");
     if (!s_initialized)
         return;
 
@@ -459,7 +438,6 @@ void CoSyncLocalPlayer::ForceUpdate()
 
 void CoSyncLocalPlayer::SetUpdateRate(float updatesPerSecond)
 {
-    LOG_REQUIREMENT("CoSyncLocalPlayer::SetUpdateRate", "Clamps the update rate to a sane 1-60 Hz range itself, no other requirement.");
     if (updatesPerSecond < 1.0f)
         updatesPerSecond = 1.0f;
     if (updatesPerSecond > 60.0f)
@@ -472,7 +450,6 @@ void CoSyncLocalPlayer::SetUpdateRate(float updatesPerSecond)
 
 void CoSyncLocalPlayer::SetMovementThreshold(float distance)
 {
-    LOG_REQUIREMENT("CoSyncLocalPlayer::SetMovementThreshold", "Clamps the distance to a non-negative value itself, no other requirement.");
     if (distance < 0.0f)
         distance = 0.0f;
 
@@ -483,7 +460,6 @@ void CoSyncLocalPlayer::SetMovementThreshold(float distance)
 
 void CoSyncLocalPlayer::SetRotationThreshold(float radians)
 {
-    LOG_REQUIREMENT("CoSyncLocalPlayer::SetRotationThreshold", "Clamps the angle to a non-negative value itself, no other requirement.");
     if (radians < 0.0f)
         radians = 0.0f;
 
@@ -494,7 +470,6 @@ void CoSyncLocalPlayer::SetRotationThreshold(float radians)
 
 void CoSyncLocalPlayer::Tick(double now)
 {
-    LOG_REQUIREMENT("CoSyncLocalPlayer::Tick", "Needs this module started, the network connected, and the local player to exist -- all checked before touching the actor.");
 
     if (!s_initialized)
         return;

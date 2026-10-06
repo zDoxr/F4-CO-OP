@@ -26,7 +26,6 @@
 #include <mutex>
 #include <vector>
 #include "MinHook.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncThreadDiag.h"
 
 
@@ -56,7 +55,6 @@ static std::unordered_map<Actor*, CoSyncPlayer*> s_remoteActors;
 
 static CoSyncPlayer* LookupRemotePlayer(Actor* actor)
 {
-    LOG_REQUIREMENT("LookupRemotePlayer", "Doesn't touch the game. The actor pointer is only used as a lookup key, never read.");
     std::lock_guard<std::mutex> lk(s_remoteActorMutex);
     auto it = s_remoteActors.find(actor);
     return (it != s_remoteActors.end()) ? it->second : nullptr;
@@ -79,7 +77,6 @@ static NiPoint3 g_prevPos{ 0.f, 0.f, 0.f };
 
 static double GetNowSeconds()
 {
-    LOG_REQUIREMENT("GetNowSeconds", "Doesn't touch the game. Just reads the system clock, which is always available on Windows.");
     static double s_freq = [] {
         LARGE_INTEGER f{};
         QueryPerformanceFrequency(&f);
@@ -124,7 +121,6 @@ static __int64 __fastcall ActorUpdate_Hook(
     void* arg2,
     void* arg3)
 {
-    LOG_REQUIREMENT("ActorUpdate_Hook", "This runs once per frame for the player, once the hook is installed. The actor passed in could be the real local player or a remote player's stand-in -- both are handled here.");
     CoSyncThreadDiag::Note(CoSyncThreadDiag::kLocalActorUpdate);
 
     // UPDATE 2026-06-21 (round 79): per FO4_Wrld's independently-developed
@@ -308,7 +304,6 @@ static __int64 __fastcall ActorUpdate_Hook(
 
 void TickHook_RetryInstallIfNeeded()
 {
-    LOG_REQUIREMENT("TickHook_RetryInstallIfNeeded", "Needs to be called once per frame until the hook installs successfully. Waits for the game world to actually be ready, not just for a player object to exist, since one exists even at the main menu.");
     if (g_hookInstalled)
         return;
 
@@ -344,10 +339,10 @@ void TickHook_RetryInstallIfNeeded()
     InstallTickHook();
 }
 
-bool   TickHook_IsInstalled()        { LOG_REQUIREMENT("TickHook_IsInstalled", "Doesn't touch the game. Just reports whether the hook is installed."); return g_hookInstalled; }
-bool   TickHook_HasFired()           { LOG_REQUIREMENT("TickHook_HasFired", "Doesn't touch the game. Just reports whether the hook has ever run."); return g_lastFireTime > 0.0; }
-double TickHook_SecondsSinceInstall(){ LOG_REQUIREMENT("TickHook_SecondsSinceInstall", "Doesn't touch the game. Just does simple time math."); return g_hookInstalled ? (GetNowSeconds() - g_installTime) : 0.0; }
-double TickHook_LastFireSeconds()    { LOG_REQUIREMENT("TickHook_LastFireSeconds", "Doesn't touch the game. Just reports a stored timestamp."); return g_lastFireTime; }
+bool   TickHook_IsInstalled()        { return g_hookInstalled; }
+bool   TickHook_HasFired()           { return g_lastFireTime > 0.0; }
+double TickHook_SecondsSinceInstall(){ return g_hookInstalled ? (GetNowSeconds() - g_installTime) : 0.0; }
+double TickHook_LastFireSeconds()    { return g_lastFireTime; }
 
 static ActorUpdateFn          g_RemoteActorUpdate_Original = nullptr;
 static bool                   g_remoteActorHookInstalled   = false;
@@ -357,7 +352,6 @@ static __int64 __fastcall RemoteActorUpdate_Hook(
     void*            arg2,
     void*            arg3)
 {
-    LOG_REQUIREMENT("RemoteActorUpdate_Hook", "This is installed separately for each remote player's stand-in actor, and only runs for that specific actor.");
     CoSyncThreadDiag::Note(CoSyncThreadDiag::kRemoteActorUpdate);
     g_lastTickStep = "TickHook:RemoteActorUpdate_Hook:entry";
 
@@ -501,7 +495,6 @@ static __int64 __fastcall RemoteActorUpdate_Hook(
 
 void InstallRemoteActorHook(Actor* actor)
 {
-    LOG_REQUIREMENT("InstallRemoteActorHook", "Needs a valid, live actor to hook into. Uses the same per-frame update slot as the local player's own hook.");
     // 2026-08-20 RE-ENABLED: round 133 disabled this because, at the time,
     // RemoteActorUpdate_Hook was a pure passthrough that provided nothing
     // (the earlier GHOST-BAIL logic that justified it had already been
@@ -572,13 +565,11 @@ void InstallRemoteActorHook(Actor* actor)
 
 bool IsRemoteActorHookInstalled()
 {
-    LOG_REQUIREMENT("IsRemoteActorHookInstalled", "Doesn't touch the game. Just reports whether the hook is installed.");
     return g_remoteActorHookInstalled;
 }
 
 void RegisterRemoteActor(Actor* actor, CoSyncPlayer* player)
 {
-    LOG_REQUIREMENT("RegisterRemoteActor", "Needs a valid actor and a valid player. The caller is responsible for calling UnregisterRemoteActor before the player object goes away.");
     if (!actor || !player)
         return;
 
@@ -590,7 +581,6 @@ void RegisterRemoteActor(Actor* actor, CoSyncPlayer* player)
 
 void UnregisterRemoteActor(Actor* actor)
 {
-    LOG_REQUIREMENT("UnregisterRemoteActor", "Needs a valid actor. It's only used as a lookup key here, never read.");
     if (!actor)
         return;
 
@@ -610,7 +600,6 @@ bool IsRegisteredRemoteActor(Actor* actor)
 
 void InstallTickHook()
 {
-    LOG_REQUIREMENT("InstallTickHook", "Needs a real, loaded-in player character to hook onto.");
     LOG_INFO("[TickHook] Installing PlayerCharacter update hook");
 
     PlayerCharacter* pc = CoSyncGetPlayer();
@@ -717,7 +706,6 @@ void InstallTickHook()
 
 void TickHook_CaptureLocalAnimVars()
 {
-    LOG_REQUIREMENT("TickHook_CaptureLocalAnimVars", "Needs a valid player. The actual save only succeeds once the player's animation graph is ready.");
     // Game thread: flush any local-player anim events the ReceiveEvent hook
     // enqueued off-thread since last frame (see CoSyncAnimEventHook).
     DrainLocalPlayerAnimEvents();
@@ -774,7 +762,6 @@ void TickHook_CaptureLocalAnimVars()
 
 void TickHook_ScheduleBoneTasks()
 {
-    LOG_REQUIREMENT("TickHook_ScheduleBoneTasks", "Doesn't touch the game yet. Just a placeholder for bone-replication work still to come.");
     static int s_diagCount = 0;
     if (++s_diagCount % 600 == 1)
         LOG_INFO("[TickHook] ScheduleBoneTasks: frame#=%d (bone infra pending)", s_diagCount);
@@ -812,7 +799,6 @@ constexpr uintptr_t kNpcAnimSync_RVA = 0xCA98B0;
 // straight to retn, no protected scope at all).
 __declspec(noinline) static void* SafeReadVoidPtr(uintptr_t addr)
 {
-    LOG_REQUIREMENT("SafeReadVoidPtr", "Safe to call with an address that turns out to be invalid -- wrapped in a crash guard.");
     __try { return *reinterpret_cast<void**>(addr); }
     __except (EXCEPTION_EXECUTE_HANDLER) { return nullptr; }
 }
@@ -891,7 +877,6 @@ volatile uint64_t g_npcAnimSync_callIndex = 0;
 
 __declspec(noinline) static uint32_t SafeReadActorFormID(void* actor)
 {
-    LOG_REQUIREMENT("SafeReadActorFormID", "Safe to call with a null or invalid actor pointer -- wrapped in a crash guard.");
     __try { return actor ? reinterpret_cast<Actor*>(actor)->formID : 0; }
     __except (EXCEPTION_EXECUTE_HANDLER) { return 0xFFFFFFFFu; } // sentinel: the read itself faulted
 }
@@ -904,7 +889,6 @@ __declspec(noinline) static uint32_t SafeReadActorFormID(void* actor)
 // is its own noinline function.
 static bool NpcAnimSync_SettleDelayElapsed(void* animGraphHolder)
 {
-    LOG_REQUIREMENT("NpcAnimSync_SettleDelayElapsed", "Doesn't touch the game. Just tracks timestamps -- the first time it sees a given actor it always reports 'not settled yet'.");
     constexpr double kNpcAnimSyncSettleDelay = 0.5;
     static std::unordered_map<void*, double> s_firstSeenTime;
     const double now = GetNowSeconds();
@@ -919,7 +903,6 @@ static bool NpcAnimSync_SettleDelayElapsed(void* animGraphHolder)
 
 __declspec(noinline) static void SafeCallNpcAnimSyncOriginal(void* a1, void* a2, void* a3, void* a4)
 {
-    LOG_REQUIREMENT("SafeCallNpcAnimSyncOriginal", "Needs the actor's animation graph to actually be ready before calling into the game's own sync function -- calling it too early is a guaranteed, unrecoverable crash, so we check first instead of relying on a crash guard.");
     g_lastTickStep = "TickHook:SafeCallNpcAnimSyncOriginal:entry";
 
     if (!a1)
@@ -1017,7 +1000,6 @@ __declspec(noinline) static void SafeCallNpcAnimSyncOriginal(void* a1, void* a2,
 // at all, rather than continue chasing the underlying CRT-state bug here.
 static void __fastcall NpcAnimSync_Hook(void* a1, void* a2, void* a3, void* a4)
 {
-    LOG_REQUIREMENT("NpcAnimSync_Hook", "Runs for whichever actor the game is currently updating. Checks whether that actor is one of our remote-player stand-ins first, so we never drive its animation twice.");
     g_lastTickStep = "TickHook:NpcAnimSync_Hook:entry";
 
     bool blocked = false;
@@ -1071,7 +1053,6 @@ static void __fastcall NpcAnimSync_Hook(void* a1, void* a2, void* a3, void* a4)
 
 void InstallNpcAnimSyncHook()
 {
-    LOG_REQUIREMENT("InstallNpcAnimSyncHook", "Only meant to be called once. Needs the game's .exe to be loaded and this game version's animation-sync function to be at the address this build expects.");
     uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandle(NULL));
     void* target   = reinterpret_cast<void*>(base + kNpcAnimSync_RVA);
 

@@ -8,7 +8,6 @@
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "GameReferences.h"
 #include "GameForms.h"
 #include "GameHandle.h"
@@ -486,7 +485,6 @@ namespace CoSyncWorldStateSync
 {
     void Install()
     {
-        LOG_REQUIREMENT("CoSyncWorldStateSync::Install", "Plugin load. Every engine function is prologue-checked and every vtable slot compared before anything is hooked; any mismatch disables that part.");
         if (g_installed)
             return;
         g_installed = true;
@@ -521,7 +519,6 @@ namespace CoSyncWorldStateSync
 
     void OnReceive(const std::string& msg, bool isHostRole)
     {
-        LOG_REQUIREMENT("CoSyncWorldStateSync::OnReceive", "Parses peer text defensively and only queues; the engine work happens in Tick on the game thread.");
         Remote r{};
         const char k = msg[2];
         const char* s = msg.c_str() + 4;

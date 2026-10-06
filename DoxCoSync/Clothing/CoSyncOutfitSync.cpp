@@ -10,7 +10,6 @@
 #include "CoSyncEntityRegistry.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncPlayer.h"
-#include "CoSyncRequirementsLog.h"
 #include "GameForms.h"
 #include "GameReferences.h"
 #include "GameFormComponents.h"
@@ -86,7 +85,6 @@ namespace
 
     double OutfitNowSeconds()
     {
-        LOG_REQUIREMENT("CoSyncOutfitSync::OutfitNowSeconds", "Doesn't touch the game -- just reads the system's high-precision clock.");
         LARGE_INTEGER freq, cnt;
         QueryPerformanceFrequency(&freq);
         QueryPerformanceCounter(&cnt);
@@ -96,7 +94,6 @@ namespace
 
 static std::vector<uint32_t> GetEquippedArmorFormIDs(Actor* actor)
 {
-    LOG_REQUIREMENT("CoSyncOutfitSync::GetEquippedArmorFormIDs", "Safely handles an empty actor. A real actor needs a valid inventory list for this to safely walk through their items.");
     std::vector<uint32_t> result;
     if (!actor) return result;
 
@@ -204,7 +201,6 @@ static std::unordered_set<uint32_t> s_modelUpdatePending;
 
 bool CoSyncOutfitSync::IsOutfit(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncOutfitSync::IsOutfit", "Doesn't touch the game -- just needs a valid message string.");
     return msg.rfind("OUTFIT|", 0) == 0;
 }
 
@@ -213,7 +209,6 @@ static std::unordered_set<uint32_t> s_lastSentArmor;
 
 void CoSyncOutfitSync::TickLocalOutfit(uint32_t myEntityID, Actor* player)
 {
-    LOG_REQUIREMENT("CoSyncOutfitSync::TickLocalOutfit", "Needs a valid player and an active connection before it works out and sends what changed about the outfit.");
     if (!player || !CoSyncNet::IsConnected()) return;
 
     LARGE_INTEGER freq, cnt;
@@ -253,7 +248,6 @@ void CoSyncOutfitSync::TickLocalOutfit(uint32_t myEntityID, Actor* player)
 
 void CoSyncOutfitSync::OnReceiveOutfit(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncOutfitSync::OnReceiveOutfit", "Needs the message to be at least as long as its \"OUTFIT|\" prefix, and our own player ID to be valid.");
 
     const char* p = msg.c_str() + 7;
 
@@ -295,7 +289,6 @@ void CoSyncOutfitSync::OnReceiveOutfit(const std::string& msg)
 // bearing under /GL+/LTCG).
 __declspec(noinline) static TESForm* SafeLookupForm(uint32_t formID)
 {
-    LOG_REQUIREMENT("CoSyncOutfitSync::SafeLookupForm", "Works safely with any ID value, even a bad one sent by another player, because the lookup runs inside a safety guard.");
     __try
     {
         return LookupFormByID(formID);
@@ -308,7 +301,6 @@ __declspec(noinline) static TESForm* SafeLookupForm(uint32_t formID)
 
 void CoSyncOutfitSync::FlushPendingOutfitOps()
 {
-    LOG_REQUIREMENT("CoSyncOutfitSync::FlushPendingOutfitOps", "Needs the entity registry to be valid so it can find each real actor, and each of those actors to have already spawned.");
     static const BSFixedString kUnequipItem("UnequipItem");
     static const BSFixedString kEquipItem("EquipItem");
     std::vector<OutfitOp> ops;
@@ -692,7 +684,6 @@ void CoSyncOutfitSync::FlushPendingOutfitOps()
 
 void CoSyncOutfitSync::ClearAppliedOutfits(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncOutfitSync::ClearAppliedOutfits", "Doesn't touch the game -- just clears this player's cached outfit state. Safe to call even if we never tracked them.");
     // Only touch/log when there is actually something cached — repeated calls on
     // an already-cleared entity (e.g. a persistently-freed proxy) would otherwise
     // spam. Use find() so we don't insert empty entries via operator[].
@@ -709,7 +700,6 @@ void CoSyncOutfitSync::ClearAppliedOutfits(uint32_t entityID)
 
 void CoSyncOutfitSync::Reset()
 {
-    LOG_REQUIREMENT("CoSyncOutfitSync::Reset", "Doesn't touch the game -- just clears out internal caches and queues.");
     {
         std::lock_guard<std::mutex> lk(s_mutex);
         s_pending.clear();

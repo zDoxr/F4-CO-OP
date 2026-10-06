@@ -3,7 +3,6 @@
 
 #include "CoSyncTeleport.h"
 
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncPlayer.h"
@@ -47,7 +46,6 @@ namespace
 
 void CoSyncTeleport::RequestTeleportLocalToEntity(uint32_t targetEntityID)
 {
-    LOG_REQUIREMENT("CoSyncTeleport::RequestTeleportLocalToEntity", "Safe to call any time. Just queues a request to teleport the local player to another player; the actual move happens later in FlushPendingTeleport.");
     if (targetEntityID == 0)
         return;
 
@@ -57,7 +55,6 @@ void CoSyncTeleport::RequestTeleportLocalToEntity(uint32_t targetEntityID)
 
 void CoSyncTeleport::RequestTeleportEntityToLocal(uint32_t targetEntityID)
 {
-    LOG_REQUIREMENT("CoSyncTeleport::RequestTeleportEntityToLocal", "Safe to call any time. Just queues a request to teleport another player to the local player; the actual move happens later in FlushPendingTeleport.");
     if (targetEntityID == 0)
         return;
 
@@ -67,7 +64,6 @@ void CoSyncTeleport::RequestTeleportEntityToLocal(uint32_t targetEntityID)
 
 void CoSyncTeleport::FlushPendingTeleport()
 {
-    LOG_REQUIREMENT("CoSyncTeleport::FlushPendingTeleport", "Safe to call any time, does nothing if there are no pending requests. Carries out every queued teleport request.");
     std::vector<TeleportRequest> reqs;
     {
         std::lock_guard<std::mutex> lk(s_reqMutex);
@@ -108,7 +104,6 @@ void CoSyncTeleport::FlushPendingTeleport()
 
 void CoSyncTeleport::PollHotkeys()
 {
-    LOG_REQUIREMENT("CoSyncTeleport::PollHotkeys", "Call once per frame. Checks for the F6 teleport hotkey and, when pressed, queues a teleport request to or from the other connected player.");
     static bool s_wasDown = false;
 
     const bool isDown = (GetAsyncKeyState(VK_F6) & 0x8000) != 0;

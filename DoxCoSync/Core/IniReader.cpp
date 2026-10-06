@@ -1,11 +1,9 @@
 #include "IniReader.h"
-#include "CoSyncRequirementsLog.h"
 #include <fstream>
 #include <algorithm>
 
 bool IniReader::Load(const char* path)
 {
-    LOG_REQUIREMENT("IniReader::Load", "Doesn't touch the game -- just needs a valid file path. Returns false if the file can't be opened.");
     kv.clear();
 
     std::ifstream file(path);
@@ -44,7 +42,6 @@ bool IniReader::Load(const char* path)
 
 std::string IniReader::Get(const std::string& key, const std::string& def) const
 {
-    LOG_REQUIREMENT("IniReader::Get", "Doesn't touch the game -- just needs a valid key name. Returns the default value if that key was never loaded.");
     auto it = kv.find(key);
     if (it != kv.end())
         return it->second;
@@ -54,13 +51,11 @@ std::string IniReader::Get(const std::string& key, const std::string& def) const
 
 std::string IniReader::GetString(const std::string& key, const std::string& def) const
 {
-    LOG_REQUIREMENT("IniReader::GetString", "Doesn't touch the game -- just a thin wrapper around Get() with the same requirements.");
     return Get(key, def);
 }
 
 int IniReader::GetInt(const std::string& key, int defaultValue) const
 {
-    LOG_REQUIREMENT("IniReader::GetInt", "Doesn't touch the game -- just needs a valid key name. A non-numeric stored value safely falls back to the default.");
     auto it = kv.find(key);
     if (it == kv.end())
         return defaultValue;
@@ -75,7 +70,6 @@ int IniReader::GetInt(const std::string& key, int defaultValue) const
 
 float IniReader::GetFloat(const std::string& key, float defaultValue) const
 {
-    LOG_REQUIREMENT("IniReader::GetFloat", "Doesn't touch the game -- just needs a valid key name. A non-numeric stored value safely falls back to the default.");
     auto it = kv.find(key);
     if (it == kv.end())
         return defaultValue;

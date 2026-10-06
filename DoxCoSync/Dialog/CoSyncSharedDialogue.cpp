@@ -10,7 +10,6 @@
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "GameReferences.h"
 #include "GameForms.h"
 #include "GameHandle.h"
@@ -324,7 +323,6 @@ namespace CoSyncSharedDialogue
 {
     void Install()
     {
-        LOG_REQUIREMENT("CoSyncSharedDialogue::Install", "Plugin load. Swaps DialogueMenu's ProcessMessage slot after checking it still points at the 1.11.240 function; checks the option-select and type-getter prologues.");
         if (g_installed)
             return;
         g_installed = true;
@@ -355,7 +353,6 @@ namespace CoSyncSharedDialogue
 
     void OnReceive(const std::string& msg, bool isHostRole)
     {
-        LOG_REQUIREMENT("CoSyncSharedDialogue::OnReceive", "Game thread. Peer text is parsed defensively.");
         const std::vector<std::string> f = Split(msg);
         const std::string& k = f[0];
         if (k == "DLGP" && isHostRole && f.size() >= 5)

@@ -4,7 +4,6 @@
 #include <atomic>
 #include <thread>
 #include <mutex>
-#include "CoSyncRequirementsLog.h"
 
 namespace cosync
 {
@@ -42,7 +41,6 @@ namespace cosync
 
         void ResetNetState()
         {
-            LOG_REQUIREMENT("cosync::CoSync_Main::ResetNetState", "Doesn't touch the game itself. Just moves the network state back to Idle if it's currently Failed or Done, and leaves Busy alone.");
             CoSyncNetState cur = m_netState.load();
             if (cur == CoSyncNetState::Failed || cur == CoSyncNetState::Done)
                 m_netState.store(CoSyncNetState::Idle);

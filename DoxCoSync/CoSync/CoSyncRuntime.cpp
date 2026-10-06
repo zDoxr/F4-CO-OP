@@ -1,7 +1,6 @@
 #include "CoSyncRuntime.h"
 
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncWorld.h"
 #include "CoSyncTransport.h"
 #include "CoSyncPlayerManager.h"
@@ -25,7 +24,6 @@
 
 static double NowSeconds()
 {
-    LOG_REQUIREMENT("NowSeconds", "Doesn't touch any game state — just needs the system's performance-counter frequency to be non-zero (assumed, not checked).");
     static double s_freq = [] {
         LARGE_INTEGER f{};
         QueryPerformanceFrequency(&f);
@@ -466,7 +464,6 @@ __declspec(noinline) static void PollPipboyPauseMenuState()
 
 static void PollAndPrintAnimDiagnostics()
 {
-    LOG_REQUIREMENT("PollAndPrintAnimDiagnostics", "Reads shared diagnostic values written elsewhere in the animation sync code. Safe to call any time — the values just default to null/0 until those hooks actually fire.");
     static uint64_t s_lastSeenCallIndex = 0;
     const uint64_t callIndex = g_npcAnimSync_callIndex;
     if (callIndex != s_lastSeenCallIndex)
@@ -495,7 +492,6 @@ static void PollAndPrintAnimDiagnostics()
 
 void CoSyncRuntime_TickGameThread()
 {
-    LOG_REQUIREMENT("CoSyncRuntime_TickGameThread", "Must run on the main game thread, not the render thread, to avoid a cross-thread race that's been hit before. Relies on the networking/player subsystems gating themselves until they're ready.");
     const double now = NowSeconds();
     CoSyncThreadDiag::TickScope tickScope;   // overlap census, see CoSyncThreadDiag.h
     HangWatchdogTick();
@@ -646,7 +642,6 @@ namespace
     public:
         void Run() override
         {
-            LOG_REQUIREMENT("CoSyncMainThreadTickTask::Run", "Invoked by the game's main-thread task queue. No other precondition beyond being called from that queue.");
             CoSyncRuntime_TickGameThread();
         }
     };
@@ -654,7 +649,6 @@ namespace
 
 void CoSyncRuntime_InstallMainThreadTick(const F4SETaskInterface* taskInterface)
 {
-    LOG_REQUIREMENT("CoSyncRuntime_InstallMainThreadTick", "Needs a non-null task interface (checked), and must be called exactly once at plugin load time since the task instance registers itself permanently.");
     if (!taskInterface)
     {
         LOG_ERROR("[CoSyncRuntime] InstallMainThreadTick: no task interface was given!");

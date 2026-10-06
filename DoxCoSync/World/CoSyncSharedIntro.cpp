@@ -14,7 +14,6 @@
 #include "CoSyncWorldTransfer.h"
 #include "CoSyncVault111.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 
 #include "GameForms.h"
 #include "GameReferences.h"
@@ -235,7 +234,6 @@ namespace CoSyncSharedIntro
 
     void OnReceive(const std::string& msg, bool isHostRole)
     {
-        LOG_REQUIREMENT("CoSyncSharedIntro::OnReceive", "Network side: parses and queues; the tick acts.");
         if (msg.rfind("INTRO|vault|", 0) == 0)
         {
             if (isHostRole)

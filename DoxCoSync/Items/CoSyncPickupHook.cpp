@@ -8,7 +8,6 @@
 #include "ConsoleLogger.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
-#include "CoSyncRequirementsLog.h"
 
 #include "MinHook.h"
 
@@ -65,7 +64,6 @@ static std::atomic<bool> g_hookInstalled{ false };
 // fault," which is the entire reason this guard exists.
 __declspec(noinline) static uint32_t SafeReadU32(const void* base, size_t off)
 {
-    LOG_REQUIREMENT("CoSyncPickupHook::SafeReadU32", "Reads a 4-byte value from memory safely. Returns 0 instead of crashing if the address turns out to be bad.");
     __try {
         return *reinterpret_cast<const uint32_t*>(
             reinterpret_cast<const uint8_t*>(base) + off);
@@ -75,7 +73,6 @@ __declspec(noinline) static uint32_t SafeReadU32(const void* base, size_t off)
 
 __declspec(noinline) static void* SafeReadPtr(const void* base, size_t off)
 {
-    LOG_REQUIREMENT("CoSyncPickupHook::SafeReadPtr", "Reads a pointer from memory safely. Returns null instead of crashing if the address turns out to be bad.");
     __try {
         return *reinterpret_cast<void* const*>(
             reinterpret_cast<const uint8_t*>(base) + off);
@@ -89,7 +86,6 @@ __declspec(noinline) static void* SafeReadPtr(const void* base, size_t off)
 
 static void __fastcall Detour_InvAddFromWorld(void* dstActor, void* srcREFR, unsigned int count)
 {
-    LOG_REQUIREMENT("CoSyncPickupHook::Detour_InvAddFromWorld", "Runs whenever any actor picks up a world item. Needs the hook installed and treats the actor/item pointers as untrusted, only reading them through the safe helpers. Only sends a pickup message once connected to another player.");
     CoSyncThreadDiag::Note(CoSyncThreadDiag::kPickup);
     // round 94 diagnostic: unconditional fire-heartbeat, confirms the
     // round-93 RVA fix (kInvAddFromWorld_RVA) is reached -- fires for every
@@ -163,7 +159,6 @@ static void __fastcall Detour_InvAddFromWorld(void* dstActor, void* srcREFR, uns
 
 void InstallPickupHook()
 {
-    LOG_REQUIREMENT("InstallPickupHook", "Only runs once. Hooks the engine's pickup function so item pickups can be shared with other players.");
     if (g_hookInstalled.exchange(true))
         return;
 
@@ -194,7 +189,6 @@ void InstallPickupHook()
 
 void UninstallPickupHook()
 {
-    LOG_REQUIREMENT("UninstallPickupHook", "Only runs if the hook is currently installed. Removes the pickup hook cleanly.");
     if (!g_hookInstalled.exchange(false))
         return;
 

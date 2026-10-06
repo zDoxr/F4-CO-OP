@@ -4,7 +4,6 @@
 #include "CoSyncSteamAPI.h"
 
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 
 #include "steam/steamnetworkingsockets.h"
 #include "steam/isteamnetworkingutils.h"
@@ -172,7 +171,6 @@ namespace
 
 bool CoSyncSteamAPI::Init()
 {
-    LOG_REQUIREMENT("CoSyncSteamAPI::Init", "Needs steam_api64.dll already loaded and initialised by the game. Idempotent; returns false (retry later) until every export and interface is ready.");
     if (g_available.load())
         return true;
 

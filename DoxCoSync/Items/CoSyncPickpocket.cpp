@@ -4,7 +4,6 @@
 #include "CoSyncPickpocket.h"
 
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
 #include "CoSyncGameAPI.h"
@@ -433,7 +432,6 @@ namespace CoSyncPickpocket
 
     void OnReceive(const std::string& msg, uint32_t conn, bool isHostRole)
     {
-        LOG_REQUIREMENT("CoSyncPickpocket::OnReceive", "CoSync tick. The host forwards only messages whose sender is the thief / victim they name.");
         if (msg.size() > 32 * 1024)
             return;
         const size_t bar = msg.find('|');

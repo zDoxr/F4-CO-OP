@@ -1,6 +1,5 @@
 #include "CoSyncSpecialSync.h"
 #include "CoSyncActorValues.h"
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 #include "CoSyncEntityRegistry.h"
 #include "CoSyncTransport.h"
@@ -44,7 +43,6 @@ static ActorValueInfo* s_aviCache[kNumSpecial] = {};
 
 static ActorValueInfo* GetAVI(int idx)
 {
-    LOG_REQUIREMENT("CoSyncSpecialSync::GetAVI", "Needs a valid SPECIAL stat index and the game to have finished loading before it can look up the stat.");
     if (idx < 0 || idx >= kNumSpecial)
         return nullptr;
     if (!s_aviCache[idx])
@@ -72,9 +70,7 @@ static constexpr double kSpecFlushInterval = 1.0 / 20.0;
 
 static double SpecNowSeconds()
 {
-    LOG_REQUIREMENT("CoSyncSpecialSync::SpecNowSeconds", "Just reads the system clock. Works on any normal Windows PC.");
     static double s_freq = [] {
-        LOG_REQUIREMENT("CoSyncSpecialSync::SpecNowSeconds::lambda", "Just reads the system clock. Works on any normal Windows PC.");
         LARGE_INTEGER f{};
         QueryPerformanceFrequency(&f);
         return double(f.QuadPart);
@@ -88,7 +84,6 @@ static float s_lastSent[kNumSpecial] = { -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.
 
 bool CoSyncSpecialSync::IsSpecial(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncSpecialSync::IsSpecial", "Just checks the text of a message. No game state needed.");
     return msg.size() > 5 &&
            msg[0] == 'S' && msg[1] == 'P' && msg[2] == 'E' &&
            msg[3] == 'C' && msg[4] == '|';
@@ -96,7 +91,6 @@ bool CoSyncSpecialSync::IsSpecial(const std::string& msg)
 
 std::string CoSyncSpecialSync::SerializeSpecial(uint32_t entityID, uint32_t avFormID, float value)
 {
-    LOG_REQUIREMENT("CoSyncSpecialSync::SerializeSpecial", "Just turns a SPECIAL stat change into text. Doesn't touch the game at all.");
     char buf[80];
     std::snprintf(buf, sizeof(buf), "SPEC|%u|%u|%f", entityID, avFormID, value);
     return buf;
@@ -104,7 +98,6 @@ std::string CoSyncSpecialSync::SerializeSpecial(uint32_t entityID, uint32_t avFo
 
 void CoSyncSpecialSync::OnReceiveSpecial(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncSpecialSync::OnReceiveSpecial", "Reads a SPECIAL stat update out of text; a badly formed message is safely rejected. Needs the network to be set up first.");
 
     uint32_t eid = 0, fid = 0;
     float val = 0.f;
@@ -135,7 +128,6 @@ static constexpr uint32_t kMaxSpecialRetries = 100;
 // missed. Same noinline-SEH-helper convention as those fixes.
 __declspec(noinline) static TESForm* SafeLookupForm(uint32_t formID)
 {
-    LOG_REQUIREMENT("CoSyncSpecialSync::SafeLookupForm", "Looks up a game object by ID. If the other player sends a bad ID, it fails safely instead of crashing.");
     __try
     {
         return LookupFormByID(formID);
@@ -148,7 +140,6 @@ __declspec(noinline) static TESForm* SafeLookupForm(uint32_t formID)
 
 void CoSyncSpecialSync::FlushPendingSpecialOps()
 {
-    LOG_REQUIREMENT("CoSyncSpecialSync::FlushPendingSpecialOps", "Looks up any stat IDs from other players safely, and checks each target character actually exists (with a few retries) before touching it.");
 
     const double now = SpecNowSeconds();
     if (now - s_lastFlushTime < kSpecFlushInterval)
@@ -230,7 +221,6 @@ void CoSyncSpecialSync::FlushPendingSpecialOps()
 
 void CoSyncSpecialSync::TickLocalSpecial(uint32_t myEntityID, Actor* player)
 {
-    LOG_REQUIREMENT("CoSyncSpecialSync::TickLocalSpecial", "Checks the player exists before reading any of their stats.");
     if (!player)
         return;
 

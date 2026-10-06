@@ -5,7 +5,6 @@
 
 #include "GameReferences.h"
 #include "GameTypes.h"
-#include "CoSyncRequirementsLog.h"
 
 // UPDATE 2026-06-17: __declspec(noinline) is load-bearing -- a non-noinline
 // static __try/__except function risks silent SEH-removal via inlining
@@ -13,7 +12,6 @@
 // SafeReadU32/SafeReadPtr for the fuller writeup and confirmed repro).
 __declspec(noinline) static bool HolderGetFloat(Actor* actor, const char* name, float& out)
 {
-    LOG_REQUIREMENT("HolderGetFloat", "Needs a valid actor with a working animation-variable holder. Reads the number safely.");
     if (!actor) return false;
 
     __try
@@ -41,7 +39,6 @@ __declspec(noinline) static bool HolderGetFloat(Actor* actor, const char* name, 
 
 __declspec(noinline) static bool HolderGetBool(Actor* actor, const char* name, bool& out)
 {
-    LOG_REQUIREMENT("HolderGetBool", "Needs a valid actor with a working animation-variable holder. Reads the flag safely.");
     if (!actor) return false;
 
     __try
@@ -68,13 +65,11 @@ __declspec(noinline) static bool HolderGetBool(Actor* actor, const char* name, b
 
 bool CoSyncCreatureAnimSync::IsCreatureBehavior(uint32_t varSetSize)
 {
-    LOG_REQUIREMENT("CoSyncCreatureAnimSync::IsCreatureBehavior", "Just compares a size value against a known threshold. No game state needed.");
     return varSetSize < kHumanoidMinSize;
 }
 
 bool CoSyncCreatureAnimSync::SaveCreatureVars(Actor* actor, AnimVarSnapshot& out)
 {
-    LOG_REQUIREMENT("CoSyncCreatureAnimSync::SaveCreatureVars", "Needs a valid actor with a working animation-variable holder.");
     out = AnimVarSnapshot{};
     out.booleans |= kCreatureSnapshotFlag;
 
@@ -166,7 +161,6 @@ bool CoSyncCreatureAnimSync::SaveCreatureVars(Actor* actor, AnimVarSnapshot& out
 
 bool CoSyncCreatureAnimSync::LoadCreatureVars(Actor* actor, const AnimVarSnapshot& snap)
 {
-    LOG_REQUIREMENT("CoSyncCreatureAnimSync::LoadCreatureVars", "Needs a valid actor and a valid, correctly-flagged creature snapshot to load from.");
     if (!actor || !snap.isValid) return false;
     if (!(snap.booleans & kCreatureSnapshotFlag)) return false;
 

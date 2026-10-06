@@ -2,14 +2,12 @@
 #include "ConsoleLogger.h"
 #include "GameReferences.h"
 #include "GameTypes.h"
-#include "CoSyncRequirementsLog.h"
 
 namespace CoSync
 {
 
     static bool IsValidBehaviorGraph(void* ptr)
     {
-        LOG_REQUIREMENT("CoSync::IsValidBehaviorGraph", "Either the pointer is null, or it needs to look like a real, readable graph object. Guarded so a bad pointer cannot crash the game.");
         if (!ptr)
             return false;
 
@@ -53,7 +51,6 @@ namespace CoSync
 
     void* BehaviorGraphHelper::GetBehaviorGraphFromActor(Actor* actor)
     {
-        LOG_REQUIREMENT("CoSync::BehaviorGraphHelper::GetBehaviorGraphFromActor", "Needs a valid actor with its internal process data set up. Looks for the animation graph in its usual spot, or scans nearby slots if it is not there.");
         if (!actor)
             return nullptr;
 
@@ -93,7 +90,6 @@ namespace CoSync
 
     bool BehaviorGraphHelper::GetVariableValueInternal(void* graph, const char* varName, float& outValue)
     {
-        LOG_REQUIREMENT("CoSync::BehaviorGraphHelper::GetVariableValueInternal", "Needs a valid graph and variable name. Guarded so a bad function pointer on the graph cannot crash the game.");
         if (!graph || !varName)
             return false;
 
@@ -126,7 +122,6 @@ namespace CoSync
 
     bool BehaviorGraphHelper::SetVariableValueInternal(void* graph, const char* varName, float value)
     {
-        LOG_REQUIREMENT("CoSync::BehaviorGraphHelper::SetVariableValueInternal", "Needs a valid graph and variable name. Guarded so a bad function pointer on the graph cannot crash the game.");
         if (!graph || !varName)
             return false;
 
@@ -163,7 +158,6 @@ namespace CoSync
 
     bool BehaviorGraphHelper::GetIntVariable(Actor* actor, const char* varName, int& outValue)
     {
-        LOG_REQUIREMENT("CoSync::BehaviorGraphHelper::GetIntVariable", "Needs the actor to have a valid animation graph for the read to succeed.");
         void* graph = GetBehaviorGraphFromActor(actor);
         if (!graph)
             return false;
@@ -178,7 +172,6 @@ namespace CoSync
 
     bool BehaviorGraphHelper::SetIntVariable(Actor* actor, const char* varName, int value)
     {
-        LOG_REQUIREMENT("CoSync::BehaviorGraphHelper::SetIntVariable", "Needs the actor to have a valid animation graph for the write to succeed.");
         void* graph = GetBehaviorGraphFromActor(actor);
         if (!graph)
             return false;
@@ -188,7 +181,6 @@ namespace CoSync
 
     bool BehaviorGraphHelper::GetFloatVariable(Actor* actor, const char* varName, float& outValue)
     {
-        LOG_REQUIREMENT("CoSync::BehaviorGraphHelper::GetFloatVariable", "Needs the actor to have a valid animation graph for the read to succeed.");
         void* graph = GetBehaviorGraphFromActor(actor);
         if (!graph)
             return false;
@@ -198,7 +190,6 @@ namespace CoSync
 
     bool BehaviorGraphHelper::SetFloatVariable(Actor* actor, const char* varName, float value)
     {
-        LOG_REQUIREMENT("CoSync::BehaviorGraphHelper::SetFloatVariable", "Needs the actor to have a valid animation graph for the write to succeed. Logs an error if not.");
         void* graph = GetBehaviorGraphFromActor(actor);
         if (!graph)
         {
@@ -217,7 +208,6 @@ namespace CoSync
 
     bool BehaviorGraphHelper::GetBoolVariable(Actor* actor, const char* varName, bool& outValue)
     {
-        LOG_REQUIREMENT("CoSync::BehaviorGraphHelper::GetBoolVariable", "Needs the actor to have a valid animation graph for the read to succeed.");
         void* graph = GetBehaviorGraphFromActor(actor);
         if (!graph)
             return false;
@@ -232,7 +222,6 @@ namespace CoSync
 
     bool BehaviorGraphHelper::SetBoolVariable(Actor* actor, const char* varName, bool value)
     {
-        LOG_REQUIREMENT("CoSync::BehaviorGraphHelper::SetBoolVariable", "Needs the actor to have a valid animation graph for the write to succeed.");
         void* graph = GetBehaviorGraphFromActor(actor);
         if (!graph)
             return false;
@@ -247,7 +236,6 @@ namespace CoSync
         int& sneak,
         int& sprint)
     {
-        LOG_REQUIREMENT("CoSync::BehaviorGraphHelper::GetAllAnimationVariables", "Needs the actor to have a valid animation graph, with all four expected variables present on it for a full success.");
         void* graph = GetBehaviorGraphFromActor(actor);
         if (!graph)
             return false;
@@ -285,7 +273,6 @@ namespace CoSync
         int sneak,
         int sprint)
     {
-        LOG_REQUIREMENT("CoSync::BehaviorGraphHelper::SetAllAnimationVariables", "Needs the actor to have a valid animation graph, with all four expected variables settable on it for a full success.");
         void* graph = GetBehaviorGraphFromActor(actor);
         if (!graph)
             return false;

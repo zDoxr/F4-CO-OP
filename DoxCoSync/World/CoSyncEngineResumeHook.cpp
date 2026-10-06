@@ -3,7 +3,6 @@
 
 #include "CoSyncEngineResumeHook.h"
 
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 #include "CoSyncNet.h"
 
@@ -98,7 +97,6 @@ static std::atomic<bool>   g_hookInstalled{ false };
 
 __declspec(noinline) static __int64 SafeCallOriginal(__int64 a1)
 {
-    LOG_REQUIREMENT("(global)::SafeCallOriginal", "Needs the hook's saved original-function pointer to be non-null to actually call through. Wrapped in a crash guard since the real teardown function is known to crash sometimes (leftover dangling pointers).");
     __try
     {
         return g_origEventSinkTeardown(a1);
@@ -111,7 +109,6 @@ __declspec(noinline) static __int64 SafeCallOriginal(__int64 a1)
 
 static __int64 __fastcall Detour_EventSinkTeardown(__int64 a1)
 {
-    LOG_REQUIREMENT("(global)::Detour_EventSinkTeardown", "Needs the hook to already be installed. Skips calling the original function entirely while connected to a session, since it's known to be unsafe with a second player around.");
     if (!g_origEventSinkTeardown)
         return 0;
 
@@ -149,7 +146,6 @@ static __int64 __fastcall Detour_EventSinkTeardown(__int64 a1)
 
 void InstallEngineResumeSafetyHook()
 {
-    LOG_REQUIREMENT("(global)::InstallEngineResumeSafetyHook", "Needs the game module base to resolve and the target offset to point at the right verified function. Meant to be called only once, guarded by a flag.");
     if (g_hookInstalled.exchange(true))
         return;
 
@@ -197,7 +193,6 @@ void InstallEngineResumeSafetyHook()
 
 void UninstallEngineResumeSafetyHook()
 {
-    LOG_REQUIREMENT("(global)::UninstallEngineResumeSafetyHook", "Needs the install step to have already succeeded (guarded by a flag). Recomputes the same target address, which must still be valid to remove the hook cleanly.");
     if (!g_hookInstalled.exchange(false))
         return;
 
@@ -252,7 +247,6 @@ static std::atomic<bool>       g_teardownHookInstalled{ false };
 
 __declspec(noinline) static __int64 SafeCallOriginalTeardown()
 {
-    LOG_REQUIREMENT("(global)::SafeCallOriginalTeardown", "Needs the hook's saved original-function pointer to be non-null to actually call through. Wrapped in a crash guard since the whole teardown sequence is known to crash sometimes.");
     __try
     {
         return g_origFullSubsystemTeardown();
@@ -265,7 +259,6 @@ __declspec(noinline) static __int64 SafeCallOriginalTeardown()
 
 static __int64 __fastcall Detour_FullSubsystemTeardown()
 {
-    LOG_REQUIREMENT("(global)::Detour_FullSubsystemTeardown", "Needs the hook to already be installed. Skips calling the original function entirely while connected to a session, since the whole sequence is known to be unsafe with a second player around.");
     if (!g_origFullSubsystemTeardown)
         return 0;
 
@@ -287,7 +280,6 @@ static __int64 __fastcall Detour_FullSubsystemTeardown()
 
 void InstallFullSubsystemTeardownHook()
 {
-    LOG_REQUIREMENT("(global)::InstallFullSubsystemTeardownHook", "Needs the game module base to resolve and the target offset to point at the right verified function. Meant to be called only once, guarded by a flag.");
     // RE-ENABLED round 105: round 40's "garbage at this address" finding was
     // itself wrong, not the address. Independently re-verified from scratch
     // via IDA (not trusting either round 24's or round 40's old claims):
@@ -346,7 +338,6 @@ void InstallFullSubsystemTeardownHook()
 
 void UninstallFullSubsystemTeardownHook()
 {
-    LOG_REQUIREMENT("(global)::UninstallFullSubsystemTeardownHook", "Needs the install step to have already succeeded (guarded by a flag). Recomputes the same target address, which must still be valid to remove the hook cleanly.");
     if (!g_teardownHookInstalled.exchange(false))
         return;
 

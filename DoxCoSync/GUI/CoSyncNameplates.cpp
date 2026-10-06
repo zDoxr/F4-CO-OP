@@ -4,7 +4,6 @@
 #include "CoSyncNameplates.h"
 
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncPlayer.h"
 #include "CoSyncEntityTypes.h"
@@ -122,7 +121,6 @@ namespace CoSyncNameplates
 {
     bool Build(bool sessionLive, std::string& json)
     {
-        LOG_REQUIREMENT("CoSyncNameplates::Build", "CoSync tick (same thread as CoSyncPlayerManager). Reads proxy positions and the engine camera projection.");
         LoadConfig();
         json = "[";
         PlayerCharacter* lp = CoSyncGetPlayer();

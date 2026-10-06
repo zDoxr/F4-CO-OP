@@ -5,7 +5,6 @@
 #include <algorithm>
 
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
 #include "CoSyncGameAPI.h"
@@ -100,7 +99,6 @@ namespace
 
     double NowSeconds()
     {
-        LOG_REQUIREMENT("CoSyncExplosionSync::NowSeconds", "Doesn't touch the game -- just reads the system's high-precision clock.");
         LARGE_INTEGER f{}, c{};
         QueryPerformanceFrequency(&f);
         QueryPerformanceCounter(&c);
@@ -114,7 +112,6 @@ namespace
                                                       TESObjectREFR* pcRefr,
                                                       void** formPair)
     {
-        LOG_REQUIREMENT("CoSyncExplosionSync::PlaceAtMeSafe", "Needs a real script system and a live player. Clears a small piece of engine state first, then spawns the item inside a safety guard so a failure returns nothing instead of crashing.");
         __try
         {
             auto* p = reinterpret_cast<uint8_t*>(pcRefr);
@@ -159,7 +156,6 @@ namespace
 
     __declspec(noinline) void Tick_Impl(double now)
     {
-        LOG_REQUIREMENT("CoSyncExplosionSync::Tick_Impl", "Needs an active connection and a live player standing in a real cell. Walks the game's own object list for that cell, so entries need to stay valid for the whole loop. The caller wraps this in a safety guard.");
         PlayerCharacter* pc = CoSyncGetPlayer();
         if (!pc) return;
         TESObjectREFR* pcRefr = reinterpret_cast<TESObjectREFR*>(pc);
@@ -212,7 +208,6 @@ namespace
 
     __declspec(noinline) void Flush_Impl(const std::vector<PendingExplosion>& pending)
     {
-        LOG_REQUIREMENT("CoSyncExplosionSync::Flush_Impl", "Needs the game's script system and a live player. Each ID sent by another player is looked up safely and checked to make sure it's really an explosion before anything gets spawned. The caller wraps this in a safety guard.");
         PlayerCharacter* pc = CoSyncGetPlayer();
         if (!pc) return;
         TESObjectREFR* pcRefr = reinterpret_cast<TESObjectREFR*>(pc);
@@ -294,7 +289,6 @@ bool CoSyncExplosionSync::IsExplosion(const std::string& msg)
 
 void CoSyncExplosionSync::Tick(double now)
 {
-    LOG_REQUIREMENT("CoSyncExplosionSync::Tick", "No special requirements -- runs on a limited schedule and wrapped in a safety guard so a fault while scanning the cell is recovered.");
     if (!CoSyncNet::IsConnected()) return;
     if ((now - s_lastPoll) < kExpl_PollInterval) return;
     s_lastPoll = now;
@@ -313,7 +307,6 @@ void CoSyncExplosionSync::Tick(double now)
 
 void CoSyncExplosionSync::OnReceiveExplosion(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncExplosionSync::OnReceiveExplosion", "Reads a message from another player and checks every field. Only queues the result here -- nothing in the game changes until it's applied on the main game thread.");
     const char* s = msg.c_str() + 4;
     char* e = nullptr;
 
@@ -352,7 +345,6 @@ static void FlushSafe(const std::vector<PendingExplosion>& pending)
 
 void CoSyncExplosionSync::FlushPendingExplosions()
 {
-    LOG_REQUIREMENT("CoSyncExplosionSync::FlushPendingExplosions", "Must run on the game thread, since it spawns things in the world. Empties the queue under a lock first so the actual game work happens outside that lock.");
     std::vector<PendingExplosion> pending;
     {
         std::lock_guard<std::mutex> lk(s_mutex);

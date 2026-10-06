@@ -9,7 +9,6 @@
 #include "CoSyncEntityRegistry.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncPlayer.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncVMFormArg.h"
 #include "CoSyncPlayerAnimation.h"
 #include "CoSyncGameAPI.h"
@@ -143,7 +142,6 @@ namespace
 // silently dropping the __try/__except protection.
 __declspec(noinline) static uint32_t SafeReadFormID(void* form) noexcept
 {
-    LOG_REQUIREMENT("CoSyncEquipHook::SafeReadFormID", "Safe to call with a null form (returns 0). Guarded so even a bad, non-null pointer can't crash the game.");
     if (!form) return 0;
     __try {
         return *reinterpret_cast<uint32_t*>(
@@ -154,7 +152,6 @@ __declspec(noinline) static uint32_t SafeReadFormID(void* form) noexcept
 
 __declspec(noinline) static void* SafeReadItemForm(void** object) noexcept
 {
-    LOG_REQUIREMENT("CoSyncEquipHook::SafeReadItemForm", "Safe to call with a null object (returns null). Guarded so even a bad, non-null pointer can't crash the game.");
     if (!object) return nullptr;
     __try { return *object; }
     __except (EXCEPTION_EXECUTE_HANDLER) { return nullptr; }
@@ -163,7 +160,6 @@ __declspec(noinline) static void* SafeReadItemForm(void** object) noexcept
 // TESForm::formType is at offset 0x1A (F4SE GameForms.h line 476 verified).
 __declspec(noinline) static uint8_t SafeReadFormType(void* form) noexcept
 {
-    LOG_REQUIREMENT("CoSyncEquipHook::SafeReadFormType", "Safe to call with a null form (returns 0). Guarded so an invalid pointer can't crash the game.");
     if (!form) return 0;
     __try {
         return *reinterpret_cast<uint8_t*>(
@@ -174,7 +170,6 @@ __declspec(noinline) static uint8_t SafeReadFormType(void* form) noexcept
 
 static bool IsLocalPlayer(void* actor) noexcept
 {
-    LOG_REQUIREMENT("CoSyncEquipHook::IsLocalPlayer", "No requirements — safely handles a null or invalid actor since it just calls SafeReadFormID underneath.");
     return SafeReadFormID(actor) == kPlayerFormID;
 }
 
@@ -191,14 +186,12 @@ namespace
 
     void LogEquipHeartbeat(void* actor)
     {
-        LOG_REQUIREMENT("CoSyncEquipHook::LogEquipHeartbeat", "Doesn't touch the game — just counts calls and prints the actor pointer as a label, never reads through it.");
         const uint32_t n = ++s_equipCalls;
         if (n <= 5 || n % 200 == 0)
             LOG_INFO("[EquipHook] Equip hook fired #%u actor=%p", n, actor);
     }
     void LogUnequipHeartbeat(void* actor)
     {
-        LOG_REQUIREMENT("CoSyncEquipHook::LogUnequipHeartbeat", "Doesn't touch the game — just counts calls and prints the actor pointer as a label, never reads through it.");
         const uint32_t n = ++s_unequipCalls;
         if (n <= 5 || n % 200 == 0)
             LOG_INFO("[EquipHook] Unequip hook fired #%u actor=%p", n, actor);
@@ -214,7 +207,6 @@ static char __fastcall Detour_EquipObject(
     uint32_t stackID, int32_t count, void* slot,
     char queueEquip, char forceEquip, char playSounds, char applyNow, char locked)
 {
-    LOG_REQUIREMENT("CoSyncEquipHook::Detour_EquipObject", "Needs the equip hook to be installed. Treats actor/object as untrusted and only reads them through the safe helpers. The re-entry flag must be accurate or this can echo its own equips back out.");
     CoSyncThreadDiag::Note(CoSyncThreadDiag::kEquip);
     LogEquipHeartbeat(actor);
 
@@ -269,7 +261,6 @@ static char __fastcall Detour_UnequipObject(
     int32_t count, void* slot, int32_t stackID,
     char queueEquip, char forceEquip, char playSounds, char applyNow, void* slotBeingReplaced)
 {
-    LOG_REQUIREMENT("CoSyncEquipHook::Detour_UnequipObject", "Needs the unequip hook to be installed. Treats actor/object as untrusted and only reads them through the safe helpers. The re-entry flag must be accurate or this can echo its own unequips back out.");
     CoSyncThreadDiag::Note(CoSyncThreadDiag::kEquip);
     LogUnequipHeartbeat(actor);
 
@@ -313,7 +304,6 @@ static char __fastcall Detour_UnequipObject(
 
 void InstallEquipHook()
 {
-    LOG_REQUIREMENT("InstallEquipHook", "Needs the verified equip/unequip function addresses in the running game. Must only be called once — that's enforced by a guard flag.");
     if (g_hooksInstalled.exchange(true))
         return;
 
@@ -360,7 +350,6 @@ void InstallEquipHook()
 
 void UninstallEquipHook()
 {
-    LOG_REQUIREMENT("UninstallEquipHook", "Only does anything if the hooks were actually installed — checked by a guard flag before removing them.");
     if (!g_hooksInstalled.exchange(false))
         return;
 
@@ -378,13 +367,11 @@ void UninstallEquipHook()
 
 bool CoSyncEquipHook::IsEquip(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncEquipHook::IsEquip", "Doesn't touch the game — just checks the start of a text message.");
     return msg.rfind("EQUIP|", 0) == 0;
 }
 
 void CoSyncEquipHook::OnReceiveEquip(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncEquipHook::OnReceiveEquip", "Needs the message to actually start with the \"EQUIP|\" prefix and be long enough to hold it, plus a valid local entity ID.");
     const char* s = msg.c_str() + 6; // skip "EQUIP|"
     char* e = nullptr;
 
@@ -411,7 +398,6 @@ void CoSyncEquipHook::OnReceiveEquip(const std::string& msg)
 // SEH-wrapped, noinline (load-bearing under /GL+/LTCG).
 __declspec(noinline) static TESForm* SafeLookupForm(uint32_t formID)
 {
-    LOG_REQUIREMENT("CoSyncEquipHook::SafeLookupForm", "Guarded so a bad or peer-supplied form ID can't crash the game.");
     __try
     {
         return LookupFormByID(formID);
@@ -424,7 +410,6 @@ __declspec(noinline) static TESForm* SafeLookupForm(uint32_t formID)
 
 void CoSyncEquipHook::FlushPendingEquipOps()
 {
-    LOG_REQUIREMENT("CoSyncEquipHook::FlushPendingEquipOps", "Needs the player manager to be valid, and checks each proxy's actor before using it. Sets the re-entry flag around the actual equip/unequip call so the hook doesn't echo it back out.");
     static const BSFixedString kEquipItem("EquipItem");
     static const BSFixedString kUnequipItem("UnequipItem");
     std::vector<EquipOp> ops;
@@ -551,9 +536,6 @@ void CoSyncEquipHook::FlushPendingEquipOps()
 
 bool CoSyncEquipHook::EquipItemDirect(Actor* actor, TESForm* form)
 {
-    LOG_REQUIREMENT("CoSyncEquipHook::EquipItemDirect",
-        "Needs the equip manager to already be cached and the equip hook installed, "
-        "plus a valid actor and form. Must be called on the game thread.");
     void* const mgr = EquipManager();
     if (!mgr || !g_origEquip || !actor || !form)
         return false;
@@ -647,10 +629,6 @@ __declspec(noinline) static bool DrawWeaponEngine_Impl(Actor* actor, bool draw)
 
 bool CoSyncEquipHook::DrawWeaponEngine(Actor* actor, bool draw)
 {
-    LOG_REQUIREMENT("CoSyncEquipHook::DrawWeaponEngine",
-        "Needs a valid, fully-spawned actor with a ready animation graph. Calls the engine's own "
-        "draw/holster weapon function directly. Must be called on the game thread; guarded so an "
-        "invalid actor can't crash the game.");
     if (!actor)
         return false;
 
@@ -662,9 +640,6 @@ bool CoSyncEquipHook::DrawWeaponEngine(Actor* actor, bool draw)
 
 bool CoSyncEquipHook::UnequipItemDirect(Actor* actor, TESForm* form)
 {
-    LOG_REQUIREMENT("CoSyncEquipHook::UnequipItemDirect",
-        "Needs the equip manager to already be cached and the unequip hook installed, "
-        "plus a valid actor and form. Must be called on the game thread.");
     void* const mgr = EquipManager();
     if (!mgr || !g_origUnequip || !actor || !form)
         return false;

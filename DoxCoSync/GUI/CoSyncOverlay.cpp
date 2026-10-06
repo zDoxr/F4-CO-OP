@@ -1,5 +1,4 @@
 #include "CoSyncOverlay.h"
-#include "CoSyncRequirementsLog.h"
 
 #include <algorithm>
 #include <atomic>
@@ -21,32 +20,27 @@ namespace
 
 void CoSyncOverlay_ShowLoadingScreen(bool show)
 {
-    LOG_REQUIREMENT("(global)::CoSyncOverlay_ShowLoadingScreen", "Doesn't touch game state — records CoSync's own join-flow loading request; safe from any thread.");
     s_coSyncLoadingWanted.store(show);
 }
 
 void CoSyncOverlay_SetGameLoadingMenuOpen(bool open)
 {
-    LOG_REQUIREMENT("(global)::CoSyncOverlay_SetGameLoadingMenuOpen", "Doesn't touch game state — records whether the vanilla loading menu is open; must not clear a pending CoSync join request.");
     s_gameLoadingMenuOpen.store(open);
 }
 
 bool CoSyncOverlay_IsLoadingScreenActive()
 {
-    LOG_REQUIREMENT("(global)::CoSyncOverlay_IsLoadingScreenActive", "Doesn't touch game state — reads two flags; safe any time.");
     return s_gameLoadingMenuOpen.load() || s_coSyncLoadingWanted.load();
 }
 
 void CoSyncOverlay_SignalLoadingComplete()
 {
-    LOG_REQUIREMENT("(global)::CoSyncOverlay_SignalLoadingComplete", "Doesn't touch game state — clears both loading flags so the state can't get stuck on either one.");
     s_coSyncLoadingWanted.store(false);
     s_gameLoadingMenuOpen.store(false);
 }
 
 void CoSyncOverlay_Disconnect()
 {
-    LOG_REQUIREMENT("(global)::CoSyncOverlay_Disconnect", "Doesn't touch game state — clears the HUD's player list. Network shutdown is CoSync_Main::Shutdown()'s job.");
     CoSyncOverlay_ClearLobby();
 }
 
@@ -79,7 +73,6 @@ namespace
 
     double LobbyNowSeconds()
     {
-        LOG_REQUIREMENT("(anonymous)::LobbyNowSeconds", "Doesn't touch game state — just reads a steady system clock.");
         using namespace std::chrono;
         return duration_cast<duration<double>>(steady_clock::now().time_since_epoch()).count();
     }
@@ -89,7 +82,6 @@ void CoSyncOverlay_UpdateLobbyEntry(uint32_t entityID, const char* name,
                                     float hp, float maxHp, int level, bool isLocal,
                                     float rads)
 {
-    LOG_REQUIREMENT("(global)::CoSyncOverlay_UpdateLobbyEntry", "Doesn't touch game state — copies the given values into the lock-protected list; safe from any thread.");
     if (hp < 0.f)    hp = 0.f;
     if (maxHp < 0.f) maxHp = 0.f;
     if (rads < 0.f)  rads = 0.f;
@@ -139,7 +131,6 @@ void CoSyncOverlay_UpdateLobbyEntry(uint32_t entityID, const char* name,
 
 void CoSyncOverlay_UpdateLobbyAP(uint32_t entityID, float ap, float apMax)
 {
-    LOG_REQUIREMENT("(global)::CoSyncOverlay_UpdateLobbyAP", "Doesn't touch game state — safe from any thread. Does nothing if the entity has no entry yet.");
     if (ap < 0.f)    ap = 0.f;
     if (apMax < 0.f) apMax = 0.f;
 
@@ -156,7 +147,6 @@ void CoSyncOverlay_UpdateLobbyAP(uint32_t entityID, float ap, float apMax)
 
 void CoSyncOverlay_UpdateLobbyDowned(uint32_t entityID, bool isDowned)
 {
-    LOG_REQUIREMENT("(global)::CoSyncOverlay_UpdateLobbyDowned", "Doesn't touch game state — safe from any thread. Does nothing if the entity has no entry yet.");
     std::lock_guard<std::mutex> lk(s_lobbyMutex);
     for (LobbyEntry& e : s_lobbyEntries)
     {
@@ -169,7 +159,6 @@ void CoSyncOverlay_UpdateLobbyDowned(uint32_t entityID, bool isDowned)
 
 void CoSyncOverlay_RemoveLobbyEntry(uint32_t entityID)
 {
-    LOG_REQUIREMENT("(global)::CoSyncOverlay_RemoveLobbyEntry", "Doesn't touch game state — safe from any thread.");
     std::lock_guard<std::mutex> lk(s_lobbyMutex);
     s_lobbyEntries.erase(
         std::remove_if(s_lobbyEntries.begin(), s_lobbyEntries.end(),
@@ -179,14 +168,12 @@ void CoSyncOverlay_RemoveLobbyEntry(uint32_t entityID)
 
 void CoSyncOverlay_ClearLobby()
 {
-    LOG_REQUIREMENT("(global)::CoSyncOverlay_ClearLobby", "Doesn't touch game state — safe from any thread.");
     std::lock_guard<std::mutex> lk(s_lobbyMutex);
     s_lobbyEntries.clear();
 }
 
 std::vector<CoSyncHudPlayer> CoSyncOverlay_GetLobbySnapshot()
 {
-    LOG_REQUIREMENT("(global)::CoSyncOverlay_GetLobbySnapshot", "Doesn't touch game state — copies the list under its lock; safe from any thread.");
     const double now = LobbyNowSeconds();
     std::vector<CoSyncHudPlayer> out;
 

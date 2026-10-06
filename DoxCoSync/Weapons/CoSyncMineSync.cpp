@@ -9,7 +9,6 @@
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "GameReferences.h"
 #include "GameForms.h"
 #include "GameObjects.h"
@@ -481,7 +480,6 @@ namespace CoSyncMineSync
 {
     void Install()
     {
-        LOG_REQUIREMENT("CoSyncMineSync::Install", "Plugin load. Prologue-checks the mine trigger test before hooking it.");
         g_base = reinterpret_cast<uintptr_t>(GetModuleHandleA(nullptr));
         MH_STATUS st = MH_Initialize();
         if (st != MH_OK && st != MH_ERROR_ALREADY_INITIALIZED)
@@ -523,7 +521,6 @@ namespace CoSyncMineSync
 
     void Tick(double now)
     {
-        LOG_REQUIREMENT("CoSyncMineSync::Tick", "Game thread, every CoSync tick (throttled to 4 Hz).");
         if (!CoSyncNet::IsConnected())
             return;
         static double s_next = 0.0;
@@ -556,7 +553,6 @@ namespace CoSyncMineSync
 
     void OnReceive(const std::string& msg)
     {
-        LOG_REQUIREMENT("CoSyncMineSync::OnReceive", "Game thread. Parses peer text defensively and only queues.");
         if (msg.rfind("MINEX|", 0) == 0)
         {
             RxEnd e{};

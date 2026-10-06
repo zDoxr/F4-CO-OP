@@ -9,7 +9,6 @@
 #include "CoSyncProfiles.h"
 #include "CoSyncGameAPI.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncContentSync.h"
 #include "CoSyncRuntime.h"
 #include "CoSyncLoadingScreen.h"
@@ -221,7 +220,6 @@ namespace
     // saves from). Saves the world, then queues it for every waiting client.
     void HostSaveAndQueue()
     {
-        LOG_REQUIREMENT("(anonymous)::HostSaveAndQueue", "Main thread (F4SE task).");
         s_saveQueued = false;
         if (s_pendingRequests.empty())
             return;
@@ -290,7 +288,6 @@ namespace
     // Client: F4SE main-thread task.
     void ClientLoadWorld()
     {
-        LOG_REQUIREMENT("(anonymous)::ClientLoadWorld", "Main thread (F4SE task), like the console 'load' command.");
         LOG_INFO("[WorldXfer] Loading the host's world ('%s')", kClientSaveName);
         s_loadStartedMs = static_cast<double>(GetTickCount64());
         if (!CoSyncSaveLoad::LoadNamed(kClientSaveName))
@@ -335,7 +332,6 @@ namespace CoSyncWorldTransfer
 
     void OnReceive(const std::string& msg, uint32_t conn, bool isHostRole)
     {
-        LOG_REQUIREMENT("CoSyncWorldTransfer::OnReceive", "Main thread (transport inbox). Treats every field as untrusted.");
         size_t payload = 0;
 
         if (isHostRole)
@@ -612,7 +608,6 @@ namespace CoSyncWorldTransfer
 
     void ClientBegin(const std::string& profileKey, const std::string& name)
     {
-        LOG_REQUIREMENT("CoSyncWorldTransfer::ClientBegin", "Main thread, once the transport is connected.");
         {
             std::lock_guard<std::mutex> lk(s_errMutex);
             s_error.clear();
@@ -636,7 +631,6 @@ namespace CoSyncWorldTransfer
 
     void OnPostLoadGame(bool success)
     {
-        LOG_REQUIREMENT("CoSyncWorldTransfer::OnPostLoadGame", "Main thread (F4SE message).");
         if (GetClientPhase() != ClientPhase::Loading)
         {
             // Any other load (their own save, from the main menu) is theirs again.

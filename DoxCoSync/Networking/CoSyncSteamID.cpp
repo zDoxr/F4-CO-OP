@@ -4,7 +4,6 @@
 #include "CoSyncSteamID.h"
 
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 
 #include <atomic>
 
@@ -45,14 +44,12 @@ namespace
     // CoSyncPickupHook.cpp's identical helpers.
     __declspec(noinline) void* SafeCallAccessor(FnSteamFriends fn)
     {
-        LOG_REQUIREMENT("CoSyncSteamID::SafeCallAccessor", "Needs a resolved Steam function pointer. Wrapped in a safety net so a Steam-side error returns nothing instead of crashing the game.");
         __try { return fn ? fn() : nullptr; }
         __except (EXCEPTION_EXECUTE_HANDLER) { return nullptr; }
     }
 
     __declspec(noinline) const char* SafeGetPersonaName()
     {
-        LOG_REQUIREMENT("CoSyncSteamID::SafeGetPersonaName", "Needs the persona-name function and the friends interface to be ready, which is checked. Returns nothing on error. The name Steam gives back must be copied right away.");
         __try
         {
             if (!g_getPersonaName || !g_friends) return nullptr;
@@ -63,7 +60,6 @@ namespace
 
     __declspec(noinline) uint64_t SafeGetSteamID()
     {
-        LOG_REQUIREMENT("CoSyncSteamID::SafeGetSteamID", "Needs the Steam ID function and the user interface to be ready, which is checked. Returns 0 on error.");
         __try
         {
             if (!g_getSteamID || !g_user) return 0;
@@ -75,7 +71,6 @@ namespace
 
 bool CoSyncSteamID::Init()
 {
-    LOG_REQUIREMENT("CoSyncSteamID::Init", "Needs steam_api64.dll to already be loaded by the game and Steam to be running. On any failure this logs it and marks Steam as unavailable, so callers fall back to the CoSync display name.");
 
     if (g_initialized.load())
         return g_available.load();
@@ -146,7 +141,6 @@ bool CoSyncSteamID::IsAvailable()
 
 uint64_t CoSyncSteamID::GetSteamID64()
 {
-    LOG_REQUIREMENT("CoSyncSteamID::GetSteamID64", "Needs Init() to have succeeded — it retries Init() here if that hasn't happened yet. Returns 0 when Steam isn't available so callers can fall back.");
     if (g_cachedID != 0)
         return g_cachedID;
     if (!g_available.load() && !Init())
@@ -160,7 +154,6 @@ uint64_t CoSyncSteamID::GetSteamID64()
 
 const std::string& CoSyncSteamID::GetPersonaName()
 {
-    LOG_REQUIREMENT("CoSyncSteamID::GetPersonaName", "Needs Init() to have succeeded — it retries Init() here if that hasn't happened yet. The name Steam gives back is copied right away and never held onto directly. Returns an empty string when Steam isn't available.");
     if (!g_cachedName.empty())
         return g_cachedName;
     if (!g_available.load() && !Init())

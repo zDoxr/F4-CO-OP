@@ -4,7 +4,6 @@
 #include "CoSyncConsumableSync.h"
 #include "ConsoleLogger.h"
 #include "CoSyncEntityRegistry.h"
-#include "CoSyncRequirementsLog.h"
 
 #include "GameReferences.h"
 #include "GameRTTI.h"
@@ -28,7 +27,6 @@
 // <Windows.h> include at all before (needed for __try/__except/EXCEPTION_EXECUTE_HANDLER).
 __declspec(noinline) static TESForm* SafeLookupForm(uint32_t formID)
 {
-    LOG_REQUIREMENT("CoSyncConsumableSync::SafeLookupForm", "Looks up a game object by ID. If the other player sends a bad ID, it fails safely instead of crashing.");
     __try
     {
         return LookupFormByID(formID);
@@ -51,21 +49,18 @@ static std::vector<ConsumableOp> s_pending;
 
 bool CoSyncConsumableSync::IsConsumable(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncConsumableSync::IsConsumable", "Just checks the text of a message. No game state needed.");
     return msg.size() > 5 && msg[0] == 'C' && msg[1] == 'O' &&
            msg[2] == 'N' && msg[3] == 'S' && msg[4] == '|';
 }
 
 bool CoSyncConsumableSync::IsSpell(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncConsumableSync::IsSpell", "Just checks the text of a message. No game state needed.");
     return msg.size() > 6 && msg[0] == 'S' && msg[1] == 'P' &&
            msg[2] == 'E' && msg[3] == 'L' && msg[4] == 'L' && msg[5] == '|';
 }
 
 std::string CoSyncConsumableSync::SerializeConsumable(uint32_t entityID, uint32_t itemFormID)
 {
-    LOG_REQUIREMENT("CoSyncConsumableSync::SerializeConsumable", "Just turns a player ID and item ID into text. Doesn't touch the game at all.");
     char buf[64];
     std::snprintf(buf, sizeof(buf), "CONS|%u|%u", entityID, itemFormID);
     return buf;
@@ -73,7 +68,6 @@ std::string CoSyncConsumableSync::SerializeConsumable(uint32_t entityID, uint32_
 
 std::string CoSyncConsumableSync::SerializeSpell(uint32_t entityID, uint32_t effectFormID)
 {
-    LOG_REQUIREMENT("CoSyncConsumableSync::SerializeSpell", "Just turns a player ID and spell ID into text. Doesn't touch the game at all.");
     char buf[64];
     std::snprintf(buf, sizeof(buf), "SPELL|%u|%u", entityID, effectFormID);
     return buf;
@@ -81,7 +75,6 @@ std::string CoSyncConsumableSync::SerializeSpell(uint32_t entityID, uint32_t eff
 
 void CoSyncConsumableSync::OnReceiveConsumable(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncConsumableSync::OnReceiveConsumable", "Needs the message to be long enough to actually contain a consumable-use packet.");
 
     uint32_t eid = 0, fid = 0;
     if (std::sscanf(msg.c_str() + 5, "%u|%u", &eid, &fid) != 2)
@@ -98,7 +91,6 @@ void CoSyncConsumableSync::OnReceiveConsumable(const std::string& msg)
 
 void CoSyncConsumableSync::OnReceiveSpell(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncConsumableSync::OnReceiveSpell", "Needs the message to be long enough to actually contain a spell-use packet.");
 
     uint32_t eid = 0, fid = 0;
     if (std::sscanf(msg.c_str() + 6, "%u|%u", &eid, &fid) != 2)
@@ -115,7 +107,6 @@ void CoSyncConsumableSync::OnReceiveSpell(const std::string& msg)
 
 void CoSyncConsumableSync::FlushPendingConsumableOps()
 {
-    LOG_REQUIREMENT("CoSyncConsumableSync::FlushPendingConsumableOps", "Needs the scripting engine to be ready and the entity list valid. Checking whether an item is a spell is done carefully since that kind of check has been fragile before.");
     static const BSFixedString kEquipItem("EquipItem");
     static const BSFixedString kAddSpell("AddSpell");
     std::vector<ConsumableOp> ops;

@@ -7,7 +7,6 @@
 #include "CoSyncPuppetAuthority.h"
 #include "CoSyncCombatAuthority.h"
 
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncPlayer.h"
@@ -106,7 +105,6 @@ namespace
 
     __declspec(noinline) uint32_t SafeGetRaceFormID(Actor* actor)
     {
-        LOG_REQUIREMENT("(anonymous)::SafeGetRaceFormID", "Needs a valid actor. Reads its race and returns the race's ID; if the actor is gone, safely returns 0 instead of crashing.");
         if (!actor) return 0;
         using Fn = TESForm* (*)(Actor*);
         __try
@@ -153,7 +151,6 @@ namespace
 
     __declspec(noinline) uint32_t ResolveCrossMachineBaseFormID(TESNPC* npc)
     {
-        LOG_REQUIREMENT("(anonymous)::ResolveCrossMachineBaseFormID", "Safe to call with a null NPC (returns 0). Follows the NPC's template chain up to 8 steps looking for a stable, shared ID. Returns 0 if none is found, so the caller skips syncing instead of sending an ID that only makes sense on this machine.");
         if (!npc) return 0;
 
         __try
@@ -216,7 +213,6 @@ namespace
 
     static ActorValueInfo* GetHealthAVICached()
     {
-        LOG_REQUIREMENT("(anonymous)::GetHealthAVICached", "Just needs form lookup to work. Caches the Health stat type and returns null if it can't be found.");
         static ActorValueInfo* s_cached = nullptr;
         if (!s_cached)
         {
@@ -247,7 +243,6 @@ namespace
     // every actor class including the dynamic-baseform ones.
     __declspec(noinline) static bool SafeHasStartsDeadFlag(Actor* actor)
     {
-        LOG_REQUIREMENT("(anonymous)::SafeHasStartsDeadFlag", "actor may be null; reads TESForm::flags under SEH and tests the ACHR 'Starts Dead' record bit (0x200).");
         __try
         {
             return actor && (actor->flags & 0x200u) != 0;
@@ -260,7 +255,6 @@ namespace
 
     inline bool IsActorDead(Actor* actor)
     {
-        LOG_REQUIREMENT("(anonymous)::IsActorDead", "Needs a valid actor. Uses the safe health-reading helper since this actor might be one of our proxies with AI turned off. If reading its health ever fails, that actor is remembered so we don't keep trying and failing every tick. Also treats the ACHR 'Starts Dead' record flag as dead since such corpses keep positive Health.");
         if (SafeHasStartsDeadFlag(actor))
             return true;
         if (s_badHealthActors.count(actor))
@@ -431,7 +425,6 @@ namespace
 
     double NpcNowSeconds()
     {
-        LOG_REQUIREMENT("(anonymous)::NpcNowSeconds", "Doesn't touch the game at all -- just reads the system's high-precision clock.");
         LARGE_INTEGER f{}, c{};
         QueryPerformanceFrequency(&f);
         QueryPerformanceCounter(&c);
@@ -471,7 +464,6 @@ namespace
 
     uint32_t AllocateEntityID()
     {
-        LOG_REQUIREMENT("(anonymous)::AllocateEntityID", "Doesn't touch the game -- just hands out a new ID from our internal tracking. Returns 0 if we're out of IDs or already tracking as many actors as we allow.");
 
         if (s_eidToActor.size() >= kMaxConcurrentWorldActors)
         {
@@ -577,7 +569,6 @@ static constexpr float kMaxBindDistSq = kMaxBindDist * kMaxBindDist;
 // protection, called every single tick while connected.
 __declspec(noinline) static void TickScanWorldActors_Impl(double now)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::TickScanWorldActors_Impl", "Needs a valid local player. Looks through the game's list of currently active actors to find new ones to sync, and falls back to scanning the player's cell if that list isn't available. The caller wraps this in a crash guard.");
 
     if (now - s_lastScanTime < kScanInterval)
         return;
@@ -1221,7 +1212,6 @@ void TickScanWorldActors(double now)
         return;
     }
 
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::TickScanWorldActors", "No requirements beyond being called each tick. Wraps the scan in a crash guard so a problem here doesn't crash the game.");
     // The character editor stages the player in Vault 111's cryo room -- not
     // part of the session. Scanning there claimed Vault 111's NPCs (0.3.0 host
     // log 16:50:18; also the old W1 "host NPCs disabled" bug).
@@ -1244,7 +1234,6 @@ void TickScanWorldActors(double now)
 
 __declspec(noinline) static void TickSuppressLocalDynamicSpawns_Impl(double now)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::TickSuppressLocalDynamicSpawns_Impl", "Needs a valid local player who's in a valid cell. Goes through everything in that cell, so the cell and its contents need to stay valid for the whole scan.");
 
     if (now - s_lastSuppressScanTime < kScanInterval)
         return;
@@ -1415,7 +1404,6 @@ void TickSuppressLocalDynamicSpawns(double now)
         return;
     }
 
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::TickSuppressLocalDynamicSpawns", "No requirements beyond being called each tick. Wraps the scan in a crash guard so a problem here doesn't crash the game.");
     __try
     {
         TickSuppressLocalDynamicSpawns_Impl(now);
@@ -1428,13 +1416,11 @@ void TickSuppressLocalDynamicSpawns(double now)
 
 bool IsNpcSeen(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::IsNpcSeen", "Doesn't touch the game — just checks the start of a text message.");
     return msg.rfind("NPCSEEN|", 0) == 0;
 }
 
 __declspec(noinline) static void OnReceiveNpcSeen_Impl(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::OnReceiveNpcSeen_Impl", "Host-only. Needs a properly formatted NPC-sighting message from a client. Creates a new synced entity for a newly-reported actor, or resends the existing spawn info if it's already known.");
     if (!CoSyncNet::IsHost())
         return;
 
@@ -1609,7 +1595,6 @@ __declspec(noinline) static void OnReceiveNpcSeen_Impl(const std::string& msg)
 // may have the same companion standing right there, and that is allowed.
 uint32_t HostRegisterClientOwnedActor(uint32_t baseFormID, uint32_t refFormID, const NiPoint3& pos, uint32_t ownerEid)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::HostRegisterClientOwnedActor", "Host only, main thread (transport inbox).");
     if (!CoSyncNet::IsHost() || !baseFormID || !refFormID || !ownerEid)
         return 0;
     const uint32_t eid = AllocateEntityID();
@@ -1653,7 +1638,6 @@ void OnReceiveNpcSeen(const std::string& msg)
         return;
     }
 
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::OnReceiveNpcSeen", "No requirements beyond being called when a message arrives. Wraps the handling in a crash guard.");
     __try
     {
         OnReceiveNpcSeen_Impl(msg);
@@ -1666,13 +1650,11 @@ void OnReceiveNpcSeen(const std::string& msg)
 
 bool IsNpcDead(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::IsNpcDead", "No FO4 engine state involved -- pure string prefix check.");
     return msg.rfind("NPCDEAD|", 0) == 0;
 }
 
 void OnReceiveNpcDead(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::OnReceiveNpcDead", "Pure parsing on the network thread; the actor is touched later in FlushPendingNpcDeadOps on the game thread. Host ignores it (host is the death authority).");
     if (CoSyncNet::IsHost())
         return;
     const uint32_t refFormID = static_cast<uint32_t>(std::strtoul(msg.c_str() + 8, nullptr, 10));
@@ -1684,7 +1666,6 @@ void OnReceiveNpcDead(const std::string& msg)
 
 __declspec(noinline) static void ApplyNpcDead_Impl(uint32_t refFormID)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::ApplyNpcDead_Impl", "Game thread only; resolves the placed ref via LookupFormByID and queues Actor.Kill() through the Papyrus VM when it is a live non-player ACHR. Caller wraps in SEH.");
     s_knownDeadRefs.insert(refFormID);
 
     TESForm* form = LookupFormByID(refFormID);
@@ -1718,7 +1699,6 @@ __declspec(noinline) static void ApplyNpcDeadSafe(uint32_t refFormID)
 
 void FlushPendingNpcDeadOps()
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::FlushPendingNpcDeadOps", "Game thread only; drains the NPCDEAD queue and applies each via the SEH-wrapped ApplyNpcDeadSafe.");
     std::vector<uint32_t> ops;
     {
         std::lock_guard<std::mutex> lk(s_npcDeadMutex);
@@ -1732,26 +1712,22 @@ void FlushPendingNpcDeadOps()
 
 void MarkEntityKilled(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::MarkEntityKilled", "No FO4 engine state involved -- bookkeeping only.");
     s_killedEntities.insert(entityID);
 }
 
 bool IsEntityDead(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::IsEntityDead", "No FO4 engine state involved -- set lookups only.");
     return s_deadEntities.count(entityID) != 0 || s_killedEntities.count(entityID) != 0;
 }
 
 uint32_t GetEntityIDForActor(Actor* actor)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::GetEntityIDForActor", "Safe to call with any actor, even null or unknown — just does a lookup and returns 0 if not found.");
     auto it = s_actorToEID.find(actor);
     return (it != s_actorToEID.end()) ? it->second : 0u;
 }
 
 Actor* FindClosestRegisteredActor(Actor* fromActor, float maxDistSq)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::FindClosestRegisteredActor", "Safe to call with a null starting actor (returns null). Needs to be able to read positions for the starting actor and every candidate it compares against.");
     if (!fromActor)
         return nullptr;
 
@@ -2034,7 +2010,6 @@ static bool SpawnProxyForWorldActor(Actor* realActor, const EntityCreatePacket& 
 // client receives an EntityCreate packet for an NPC.
 __declspec(noinline) static void ClientBindWorldActor_Impl(const EntityCreatePacket& p)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::ClientBindWorldActor_Impl", "Needs a valid local player. Mainly looks up the actor directly by the ID the host sent, which works no matter which cell it's in. Only falls back to scanning the cell if that ID is missing. The caller wraps this in a crash guard.");
 
     // 0.4.3 (Bug #2): an entity this machine already knows as a corpse keeps
     // its corpse. A Dead CREATE for it is the owner's corpse re-broadcast, not
@@ -2476,7 +2451,6 @@ __declspec(noinline) static void ClientBindWorldActor_Impl(const EntityCreatePac
 
 void SyncDisabledOriginalToProxy(uint32_t entityID, const NiPoint3& pos)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::SyncDisabledOriginalToProxy", "Must run on the game thread. Does nothing unless this entity replaced a local original NPC. The original is looked up fresh every call and only moved once a second, which is plenty for a quest marker.");
     auto it = s_entityToDisabledOriginal.find(entityID);
     if (it == s_entityToDisabledOriginal.end())
         return;
@@ -2508,7 +2482,6 @@ void SyncDisabledOriginalToProxy(uint32_t entityID, const NiPoint3& pos)
 
 void ClientBindWorldActor(const EntityCreatePacket& p)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::ClientBindWorldActor", "Just needs a valid spawn packet from the host. Wraps the binding logic in a crash guard so a problem here doesn't crash the game.");
     __try
     {
         ClientBindWorldActor_Impl(p);
@@ -2527,7 +2500,6 @@ void ClientBindWorldActor(const EntityCreatePacket& p)
 // known proxy base but aren't registered to a live CoSync entity.
 __declspec(noinline) static void CleanupStaleProxyBodies_Impl(double now)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::CleanupStaleProxyBodies_Impl", "Needs a valid local player in a valid cell. Goes through everything in that cell; the caller wraps this in a crash guard.");
     static double s_lastCleanup = -999.0;
     static constexpr double kCleanupInterval = 10.0;
     if (now - s_lastCleanup < kCleanupInterval)
@@ -2616,7 +2588,6 @@ void CleanupStaleProxyBodies(double now)
         return;
     }
 
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::CleanupStaleProxyBodies", "No requirements beyond being called each tick. Wraps the cell scan in a crash guard.");
     __try
     {
         CleanupStaleProxyBodies_Impl(now);
@@ -2708,7 +2679,6 @@ void FlushPendingLegendaryOps()
 
 bool IsWorldActorWanted(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::IsWorldActorWanted", "Doesn't touch the game — just checks our own internal tracking maps. Both are only ever changed on the game thread, so no locking is needed here.");
     return s_spawnFallback.count(entityID) != 0 || s_eidToActor.count(entityID) != 0;
 }
 
@@ -2882,7 +2852,6 @@ void HostTickOwnershipHandoff(double now)
 
 void HostReleaseEntitiesOwnedBy(uint32_t ownerEntityID)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::HostReleaseEntitiesOwnedBy", "Host, game thread (PEERLEFT). Safe when the owner had nothing.");
     if (!CoSyncNet::IsHost() || ownerEntityID == 0)
         return;
 
@@ -3095,7 +3064,6 @@ bool IsOwnershipMsg(const std::string& msg)
 
 void OnReceiveOwnership(const std::string& msg, bool isHostRole)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::OnReceiveOwnership", "Game thread (CoSyncNet::OnReceive). Parses peer text defensively; only queues.");
     OwnOp op{};
     if (msg.rfind("OWNNAK|", 0) == 0)
     {
@@ -3120,7 +3088,6 @@ void OnReceiveOwnership(const std::string& msg, bool isHostRole)
 
 void FlushPendingOwnership(double now)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::FlushPendingOwnership", "Game thread, every CoSync tick.");
     std::vector<OwnOp> ops;
     {
         std::lock_guard<std::mutex> lk(s_ownMx);
@@ -3168,7 +3135,6 @@ void FlushPendingOwnership(double now)
 
 void ForgetBinding(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::ForgetBinding", "Game thread. Safe for an untracked entity. Only erases binding-map entries; never dereferences the (possibly freed) actor and never touches the player manager.");
     auto it = s_eidToActor.find(entityID);
     if (it != s_eidToActor.end())
     {
@@ -3183,7 +3149,6 @@ void ForgetBinding(uint32_t entityID)
 
 void ClientUnbindWorldActor(uint32_t entityID, uint32_t reasonFlags)
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::ClientUnbindWorldActor", "Safe to call even if this entity isn't currently tracked. Despawning the proxy happens asynchronously, so it's safe to call from here. When the entity is known dead (KILL applied locally, or kDestroyReason_Dead in the packet) the proxy corpse is left in the world and the disabled original is NOT re-enabled.");
     // Round 140: BOUND world actors are the client's OWN real NPCs — on a
     // DESTROY they must only be unlinked, never disabled (the old code
     // disabled the client's real Codsworth when he left the host's cell).
@@ -3408,7 +3373,6 @@ __declspec(noinline) static void DiagnoseDisabledOriginalsForSave_Impl()
 
 void DiagnoseDisabledOriginalsForSave()
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::DiagnoseDisabledOriginalsForSave", "Checks for actors with no cell and works around it before the game saves, so saving doesn't crash. Wrapped in a crash guard. Remembers which actors it touched so RestoreActorsAfterSave() can undo it.");
     __try
     {
         DiagnoseDisabledOriginalsForSave_Impl();
@@ -3440,7 +3404,6 @@ __declspec(noinline) static void RestoreActorsAfterSave_Impl()
 
 void RestoreActorsAfterSave()
 {
-    LOG_REQUIREMENT("CoSyncNpcWorldSync::RestoreActorsAfterSave", "Called right after the game finishes saving. Undoes the temporary cell fix from DiagnoseDisabledOriginalsForSave. Wrapped in a crash guard.");
     __try
     {
         RestoreActorsAfterSave_Impl();

@@ -7,7 +7,6 @@
 #include "CoSyncPlayerManager.h"
 #include "CoSyncOverlay.h"
 
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 #include "CoSyncGameAPI.h"
 #include "CoSyncVMFormArg.h"
@@ -133,7 +132,6 @@ static constexpr uintptr_t kMarkerFlagsOffset = 0x10;
 // ExtraMapMarker -- i.e. exactly the case AddToMap would reject.
 __declspec(noinline) static bool SafeForceMarkerVisible(TESObjectREFR* ref, const char* context)
 {
-    LOG_REQUIREMENT("(global)::SafeForceMarkerVisible", "Requires a non-null REFR (checked); calls the derived native ExtraMapMarker accessor and flag setters under SEH, reporting false rather than faulting if the ref has no marker data.");
     if (!ref) return false;
     __try
     {
@@ -170,10 +168,6 @@ __declspec(noinline) static bool SafeForceMarkerVisible(TESObjectREFR* ref, cons
 
 __declspec(noinline) static TESObjectREFR* SafeResolveMarkerRef(UInt32 localFormID)
 {
-    LOG_REQUIREMENT("CoSyncPlayerMarker::SafeResolveMarkerRef",
-        "Requires g_dataHandler to be resolved and CoSync.esp loaded; "
-        "the supplied local formID must point at a TESObjectREFR "
-        "(placed map marker) in CoSync.esp — see header comment for xEdit steps.");
     __try
     {
         DataHandler* dh = *g_dataHandler;
@@ -216,7 +210,6 @@ __declspec(noinline) static TESObjectREFR* SafeResolveMarkerRef(UInt32 localForm
 // (ongoing tracking) so both paths cannot drift apart.
 static void QueueMarkerMoveTo(TESObjectREFR* markerRef, Actor* proxyActor)
 {
-    LOG_REQUIREMENT("(global)::QueueMarkerMoveTo", "Requires s_markerRef and proxyActor to be non-null (checked by callers); queues MoveTo on the marker's Papyrus VM queue -- must be called from the game thread.");
     if (!markerRef || !proxyActor)
         return;
 
@@ -282,9 +275,6 @@ static void QueueMarkerMoveTo(TESObjectREFR* markerRef, Actor* proxyActor)
 
 void CoSyncPlayerMarker::Init()
 {
-    LOG_REQUIREMENT("CoSyncPlayerMarker::Init",
-        "Idempotent — safe to call multiple times; actual work requires "
-        "DataHandler ready and CoSync.esp present.");
     if (s_initialized)
         return;
     s_initialized = true;
@@ -310,11 +300,6 @@ void CoSyncPlayerMarker::Init()
 
 void CoSyncPlayerMarker::ShowForProxy(Actor* proxyActor, uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncPlayerMarker::ShowForProxy",
-        "Requires proxyActor to be a valid, spawned Actor*; s_markerRef must "
-        "be non-null (resolved by Init). Queues Enable+AddToMap on the marker "
-        "REFR in that order via the REFR's Papyrus VM queue, then begins "
-        "periodic MoveTo tracking in Tick.");
     if (!proxyActor)
         return;
 
@@ -428,9 +413,6 @@ void CoSyncPlayerMarker::ShowForProxy(Actor* proxyActor, uint32_t entityID)
 
 void CoSyncPlayerMarker::HideForEntity(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncPlayerMarker::HideForEntity",
-        "Safe no-op when the entity holds no marker slot; queues "
-        "ObjectReference.Disable on that entity's marker and frees the slot.");
     MarkerSlot* slot = FindSlotForEntity(entityID);
     if (!slot)
         return;
@@ -456,9 +438,6 @@ void CoSyncPlayerMarker::HideForEntity(uint32_t entityID)
 
 void CoSyncPlayerMarker::HideMarker()
 {
-    LOG_REQUIREMENT("CoSyncPlayerMarker::HideMarker",
-        "Safe no-op when nothing is tracked; hides EVERY assigned marker. Used "
-        "on disconnect/teardown -- per-player removal is HideForEntity.");
     for (MarkerSlot& s : s_slots)
         if (s.trackedEntityID != 0)
             CoSyncPlayerMarker::HideForEntity(s.trackedEntityID);
@@ -466,10 +445,6 @@ void CoSyncPlayerMarker::HideMarker()
 
 void CoSyncPlayerMarker::Tick(double now)
 {
-    LOG_REQUIREMENT("CoSyncPlayerMarker::Tick",
-        "No hard precondition — safe no-op when nothing is tracked; queues "
-        "ObjectReference.MoveTo(proxyActor, 0,0,0, false) on each assigned "
-        "marker REFR. Throttled per slot to kUpdateInterval seconds.");
 
     // ── Freeze marker movement during loading / fast travel ─────────────────
     // 2026-08-05: the markers carry CanTravelTo (FNAM 0x03), so they are

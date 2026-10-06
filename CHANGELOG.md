@@ -2,6 +2,14 @@
 
 ---
 
+## [0.5.8] — 2026-10-06
+
+- **Requirements log removed:** all 939 `LOG_REQUIREMENT` calls and `CoSyncRequirementsLog.h` are gone, so there is no `CoSyncRequirements` file any more.
+- **Old loading-screen image removed:** the embedded `LoadingMenuBG.dds` that was written into `Data\Textures\Interface` at startup (`InjectLoadingScreenTexture`, `CoSync.rc`, `resource.h`) and the dead `LoadScreenArt` copy step are gone. The PrismaUI `loading.html` screen is the only loading screen.
+- **Identity defaults to the SteamID:** `[Network] bSaltInstanceID` now defaults to 0 in the INI and in code. The INI section was cut to a short explanation.
+- **Installs entirely into Data (Vortex / Mod Organizer 2):** `GameNetworkingSockets.dll` is delay-loaded. It and its runtime (abseil, libcrypto, libprotobuf) now live in `Data\F4SE\Plugins\CoSync\` and are loaded from there at plugin start. Nothing goes next to `Fallout4.exe` any more.
+- **Release builder:** `Tools\make_release.ps1` builds `Release\CoSync\` (a Data-folder layout plus `fomod\info.xml`) and `Release\CoSync-<ver>.zip` for upload.
+
 ## [0.5.7] — 2026-10-06
 
 - **Debug console removed:** the "Doxr's CoSync Debug Console" window no longer opens.

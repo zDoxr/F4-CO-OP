@@ -8,7 +8,6 @@
 #include "CoSyncPlayer.h"
 #include "CoSyncGameAPI.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "GameReferences.h"
 #include "GameForms.h"
 #include "MinHook.h"
@@ -102,7 +101,6 @@ namespace CoSyncNpcIdleSync
 {
     void Install()
     {
-        LOG_REQUIREMENT("CoSyncNpcIdleSync::Install", "Plugin load. Fixed-address hook of the special-idle start, prologue-checked.");
         const uintptr_t target = reinterpret_cast<uintptr_t>(GetModuleHandleA(nullptr)) + kRVA_SpecialIdle;
         if (std::memcmp(reinterpret_cast<const void*>(target), kSpecialIdlePrologue, sizeof(kSpecialIdlePrologue)) != 0)
         {

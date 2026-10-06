@@ -3,7 +3,6 @@
 
 #include "CoSyncMapSync.h"
 
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 #include "CoSyncTransport.h"
 #include "CoSyncNet.h"
@@ -35,13 +34,11 @@ static constexpr UInt8 kMarkerFlag_CanFastTravel = 0x02;
 
 bool CoSyncMapSync::IsMapMarker(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncMapSync::IsMapMarker", "Doesn't touch the game. Just checks if a message starts with the map-marker prefix.");
     return msg.rfind("MM|", 0) == 0;
 }
 
 void CoSyncMapSync::BroadcastDiscovery(uint32_t markerFormID)
 {
-    LOG_REQUIREMENT("CoSyncMapSync::BroadcastDiscovery", "Doesn't touch the game directly. Just needs a real marker ID and a working connection to send over.");
     if (markerFormID == 0)
         return;
 
@@ -56,7 +53,6 @@ static std::vector<uint32_t>  s_pendingFormIDs;
 
 void CoSyncMapSync::OnReceiveMapMarker(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncMapSync::OnReceiveMapMarker", "Needs a valid message string. Bad or empty messages are safely rejected.");
     if (!IsMapMarker(msg))
         return;
 
@@ -82,7 +78,6 @@ void CoSyncMapSync::OnReceiveMapMarker(const std::string& msg)
 // engine state. This file didn't include <Windows.h> at all before.
 __declspec(noinline) static void FlushPendingMapOps_Impl(const std::vector<uint32_t>& ids)
 {
-    LOG_REQUIREMENT("(global)::FlushPendingMapOps_Impl", "Each marker ID needs to resolve to a real map marker in the game. Anything missing or the wrong type is safely skipped.");
     for (uint32_t formID : ids)
     {
         TESForm* form = LookupFormByID(formID);
@@ -134,7 +129,6 @@ __declspec(noinline) static void FlushPendingMapOps_Impl(const std::vector<uint3
 // std::vector) so this one only ever sees a reference parameter.
 static void FlushPendingMapOpsSafe(const std::vector<uint32_t>& ids)
 {
-    LOG_REQUIREMENT("(global)::FlushPendingMapOpsSafe", "Just needs a valid list of marker IDs. Wrapped in a crash guard so a bad lookup can't take the game down.");
     __try
     {
         FlushPendingMapOps_Impl(ids);
@@ -147,7 +141,6 @@ static void FlushPendingMapOpsSafe(const std::vector<uint32_t>& ids)
 
 void CoSyncMapSync::FlushPendingMapOps()
 {
-    LOG_REQUIREMENT("CoSyncMapSync::FlushPendingMapOps", "Safe to call any time -- does nothing if there are no pending markers to reveal.");
     std::vector<uint32_t> ids;
     {
         std::lock_guard<std::mutex> lk(s_opMutex);

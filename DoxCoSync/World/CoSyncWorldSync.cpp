@@ -8,7 +8,6 @@
 
 #include <Windows.h>
 
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
@@ -63,7 +62,6 @@ static TESObjectREFR* FormToREFR(TESForm* form)
 
 std::string CoSyncWorldSync::SerializeWorldSync(const WorldSyncPacket& p)
 {
-    LOG_REQUIREMENT("CoSyncWorldSync::SerializeWorldSync", "Just turns a packet struct into text. Doesn't touch the game at all.");
     std::ostringstream ss;
     ss << std::fixed << std::setprecision(2);
     ss << "WS|" << p.entityID
@@ -76,7 +74,6 @@ std::string CoSyncWorldSync::SerializeWorldSync(const WorldSyncPacket& p)
 
 bool CoSyncWorldSync::DeserializeWorldSync(const std::string& msg, WorldSyncPacket& out)
 {
-    LOG_REQUIREMENT("CoSyncWorldSync::DeserializeWorldSync", "Reads a packet back out of text. Just needs a real string to read; bad or misspelled messages are safely rejected.");
     if (!IsWorldSync(msg)) return false;
     const char* s = msg.c_str() + 3;
     char* e = nullptr;
@@ -92,7 +89,6 @@ bool CoSyncWorldSync::DeserializeWorldSync(const std::string& msg, WorldSyncPack
 
 std::string CoSyncWorldSync::SerializeWorkshopBuildFull(const WorkshopBuildFullPacket& p)
 {
-    LOG_REQUIREMENT("CoSyncWorldSync::SerializeWorkshopBuildFull", "Just turns a packet struct into text. Doesn't touch the game at all.");
     std::ostringstream ss;
     ss << std::fixed << std::setprecision(4);
     ss << "WBF|" << p.entityID
@@ -106,7 +102,6 @@ std::string CoSyncWorldSync::SerializeWorkshopBuildFull(const WorkshopBuildFullP
 
 bool CoSyncWorldSync::DeserializeWorkshopBuildFull(const std::string& msg, WorkshopBuildFullPacket& out)
 {
-    LOG_REQUIREMENT("CoSyncWorldSync::DeserializeWorkshopBuildFull", "Reads a build packet back out of text. Just needs a real string; anything that doesn't start with \"WBF|\" or is missing a piece is safely rejected.");
     if (!IsWorkshopBuildFull(msg)) return false;
     const char* s = msg.c_str() + 4;
     char* e = nullptr;
@@ -130,7 +125,6 @@ bool CoSyncWorldSync::DeserializeWorkshopBuildFull(const std::string& msg, Works
 
 std::string CoSyncWorldSync::SerializeWorkshopScrapFull(const WorkshopScrapFullPacket& p)
 {
-    LOG_REQUIREMENT("CoSyncWorldSync::SerializeWorkshopScrapFull", "Just turns a scrapped-item packet into text. Doesn't touch the game at all.");
     std::ostringstream ss;
     ss << std::fixed << std::setprecision(2);
     ss << "WDS|" << p.entityID
@@ -142,7 +136,6 @@ std::string CoSyncWorldSync::SerializeWorkshopScrapFull(const WorkshopScrapFullP
 
 bool CoSyncWorldSync::DeserializeWorkshopScrapFull(const std::string& msg, WorkshopScrapFullPacket& out)
 {
-    LOG_REQUIREMENT("CoSyncWorldSync::DeserializeWorkshopScrapFull", "Reads a scrapped-item packet back out of text. Just needs a real string; anything that doesn't start with \"WDS|\" or is missing a piece is safely rejected.");
     if (!IsWorkshopScrapFull(msg)) return false;
     const char* s = msg.c_str() + 4;
     char* e = nullptr;
@@ -157,7 +150,6 @@ bool CoSyncWorldSync::DeserializeWorkshopScrapFull(const std::string& msg, Works
 
 static std::string SerializeFurniture(uint32_t refFormID, uint32_t actorEntityID, bool isSitting)
 {
-    LOG_REQUIREMENT("(global)::SerializeFurniture", "Just turns a few numbers into text. Doesn't touch the game at all.");
     std::ostringstream ss;
     ss << "FU|" << refFormID << "|" << actorEntityID << "|" << (isSitting ? 1 : 0);
     return ss.str();
@@ -168,7 +160,6 @@ static bool DeserializeFurniture(const std::string& msg,
                                   uint32_t& outActorEntityID,
                                   bool&     outIsSitting)
 {
-    LOG_REQUIREMENT("(global)::DeserializeFurniture", "Reads a furniture packet back out of text. Just needs a real string; anything that doesn't start with \"FU|\" or is missing a piece is safely rejected.");
     if (msg.rfind("FU|", 0) != 0)
         return false;
 
@@ -190,7 +181,6 @@ static bool DeserializeFurniture(const std::string& msg,
 
 static bool IsLootableBaseType(UInt8 ft)
 {
-    LOG_REQUIREMENT("(global)::IsLootableBaseType", "Just compares a number. Doesn't touch the game at all.");
     return ft == 35
         || ft == 43
         || ft == 44
@@ -201,7 +191,6 @@ static bool IsLootableBaseType(UInt8 ft)
 
 static bool IsDebrisBaseType(UInt8 ft)
 {
-    LOG_REQUIREMENT("(global)::IsDebrisBaseType", "Just compares a number. Doesn't touch the game at all.");
     return ft == 38
         || ft == 28
         || ft == 35;
@@ -302,7 +291,6 @@ namespace
 
     double NowSeconds()
     {
-        LOG_REQUIREMENT("CoSyncWorldSync::NowSeconds", "Just reads the system clock. Works on any normal Windows PC.");
         LARGE_INTEGER f{}, c{};
         QueryPerformanceFrequency(&f);
         QueryPerformanceCounter(&c);
@@ -629,7 +617,6 @@ namespace
 // config -- see the long note in CoSyncPickupHook.cpp's identical helpers.
 __declspec(noinline) static uint32_t ObjSafeReadU32(const void* base, size_t off)
 {
-    LOG_REQUIREMENT("(global)::ObjSafeReadU32", "Reads a number from memory. If the address turns out to be bad, it safely returns 0 instead of crashing the game.");
     __try
     {
         return *reinterpret_cast<const uint32_t*>(
@@ -641,7 +628,6 @@ __declspec(noinline) static uint32_t ObjSafeReadU32(const void* base, size_t off
 // Handle index of whatever the LOCAL player is currently holding, or 0.
 static uint32_t GetLocalGrabbedHandleIndex()
 {
-    LOG_REQUIREMENT("(global)::GetLocalGrabbedHandleIndex", "Checks the player exists first, then safely reads what object they're holding. If that read ever goes wrong, it just reports 'nothing grabbed' instead of crashing.");
     PlayerCharacter* pc = CoSyncGetPlayer();
     if (!pc) return 0;
     const uint32_t handle = ObjSafeReadU32(pc, kPlayerGrabbedHandleOff);
@@ -652,7 +638,6 @@ static uint32_t GetLocalGrabbedHandleIndex()
 // A refr's own handle index, per the engine's validation above.
 static uint32_t GetRefrHandleIndex(TESObjectREFR* ref)
 {
-    LOG_REQUIREMENT("(global)::GetRefrHandleIndex", "Checks the object reference exists first, then safely reads its handle index. Returns 0 if anything goes wrong.");
     if (!ref) return 0;
     return ObjSafeReadU32(ref, kRefrHandleIndexOff) >> kRefrHandleIndexShift;
 }
@@ -661,7 +646,6 @@ static uint32_t GetRefrHandleIndex(TESObjectREFR* ref)
 // post-release throw tail). The owner streams it and ignores incoming OBJ.
 static bool IsLocallyOwnedObject(uint32_t formID, double now)
 {
-    LOG_REQUIREMENT("(global)::IsLocallyOwnedObject", "Just checks a small internal list. An object you're still holding never expires, only one you've thrown or dropped can.");
     if (formID == 0) return false;
     auto it = s_hotObjects.find(formID);
     if (it == s_hotObjects.end()) return false;
@@ -704,7 +688,6 @@ static void TickRemoteDrivenObjects(double now)
 // Emit one OBJ packet for a ref, updating the last-sent baseline.
 static void SendObjMove(TESObjectREFR* ref, uint32_t fid)
 {
-    LOG_REQUIREMENT("(global)::SendObjMove", "Needs a valid object whose position can be read. Sends it in the same format the receiving side expects.");
     ObjState st;
     st.pos = ref->pos;
     st.rot = ref->rot;
@@ -723,7 +706,6 @@ static void SendObjMove(TESObjectREFR* ref, uint32_t fid)
 // BOTH host and client -- ownership is "whoever is holding it", not "the host".
 __declspec(noinline) static void TickGrabOwnership_Impl(double now)
 {
-    LOG_REQUIREMENT("(global)::TickGrabOwnership_Impl", "Needs the player and their current location to exist. Only scans the room's object list while it's still figuring out what got grabbed.");
     const uint32_t idx = GetLocalGrabbedHandleIndex();
 
     // Released: stamp the throw tail so the flight keeps streaming from us.
@@ -787,7 +769,6 @@ __declspec(noinline) static void TickGrabOwnership_Impl(double now)
 // this deliberately does NOT walk the cell list.
 __declspec(noinline) static void TickHotObjects_Impl(double now)
 {
-    LOG_REQUIREMENT("(global)::TickHotObjects_Impl", "Needs an active connection (the caller checks this first). Looks up each tracked object safely, even if its ID is stale.");
     if ((now - s_lastObjFastPoll) < kObj_FastPollInterval) return;
     s_lastObjFastPoll = now;
 
@@ -838,7 +819,6 @@ __declspec(noinline) static void TickHotObjects_Impl(double now)
 // they are in the right place and can later MOVE the same object.
 static void AnnounceBuilding(TESObjectREFR* ref, TESObjectCELL* cell, double now, bool isMove)
 {
-    LOG_REQUIREMENT("(global)::AnnounceBuilding", "Requires a live ref with baseForm and the attached cell it sits in (callers already filtered both); reads TESObjectCELL::worldSpace (0xC8) for exterior cells.");
     const bool     interior = (cell->flags & TESObjectCELL::kFlag_IsInterior) != 0;
     const uint32_t wsFID    = (!interior && cell->worldSpace)
         ? reinterpret_cast<TESForm*>(cell->worldSpace)->formID : 0u;
@@ -872,7 +852,6 @@ static void AnnounceBuilding(TESObjectREFR* ref, TESObjectCELL* cell, double now
 // being positioned when the settle window announced it).
 static void TickBuildMoves(TESObjectCELL* cell, double now)
 {
-    LOG_REQUIREMENT("(global)::TickBuildMoves", "Requires the attached cell the player stands in; resolves each tracked ref by formID (safe for unloaded refs) and only touches refs that resolve to live, enabled REFRs.");
     for (auto& kv : s_buildTrack)
     {
         BuildTrack& t = kv.second;
@@ -896,7 +875,6 @@ static void TickBuildMoves(TESObjectCELL* cell, double now)
 
 __declspec(noinline) static void TickBuildDeletions_Impl(double now)
 {
-    LOG_REQUIREMENT("(global)::TickBuildDeletions_Impl", "Needs an active connection (the caller checks this first). Looking up each tracked build is safe even if its ID is stale.");
     if ((now - s_lastBuildSweep) < kBuildSweepInterval) return;
     s_lastBuildSweep = now;
     if (s_buildTrack.empty()) return;
@@ -943,7 +921,6 @@ __declspec(noinline) static void TickBuildDeletions_Impl(double now)
 
 static void TickBuildDeletions(double now)
 {
-    LOG_REQUIREMENT("(global)::TickBuildDeletions", "No special setup needed. If something goes wrong while it runs, the game keeps going instead of crashing.");
     __try
     {
         TickBuildDeletions_Impl(now);
@@ -956,7 +933,6 @@ static void TickBuildDeletions(double now)
 
 static void TickPlayerDrivenObjects(double now)
 {
-    LOG_REQUIREMENT("(global)::TickPlayerDrivenObjects", "Just needs to be connected. If either of its two update steps fails, it's caught safely instead of crashing the game.");
     __try
     {
         TickGrabOwnership_Impl(now);
@@ -971,7 +947,6 @@ static void TickPlayerDrivenObjects(double now)
 
 static void LogDebrisDiag(double now)
 {
-    LOG_REQUIREMENT("(global)::LogDebrisDiag", "Just prints out the running debris-sync counters every few seconds, then resets them.");
     if ((now - s_lastDebrisDiagLog) < kDebrisDiagInterval) return;
     s_lastDebrisDiagLog = now;
 
@@ -1002,7 +977,6 @@ static bool IsCraftingStation(TESObjectREFR* furniture);
 // this had no backstop anywhere in the chain.
 static void ApplyFurnitureToProxy_Impl(uint32_t refFormID, uint32_t actorEntityID, bool isSitting)
 {
-    LOG_REQUIREMENT("(global)::ApplyFurnitureToProxy_Impl", "Handles a missing furniture ID gracefully. Needs the other player's stand-in character to actually exist before it can sit them down.");
 
     if (refFormID != 0)
     {
@@ -1054,7 +1028,6 @@ static void ApplyFurnitureToProxy_Impl(uint32_t refFormID, uint32_t actorEntityI
 
 __declspec(noinline) static void ApplyFurnitureToProxy(uint32_t refFormID, uint32_t actorEntityID, bool isSitting)
 {
-    LOG_REQUIREMENT("(global)::ApplyFurnitureToProxy", "Just needs normal arguments. If the other player sends a bad furniture ID, it's caught safely instead of crashing.");
     __try
     {
         ApplyFurnitureToProxy_Impl(refFormID, actorEntityID, isSitting);
@@ -1068,7 +1041,6 @@ __declspec(noinline) static void ApplyFurnitureToProxy(uint32_t refFormID, uint3
 
 static bool IsCraftingStation(TESObjectREFR* furniture)
 {
-    LOG_REQUIREMENT("(global)::IsCraftingStation", "Safely returns false for a missing furniture object instead of crashing; otherwise just checks its type.");
     if (!furniture || !furniture->baseForm)
         return false;
 
@@ -1119,7 +1091,6 @@ namespace
     public:
         EventResult ReceiveEvent(TESFurnitureEvent* evn, void* ) override
         {
-            LOG_REQUIREMENT("CoSyncWorldSync::FurnitureSink::ReceiveEvent", "Safely skips an incomplete event instead of crashing. Needs the player to exist so it can tell if this event is about them.");
             if (!evn || !evn->actor || !evn->furniture)
                 return kEvent_Continue;
 
@@ -1154,7 +1125,6 @@ namespace
 
 void CoSyncWorldSync::Init()
 {
-    LOG_REQUIREMENT("CoSyncWorldSync::Init", "Safe to call any time. If the furniture event system isn't ready yet, it just logs a warning instead of failing. Safe to call more than once too.");
     if (s_initialized)
         return;
 
@@ -1203,7 +1173,6 @@ void CoSyncWorldSync::Init()
 
 void CoSyncWorldSync::Shutdown()
 {
-    LOG_REQUIREMENT("CoSyncWorldSync::Shutdown", "Safe to call any time, even if Init() was never called or already shut down.");
     BSTEventDispatcher<TESFurnitureEvent>* pDisp = GetEventDispatcher<TESFurnitureEvent>();
     if (pDisp)
         pDisp->RemoveEventSink(&s_furnitureSink);
@@ -1237,7 +1206,6 @@ void CoSyncWorldSync::Shutdown()
 // so nobody knew where a client was.
 static void TickMyLocation(double now)
 {
-    LOG_REQUIREMENT("(global)::TickMyLocation", "Needs an active connection and a valid player (both checked first) before it reads the player's location and sends it out.");
     if (!CoSyncNet::IsConnected())
         return;
 
@@ -1314,7 +1282,6 @@ static void TickMyLocation(double now)
 // file and the timing match is exact.
 __declspec(noinline) static void HostTickObjects_Impl(double now)
 {
-    LOG_REQUIREMENT("(global)::HostTickObjects_Impl", "Needs an active connection, a valid player, and a valid current location (all checked first) before it scans the objects around them.");
     if (!CoSyncNet::IsConnected())
         return;
 
@@ -1531,7 +1498,6 @@ __declspec(noinline) static void HostTickObjects_Impl(double now)
 
 static void HostTickObjects(double now)
 {
-    LOG_REQUIREMENT("(global)::HostTickObjects", "No special setup needed. If the object scan hits a problem, it's caught safely instead of crashing the game.");
     __try
     {
         HostTickObjects_Impl(now);
@@ -1549,7 +1515,6 @@ static void HostTickObjects(double now)
 // keeps this consistent with every other fix in this round).
 __declspec(noinline) static void ClientTickWorldSync_Impl(const CoSyncWorldSync::WorldSyncPacket& pending)
 {
-    LOG_REQUIREMENT("(global)::ClientTickWorldSync_Impl", "Needs a valid player. Looks up the location the host sent and moves the player there.");
     PlayerCharacter* pc = CoSyncGetPlayer();
     if (!pc)
         return;
@@ -1804,7 +1769,6 @@ namespace
 
     bool HasWorkshopBaseFaulted(uint32_t baseFormID)
     {
-        LOG_REQUIREMENT("(anonymous)::HasWorkshopBaseFaulted", "Just checks a small internal list. No game state needed.");
         std::lock_guard<std::mutex> lk(s_workshopFaultedMutex);
         for (uint32_t f : s_workshopFaultedBaseForms)
             if (f == baseFormID)
@@ -1814,7 +1778,6 @@ namespace
 
     void RecordWorkshopBaseFault(uint32_t baseFormID)
     {
-        LOG_REQUIREMENT("(anonymous)::RecordWorkshopBaseFault", "Just checks a small internal list. No game state needed.");
         std::lock_guard<std::mutex> lk(s_workshopFaultedMutex);
         for (uint32_t f : s_workshopFaultedBaseForms)
             if (f == baseFormID)
@@ -1831,7 +1794,6 @@ enum class BuildApplyResult { Applied, Deferred, Dropped };
 static TESObjectREFR* FindExistingBuildingNear(TESObjectCELL* searchCell, uint32_t baseFormID,
                                                const NiPoint3& pos, float radius)
 {
-    LOG_REQUIREMENT("(global)::FindExistingBuildingNear", "searchCell may be null (returns null); iterates searchCell->objectList raw entries so the caller must be SEH-wrapped and the cell attached.");
     if (!searchCell) return nullptr;
     TESObjectREFR* best = nullptr;
     float bestSq = radius * radius;
@@ -1887,7 +1849,6 @@ static void DisableAndDeleteLocalBuilding(TESObjectREFR* ref)
 // worldspace/cell yet (retried by ProcessDeferredBuilds until TTL).
 __declspec(noinline) static BuildApplyResult ApplyBuild_Impl(const PendingBuildApply& b, double now)
 {
-    LOG_REQUIREMENT("(global)::ApplyBuild_Impl", "Game thread only. Requires CoSyncGetPlayer() non-null with a parentCell (else Deferred); feeds peer-supplied formIDs into LookupFormByID; spawning goes through CoSyncGameAPI::SpawnItemAtPosition (CreateReferenceAtLocation, position+rotation at construction). Caller wraps in SEH.");
     const CoSyncWorldSync::WorkshopBuildFullPacket& p = b.p;
 
     if (HasWorkshopBaseFaulted(p.baseFormID))
@@ -2069,7 +2030,6 @@ __declspec(noinline) static BuildApplyResult ApplyBuild_Impl(const PendingBuildA
 
 __declspec(noinline) static void ProcessDeferredBuilds_Impl(double now)
 {
-    LOG_REQUIREMENT("(global)::ProcessDeferredBuilds_Impl", "Game thread only; walks s_deferredBuilds applying each via ApplyBuild_Impl and keeps the ones that must wait for this machine to reach the right worldspace/cell (TTL kDeferredBuildTTL). Caller wraps in SEH.");
     size_t kept = 0;
     for (size_t i = 0; i < s_deferredBuilds.size(); ++i)
     {
@@ -2907,7 +2867,6 @@ bool CoSyncWorldSync::IsKnownUnsafePlaceAtMeForm(uint32_t baseFormID)
 
 void CoSyncWorldSync::NotifyLocalBuildingRemoved(uint32_t refFormID)
 {
-    LOG_REQUIREMENT("CoSyncWorldSync::NotifyLocalBuildingRemoved", "No FO4 engine state involved -- bookkeeping only; safe for unknown refs.");
     if (refFormID == 0) return;
     s_knownDynamicBuildings.erase(refFormID);
     s_buildTrack.erase(refFormID);
@@ -2920,7 +2879,6 @@ void CoSyncWorldSync::NotifyLocalBuildingRemoved(uint32_t refFormID)
 
 void CoSyncWorldSync::FillPlacementContext(TESObjectREFR* ref, WorkshopBuildFullPacket& p)
 {
-    LOG_REQUIREMENT("CoSyncWorldSync::FillPlacementContext", "ref may be null; reads ref->parentCell and TESObjectCELL::worldSpace (0xC8) -- caller must be on the game thread with a live ref.");
     p.worldspaceFormID = 0;
     p.cellFormID       = 0;
     if (!ref) return;

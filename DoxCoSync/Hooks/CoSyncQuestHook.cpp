@@ -12,7 +12,6 @@
 
 #include "GameForms.h"
 #include "PapyrusVM.h"
-#include "CoSyncRequirementsLog.h"
 
 #include <atomic>
 #include <cstdint>
@@ -75,7 +74,6 @@ static void __fastcall Detour_SetCurrentStageID(
     TESQuest*        thisObj,
     int32_t          aiStageID)
 {
-    LOG_REQUIREMENT("Detour_SetCurrentStageID", "Needs the quest-stage hook to already be installed correctly, and a valid quest object to relay the stage change.");
     CoSyncThreadDiag::Note(CoSyncThreadDiag::kQuestStage);
     {
         static std::atomic<uint32_t> s_n{ 0 };
@@ -149,7 +147,6 @@ static void __fastcall Detour_SetCurrentStageID(
 
 void InstallQuestStageHook()
 {
-    LOG_REQUIREMENT("InstallQuestStageHook", "Must not already be installed, and needs the game's quest-stage function address to be correct for this game version.");
     if (g_hookInstalled.exchange(true)) return;
 
     const uintptr_t base   = reinterpret_cast<uintptr_t>(GetModuleHandle(NULL));
@@ -179,7 +176,6 @@ void InstallQuestStageHook()
 // bug confirmed on SafeCallOrigCompleteAll et al.; apply here for consistency.
 __declspec(noinline) static bool SafeCallOrigSetStage(VirtualMachine* vm, TESQuest* quest, int32_t stage)
 {
-    LOG_REQUIREMENT("SafeCallOrigSetStage", "Needs the quest-stage hook to already be installed. Calls the original game function safely in case anything involved turns out invalid.");
     __try
     {
         g_origSetStage(vm, 0, quest, stage);
@@ -203,7 +199,6 @@ static RelocAddr<SetStageInternalFn> g_setStageInternal(0x0066B550);
 
 __declspec(noinline) static bool SafeSetStageInternal(TESQuest* quest, uint16_t stage)
 {
-    LOG_REQUIREMENT("SafeSetStageInternal", "Needs a valid quest (checked by the caller). Sets its stage safely in case the quest data turns out malformed.");
     __try
     {
         g_setStageInternal(quest, stage);
@@ -217,7 +212,6 @@ __declspec(noinline) static bool SafeSetStageInternal(TESQuest* quest, uint16_t 
 
 bool CoSyncQuestHook_ApplySetCurrentStageID(TESQuest* quest, int32_t stage)
 {
-    LOG_REQUIREMENT("CoSyncQuestHook_ApplySetCurrentStageID", "Needs a valid quest (checked). Sets the stage directly, without needing the scripting engine involved.");
     if (!quest)
         return false;
     if (stage < 0 || stage > 0xFFFF)
@@ -278,7 +272,6 @@ int CoSyncQuestHook_IsStageDone(TESQuest* quest, int32_t stage)
 
 void UninstallQuestStageHook()
 {
-    LOG_REQUIREMENT("UninstallQuestStageHook", "The hook must currently be installed, using the same game module address it was installed with.");
     if (!g_hookInstalled.exchange(false)) return;
 
     const uintptr_t base   = reinterpret_cast<uintptr_t>(GetModuleHandle(NULL));

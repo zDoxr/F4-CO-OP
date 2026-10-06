@@ -11,7 +11,6 @@
 #include "PapyrusVM.h"
 #include "PapyrusEvents.h"
 #include "PapyrusArgs.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncEntityRegistry.h"
 #include "CoSyncVMFormArg.h"
 #include "CoSyncGameAPI.h"
@@ -47,7 +46,6 @@ namespace
 
 static UInt32 ResolveCoSyncQuestFormID()
 {
-    LOG_REQUIREMENT("ResolveCoSyncQuestFormID", "Needs the game's data handler to be ready and CoSync.esp to be in the loaded mod list, or it returns 0.");
     DataHandler* dataHandler = *g_dataHandler;
     if (!dataHandler)
     {
@@ -93,7 +91,6 @@ static UInt32 ResolveCoSyncQuestFormID()
 // arguments Runtime_DynamicCast_Internal passes it.
 __declspec(noinline) static TESQuest* SafeLookupAndCastQuest(uint32_t formID)
 {
-    LOG_REQUIREMENT("SafeLookupAndCastQuest", "Assumes the ID always points to CoSync's own quest record. Wrapped in a safety guard so a bad memory access is caught instead of crashing.");
     __try
     {
         TESForm* form = LookupFormByID(formID);
@@ -108,7 +105,6 @@ __declspec(noinline) static TESQuest* SafeLookupAndCastQuest(uint32_t formID)
 
 void CoSyncPapyrusHelper::Init()
 {
-    LOG_REQUIREMENT("CoSyncPapyrusHelper::Init", "Safe to call more than once -- only runs its setup the first time. Needs CoSync.esp loaded and its quest form found, otherwise later calls just quietly do nothing.");
     LOG_INFO("[PapyrusHelper] Init() entered, s_initialized=%d", (int)s_initialized);
     if (s_initialized)
         return;
@@ -139,7 +135,6 @@ void CoSyncPapyrusHelper::Init()
 
 TESQuest* CoSyncPapyrusHelper::GetCoSyncQuest()
 {
-    LOG_REQUIREMENT("CoSyncPapyrusHelper::GetCoSyncQuest", "Runs setup automatically the first time it's called. May return nothing if setup never managed to find the quest.");
     if (!s_initialized)
         Init();
 
@@ -148,7 +143,6 @@ TESQuest* CoSyncPapyrusHelper::GetCoSyncQuest()
 
 void CoSyncPapyrusHelper::SpawnRemotePlayer(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncPapyrusHelper::SpawnRemotePlayer", "Needs the quest to already be set up successfully and the game's script system to be available -- both are checked.");
     if (!s_coSyncQuest)
     {
         LOG_WARN("[PapyrusHelper] Cannot spawn - quest not found");
@@ -182,7 +176,6 @@ void CoSyncPapyrusHelper::SpawnRemotePlayer(uint32_t entityID)
 
 void CoSyncPapyrusHelper::DespawnRemotePlayer(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncPapyrusHelper::DespawnRemotePlayer", "Needs the quest to already be set up successfully and the game's script system to be available -- both are checked.");
     if (!s_coSyncQuest)
     {
         LOG_WARN("[PapyrusHelper] Cannot despawn - quest not found");
@@ -214,7 +207,6 @@ void CoSyncPapyrusHelper::DespawnRemotePlayer(uint32_t entityID)
 
 Actor* CoSyncPapyrusHelper::GetRemotePlayerActor(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncPapyrusHelper::GetRemotePlayerActor", "Needs the quest and the game's script system to be available, both checked. Not finished yet -- always returns nothing for now.");
     if (!s_coSyncQuest)
     {
         LOG_WARN("[PapyrusHelper] Cannot get actor - quest not found");
@@ -234,7 +226,6 @@ Actor* CoSyncPapyrusHelper::GetRemotePlayerActor(uint32_t entityID)
 
 void CoSyncPapyrusHelper::SendProxyAnimEvent(Actor* actorRef, const char* eventName)
 {
-    LOG_REQUIREMENT("CoSyncPapyrusHelper::SendProxyAnimEvent", "Needs the quest to be set up, plus a valid actor and event name -- all checked before doing anything.");
     if (!s_coSyncQuest || !actorRef || !eventName) return;
 
     VMArray<VMVariable> args;
@@ -255,7 +246,6 @@ void CoSyncPapyrusHelper::SendProxyAnimEvent(Actor* actorRef, const char* eventN
 
 TESNPC* CoSyncPapyrusHelper::GetRemotePlayerBase()
 {
-    LOG_REQUIREMENT("CoSyncPapyrusHelper::GetRemotePlayerBase", "Needs the game's data handler ready, CoSync.esp loaded, and the proxy character form to be a valid NPC -- all checked, returns nothing otherwise.");
 
     // UPDATE 2026-06-20 (round 66): rounds 62-65 all patched
     // CoSync_DebugProxyNPC's ACBS/TPLT data repeatedly with zero effect on
@@ -381,7 +371,6 @@ TESNPC* CoSyncPapyrusHelper::GetRemotePlayerBase()
 
 UInt32 CoSyncPapyrusHelper::GetRemotePlayerBaseFormID()
 {
-    LOG_REQUIREMENT("CoSyncPapyrusHelper::GetRemotePlayerBaseFormID", "Needs the game's data handler ready and CoSync.esp loaded for the normal path. Falls back to a known-bad vanilla NPC only if the esp is missing.");
     static UInt32 s_cached = 0;
     if (s_cached)
         return s_cached;

@@ -12,7 +12,6 @@
 #include "GameForms.h"
 #include "PapyrusVM.h"
 #include "GameTypes.h"
-#include "CoSyncRequirementsLog.h"
 
 #include <atomic>
 #include <mutex>
@@ -63,7 +62,6 @@ static std::mutex               g_pendingMtx;
 
 static std::string SerializeArgs(VMValue* args)
 {
-    LOG_REQUIREMENT("SerializeArgs", "Safe to call with empty or null args (returns \"0\"). Turns a list of Papyrus values into simple text so it can be sent over the network.");
     if (!args
         || (uint8_t)args->type.value != VMValue::kType_VariableArray
         || !args->data.arr)
@@ -111,7 +109,6 @@ static void __fastcall Detour_SendCustomEvent(
     const BSFixedString* eventName,
     VMValue*             args)
 {
-    LOG_REQUIREMENT("Detour_SendCustomEvent", "Runs whenever the game sends a custom mod event. Needs the hook to already be installed, and a real sender with a non-empty event name, before it forwards the event to other players.");
     // round 94 diagnostic: unconditional fire-heartbeat, confirms the
     // round-93 RVA fix (kSendCustomEvent_RVA) is reached -- fires for every
     // ScriptObject.SendCustomEvent call, host or client.
@@ -152,7 +149,6 @@ void QueueRemoteCustomEvent(uint32_t senderFormID,
                             const std::string& eventName,
                             const std::string& serializedArgs)
 {
-    LOG_REQUIREMENT("QueueRemoteCustomEvent", "Safe to call from any thread. Just adds an event to a queue so it can be replayed later on the main game thread.");
     std::lock_guard<std::mutex> lk(g_pendingMtx);
     g_pending.push_back({ senderFormID, eventName, serializedArgs });
 }
@@ -165,7 +161,6 @@ extern RelocAddr<_LookupFormByID> LookupFormByID;
 // SEH-wrapped, noinline (load-bearing under /GL+/LTCG).
 __declspec(noinline) static TESForm* SafeLookupForm(uint32_t formID)
 {
-    LOG_REQUIREMENT("SafeLookupForm", "The form ID comes from another player and might not exist locally. Looks it up safely and returns null instead of crashing if it's bad.");
     __try
     {
         return LookupFormByID(formID);
@@ -178,7 +173,6 @@ __declspec(noinline) static TESForm* SafeLookupForm(uint32_t formID)
 
 static void ReFireOne(const PendingEvent& ev)
 {
-    LOG_REQUIREMENT("ReFireOne", "Must run on the main game thread. Looks up the form the event was about, rebuilds its arguments, and fires the same custom event locally so this machine sees what the sender did.");
     TESForm* form = SafeLookupForm(ev.formID);
     if (!form) {
         LOG_WARN("[ModEventHook] RX: form 0x%08X not found, dropping '%s'",
@@ -238,7 +232,6 @@ bool IsModEventHookInstalled()
 
 void FlushPendingCustomEvents()
 {
-    LOG_REQUIREMENT("FlushPendingCustomEvents", "Must run on the main game thread. Replays every custom event that came in from other players since the last flush.");
     std::deque<PendingEvent> local;
     {
         std::lock_guard<std::mutex> lk(g_pendingMtx);
@@ -251,7 +244,6 @@ void FlushPendingCustomEvents()
 // ─── Install / Uninstall ─────────────────────────────────────────────────────
 void InstallModEventHook()
 {
-    LOG_REQUIREMENT("InstallModEventHook", "Only runs once. Hooks into the game's custom mod-event system so those events can be shared with other players.");
     if (g_hookInstalled.exchange(true)) return;
 
     const uintptr_t base   = reinterpret_cast<uintptr_t>(GetModuleHandle(NULL));
@@ -279,7 +271,6 @@ void InstallModEventHook()
 
 void UninstallModEventHook()
 {
-    LOG_REQUIREMENT("UninstallModEventHook", "Only runs if the hook is currently installed. Removes the custom mod-event hook cleanly.");
     if (!g_hookInstalled.exchange(false)) return;
 
     const uintptr_t base   = reinterpret_cast<uintptr_t>(GetModuleHandle(NULL));

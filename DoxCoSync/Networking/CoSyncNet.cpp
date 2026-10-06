@@ -781,7 +781,6 @@ bool CoSyncNet::IsConnected() { return s_connected; }
 // resolves a bare filename against the Windows directory, not the cwd.
 static bool ReadSaltInstanceIDSetting()
 {
-    LOG_REQUIREMENT("(global)::ReadSaltInstanceIDSetting", "Doesn't touch the game — just reads an optional settings file next to the plugin. If the file or setting is missing, it defaults to the safer option.");
     static int s_cached = -1;
     if (s_cached >= 0)
         return s_cached != 0;
@@ -789,8 +788,8 @@ static bool ReadSaltInstanceIDSetting()
     char exePath[MAX_PATH] = {};
     if (::GetModuleFileNameA(nullptr, exePath, MAX_PATH) == 0)
     {
-        s_cached = 1;
-        return true;
+        s_cached = 0;
+        return false;
     }
 
     std::string ini(exePath);
@@ -798,7 +797,7 @@ static bool ReadSaltInstanceIDSetting()
     ini = (slash == std::string::npos) ? std::string() : ini.substr(0, slash + 1);
     ini += "Data\\F4SE\\Plugins\\CoSync.ini";
 
-    s_cached = ::GetPrivateProfileIntA("Network", "bSaltInstanceID", 1, ini.c_str());
+    s_cached = ::GetPrivateProfileIntA("Network", "bSaltInstanceID", 0, ini.c_str());   // 0.5.8: default = plain SteamID
     LOG_INFO("[CoSyncNet] bSaltInstanceID=%d (from '%s')", s_cached, ini.c_str());
     return s_cached != 0;
 }
@@ -986,7 +985,6 @@ volatile const char* g_lastTickStep = "Tick:start";
 
 void CoSyncNet::SendAnimEdges(Actor* actor, uint32_t entityID, AnimEdgeState& state)
 {
-    LOG_REQUIREMENT("CoSyncNet::SendAnimEdges", "Needs a non-null actor with a ready animation graph, checked. Every variable is looked up by name and simply fails quietly if the graph doesn't have it. Sends nothing when not connected.");
     if (!actor || !s_initialized || !s_connected || entityID == 0)
         return;
 
@@ -2788,7 +2786,6 @@ void CoSyncNet::OnGNSConnected()
 // frame: no-ops if already sent, not connected, or the world is not ready yet.
 void CoSyncNet::TrySendHello()
 {
-    LOG_REQUIREMENT("CoSyncNet::TrySendHello", "Safe to call every frame — does nothing unless connected, not already sent, and the world is ready. Needs to be reachable from the per-frame tick, since the connect callback only fires once.");
     if (s_helloSent || !s_connected)
         return;
 
@@ -2831,7 +2828,6 @@ void CoSyncNet::TrySendHello()
 
 std::vector<CoSyncNet::RosterEntry> CoSyncNet::GetRoster()
 {
-    LOG_REQUIREMENT("CoSyncNet::GetRoster", "Game thread only: reads the player manager's live player table.");
     std::vector<RosterEntry> out;
 
     const uint32_t myEid = GetMyEntityID();

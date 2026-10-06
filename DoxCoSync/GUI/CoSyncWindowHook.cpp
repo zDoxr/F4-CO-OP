@@ -2,7 +2,6 @@
 #include "CoSyncMenuInject.h"
 #include "CoSyncPrismaUI.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncThreadDiag.h"
 #include "CoSyncTransport.h"
 #include "CoSyncNet.h"
@@ -57,7 +56,6 @@ namespace
 
     LRESULT CALLBACK HookedWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
-        LOG_REQUIREMENT("(anonymous)::HookedWndProc", "Runs on the game window's thread. The original window procedure must already be saved.");
         CoSyncThreadDiag::NoteWindowEntry();
 
         // PauseMenu DISCONNECT: read GFx selectedIndex on the main thread.
@@ -151,7 +149,6 @@ namespace
 
 void CoSyncWindowHook_EnsureInstalled()
 {
-    LOG_REQUIREMENT("CoSyncWindowHook_EnsureInstalled", "Game (window-owning) thread only. Cheap no-op once installed.");
     if (g_origWndProc)
         return;
 
@@ -176,7 +173,6 @@ void CoSyncWindowHook_EnsureInstalled()
 
 void CoSyncWindowHook_Shutdown()
 {
-    LOG_REQUIREMENT("CoSyncWindowHook_Shutdown", "Safe to call even if the hook was never installed.");
     if (g_origWndProc && g_hWnd)
         SetWindowLongPtrA(g_hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_origWndProc));
     g_origWndProc = nullptr;

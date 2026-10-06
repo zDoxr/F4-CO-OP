@@ -1,6 +1,5 @@
 #include "CoSyncSaveLoad.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncGameAPI.h"
 
 #include "MinHook.h"
@@ -50,7 +49,6 @@ namespace
 
     bool VerifyAll()
     {
-        LOG_REQUIREMENT("(anonymous)::VerifyAll", "Reads code bytes of the running exe only.");
         if (s_verified >= 0)
             return s_verified == 1;
         const uintptr_t base = Base();
@@ -133,7 +131,6 @@ namespace CoSyncSaveLoad
 
     bool SaveNamed(const char* name)
     {
-        LOG_REQUIREMENT("CoSyncSaveLoad::SaveNamed", "MAIN THREAD ONLY. Synchronous.");
         if (!name || !*name || !VerifyAll())
             return false;
         void* mgr = Manager();
@@ -151,7 +148,6 @@ namespace CoSyncSaveLoad
 
     bool LoadNamed(const char* name)
     {
-        LOG_REQUIREMENT("CoSyncSaveLoad::LoadNamed", "MAIN THREAD ONLY (call from an F4SE task, like the console does). Synchronous.");
         if (!name || !*name || !VerifyAll())
             return false;
         void* mgr = Manager();
@@ -180,7 +176,6 @@ namespace CoSyncSaveLoad
     // enter/exit, scene/dialogue states, ...). IDA 1.11.240: sub_140BFB3A0(mgr).
     int EngineCanSave()
     {
-        LOG_REQUIREMENT("CoSyncSaveLoad::EngineCanSave", "Main thread. Read-only engine check.");
         static const uint8_t kPro[16] = { 0x48,0x89,0x5C,0x24,0x18,0x56,0x48,0x83,0xEC,0x20,0x48,0x8B,0xF1,0x48,0x8B,0x0D };
         constexpr uintptr_t kRVA_CanSave = 0x00BFB3A0;
         const auto* fn = reinterpret_cast<const uint8_t*>(Base() + kRVA_CanSave);
@@ -194,7 +189,6 @@ namespace CoSyncSaveLoad
 
     std::string GetSaveFolder()
     {
-        LOG_REQUIREMENT("CoSyncSaveLoad::GetSaveFolder", "Doesn't touch the game. Reads the player's INI files.");
         char docs[MAX_PATH] = {};
         if (FAILED(SHGetFolderPathA(nullptr, CSIDL_PERSONAL, nullptr, 0, docs)))
             return std::string();
@@ -213,7 +207,6 @@ namespace CoSyncSaveLoad
 
     bool InstallSaveFilter(ProxyPredicate isCoSyncProxy)
     {
-        LOG_REQUIREMENT("CoSyncSaveLoad::InstallSaveFilter", "Plugin load. Needs the verified 1.11.240 exe.");
         if (s_origShouldSave)
             return true;
         if (!VerifyAll())
@@ -241,7 +234,6 @@ namespace CoSyncSaveLoad
 
     bool InstallSaveBlock(SaveBlocker shouldBlock)
     {
-        LOG_REQUIREMENT("CoSyncSaveLoad::InstallSaveBlock", "Plugin load. Needs the verified 1.11.240 exe.");
         if (s_origSaveGame)
             return true;
         if (!VerifyAll())

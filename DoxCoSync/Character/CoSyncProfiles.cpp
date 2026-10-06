@@ -18,7 +18,6 @@
 #include "CoSyncCompanions.h"
 #include "CoSyncPowerArmorSync.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 
 #include "PluginAPI.h"
 #include "GameForms.h"
@@ -1443,7 +1442,6 @@ namespace CoSyncProfiles
 {
     void RegisterSerialization(const F4SEInterface* f4se, uint32_t pluginHandle)
     {
-        LOG_REQUIREMENT("CoSyncProfiles::RegisterSerialization", "Plugin load only.");
         s_ser = static_cast<const F4SESerializationInterface*>(f4se->QueryInterface(kInterface_Serialization));
         if (!s_ser)
         {
@@ -1520,7 +1518,6 @@ namespace CoSyncProfiles
 
     void OnReceive(const std::string& msg, uint32_t conn, bool isHostRole)
     {
-        LOG_REQUIREMENT("CoSyncProfiles::OnReceive", "Main thread. Untrusted input: key must match the sender's connection.");
         if (!isHostRole || conn == 0 || msg.size() > kMaxBlobBytes)
             return;
         // PROFILEUP|<key>|<blob>
@@ -1688,7 +1685,6 @@ namespace CoSyncProfiles
 
     void ClientStripInheritedInventory()
     {
-        LOG_REQUIREMENT("CoSyncProfiles::ClientStripInheritedInventory", "Client, main thread, right after the host's world loaded.");
         if (CoSyncNet::IsHost() || !EngineOk())
             return;
         // 0.5.2: in a shared New Game's intro nobody carries anything yet but

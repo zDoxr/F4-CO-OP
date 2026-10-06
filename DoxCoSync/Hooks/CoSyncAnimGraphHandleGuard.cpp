@@ -5,7 +5,6 @@
 
 #include "ConsoleLogger.h"
 #include "MinHook.h"
-#include "CoSyncRequirementsLog.h"
 
 #include <atomic>
 #include <cstdint>
@@ -55,7 +54,6 @@ namespace
 // stale and the original still null-derefs at animGraphHolder+0x20.
 __declspec(noinline) static char CallOriginalSafe(AnimGraphHandleFn fn, void* refr)
 {
-    LOG_REQUIREMENT("CallOriginalSafe", "Needs a valid link back to the real game function. The animation data it reads can still go missing between the caller's check and this call, so it relies on a safety guard to catch that instead of crashing.");
     __try
     {
         return fn(refr);
@@ -69,7 +67,6 @@ __declspec(noinline) static char CallOriginalSafe(AnimGraphHandleFn fn, void* re
 
 static char __fastcall Detour_AnimGraphHandleFn(void* refr)
 {
-    LOG_REQUIREMENT("Detour_AnimGraphHandleFn", "Needs the hook to already be installed. The reference passed in, and its animation data, can both legitimately be empty for a proxy that hasn't finished loading yet -- both are checked before calling through.");
     const uint64_t n = ++s_callCount;
     if (n == 1 || n % 20000 == 0)
         LOG_INFO("[AnimGraphHandleGuard] heartbeat: calls=%llu nullGuardSaves=%llu raceGuardSaves=%llu",
@@ -95,7 +92,6 @@ static char __fastcall Detour_AnimGraphHandleFn(void* refr)
 
 void InstallAnimGraphHandleGuard()
 {
-    LOG_REQUIREMENT("InstallAnimGraphHandleGuard", "Must not already be installed, and needs the game's module to resolve correctly so the hook lands on the right function for this game build.");
     if (g_hookInstalled.exchange(true))
         return;
 
@@ -133,7 +129,6 @@ void InstallAnimGraphHandleGuard()
 
 void UninstallAnimGraphHandleGuard()
 {
-    LOG_REQUIREMENT("UninstallAnimGraphHandleGuard", "The hook must currently be installed, and the game's module needs to resolve to the same base address used when it was installed.");
     if (!g_hookInstalled.exchange(false))
         return;
 

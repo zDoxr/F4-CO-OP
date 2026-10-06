@@ -2,7 +2,6 @@
 #include "CoSyncVault111.h"
 #include "CoSyncQuestSync.h"
 
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
@@ -106,7 +105,6 @@ __declspec(noinline) static void CallStartNoTry(TESForm* form, VMArray<VMVariabl
 
 __declspec(noinline) static bool SafeCallFunctionNoWaitStart(TESForm* form, VMArray<VMVariable>& args)
 {
-    LOG_REQUIREMENT("(global)::SafeCallFunctionNoWaitStart", "Needs a valid form and the game's script system to be fully loaded. Wrapped in a safety guard so a bad pointer can't crash the game.");
     __try
     {
         CallStartNoTry(form, args);
@@ -133,7 +131,6 @@ __declspec(noinline) static void CallCompleteAllObjectivesNoTry(TESForm* form, V
 
 __declspec(noinline) static bool SafeCallFunctionNoWaitCompleteAll(TESForm* form, VMArray<VMVariable>& args)
 {
-    LOG_REQUIREMENT("(global)::SafeCallFunctionNoWaitCompleteAll", "Needs a valid form and the game's script system to be fully loaded. Wrapped in a safety guard so a bad pointer can't crash the game.");
     __try
     {
         CallCompleteAllObjectivesNoTry(form, args);
@@ -149,14 +146,12 @@ __declspec(noinline) static bool SafeCallFunctionNoWaitCompleteAll(TESForm* form
 
 bool CoSyncQuestSync::IsQuestStage(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::IsQuestStage", "Doesn't touch the game -- just checks whether the message text starts with the right prefix.");
     return msg.rfind("QS|", 0) == 0;
 }
 
 std::string CoSyncQuestSync::SerializeQuestStage(
     uint32_t senderEntityID, uint32_t questFormID, int stage)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::SerializeQuestStage", "Doesn't touch the game -- just builds a text message out of a few numbers.");
     char buf[128];
     std::snprintf(buf, sizeof(buf), "QS|%u|%u|%d", senderEntityID, questFormID, stage);
     return std::string(buf);
@@ -165,7 +160,6 @@ std::string CoSyncQuestSync::SerializeQuestStage(
 static bool ParseQuestStage(const std::string& msg,
     uint32_t& outSender, uint32_t& outFormID, int& outStage)
 {
-    LOG_REQUIREMENT("(global)::ParseQuestStage", "Doesn't touch the game -- just reads a text message apart. A badly formed message is safely rejected instead of crashing anything.");
     if (msg.rfind("QS|", 0) != 0) return false;
     std::stringstream ss(msg.substr(3));
     std::string tok;
@@ -182,7 +176,6 @@ static bool ParseQuestStage(const std::string& msg,
 void CoSyncQuestSync::NotifyQuestStage(
     uint32_t questFormID, int stage, uint32_t senderEntityID)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::NotifyQuestStage", "Needs an active connection and a real quest ID. Stays quiet while we're applying a quest update that came from someone else, so we don't echo it straight back to them.");
     if (!CoSyncNet::IsConnected() || questFormID == 0) return;
     if (g_inRemoteQuestApply) return;
 
@@ -206,7 +199,6 @@ void CoSyncQuestSync::NotifyQuestStage(
 
 void CoSyncQuestSync::OnReceiveQuestStage(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::OnReceiveQuestStage", "Needs a valid message string. Relies on the parser to reject a badly formed message, and ignores anything that just echoed back from our own sender ID.");
     uint32_t senderEntityID = 0, questFormID = 0;
     int stage = 0;
     if (!ParseQuestStage(msg, senderEntityID, questFormID, stage))
@@ -231,7 +223,6 @@ __declspec(noinline) static void CallSetStageNoTry(TESForm* form, VMArray<VMVari
 
 __declspec(noinline) static bool SafeCallFunctionNoWaitSetStage(TESForm* form, VMArray<VMVariable>& args)
 {
-    LOG_REQUIREMENT("(global)::SafeCallFunctionNoWaitSetStage", "Host, game thread, world loaded. Queues Quest.SetStage on the Papyrus VM; SEH-guarded.");
     __try
     {
         CallSetStageNoTry(form, args);
@@ -250,7 +241,6 @@ bool CoSyncQuestSync::IsQuestStageRequest(const std::string& msg)
 
 void CoSyncQuestSync::RequestQuestStage(uint32_t questFormID, int stage, uint32_t senderEntityID)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::RequestQuestStage", "Client, any thread (the SetCurrentStageID hook runs on Papyrus threads). Only sends.");
     if (!CoSyncNet::IsConnected() || CoSyncNet::IsHost() || questFormID == 0 || senderEntityID == 0)
         return;
     char buf[96];
@@ -261,7 +251,6 @@ void CoSyncQuestSync::RequestQuestStage(uint32_t questFormID, int stage, uint32_
 
 void CoSyncQuestSync::OnReceiveQuestStageRequest(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::OnReceiveQuestStageRequest", "Host only; the sender check in CoSyncNet already bound the first field to the connection. Parses and queues.");
     if (!CoSyncNet::IsHost())
         return;
     QuestReqOp op{};
@@ -351,13 +340,11 @@ static void ApplyClientStageRequests(std::vector<QuestReqOp>& reqs)
 
 bool CoSyncQuestSync::IsQuestStart(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::IsQuestStart", "Doesn't touch the game -- just checks whether the message text starts with the right prefix.");
     return msg.rfind("QS_ST|", 0) == 0;
 }
 
 std::string CoSyncQuestSync::SerializeQuestStart(uint32_t senderEntityID, uint32_t questFormID)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::SerializeQuestStart", "Doesn't touch the game -- just builds a text message out of a few numbers.");
     char buf[128];
     std::snprintf(buf, sizeof(buf), "QS_ST|%u|%u", senderEntityID, questFormID);
     return std::string(buf);
@@ -365,7 +352,6 @@ std::string CoSyncQuestSync::SerializeQuestStart(uint32_t senderEntityID, uint32
 
 void CoSyncQuestSync::NotifyQuestStart(uint32_t questFormID, uint32_t senderEntityID)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::NotifyQuestStart", "Needs an active connection and a real quest ID. Stays quiet while we're applying a quest update that came from someone else, so we don't echo it straight back to them.");
     if (!CoSyncNet::IsConnected() || questFormID == 0) return;
     if (g_inRemoteQuestApply) return;
 
@@ -375,7 +361,6 @@ void CoSyncQuestSync::NotifyQuestStart(uint32_t questFormID, uint32_t senderEnti
 
 void CoSyncQuestSync::OnReceiveQuestStart(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::OnReceiveQuestStart", "Needs the message to be at least as long as its \"QS_ST|\" prefix and contain valid numbers separated by '|'. A badly formed message is rejected.");
     const char* p = msg.c_str() + 6;
     char* e = nullptr;
     uint32_t senderID = static_cast<uint32_t>(std::strtoul(p, &e, 10));
@@ -393,13 +378,11 @@ void CoSyncQuestSync::OnReceiveQuestStart(const std::string& msg)
 
 bool CoSyncQuestSync::IsQuestDone(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::IsQuestDone", "Doesn't touch the game -- just checks whether the message text starts with the right prefix.");
     return msg.rfind("QS_DONE|", 0) == 0;
 }
 
 std::string CoSyncQuestSync::SerializeQuestDone(uint32_t senderEntityID, uint32_t questFormID)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::SerializeQuestDone", "Doesn't touch the game -- just builds a text message out of a few numbers.");
     char buf[128];
     std::snprintf(buf, sizeof(buf), "QS_DONE|%u|%u", senderEntityID, questFormID);
     return std::string(buf);
@@ -407,7 +390,6 @@ std::string CoSyncQuestSync::SerializeQuestDone(uint32_t senderEntityID, uint32_
 
 void CoSyncQuestSync::NotifyQuestDone(uint32_t questFormID, uint32_t senderEntityID)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::NotifyQuestDone", "Needs an active connection and a real quest ID. Stays quiet while we're applying a quest update that came from someone else, so we don't echo it straight back to them.");
     if (!CoSyncNet::IsConnected() || questFormID == 0) return;
     if (g_inRemoteQuestApply) return;
 
@@ -417,7 +399,6 @@ void CoSyncQuestSync::NotifyQuestDone(uint32_t questFormID, uint32_t senderEntit
 
 void CoSyncQuestSync::OnReceiveQuestDone(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::OnReceiveQuestDone", "Needs the message to be at least as long as its \"QS_DONE|\" prefix and contain valid numbers separated by '|'. A badly formed message is rejected.");
     const char* p = msg.c_str() + 8;
     char* e = nullptr;
     uint32_t senderID = static_cast<uint32_t>(std::strtoul(p, &e, 10));
@@ -445,7 +426,6 @@ void CoSyncQuestSync::OnReceiveQuestDone(const std::string& msg)
 // in the same noinline-SEH-helper pattern as SafeLookupAndCastDoorRefr.
 __declspec(noinline) static TESForm* SafeLookupForm(uint32_t formID)
 {
-    LOG_REQUIREMENT("(global)::SafeLookupForm", "Works safely with any ID value, even a bad one sent by another player, because the lookup runs inside a safety guard. Returns nothing if it fails or isn't found.");
     __try
     {
         return LookupFormByID(formID);
@@ -458,7 +438,6 @@ __declspec(noinline) static TESForm* SafeLookupForm(uint32_t formID)
 
 __declspec(noinline) static TESQuest* SafeLookupAndCastQuest(uint32_t formID)
 {
-    LOG_REQUIREMENT("(global)::SafeLookupAndCastQuest", "Works safely with any ID value, even a bad one sent by another player, because the lookup and type check both run inside a safety guard. Returns nothing if it fails, isn't found, or isn't actually a quest.");
     __try
     {
         TESForm* form = LookupFormByID(formID);
@@ -487,7 +466,6 @@ __declspec(noinline) static TESQuest* SafeLookupAndCastQuest(uint32_t formID)
 
 void CoSyncQuestSync::FlushPendingQuestOps()
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::FlushPendingQuestOps", "Waits until the game world is fully loaded before doing anything, since the script system it calls into isn't ready before then.");
     // CallFunctionNoWait() dispatches through the Papyrus VM's internal
     // function table. On a freshly-connecting client that table isn't set
     // up yet until the world has actually finished loading (same window
@@ -635,7 +613,6 @@ void CoSyncQuestSync::FlushPendingQuestOps()
 
 bool CoSyncQuestSync::IsRemoteApplying()
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::IsRemoteApplying", "Doesn't touch the game -- just reads an internal flag, safe to call from anywhere.");
     return g_inRemoteQuestApply;
 }
 
@@ -643,13 +620,11 @@ bool CoSyncQuestSync::IsRemoteApplying()
 
 bool CoSyncQuestSync::IsQuestObjAll(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::IsQuestObjAll", "Doesn't touch the game -- just checks whether the message text starts with the right prefix.");
     return msg.rfind("QS_OBJ_ALL|", 0) == 0;
 }
 
 std::string CoSyncQuestSync::SerializeObjAll(uint32_t questFormID, uint32_t senderEntityID)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::SerializeObjAll", "Doesn't touch the game -- just builds a text message out of a few numbers.");
     char buf[128];
     std::snprintf(buf, sizeof(buf), "QS_OBJ_ALL|%u|%u", senderEntityID, questFormID);
     return std::string(buf);
@@ -657,7 +632,6 @@ std::string CoSyncQuestSync::SerializeObjAll(uint32_t questFormID, uint32_t send
 
 void CoSyncQuestSync::NotifyObjAll(uint32_t questFormID, uint32_t senderEntityID)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::NotifyObjAll", "Needs an active connection and a real quest ID. Stays quiet while we're applying a quest update that came from someone else, so we don't echo it straight back to them.");
     if (!CoSyncNet::IsConnected() || questFormID == 0) return;
     if (g_inRemoteQuestApply) return;
     CoSyncTransport::Send(SerializeObjAll(questFormID, senderEntityID));
@@ -665,7 +639,6 @@ void CoSyncQuestSync::NotifyObjAll(uint32_t questFormID, uint32_t senderEntityID
 
 void CoSyncQuestSync::OnReceiveObjAll(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::OnReceiveObjAll", "Needs the message to be at least as long as its \"QS_OBJ_ALL|\" prefix and contain valid numbers separated by '|'. A badly formed message is rejected.");
     const char* p = msg.c_str() + 11; // skip "QS_OBJ_ALL|"
     char* e = nullptr;
     uint32_t senderID = static_cast<uint32_t>(std::strtoul(p, &e, 10));
@@ -683,14 +656,12 @@ void CoSyncQuestSync::OnReceiveObjAll(const std::string& msg)
 
 bool CoSyncQuestSync::IsQuestObjSet(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::IsQuestObjSet", "Doesn't touch the game -- just checks whether the message text starts with the right prefix.");
     return msg.rfind("QS_OBJ_SET|", 0) == 0;
 }
 
 std::string CoSyncQuestSync::SerializeObjSet(
     uint32_t questFormID, int32_t idx, bool state, uint32_t senderEntityID)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::SerializeObjSet", "Doesn't touch the game -- just builds a text message out of a few numbers and a true/false flag.");
     char buf[160];
     std::snprintf(buf, sizeof(buf), "QS_OBJ_SET|%u|%u|%d|%d",
         senderEntityID, questFormID, idx, state ? 1 : 0);
@@ -700,7 +671,6 @@ std::string CoSyncQuestSync::SerializeObjSet(
 void CoSyncQuestSync::NotifyObjSet(
     uint32_t questFormID, int32_t idx, bool state, uint32_t senderEntityID)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::NotifyObjSet", "Needs an active connection and a real quest ID. Stays quiet while we're applying a quest update that came from someone else, so we don't echo it straight back to them.");
     if (!CoSyncNet::IsConnected() || questFormID == 0) return;
     if (g_inRemoteQuestApply) return;
     CoSyncTransport::Send(SerializeObjSet(questFormID, idx, state, senderEntityID));
@@ -708,7 +678,6 @@ void CoSyncQuestSync::NotifyObjSet(
 
 void CoSyncQuestSync::OnReceiveObjSet(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::OnReceiveObjSet", "Needs the message to be at least as long as its \"QS_OBJ_SET|\" prefix and contain four valid fields separated by '|', including a flag character at the end.");
     const char* p = msg.c_str() + 11; // skip "QS_OBJ_SET|"
     char* e = nullptr;
     uint32_t senderID = static_cast<uint32_t>(std::strtoul(p, &e, 10));
@@ -733,14 +702,12 @@ void CoSyncQuestSync::OnReceiveObjSet(const std::string& msg)
 
 bool CoSyncQuestSync::IsQuestObjDisp(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::IsQuestObjDisp", "Doesn't touch the game -- just checks whether the message text starts with the right prefix.");
     return msg.rfind("QS_OBJ_DISP|", 0) == 0;
 }
 
 std::string CoSyncQuestSync::SerializeObjDisp(
     uint32_t questFormID, int32_t idx, bool displayed, uint32_t senderEntityID)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::SerializeObjDisp", "Doesn't touch the game -- just builds a text message out of a few numbers and a true/false flag.");
     char buf[160];
     std::snprintf(buf, sizeof(buf), "QS_OBJ_DISP|%u|%u|%d|%d",
         senderEntityID, questFormID, idx, displayed ? 1 : 0);
@@ -750,7 +717,6 @@ std::string CoSyncQuestSync::SerializeObjDisp(
 void CoSyncQuestSync::NotifyObjDisp(
     uint32_t questFormID, int32_t idx, bool displayed, uint32_t senderEntityID)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::NotifyObjDisp", "Needs an active connection and a real quest ID. Stays quiet while we're applying a quest update that came from someone else, so we don't echo it straight back to them.");
     if (!CoSyncNet::IsConnected() || questFormID == 0) return;
     if (g_inRemoteQuestApply) return;
     CoSyncTransport::Send(SerializeObjDisp(questFormID, idx, displayed, senderEntityID));
@@ -758,7 +724,6 @@ void CoSyncQuestSync::NotifyObjDisp(
 
 void CoSyncQuestSync::OnReceiveObjDisp(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::OnReceiveObjDisp", "Needs the message to be at least as long as its \"QS_OBJ_DISP|\" prefix and contain four valid fields separated by '|', including a flag character at the end.");
     const char* p = msg.c_str() + 12; // skip "QS_OBJ_DISP|"
     char* e = nullptr;
     uint32_t senderID = static_cast<uint32_t>(std::strtoul(p, &e, 10));
@@ -783,7 +748,6 @@ void CoSyncQuestSync::OnReceiveObjDisp(const std::string& msg)
 
 void CoSyncQuestSync::FlushPendingQuestObjectiveOps()
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::FlushPendingQuestObjectiveOps", "Waits until the game world is fully loaded before doing anything, for the same reason as FlushPendingQuestOps.");
     // Same Papyrus-VM-not-ready hazard as FlushPendingQuestOps() above.
     if (!CoSyncWorld::IsWorldReady())
         return;
@@ -866,7 +830,6 @@ static RelocAddr<SetQuestActiveFn> g_setQuestActive(0x0066AE00);
 
 __declspec(noinline) static bool SafeSetQuestTracked(TESQuest* quest, bool tracked)
 {
-    LOG_REQUIREMENT("(global)::SafeSetQuestTracked", "Needs a valid quest object, checked by the caller. Calls the game's own tracking function inside a safety guard, since it changes game state and refreshes the quest UI.");
     __try
     {
         g_setQuestActive(quest, tracked);
@@ -934,7 +897,6 @@ static constexpr uintptr_t kQuestFlags_Offset = 0xF4;
 // what the player is actually doing.
 __declspec(noinline) static bool IsQuestTracked(TESQuest* quest)
 {
-    LOG_REQUIREMENT("(global)::IsQuestTracked", "Needs a valid quest object. Reads a small flags value from the game's own quest data inside a safety guard, reporting false if that fails.");
     if (!quest) return false;
     __try
     {
@@ -951,7 +913,6 @@ __declspec(noinline) static bool IsQuestTracked(TESQuest* quest)
 
 __declspec(noinline) static uint16_t GetQuestCurrentStage(TESQuest* quest)
 {
-    LOG_REQUIREMENT("(global)::GetQuestCurrentStage", "Needs a valid quest object. Reads the quest's current stage number from the game's own data inside a safety guard, returning 0 if that fails.");
     if (!quest) return 0;
     __try
     {
@@ -966,13 +927,11 @@ __declspec(noinline) static uint16_t GetQuestCurrentStage(TESQuest* quest)
 
 void CoSyncQuestSync::RequestFullStateBroadcast()
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::RequestFullStateBroadcast", "Doesn't touch the game -- just sets a flag that the next quest check will pick up, so it's safe to call as soon as a new player says hello.");
     s_fullBroadcastPending = true;
 }
 
 __declspec(noinline) static void TickLocalQuests_Impl(double now)
 {
-    LOG_REQUIREMENT("(global)::TickLocalQuests_Impl", "Needs the game's data handler to be ready. Loops over the game's own quest list, so every entry needs to stay valid for the whole loop, and is skipped entirely unless we're connected to someone.");
     // A pending join bypasses the 2s throttle: the scan below is what fills
     // s_knownActive/s_knownCompleted in the first place, and before any client
     // connects this whole function returns early (IsConnected is false), so at
@@ -1159,13 +1118,11 @@ static constexpr size_t kQuestPushPerTick = 12;
 
 bool CoSyncQuestSync::IsQuestTrack(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::IsQuestTrack", "Doesn't touch the game -- just checks the message prefix.");
     return msg.rfind("QS_TRK|", 0) == 0;
 }
 
 void CoSyncQuestSync::OnReceiveQuestTrack(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::OnReceiveQuestTrack", "Reads a message from another player and just queues the quest ID -- nothing in the game changes until the update is applied on the main game thread.");
     const char* s = msg.c_str() + 7;
     char* e = nullptr;
     const uint32_t sender = static_cast<uint32_t>(std::strtoul(s, &e, 10));
@@ -1226,7 +1183,6 @@ void CoSyncQuestSync_ApplyPendingTrack()
 
 void CoSyncQuestSync::BroadcastFullState()
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::BroadcastFullState", "Only runs on the host. Just queues up the quests we already know about to be sent out later -- doesn't touch the game or send anything by itself.");
     if (!CoSyncNet::IsConnected() || !CoSyncNet::IsHost())
         return;
 
@@ -1293,7 +1249,6 @@ static void DrainQuestPushQueues()
 
 void CoSyncQuestSync::TickLocalQuests(double now)
 {
-    LOG_REQUIREMENT("CoSyncQuestSync::TickLocalQuests", "No special requirements -- just wraps the quest scan in a safety guard so an error during the scan is caught instead of taking down the game.");
     __try
     {
         TickLocalQuests_Impl(now);

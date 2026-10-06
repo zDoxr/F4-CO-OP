@@ -2,7 +2,6 @@
 #include "ConsoleLogger.h"
 #include "GameReferences.h"
 #include "GameTypes.h"
-#include "CoSyncRequirementsLog.h"
 
 #include <unordered_map>
 
@@ -222,7 +221,6 @@ namespace CoSyncAnimUtils
     // file missing the annotation.
     __declspec(noinline) bool Is3DLoaded(Actor* actor)
     {
-        LOG_REQUIREMENT("CoSyncAnimUtils::Is3DLoaded", "Needs a non-null actor. Uses a safety net since it checks the actor's model, which might not be loaded yet.");
         if (!actor)
             return false;
 
@@ -240,7 +238,6 @@ namespace CoSyncAnimUtils
 
     __declspec(noinline) bool IsGraphReady(Actor* actor)
     {
-        LOG_REQUIREMENT("CoSyncAnimUtils::IsGraphReady", "Needs a non-null actor with its model loaded. Every actor, including the local player, also needs to wait out a short grace period after loading before its animation graph is safe to touch — writing too early can lock up or crash.");
         if (!actor) return false;
         if (!Is3DLoaded(actor)) return false;
 
@@ -270,7 +267,6 @@ namespace CoSyncAnimUtils
 
     void ResetGraphGrace(Actor* actor)
     {
-        LOG_REQUIREMENT("CoSyncAnimUtils::ResetGraphGrace", "Needs a non-null actor. Safe to call even if IsGraphReady() has never seen this actor before.");
         if (!actor) return;
 
         EnsureGraphGraceInit();
@@ -291,7 +287,6 @@ namespace CoSyncAnimUtils
     // keep its own UNWIND_INFO with a real scope table.
     __declspec(noinline) bool GetFloat(Actor* actor, const char* name, float& out)
     {
-        LOG_REQUIREMENT("CoSyncAnimUtils::GetFloat", "Needs a non-null actor and variable name that resolve to a valid animation holder, and the engine's own get-float function to be callable. Uses a safety net around that call.");
         void* holder = GetAnimHolder(actor);
         if (!holder || !name) return false;
 
@@ -321,7 +316,6 @@ namespace CoSyncAnimUtils
 
     __declspec(noinline) bool GetInt(Actor* actor, const char* name, int& out)
     {
-        LOG_REQUIREMENT("CoSyncAnimUtils::GetInt", "Needs a non-null actor and variable name that resolve to a valid animation holder, and the engine's own get-int function to be callable. Uses a safety net around that call.");
         void* holder = GetAnimHolder(actor);
         if (!holder || !name) return false;
 
@@ -352,7 +346,6 @@ namespace CoSyncAnimUtils
     __declspec(noinline) bool GetBool(Actor* actor, const char* name, bool& out)
     {
 
-        LOG_REQUIREMENT("CoSyncAnimUtils::GetBool", "Needs a non-null actor and variable name that resolve to a valid animation holder, and the engine's own get-bool function to be callable. Uses a safety net around that call.");
         void* holder = GetAnimHolder(actor);
         if (!holder || !name) return false;
 
@@ -409,7 +402,6 @@ namespace CoSyncAnimUtils
 
     bool SetFloat(Actor* actor, const char* name, float value)
     {
-        LOG_REQUIREMENT("CoSyncAnimUtils::SetFloat", "Needs a non-null actor and variable name that resolve to a valid animation holder, and the engine's own set-float function to be resolved. Uses a safety net around that call.");
         if (EngineSettersDisabled("SetFloat", name)) return false;
         void* holder = GetAnimHolder(actor);
         if (!holder || !name) return false;
@@ -451,7 +443,6 @@ namespace CoSyncAnimUtils
 
     bool SetInt(Actor* actor, const char* name, int value)
     {
-        LOG_REQUIREMENT("CoSyncAnimUtils::SetInt", "Needs a non-null actor and variable name that resolve to a valid animation holder, and the engine's own set-int function to be resolved. Uses a safety net around that call.");
         if (EngineSettersDisabled("SetInt", name)) return false;
         void* holder = GetAnimHolder(actor);
         if (!holder || !name) return false;
@@ -493,7 +484,6 @@ namespace CoSyncAnimUtils
 
     bool SetBool(Actor* actor, const char* name, bool value)
     {
-        LOG_REQUIREMENT("CoSyncAnimUtils::SetBool", "Needs a non-null actor and variable name that resolve to a valid animation holder, and the engine's own set-bool function to be resolved. Uses a safety net around that call.");
         if (EngineSettersDisabled("SetBool", name)) return false;
         void* holder = GetAnimHolder(actor);
         if (!holder || !name) return false;
@@ -535,7 +525,6 @@ namespace CoSyncAnimUtils
 
     __declspec(noinline) bool SendEvent(Actor* actor, const char* eventName)
     {
-        LOG_REQUIREMENT("CoSyncAnimUtils::SendEvent", "Needs a non-null actor and event name that resolve to a valid animation holder, and the engine's own send-event function to be callable. Uses a safety net around that call.");
         void* holder = GetAnimHolder(actor);
         if (!holder || !eventName) return false;
 

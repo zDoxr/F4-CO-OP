@@ -5,7 +5,6 @@
 
 #include "ConsoleLogger.h"
 #include "MinHook.h"
-#include "CoSyncRequirementsLog.h"
 
 #include <atomic>
 #include <cstdint>
@@ -31,7 +30,6 @@ namespace
 
     bool HasAlreadyFaulted(void* actor)
     {
-        LOG_REQUIREMENT("HasAlreadyFaulted", "Just checks an actor pointer against a list, no need to touch the actor itself.");
         std::lock_guard<std::mutex> lk(s_faultedActorsMutex);
         for (int i = 0; i < s_faultedActorCount; ++i)
             if (s_faultedActors[i] == actor)
@@ -41,7 +39,6 @@ namespace
 
     void RecordFault(void* actor)
     {
-        LOG_REQUIREMENT("RecordFault", "Just stores an actor pointer in a list, no need to touch the actor itself.");
         std::lock_guard<std::mutex> lk(s_faultedActorsMutex);
         for (int i = 0; i < s_faultedActorCount; ++i)
             if (s_faultedActors[i] == actor)
@@ -62,7 +59,6 @@ namespace
     // by other guards' diagnostics if ever needed.
     void LogHeartbeat()
     {
-        LOG_REQUIREMENT("LogHeartbeat", "Just counts calls, doesn't actually log anything on purpose.");
         ++s_callCount;
     }
 }
@@ -72,7 +68,6 @@ namespace
 // CoSyncLocomotionCalcGuard.cpp's CallOriginalSafe for the same lesson.
 __declspec(noinline) static float CallOriginalSafe(ActorLocomotionFn fn, void* rcx, void* rdx)
 {
-    LOG_REQUIREMENT("CallOriginalSafe", "Needs a valid pointer to the real game function. The actor passed in may be only partly set up, so this relies on a safety net to catch any crash from touching it.");
     __try
     {
         return fn(rcx, rdx);
@@ -86,7 +81,6 @@ __declspec(noinline) static float CallOriginalSafe(ActorLocomotionFn fn, void* r
 
 static float __fastcall Detour_ActorLocomotionFn(void* rcx, void* rdx)
 {
-    LOG_REQUIREMENT("Detour_ActorLocomotionFn", "Needs the hook to already be installed. Skips any actor that already crashed before, so it doesn't re-trigger a known-bad case.");
     LogHeartbeat();
 
     if (!g_origFn)
@@ -100,7 +94,6 @@ static float __fastcall Detour_ActorLocomotionFn(void* rcx, void* rdx)
 
 void InstallActorLocomotionGuard()
 {
-    LOG_REQUIREMENT("InstallActorLocomotionGuard", "Must not already be installed. Needs the known internal address to be correct for this game build, and the game module to resolve properly.");
     if (g_hookInstalled.exchange(true))
         return;
 
@@ -138,7 +131,6 @@ void InstallActorLocomotionGuard()
 
 void UninstallActorLocomotionGuard()
 {
-    LOG_REQUIREMENT("UninstallActorLocomotionGuard", "The hook must already be installed. Needs the game module to resolve to the same address used at install time.");
     if (!g_hookInstalled.exchange(false))
         return;
 

@@ -10,7 +10,6 @@
 #include "CoSyncCompanionSync.h"
 #include "CoSyncVMFormArg.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 
 #include "GameForms.h"
 #include "GameObjects.h"
@@ -273,7 +272,6 @@ namespace CoSyncCompanions
 
     void ClientOnCharacterApplied(const std::vector<uint32_t>& savedBases)
     {
-        LOG_REQUIREMENT("CoSyncCompanions::ClientOnCharacterApplied", "Client, main thread, after its character was applied.");
         s_characterApplied = true;
 
         std::vector<Actor*> mates;
@@ -307,7 +305,6 @@ namespace CoSyncCompanions
 
     void OnReceive(const std::string& msg, bool isHostRole)
     {
-        LOG_REQUIREMENT("CoSyncCompanions::OnReceive", "Main thread (transport inbox). Host only acts.");
         if (!isHostRole)
             return;
         uint32_t base = 0, ref = 0, owner = 0;

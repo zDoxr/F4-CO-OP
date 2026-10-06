@@ -14,7 +14,6 @@
 #include "CoSyncRuntime.h"
 #include "CoSyncWorld.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 
 #include "GameForms.h"
 #include "GameReferences.h"
@@ -765,7 +764,6 @@ namespace CoSyncVault111
 
     void OnReceive(const std::string& msg, bool isHostRole)
     {
-        LOG_REQUIREMENT("CoSyncVault111::OnReceive", "Network side: parses and stores under locks; the tick acts.");
         if (msg.rfind("V111|st|", 0) == 0)
         {
             if (isHostRole)

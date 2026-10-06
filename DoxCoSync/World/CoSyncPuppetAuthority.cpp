@@ -6,7 +6,6 @@
 #include "CoSyncGameAPI.h"
 #include "TickHook.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "GameReferences.h"
 #include "MinHook.h"
 
@@ -332,7 +331,6 @@ namespace CoSyncPuppetAuthority
 {
     void Install()
     {
-        LOG_REQUIREMENT("CoSyncPuppetAuthority::Install", "Plugin load. Each target is prologue-checked against 1.11.240; a mismatch disables only that part.");
         if (g_installed)
             return;
         g_installed = true;

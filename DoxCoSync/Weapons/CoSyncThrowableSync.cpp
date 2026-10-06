@@ -4,7 +4,6 @@
 #include "CoSyncThrowableSync.h"
 
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
 #include "CoSyncGameAPI.h"
@@ -126,7 +125,6 @@ namespace
 
     double NowSeconds()
     {
-        LOG_REQUIREMENT("CoSyncThrowableSync::NowSeconds", "Doesn't touch game state — just reads the system performance counter.");
         LARGE_INTEGER f{}, c{};
         QueryPerformanceFrequency(&f);
         QueryPerformanceCounter(&c);
@@ -343,7 +341,6 @@ namespace
 
 bool CoSyncThrowableSync::IsSyncableProjectile(BGSProjectile* proj)
 {
-    LOG_REQUIREMENT("CoSyncThrowableSync::IsSyncableProjectile", "Needs a valid projectile form (checked). Only reads its own embedded data block. The caller wraps this in a crash guard.");
     if (!proj) return false;
     const auto& d = proj->projectileData;
     if (!d.explosionType) return false;
@@ -353,7 +350,6 @@ bool CoSyncThrowableSync::IsSyncableProjectile(BGSProjectile* proj)
 
 BGSProjectile* CoSyncThrowableSync::GetWeaponProjectile(TESObjectWEAP* weap)
 {
-    LOG_REQUIREMENT("CoSyncThrowableSync::GetWeaponProjectile", "Needs a non-null weapon. Walks the game's own weapon-data chain, checking each link for null along the way. The caller wraps this in a crash guard.");
     if (!weap) return nullptr;
     if (!weap->weapData.firingData) return nullptr;
     return weap->weapData.firingData->projectileOverride;
@@ -361,7 +357,6 @@ BGSProjectile* CoSyncThrowableSync::GetWeaponProjectile(TESObjectWEAP* weap)
 
 bool CoSyncThrowableSync::IsHandThrowable(TESObjectWEAP* weap)
 {
-    LOG_REQUIREMENT("CoSyncThrowableSync::IsHandThrowable", "Needs a non-null weapon. Leaves all the actual game-data reads to GetWeaponProjectile/IsSyncableProjectile. The caller wraps this in a crash guard.");
     BGSProjectile* proj = GetWeaponProjectile(weap);
     if (!IsSyncableProjectile(proj)) return false;
     // Gravity is what separates a thrown object from a launched one: a
@@ -374,7 +369,6 @@ bool CoSyncThrowableSync::IsHandThrowable(TESObjectWEAP* weap)
 
 __declspec(noinline) static uint32_t GetEquippedThrowableFormID_Impl(Actor* actor)
 {
-    LOG_REQUIREMENT("(global)::GetEquippedThrowableFormID_Impl", "Needs a non-null actor. Walks the game's own equipped-item data, the same way CoSyncPlayerManager::GetEquippedWeaponFormID does, checking each link for null. The caller wraps this in a crash guard.");
     if (!actor || !actor->middleProcess || !actor->middleProcess->unk08)
         return 0;
 
@@ -398,7 +392,6 @@ __declspec(noinline) static uint32_t GetEquippedThrowableFormID_Impl(Actor* acto
 
 uint32_t CoSyncThrowableSync::GetEquippedThrowableFormID(Actor* actor)
 {
-    LOG_REQUIREMENT("CoSyncThrowableSync::GetEquippedThrowableFormID", "Wraps the equipped-item walk in a crash guard — that data chain is owned by the game and has been seen returning garbage or zero on some machines, so it can never be trusted to fail cleanly on its own.");
     __try
     {
         return GetEquippedThrowableFormID_Impl(actor);
@@ -411,7 +404,6 @@ uint32_t CoSyncThrowableSync::GetEquippedThrowableFormID(Actor* actor)
 
 __declspec(noinline) static bool IsMineThrowable_Impl(uint32_t weapFormID)
 {
-    LOG_REQUIREMENT("(global)::IsMineThrowable_Impl", "Needs the weapon form ID to resolve to something real (safe to call even with garbage input). Checks the result is actually a weapon before using it. The caller wraps this in a crash guard.");
     if (weapFormID == 0) return false;
 
     TESForm* form = LookupFormByID(weapFormID);
@@ -430,7 +422,6 @@ __declspec(noinline) static bool IsMineThrowable_Impl(uint32_t weapFormID)
 
 bool CoSyncThrowableSync::IsMineThrowable(uint32_t weapFormID)
 {
-    LOG_REQUIREMENT("CoSyncThrowableSync::IsMineThrowable", "Wraps a peer-supplied form ID lookup and a weapon-to-projectile chain in a crash guard; returns false (treat it as a grenade) if anything goes wrong.");
     __try
     {
         return IsMineThrowable_Impl(weapFormID);
@@ -473,7 +464,6 @@ namespace
     // the formID on the wire; the receiver only has to sanity-check it.
     __declspec(noinline) uint32_t ResolveVisualBase(Actor* thrower, BGSProjectile* proj)
     {
-        LOG_REQUIREMENT("(anon)::ResolveVisualBase", "The thrower can be null — falls back to the projectile record in that case. Walks the game's own equipped-item and ammo data, checking each link for null. The caller wraps this in a crash guard.");
         const bool isHandThrown = proj && proj->projectileData.gravity > 0.0f;
 
         // Prefer what the thrower actually has equipped.
@@ -516,7 +506,6 @@ namespace
 
     __declspec(noinline) void Tick_Impl(double now)
     {
-        LOG_REQUIREMENT("CoSyncThrowableSync::Tick_Impl", "Needs a live player with a valid cell (both checked). Walks the cell's own object list, whose entries need to stay valid for the whole loop. The caller wraps this in a crash guard.");
         PlayerCharacter* pc = CoSyncGetPlayer();
         if (!pc) return;
         TESObjectREFR* pcRefr = reinterpret_cast<TESObjectREFR*>(pc);
@@ -677,7 +666,6 @@ namespace
 
 void CoSyncThrowableSync::Tick(double now)
 {
-    LOG_REQUIREMENT("CoSyncThrowableSync::Tick", "No special preconditions — just needs to be called on tick. Throttled to a fixed interval, and wrapped in a crash guard so a fault while scanning the cell is recovered from.");
     if (!kThrowableVisualsEnabled) return;   // in-flight visuals switched off
     if (!CoSyncNet::IsConnected()) return;
     if ((now - s_lastPoll) < kPollInterval) return;
@@ -701,7 +689,6 @@ void CoSyncThrowableSync::Tick(double now)
 
 bool CoSyncThrowableSync::IsStandInRef(uint32_t refFormID)
 {
-    LOG_REQUIREMENT("CoSyncThrowableSync::IsStandInRef", "Doesn't touch game state — just checks a local exemption list. Called from the activation hook on the game thread, the same thread that updates that list.");
     if (refFormID == 0) return false;
     // Deliberately ignores the grace expiry used by the detector: an expired
     // entry means "the engine may reuse this formID", but for as long as the
@@ -718,7 +705,6 @@ bool CoSyncThrowableSync::IsThrowableMsg(const std::string& msg)
 
 void CoSyncThrowableSync::OnReceiveThrowableMsg(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncThrowableSync::OnReceiveThrowableMsg", "Parses a string sent by a peer; every field gets validated and the result is just queued here — nothing touches the game until FlushPendingThrowables runs on the game thread.");
     if (!kThrowableVisualsEnabled) return;   // in-flight visuals switched off
     PendingOp op{};
 
@@ -785,7 +771,6 @@ namespace
     // CoSyncItemDropSync::ProcessDespawnOps_Impl uses for its clones.
     __declspec(noinline) void DeleteStandIn(uint32_t standInRefID)
     {
-        LOG_REQUIREMENT("(anon)::DeleteStandIn", "Needs the stand-in ID to resolve to a real world reference (type-checked before use). The actual removal is queued, not immediate, so the reference only needs to be valid at queue time.");
         if (standInRefID == 0) return;
 
         // Start the exemption's grace timer rather than dropping it now: the
@@ -849,7 +834,6 @@ namespace
                                                      uint32_t visualBaseFormID,
                                                      const NiPoint3& pos)
     {
-        LOG_REQUIREMENT("(anon)::SpawnStandIn", "Needs an already type-checked projectile. The peer-supplied visual form ID is looked up safely and only accepted if it's a harmless item type, so a bad packet can never place something that behaves unexpectedly. The caller wraps this in a crash guard.");
         if (!proj) return nullptr;
 
         TESForm* standInBase = nullptr;
@@ -895,7 +879,6 @@ namespace
 
     __declspec(noinline) void ApplyOps_Impl(const std::vector<PendingOp>& ops, double now)
     {
-        LOG_REQUIREMENT("CoSyncThrowableSync::ApplyOps_Impl", "Must run on the game thread. Every peer-supplied form ID is looked up safely, checked to be a real projectile, and re-checked with IsSyncableProjectile before anything gets placed. The caller wraps this in a crash guard.");
         for (const PendingOp& op : ops)
         {
             if (op.type == PendingOp::Kill)
@@ -1024,7 +1007,6 @@ namespace
     // 3-inches-at-a-time stutter.
     __declspec(noinline) void AdvanceStandIns_Impl(double now)
     {
-        LOG_REQUIREMENT("CoSyncThrowableSync::AdvanceStandIns_Impl", "Must run on the game thread. Looks up every stand-in fresh each frame instead of caching a pointer — a cell transition can free these references, and writing through a stale pointer would be a use-after-free. The caller wraps this in a crash guard.");
         for (auto it = s_remote.begin(); it != s_remote.end(); )
         {
             RemoteProjectile& r = it->second;
@@ -1107,7 +1089,6 @@ namespace
 
 void CoSyncThrowableSync::FlushPendingThrowables(double now)
 {
-    LOG_REQUIREMENT("CoSyncThrowableSync::FlushPendingThrowables", "Must run on the game thread since it spawns references and updates the scene. Empties the queue under the lock first, so the actual game work happens after the lock is released.");
     if (!kThrowableVisualsEnabled) return;   // in-flight visuals switched off
     std::vector<PendingOp> ops;
     {
@@ -1126,7 +1107,6 @@ namespace
 {
     __declspec(noinline) void Reset_Impl()
     {
-        LOG_REQUIREMENT("CoSyncThrowableSync::Reset_Impl", "Must run on the game thread. Queues a disable and delete for every stand-in that's still around. The caller wraps this in a crash guard.");
         for (auto& kv : s_remote)
             DeleteStandIn(kv.second.standInRefID);
     }
@@ -1149,7 +1129,6 @@ namespace
 
 void CoSyncThrowableSync::Reset()
 {
-    LOG_REQUIREMENT("CoSyncThrowableSync::Reset", "Call this on disconnect from the game thread. Stand-in cleanup is wrapped in a crash guard so a dead reference can't fault the disconnect path, and all tracking gets cleared afterward regardless.");
     {
         std::lock_guard<std::mutex> lk(s_mutex);
         s_pendingOps.clear();

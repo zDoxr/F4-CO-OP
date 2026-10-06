@@ -9,7 +9,6 @@
 
 #include "GameForms.h"
 #include "PapyrusVM.h"
-#include "CoSyncRequirementsLog.h"
 
 #include <atomic>
 #include <cstdint>
@@ -74,7 +73,6 @@ static void RelayCompleteAll(TESQuest* quest)
 static void __fastcall Detour_CompleteAllObjectives(
     VirtualMachine* vm, uint32_t stackID, TESQuest* quest)
 {
-    LOG_REQUIREMENT("Detour_CompleteAllObjectives", "Needs the hook to be pointing at the real start of the original function, not somewhere in the middle, for the passthrough call to be safe.");
     if (g_origCompleteAll)
         g_origCompleteAll(vm, stackID, quest);
     RelayCompleteAll(quest);
@@ -86,7 +84,6 @@ static void __fastcall Detour_CompleteAllObjectives(
 // same relay semantics.
 static void __fastcall Detour_CompleteAllBody(TESQuest* quest)
 {
-    LOG_REQUIREMENT("Detour_CompleteAllBody", "Needs the fallback hook to be pointing at the real start of the underlying function it targets.");
     if (g_origCompleteAllBody)
         g_origCompleteAllBody(quest);
     RelayCompleteAll(quest);
@@ -95,7 +92,6 @@ static void __fastcall Detour_CompleteAllBody(TESQuest* quest)
 static void __fastcall Detour_SetObjectiveCompleted(
     VirtualMachine* vm, uint32_t stackID, TESQuest* quest, int32_t idx, bool state)
 {
-    LOG_REQUIREMENT("Detour_SetObjectiveCompleted", "Needs the hook to be pointing at the real start of the original function, not somewhere in the middle, for the passthrough call to be safe.");
     if (g_origSetObjComplete)
         g_origSetObjComplete(vm, stackID, quest, idx, state);
 
@@ -115,7 +111,6 @@ static void __fastcall Detour_SetObjectiveCompleted(
 static void __fastcall Detour_SetObjectiveDisplayed(
     VirtualMachine* vm, uint32_t stackID, TESQuest* quest, int32_t idx, bool displayed, bool force)
 {
-    LOG_REQUIREMENT("Detour_SetObjectiveDisplayed", "Needs the hook to be pointing at the real start of the original function, not somewhere in the middle, for the passthrough call to be safe.");
     if (g_origSetObjDisplay)
         g_origSetObjDisplay(vm, stackID, quest, idx, displayed, force);
 
@@ -139,35 +134,30 @@ static void __fastcall Detour_SetObjectiveDisplayed(
 // handler is never registered and faults propagate out uncaught to the VEH.
 __declspec(noinline) static bool SafeCallOrigCompleteAll(VirtualMachine* vm, TESQuest* quest)
 {
-    LOG_REQUIREMENT("SafeCallOrigCompleteAll", "Needs the hook to already be installed. Guarded so a bad trampoline or quest pointer is caught safely instead of crashing.");
     __try { g_origCompleteAll(vm, 0, quest); return true; }
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
 __declspec(noinline) static bool SafeCallOrigSetObjComplete(VirtualMachine* vm, TESQuest* quest, int32_t idx, bool state)
 {
-    LOG_REQUIREMENT("SafeCallOrigSetObjComplete", "Needs the hook to already be installed. Guarded so a bad trampoline, quest pointer, or index is caught safely instead of crashing.");
     __try { g_origSetObjComplete(vm, 0, quest, idx, state); return true; }
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
 __declspec(noinline) static bool SafeCallOrigSetObjDisplay(VirtualMachine* vm, TESQuest* quest, int32_t idx, bool displayed, bool force)
 {
-    LOG_REQUIREMENT("SafeCallOrigSetObjDisplay", "Needs the hook to already be installed. Guarded so a bad trampoline, quest pointer, or index is caught safely instead of crashing.");
     __try { g_origSetObjDisplay(vm, 0, quest, idx, displayed, force); return true; }
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
 __declspec(noinline) static bool SafeCallOrigCompleteAllBody(TESQuest* quest)
 {
-    LOG_REQUIREMENT("SafeCallOrigCompleteAllBody", "Needs the fallback hook to already be installed. Guarded so a bad trampoline or quest pointer is caught safely instead of crashing.");
     __try { g_origCompleteAllBody(quest); return true; }
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
 bool CoSyncQuestObjectiveHook_ApplyCompleteAll(TESQuest* quest)
 {
-    LOG_REQUIREMENT("CoSyncQuestObjectiveHook_ApplyCompleteAll", "Needs a valid quest and one of the CompleteAll hooks to already be installed. The game's VM pointer might be null; that case is guarded against.");
     if (!quest) return false;
     bool ok = false;
     if (g_origCompleteAll)
@@ -185,7 +175,6 @@ bool CoSyncQuestObjectiveHook_ApplyCompleteAll(TESQuest* quest)
 
 bool CoSyncQuestObjectiveHook_ApplySetObjectiveCompleted(TESQuest* quest, int32_t idx, bool state)
 {
-    LOG_REQUIREMENT("CoSyncQuestObjectiveHook_ApplySetObjectiveCompleted", "Needs a valid quest and the hook to already be installed. The game's VM pointer might be null; that case is guarded against.");
     if (!g_origSetObjComplete || !quest) return false;
     VirtualMachine* vm = (*g_gameVM) ? (*g_gameVM)->m_virtualMachine : nullptr;
     const bool ok = SafeCallOrigSetObjComplete(vm, quest, idx, state);
@@ -195,7 +184,6 @@ bool CoSyncQuestObjectiveHook_ApplySetObjectiveCompleted(TESQuest* quest, int32_
 
 bool CoSyncQuestObjectiveHook_ApplySetObjectiveDisplayed(TESQuest* quest, int32_t idx, bool displayed, bool force)
 {
-    LOG_REQUIREMENT("CoSyncQuestObjectiveHook_ApplySetObjectiveDisplayed", "Needs a valid quest and the hook to already be installed. The game's VM pointer might be null; that case is guarded against.");
     if (!g_origSetObjDisplay || !quest) return false;
     VirtualMachine* vm = (*g_gameVM) ? (*g_gameVM)->m_virtualMachine : nullptr;
     const bool ok = SafeCallOrigSetObjDisplay(vm, quest, idx, displayed, force);
@@ -205,7 +193,6 @@ bool CoSyncQuestObjectiveHook_ApplySetObjectiveDisplayed(TESQuest* quest, int32_
 
 void InstallQuestObjectiveHooks()
 {
-    LOG_REQUIREMENT("InstallQuestObjectiveHooks", "Must not already be installed. The hardcoded game addresses need to point at real function starts for this game build, and the module base address needs to resolve correctly.");
     if (g_hooksInstalled.exchange(true)) return;
 
     const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandle(NULL));
@@ -298,7 +285,6 @@ void InstallQuestObjectiveHooks()
 
 void UninstallQuestObjectiveHooks()
 {
-    LOG_REQUIREMENT("UninstallQuestObjectiveHooks", "Needs the hooks to currently be installed, and the module base address to match what it was at install time.");
     if (!g_hooksInstalled.exchange(false)) return;
 
     const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandle(NULL));

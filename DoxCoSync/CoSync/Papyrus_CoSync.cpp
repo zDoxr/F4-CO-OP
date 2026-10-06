@@ -28,7 +28,6 @@
 #include "CoSyncCompanionSync.h"
 #include "CoSyncPapyrusHelper.h"
 #include "GameRTTI.h"
-#include "CoSyncRequirementsLog.h"
 
 #include <cmath>
 #include <cstdio>
@@ -38,7 +37,6 @@ using PapyrusActionType = TESForm*;
 
 static SInt32 CoSync_GetClientInstanceID(StaticFunctionTag*)
 {
-    LOG_REQUIREMENT("CoSync_GetClientInstanceID", "Doesn't touch the game — just a placeholder that always returns 0.");
 
     return 0;
 
@@ -47,13 +45,11 @@ static SInt32 CoSync_GetClientInstanceID(StaticFunctionTag*)
 
 static void CoSync_SetClient(StaticFunctionTag*, SInt32 instanceID)
 {
-    LOG_REQUIREMENT("CoSync_SetClient", "Doesn't touch the game — just a placeholder that takes an instance ID with no checks.");
     Console_Print("[CoSync] SetClient(%d) (stub)", instanceID);
 }
 
 static bool CoSync_IsConnected(StaticFunctionTag*)
 {
-    LOG_REQUIREMENT("CoSync_IsConnected", "Just hands off to CoSyncNet::IsConnected() with no extra checks of its own.");
     const bool connected = CoSyncNet::IsConnected();
     Console_Print("[CoSync] IsConnected() -> %s", connected ? "true" : "false");
     LOG_DEBUG("[Papy-CoSync] IsConnected() -> %s", connected ? "true" : "false");
@@ -68,7 +64,6 @@ static bool CoSync_Connect(
     SInt32 port)
 
 {
-    LOG_REQUIREMENT("CoSync_Connect", "Doesn't touch the game — just a placeholder that always returns false. Its arguments are accepted but not used.");
     Console_Print("[CoSync] Connect(player=%p base=%p addr=%s port=%d) -> false (stub)",
         player, playerActorBase, address.c_str(), port);
 
@@ -79,7 +74,6 @@ static bool CoSync_Connect(
 
 static bool CoSync_Disconnect(StaticFunctionTag*)
 {
-    LOG_REQUIREMENT("CoSync_Disconnect", "Doesn't touch the game — just a placeholder that always returns true.");
 
     Console_Print("[CoSync] Disconnect() -> true (stub)");
     return true;
@@ -87,20 +81,17 @@ static bool CoSync_Disconnect(StaticFunctionTag*)
 
 static void CoSync_Tick(StaticFunctionTag*)
 {
-    LOG_REQUIREMENT("CoSync_Tick", "Doesn't touch the game — the function body is empty.");
 
 
 }
 
 static void CoSync_SyncWorld(StaticFunctionTag*)
 {
-    LOG_REQUIREMENT("CoSync_SyncWorld", "Doesn't touch the game — just a placeholder.");
     Console_Print("[CoSync] SyncWorld() (stub)");
 }
 
 static SInt32 CoSync_GetPlayerEntityID(StaticFunctionTag*)
 {
-    LOG_REQUIREMENT("CoSync_GetPlayerEntityID", "Just hands off to CoSyncNet::GetMyEntityID() with no extra checks of its own.");
     const SInt32 entityID = static_cast<SInt32>(CoSyncNet::GetMyEntityID());
     LOG_DEBUG("[Papy-CoSync] GetPlayerEntityID() -> %d", entityID);
     return entityID;
@@ -108,20 +99,17 @@ static SInt32 CoSync_GetPlayerEntityID(StaticFunctionTag*)
 
 static SInt32 CoSync_GetEntityID(StaticFunctionTag*, TESObjectREFR* ref)
 {
-    LOG_REQUIREMENT("CoSync_GetEntityID", "Doesn't touch the game — just a placeholder that always returns -1. Its reference argument is accepted but not used.");
     Console_Print("[CoSync] GetEntityID(ref=%p) -> -1 (stub)", ref);
     return -1;
 }
 
 static void CoSync_SetEntityRef(StaticFunctionTag*, SInt32 entityID, TESObjectREFR* ref)
 {
-    LOG_REQUIREMENT("CoSync_SetEntityRef", "Doesn't touch the game — just a placeholder. Its reference argument is accepted but not used or stored.");
     Console_Print("[CoSync] SetEntityRef(id=%d ref=%p) (stub)", entityID, ref);
 }
 
 static bool CoSync_IsEntityValid(StaticFunctionTag*, SInt32 entityID)
 {
-    LOG_REQUIREMENT("CoSync_IsEntityValid", "Doesn't touch the game — just checks that the entity ID is zero or greater.");
     const bool ok = (entityID >= 0);
     Console_Print("[CoSync] IsEntityValid(%d) -> %s (stub)", entityID, ok ? "true" : "false");
     return ok;
@@ -129,7 +117,6 @@ static bool CoSync_IsEntityValid(StaticFunctionTag*, SInt32 entityID)
 
 static VMArray<float> CoSync_GetEntityPosition(StaticFunctionTag*, SInt32 entityID)
 {
-    LOG_REQUIREMENT("CoSync_GetEntityPosition", "Doesn't touch the game — just a placeholder that always returns [0,0,0].");
     Console_Print("[CoSync] GetEntityPosition(%d) -> [0,0,0] (stub)", entityID);
 
     VMArray<float> arr;
@@ -142,39 +129,33 @@ static VMArray<float> CoSync_GetEntityPosition(StaticFunctionTag*, SInt32 entity
 
 static void CoSync_SetEntityPosition(StaticFunctionTag*, SInt32 entityID, float x, float y, float z)
 {
-    LOG_REQUIREMENT("CoSync_SetEntityPosition", "Doesn't touch the game — just a placeholder. Its arguments are accepted but never applied to anything.");
     Console_Print("[CoSync] SetEntityPosition(id=%d x=%.3f y=%.3f z=%.3f) (stub)", entityID, x, y, z);
 }
 
 static void CoSync_SetEntVarNum(StaticFunctionTag*, SInt32 entityID, BSFixedString name, float value)
 {
-    LOG_REQUIREMENT("CoSync_SetEntVarNum", "Doesn't touch the game — just a placeholder that prints its name argument, so that argument needs to be a valid string.");
     Console_Print("[CoSync] SetEntVarNum(id=%d name=%s val=%.3f) (stub)", entityID, name.c_str(), value);
 }
 
 static void CoSync_SetEntVarAnim(StaticFunctionTag*, SInt32 entityID, BSFixedString animState)
 {
-    LOG_REQUIREMENT("CoSync_SetEntVarAnim", "Doesn't touch the game — just a placeholder that prints its animation-state argument, so that argument needs to be a valid string.");
     Console_Print("[CoSync] SetEntVarAnim(id=%d anim=%s) (stub)", entityID, animState.c_str());
 }
 
 static float CoSync_GetEntVarNum(StaticFunctionTag*, SInt32 entityID, BSFixedString name)
 {
-    LOG_REQUIREMENT("CoSync_GetEntVarNum", "Doesn't touch the game — a placeholder that always returns 0 and prints its name argument, so that argument needs to be a valid string.");
     Console_Print("[CoSync] GetEntVarNum(id=%d name=%s) -> 0 (stub)", entityID, name.c_str());
     return 0.0f;
 }
 
 static BSFixedString CoSync_GetEntVarAnim(StaticFunctionTag*, SInt32 entityID)
 {
-    LOG_REQUIREMENT("CoSync_GetEntVarAnim", "Doesn't touch the game — just a placeholder that always returns an empty string.");
     Console_Print("[CoSync] GetEntVarAnim(id=%d) -> \"\" (stub)", entityID);
     return BSFixedString("");
 }
 
 static VMArray<TESObjectREFR*> CoSync_GetRefsInCell(StaticFunctionTag*, TESObjectCELL* cell)
 {
-    LOG_REQUIREMENT("CoSync_GetRefsInCell", "Doesn't touch the game — a placeholder that always returns an empty list. Its cell argument is accepted but not used.");
     Console_Print("[CoSync] GetRefsInCell(cell=%p) -> [] (stub)", cell);
 
     VMArray<TESObjectREFR*> arr;
@@ -183,7 +164,6 @@ static VMArray<TESObjectREFR*> CoSync_GetRefsInCell(StaticFunctionTag*, TESObjec
 
 static float CoSync_Atan2(StaticFunctionTag*, float y, float x)
 {
-    LOG_REQUIREMENT("CoSync_Atan2", "Doesn't touch the game — just needs valid numbers to pass to the math library's atan2.");
     const float r = atan2f(y, x);
 
     return r;
@@ -191,7 +171,6 @@ static float CoSync_Atan2(StaticFunctionTag*, float y, float x)
 
 static BSFixedString CoSync_GetWalkDir(StaticFunctionTag*, float dX, float dY, float angleZ)
 {
-    LOG_REQUIREMENT("CoSync_GetWalkDir", "Doesn't touch the game — just a placeholder that always returns an empty string.");
 
     (void)dX; (void)dY; (void)angleZ;
     Console_Print("[CoSync] GetWalkDir(dx=%.3f dy=%.3f ang=%.3f) -> \"\" (stub)", dX, dY, angleZ);
@@ -200,7 +179,6 @@ static BSFixedString CoSync_GetWalkDir(StaticFunctionTag*, float dX, float dY, f
 
 static PapyrusActionType CoSync_GetAction(StaticFunctionTag*, BSFixedString name)
 {
-    LOG_REQUIREMENT("CoSync_GetAction", "Doesn't touch the game — a placeholder that always returns nothing and prints its name argument, so that argument needs to be a valid string.");
 
     Console_Print("[CoSync] GetAction(%s) -> None (stub)", name.c_str());
     return nullptr;
@@ -208,50 +186,42 @@ static PapyrusActionType CoSync_GetAction(StaticFunctionTag*, BSFixedString name
 
 static void CoSync_Inspect(StaticFunctionTag*, VMArray<TESForm*> forms)
 {
-    LOG_REQUIREMENT("CoSync_Inspect", "Doesn't touch the game — just reads how many forms were passed in, without looking at any of them.");
     Console_Print("[CoSync] Inspect(forms=%u) (stub)", forms.Length());
 }
 
 static bool CoSync_AnimLoops(StaticFunctionTag*, BSFixedString animState)
 {
-    LOG_REQUIREMENT("CoSync_AnimLoops", "Doesn't touch the game — a placeholder that always returns false and prints its animation-state argument, so that argument needs to be a valid string.");
     Console_Print("[CoSync] AnimLoops(%s) -> false (stub)", animState.c_str());
     return false;
 }
 
 static void CoSync_CopyAppearance(StaticFunctionTag*, TESNPC* src, TESNPC* dest)
 {
-    LOG_REQUIREMENT("CoSync_CopyAppearance", "Doesn't touch the game — just a placeholder. Its source/destination arguments are accepted but not used.");
     Console_Print("[CoSync] CopyAppearance(src=%p dest=%p) (stub)", src, dest);
 }
 
 static void CoSync_CopyWornItems(StaticFunctionTag*, Actor* src, Actor* dest)
 {
-    LOG_REQUIREMENT("CoSync_CopyWornItems", "Doesn't touch the game — just a placeholder. Its source/destination arguments are accepted but not used.");
     Console_Print("[CoSync] CopyWornItems(src=%p dest=%p) (stub)", src, dest);
 }
 
 static void CoSync_PlayerHit(StaticFunctionTag*, SInt32 hitter, SInt32 hittee, float damage)
 {
-    LOG_REQUIREMENT("CoSync_PlayerHit", "Doesn't touch the game — just a placeholder.");
     Console_Print("[CoSync] PlayerHit(hitter=%d hittee=%d dmg=%.3f) (stub)", hitter, hittee, damage);
 }
 
 static void CoSync_PlayerFireWeapon(StaticFunctionTag*)
 {
-    LOG_REQUIREMENT("CoSync_PlayerFireWeapon", "Doesn't touch the game — just a placeholder.");
     Console_Print("[CoSync] PlayerFireWeapon() (stub)");
 }
 
 static void CoSync_TopicInfoBegin(StaticFunctionTag*, TESForm* info, TESObjectREFR* speaker)
 {
-    LOG_REQUIREMENT("CoSync_TopicInfoBegin", "Doesn't touch the game — just a placeholder. Its info/speaker arguments are accepted but not used.");
     Console_Print("[CoSync] TopicInfoBegin(info=%p speaker=%p) (stub)", info, speaker);
 }
 
 static VMArray<TESObjectREFR*> CoSync_GetEntitySyncRefs(StaticFunctionTag*, bool clear)
 {
-    LOG_REQUIREMENT("CoSync_GetEntitySyncRefs", "Doesn't touch the game — just a placeholder that always returns an empty list.");
     Console_Print("[CoSync] GetEntitySyncRefs(clear=%s) -> [] (stub)", clear ? "true" : "false");
     VMArray<TESObjectREFR*> arr;
     return arr;
@@ -259,7 +229,6 @@ static VMArray<TESObjectREFR*> CoSync_GetEntitySyncRefs(StaticFunctionTag*, bool
 
 static VMArray<float> CoSync_GetEntitySyncTransforms(StaticFunctionTag*, bool clear)
 {
-    LOG_REQUIREMENT("CoSync_GetEntitySyncTransforms", "Doesn't touch the game — just a placeholder that always returns an empty list.");
     Console_Print("[CoSync] GetEntitySyncTransforms(clear=%s) -> [] (stub)", clear ? "true" : "false");
     VMArray<float> arr;
     return arr;
@@ -267,21 +236,18 @@ static VMArray<float> CoSync_GetEntitySyncTransforms(StaticFunctionTag*, bool cl
 
 static bool CoSync_SpawnNpc(StaticFunctionTag*, TESObjectREFR* ref)
 {
-    LOG_REQUIREMENT("CoSync_SpawnNpc", "Doesn't touch the game — a placeholder that always returns false. Its reference argument is accepted but not used.");
     Console_Print("[CoSync] SpawnNpc(ref=%p) -> false (stub)", ref);
     return false;
 }
 
 static VMArray<SInt32> CoSync_GetAllEntityIDs(StaticFunctionTag*)
 {
-    LOG_REQUIREMENT("CoSync_GetAllEntityIDs", "Doesn't touch the game — just a placeholder that always returns an empty list.");
     VMArray<SInt32> arr;
     return arr;
 }
 
 static TESObjectREFR* CoSync_GetActorByEntityID(StaticFunctionTag*, SInt32 entityID)
 {
-    LOG_REQUIREMENT("CoSync_GetActorByEntityID", "Needs a valid entity ID (zero or greater, checked) and the entity registry to have an entry for it. Returns nothing otherwise.");
     CoSyncThreadDiag::Note(CoSyncThreadDiag::kPapyrusGetActor);
     if (entityID < 0)
         return nullptr;
@@ -294,7 +260,6 @@ static TESObjectREFR* CoSync_GetActorByEntityID(StaticFunctionTag*, SInt32 entit
 
 static SInt32 CoSync_GetEntityIDForActor(StaticFunctionTag*, TESObjectREFR* akRef)
 {
-    LOG_REQUIREMENT("CoSync_GetEntityIDForActor", "Needs a non-null reference that can be cast to an actor.");
     if (!akRef)
         return -1;
 
@@ -319,7 +284,6 @@ static SInt32 CoSync_GetEntityIDForActor(StaticFunctionTag*, TESObjectREFR* akRe
 
 static SInt32 CoSync_GetPendingWeatherFormID(StaticFunctionTag*)
 {
-    LOG_REQUIREMENT("CoSync_GetPendingWeatherFormID", "Just hands off to CoSyncTimeSync::GetLockedWeatherFormID() with no extra checks of its own.");
     const uint32_t formID = CoSyncTimeSync::GetLockedWeatherFormID();
     LOG_DEBUG("[Papy-CoSync] GetPendingWeatherFormID() -> 0x%08X", formID);
     return static_cast<SInt32>(formID);
@@ -327,7 +291,6 @@ static SInt32 CoSync_GetPendingWeatherFormID(StaticFunctionTag*)
 
 static bool CoSync_IsDoor(StaticFunctionTag*, TESObjectREFR* akRef)
 {
-    LOG_REQUIREMENT("CoSync_IsDoor", "Needs a non-null reference with a non-null base form, both checked, before reading its form type.");
     if (!akRef || !akRef->baseForm)
         return false;
 
@@ -337,7 +300,6 @@ static bool CoSync_IsDoor(StaticFunctionTag*, TESObjectREFR* akRef)
 
 static void CoSync_NotifyActivate(StaticFunctionTag*, TESObjectREFR* akRef, SInt32 aiOpenState)
 {
-    LOG_REQUIREMENT("CoSync_NotifyActivate", "Needs a non-null reference, and needs networking to already be set up for the send to actually go anywhere.");
     if (!akRef)
     {
         LOG_WARN("[Papy-CoSync] NotifyActivate: null ref");
@@ -357,19 +319,16 @@ static void CoSync_NotifyActivate(StaticFunctionTag*, TESObjectREFR* akRef, SInt
 
 static bool CoSync_IsHost(StaticFunctionTag*)
 {
-    LOG_REQUIREMENT("CoSync_IsHost", "Just hands off to CoSyncNet::IsHost() with no extra checks of its own.");
     return CoSyncNet::IsHost();
 }
 
 static void CoSync_NotifyWeatherChanged(StaticFunctionTag*, TESForm* )
 {
-    LOG_REQUIREMENT("CoSync_NotifyWeatherChanged", "Doesn't touch the game — intentionally does nothing now that the C++ side handles weather. Its argument is accepted but not used.");
     LOG_DEBUG("[Papy-CoSync] NotifyWeatherChanged called (C++ handles weather now)");
 }
 
 static void CoSync_NotifyWorkshopBuild(StaticFunctionTag*, TESObjectREFR* akWorkshop, TESObjectREFR* akPlaced)
 {
-    LOG_REQUIREMENT("CoSync_NotifyWorkshopBuild", "Needs to be running as host, and needs the placed item to have a resolved base form, both checked, before telling CoSyncWorldSync about it.");
     if (!CoSyncNet::IsHost())
         return;
     if (!akPlaced || !akPlaced->baseForm)
@@ -415,7 +374,6 @@ static void CoSync_NotifyWorkshopBuild(StaticFunctionTag*, TESObjectREFR* akWork
 
 static void CoSync_NotifyWorkshopDestroy(StaticFunctionTag*, TESObjectREFR* akWorkshop, TESObjectREFR* akScrapped)
 {
-    LOG_REQUIREMENT("CoSync_NotifyWorkshopDestroy", "Needs to be running as host, and needs both the workshop and the scrapped item to have valid form IDs, all checked, before telling CoSyncWorkshopSync about it.");
     if (!CoSyncNet::IsHost())
         return;
     uint32_t workshopFormID  = akWorkshop  ? akWorkshop->formID  : 0;
@@ -428,14 +386,12 @@ static void CoSync_NotifyWorkshopDestroy(StaticFunctionTag*, TESObjectREFR* akWo
 
 static void CoSync_NotifyWorkshopPower(StaticFunctionTag*, TESObjectREFR* , bool )
 {
-    LOG_REQUIREMENT("CoSync_NotifyWorkshopPower", "Doesn't touch the game — just a placeholder. Both arguments are accepted but not used.");
 
     LOG_DEBUG("[Papy-CoSync] NotifyWorkshopPower (stub)");
 }
 
 static void CoSync_NotifyWorkshopMode(StaticFunctionTag*, TESObjectREFR* akWorkshop, bool isEntering)
 {
-    LOG_REQUIREMENT("CoSync_NotifyWorkshopMode", "Safe to call with a null workshop reference — that's checked. Needs networking and CoSyncWorkshopSync to already be set up for the notification to matter.");
 
     uint32_t workshopFormID = akWorkshop ? akWorkshop->formID : 0;
     CoSyncWorkshopSync::NotifyWorkshopMode(workshopFormID, CoSyncNet::GetMyEntityID(), isEntering);
@@ -525,7 +481,6 @@ static void CoSync_NotifyPowerArmor(
     TESObjectREFR*  akPowerArmor,
     bool            abEntering)
 {
-    LOG_REQUIREMENT("CoSync_NotifyPowerArmor", "Needs a non-null actor and power armor reference, both checked, and needs the armor's base form to resolve to a valid form ID, or this stops early.");
     if (!akActor || !akPowerArmor)
     {
         LOG_WARN("[Papy-CoSync] NotifyPowerArmor: null args");
@@ -579,7 +534,6 @@ static void CoSync_NotifyPowerArmor(
 
 static void CoSync_NotifyPipboyOpen(StaticFunctionTag*, bool abOpening)
 {
-    LOG_REQUIREMENT("CoSync_NotifyPipboyOpen", "Needs networking to already be set up for the send to reach anyone. Not checked here directly.");
     const uint32_t entityID = CoSyncNet::GetMyEntityID();
 
     char buf[32];
@@ -591,7 +545,6 @@ static void CoSync_NotifyPipboyOpen(StaticFunctionTag*, bool abOpening)
 
 static void CoSync_NotifyConsumableUsed(StaticFunctionTag*, TESForm* akItem)
 {
-    LOG_REQUIREMENT("CoSync_NotifyConsumableUsed", "Needs a non-null item, checked, and needs networking to already be set up for the send to reach anyone.");
     if (!akItem)
     {
         LOG_WARN("[Papy-CoSync] NotifyConsumableUsed: null item");
@@ -608,7 +561,6 @@ static void CoSync_NotifyConsumableUsed(StaticFunctionTag*, TESForm* akItem)
 
 static void CoSync_NotifySpellApplied(StaticFunctionTag*, TESForm* akSpell)
 {
-    LOG_REQUIREMENT("CoSync_NotifySpellApplied", "Needs a non-null spell, checked, and needs networking to already be set up for the send to reach anyone.");
     if (!akSpell)
         return;
 
@@ -622,7 +574,6 @@ static void CoSync_NotifySpellApplied(StaticFunctionTag*, TESForm* akSpell)
 
 static void CoSync_NotifyMapMarkerDiscovered(StaticFunctionTag*, TESObjectREFR* akMarker)
 {
-    LOG_REQUIREMENT("CoSync_NotifyMapMarkerDiscovered", "Needs a non-null marker, checked, before reading its form ID and telling CoSyncMapSync about it.");
     if (!akMarker)
     {
         LOG_WARN("[Papy-CoSync] NotifyMapMarkerDiscovered: null marker");
@@ -633,7 +584,6 @@ static void CoSync_NotifyMapMarkerDiscovered(StaticFunctionTag*, TESObjectREFR* 
 
 static void CoSync_NotifyQuestStage(StaticFunctionTag*, TESQuest* akQuest, SInt32 aiStage)
 {
-    LOG_REQUIREMENT("CoSync_NotifyQuestStage", "Needs a non-null quest, checked, before reading its form ID and telling CoSyncQuestSync about it.");
     if (!akQuest)
     {
         LOG_WARN("[Papy-CoSync] NotifyQuestStage: null quest");
@@ -649,7 +599,6 @@ static void CoSync_NotifyQuestStage(StaticFunctionTag*, TESQuest* akQuest, SInt3
 
 static void CoSync_NotifyQuestStart(StaticFunctionTag*, TESQuest* akQuest)
 {
-    LOG_REQUIREMENT("CoSync_NotifyQuestStart", "Needs a non-null quest, checked, before reading its form ID and telling CoSyncQuestSync about it.");
     if (!akQuest)
     {
         LOG_WARN("[Papy-CoSync] NotifyQuestStart: null quest");
@@ -661,7 +610,6 @@ static void CoSync_NotifyQuestStart(StaticFunctionTag*, TESQuest* akQuest)
 
 static void CoSync_NotifyQuestDone(StaticFunctionTag*, TESQuest* akQuest)
 {
-    LOG_REQUIREMENT("CoSync_NotifyQuestDone", "Needs a non-null quest, checked, before reading its form ID and telling CoSyncQuestSync about it.");
     if (!akQuest)
     {
         LOG_WARN("[Papy-CoSync] NotifyQuestDone: null quest");
@@ -673,7 +621,6 @@ static void CoSync_NotifyQuestDone(StaticFunctionTag*, TESQuest* akQuest)
 
 static void CoSync_NotifyCompanionRecruited(StaticFunctionTag*, Actor* akCompanion)
 {
-    LOG_REQUIREMENT("CoSync_NotifyCompanionRecruited", "Needs a non-null companion with a non-null base form, both checked. Skips if the actor is already in the entity registry.");
     if (!akCompanion || !akCompanion->baseForm)
     {
         LOG_UPDATED_WARN("[Papy-CoSync] NotifyCompanionRecruited: null actor or baseForm");
@@ -711,7 +658,6 @@ static void CoSync_NotifyCompanionRecruited(StaticFunctionTag*, Actor* akCompani
 
 static void CoSync_NotifyCompanionDismissed(StaticFunctionTag*, Actor* akCompanion)
 {
-    LOG_REQUIREMENT("CoSync_NotifyCompanionDismissed", "Needs a non-null companion, checked, and needs the actor to already be in the entity registry, or this is ignored.");
     if (!akCompanion)
     {
         LOG_UPDATED_WARN("[Papy-CoSync] NotifyCompanionDismissed: null actor");
@@ -731,7 +677,6 @@ static void CoSync_NotifyCompanionDismissed(StaticFunctionTag*, Actor* akCompani
 static void CoSync_SendModEvent(StaticFunctionTag*,
     BSFixedString modID, BSFixedString eventName, BSFixedString payload)
 {
-    LOG_REQUIREMENT("CoSync_SendModEvent", "Needs a valid mod ID and event name string, both checked. The payload string can be empty — that's handled separately.");
     if (!modID.c_str() || !eventName.c_str())
         return;
 
@@ -743,7 +688,6 @@ static void CoSync_SendModEvent(StaticFunctionTag*,
 
 static bool CoSync_HasModEvent(StaticFunctionTag*, BSFixedString modID)
 {
-    LOG_REQUIREMENT("CoSync_HasModEvent", "Needs a valid mod ID string, checked, before asking CoSyncModEventBus about it.");
     if (!modID.c_str())
         return false;
     return CoSyncModEventBus::HasPendingEvent(std::string(modID.c_str()));
@@ -751,7 +695,6 @@ static bool CoSync_HasModEvent(StaticFunctionTag*, BSFixedString modID)
 
 static VMArray<BSFixedString> CoSync_PollModEvent(StaticFunctionTag*, BSFixedString modID)
 {
-    LOG_REQUIREMENT("CoSync_PollModEvent", "Needs a valid mod ID string, checked, before pulling an event from CoSyncModEventBus. Returns an empty list if nothing is pending.");
     VMArray<BSFixedString> result;
     if (!modID.c_str())
         return result;
@@ -769,7 +712,6 @@ static VMArray<BSFixedString> CoSync_PollModEvent(StaticFunctionTag*, BSFixedStr
 
 bool RegisterCoSyncPapyrus(VirtualMachine* vm)
 {
-    LOG_REQUIREMENT("RegisterCoSyncPapyrus", "Needs a non-null VM, checked. Must be called once when the plugin loads, before any CoSync script function can be called.");
     if (!vm)
         return false;
 

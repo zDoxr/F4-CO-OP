@@ -1,6 +1,5 @@
 #include "CoSyncHealthSync.h"
 
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncPlayer.h"
@@ -37,7 +36,6 @@ static constexpr uint32_t kHealthAVI_FormID = 0x0002D4;
 
 static ActorValueInfo* GetHealthAVI()
 {
-    LOG_REQUIREMENT("CoSyncHealthSync::GetHealthAVI", "Needs the game to have finished loading so it can look up the Health stat definition.");
     static ActorValueInfo* s_avi = nullptr;
     if (!s_avi)
     {
@@ -80,7 +78,6 @@ __declspec(noinline) static ActorValueInfo* ResolveRadsAVI_Impl()
 
 static ActorValueInfo* GetRadsAVI()
 {
-    LOG_REQUIREMENT("CoSyncHealthSync::GetRadsAVI", "Needs the game's data handler to be ready. Looks up the Radiation stat once and remembers the result so it doesn't have to search again.");
     static ActorValueInfo* s_avi = nullptr;
     static bool            s_tried = false;
     if (!s_tried)
@@ -100,26 +97,22 @@ ActorValueInfo* CoSyncHealthSync::GetRadsActorValue() { return GetRadsAVI(); }
 
 bool CoSyncHealthSync::IsHP(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncHealthSync::IsHP", "Just checks the text of a message. No game state needed.");
     return msg.size() > 3 && msg[0] == 'H' && msg[1] == 'P' && msg[2] == '|';
 }
 
 bool CoSyncHealthSync::IsKill(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncHealthSync::IsKill", "Just checks the text of a message. No game state needed.");
     return msg.rfind("KILL|", 0) == 0;
 }
 
 bool CoSyncHealthSync::IsDmg(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncHealthSync::IsDmg", "Just checks the text of a message. No game state needed.");
     return msg.rfind("DMG|", 0) == 0;
 }
 
 std::string CoSyncHealthSync::SerializeHP(uint32_t entityID, float current, float maxHP, uint32_t level, float rads,
                                           float ap, float apMax)
 {
-    LOG_REQUIREMENT("CoSyncHealthSync::SerializeHP", "Just turns health numbers into text. Doesn't touch the game at all.");
     std::ostringstream ss;
     ss << "HP|" << entityID << "|" << current << "|" << maxHP;
     // rads rides on the optional level field: the player path always sends
@@ -143,7 +136,6 @@ std::string CoSyncHealthSync::SerializeHP(uint32_t entityID, float current, floa
 
 std::string CoSyncHealthSync::SerializeKill(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncHealthSync::SerializeKill", "Just turns a player ID into text. Doesn't touch the game at all.");
     std::ostringstream ss;
     ss << "KILL|" << entityID;
     return ss.str();
@@ -151,7 +143,6 @@ std::string CoSyncHealthSync::SerializeKill(uint32_t entityID)
 
 std::string CoSyncHealthSync::SerializeDmg(uint32_t entityID, float amount, uint32_t attackerEid)
 {
-    LOG_REQUIREMENT("CoSyncHealthSync::SerializeDmg", "Just turns a damage amount into text. Doesn't touch the game at all.");
     std::ostringstream ss;
     ss << "DMG|" << entityID << "|" << amount;
     if (attackerEid != 0)
@@ -198,7 +189,6 @@ static std::unordered_map<uint32_t, float> s_lastSeenHP;
 
 void CoSyncHealthSync::OnReceiveHP(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncHealthSync::OnReceiveHP", "Reads a health update out of text. A badly formed message is safely rejected, not crashed on.");
 
     if (!IsHP(msg))
         return;
@@ -265,7 +255,6 @@ void CoSyncHealthSync::OnReceiveHP(const std::string& msg)
 
 void CoSyncHealthSync::OnReceiveKill(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncHealthSync::OnReceiveKill", "Reads a kill notice out of text. Needs a real player ID in the message.");
 
     if (!IsKill(msg))
         return;
@@ -299,7 +288,6 @@ void CoSyncHealthSync::OnReceiveKill(const std::string& msg)
 
 void CoSyncHealthSync::OnReceiveDmg(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncHealthSync::OnReceiveDmg", "Reads a damage update out of text; a badly formed message is safely rejected. Only queues it -- the actual damage is applied later on the main game thread.");
 
     if (!IsDmg(msg))
         return;
@@ -368,7 +356,6 @@ static uint32_t EntityOfActorFormID(uint32_t formID)
 // and CallFunctionNoWait is async + safe from the game thread.
 static void ApplyDamageValue(Actor* actor, float amount)
 {
-    LOG_REQUIREMENT("CoSyncHealthSync::ApplyDamageValue", "Needs a real, alive character -- the actual player or a normal NPC, not one of this mod's stand-in characters -- plus the Health stat to be available.");
     ActorValueInfo* healthAVI = GetHealthAVI();
     if (!actor || !healthAVI)
         return;
@@ -387,7 +374,6 @@ static void ApplyDamageValue(Actor* actor, float amount)
 
 void CoSyncHealthSync::FlushPendingHealthOps()
 {
-    LOG_REQUIREMENT("CoSyncHealthSync::FlushPendingHealthOps", "Needs the Health stat to be available, and checks each queued update's stand-in character is actually spawned before touching it. Updates aimed at the local player need a valid player too.");
     std::vector<HealthOp> ops;
     {
         std::lock_guard<std::mutex> lk(s_opMutex);
@@ -679,7 +665,6 @@ void CoSyncHealthSync::FlushPendingHealthOps()
 
 void CoSyncHealthSync::TickDamageDetection(double now)
 {
-    LOG_REQUIREMENT("CoSyncHealthSync::TickDamageDetection", "Needs an active connection. Reads each character's health safely, and if a read ever fails for one, that character is skipped from then on instead of risking another crash. Must run on the main game thread.");
 
     static double s_lastTick = 0.0;
     static constexpr double kDetectInterval = 0.15;
@@ -835,7 +820,6 @@ static void ResetCorpses();   // corpse section below
 
 void CoSyncHealthSync::Reset()
 {
-    LOG_REQUIREMENT("CoSyncHealthSync::Reset", "Just clears some internal lists. Doesn't touch the game at all.");
     {
         std::lock_guard<std::mutex> lk(s_opMutex);
         s_pendingOps.clear();

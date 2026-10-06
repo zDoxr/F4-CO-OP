@@ -4,7 +4,6 @@
 #include "CoSyncPuppetAuthority.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncEntityRegistry.h"
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 #include "GameObjects.h"
 #include "GameForms.h"
@@ -37,7 +36,6 @@ extern RelocPtr<PlayerCharacter*> g_player;
 
 static double NowSeconds()
 {
-    LOG_REQUIREMENT("CoSyncPlayer::NowSeconds", "Just reads the system clock. No game state needed -- Windows always provides a working timer.");
     LARGE_INTEGER f{}, c{};
     QueryPerformanceFrequency(&f);
     QueryPerformanceCounter(&c);
@@ -53,14 +51,12 @@ static constexpr float kParkedProxyDepth = 30000.0f;
 
 static bool PSC_SendAnimEvent(Actor* actor, const char* eventName)
 {
-    LOG_REQUIREMENT("CoSyncPlayer::PSC_SendAnimEvent", "Needs a fully spawned actor with a ready animation graph. This function does not check that itself -- the caller (TickAnimVars) already makes sure the graph is ready first.");
 
     return CoSyncAnimUtils::SendEvent(actor, eventName);
 }
 
 static NiPoint3 Lerp(const NiPoint3& a, const NiPoint3& b, double t)
 {
-    LOG_REQUIREMENT("CoSyncPlayer::Lerp", "Simple math helper for blending two points together. No game state involved, just needs valid point values.");
     return NiPoint3{
         a.x + float((b.x - a.x) * t),
         a.y + float((b.y - a.y) * t),
@@ -71,12 +67,10 @@ static NiPoint3 Lerp(const NiPoint3& a, const NiPoint3& b, double t)
 CoSyncPlayer::CoSyncPlayer(const std::string& name)
     : username(name)
 {
-    LOG_REQUIREMENT("CoSyncPlayer::CoSyncPlayer", "Just sets up the object's starting values from the name it is given. No game state involved.");
 }
 
 bool CoSyncPlayer::SpawnInWorld(TESObjectREFR* anchor, TESNPC* npcBase)
 {
-    LOG_REQUIREMENT("CoSyncPlayer::SpawnInWorld", "Needs both the anchor and the NPC base to be valid, and the actor spawn itself to succeed, before this registers the new actor.");
     if (hasSpawned)
         return true;
 
@@ -184,7 +178,6 @@ bool CoSyncPlayer::SpawnInWorld(TESObjectREFR* anchor, TESNPC* npcBase)
 // left the host with no marker and no overlay card.
 void CoSyncPlayer::RegisterProxyVisuals()
 {
-    LOG_REQUIREMENT("CoSyncPlayer::RegisterProxyVisuals", "Needs the proxy to already be spawned and still alive. Player proxies only -- an NPC clone should never grab a map-marker slot. Safe to call more than once.");
     if (!hasSpawned || !actorRef)
         return;
     if (createType != CoSyncEntityType::Player)
@@ -214,7 +207,6 @@ void CoSyncPlayer::RegisterProxyVisuals()
 
 void CoSyncPlayer::ApplyUpdate(const EntityUpdatePacket& u)
 {
-    LOG_REQUIREMENT("CoSyncPlayer::ApplyUpdate", "Needs a properly filled-in update packet. Only moves the actor once it has confirmed the proxy is spawned and the actor reference is valid.");
     lastPacketTime = u.timestamp;
 
 
@@ -572,7 +564,6 @@ void CoSyncPlayer::ApplyUpdate(const EntityUpdatePacket& u)
 
 void CoSyncPlayer::RevealOnFirstTransform()
 {
-    LOG_REQUIREMENT("CoSyncPlayer::RevealOnFirstTransform", "Does nothing unless the proxy is actually waiting for its first position and is spawned and valid. Double-checks the actor is still alive first, since a cell change can free it before its first update arrives.");
     if (!m_awaitingFirstTransform || !hasSpawned || !actorRef)
         return;
     if (m_tfBuffer.empty())
@@ -629,7 +620,6 @@ void CoSyncPlayer::RevealOnFirstTransform()
 
 void CoSyncPlayer::ApplyPendingTransformIfAny()
 {
-    LOG_REQUIREMENT("CoSyncPlayer::ApplyPendingTransformIfAny", "Needs the proxy to be spawned, have a valid actor reference, and actually have a transform waiting, before touching anything.");
     if (!hasSpawned || !actorRef || !hasPendingTransform)
         return;
 
@@ -801,7 +791,6 @@ void CoSyncPlayer::ApplyProxyTransform(const NiPoint3& pos, const NiPoint3& rot)
 
 void CoSyncPlayer::TickSmoothing(double now)
 {
-    LOG_REQUIREMENT("CoSyncPlayer::TickSmoothing", "Needs the proxy spawned with a valid actor reference. Skips positioning early if there is no buffered movement data yet.");
     if (!hasSpawned || !actorRef)
         return;
 
@@ -954,7 +943,6 @@ void CoSyncPlayer::ReplayDiscreteEvents()
 
 void CoSyncPlayer::TickAnimVars()
 {
-    LOG_REQUIREMENT("CoSyncPlayer::TickAnimVars", "Needs the proxy spawned, its short settle delay after spawning to have passed, and its animation graph to report ready before writing any animation variables. Touching the graph too early has caused crashes in the past, so all of this is checked first.");
     if (!hasSpawned || !actorRef)
         return;
 
@@ -1252,7 +1240,6 @@ void CoSyncPlayer::TickAnimVars()
 
         auto ShortArcLerp = [](float& smooth, float target, float alpha)
         {
-            LOG_REQUIREMENT("CoSyncPlayer::TickAnimVars::ShortArcLerp", "Simple math helper for blending angles the short way around. No game state involved.");
             float diff = target - smooth;
             while (diff >  3.14159f) diff -= 6.28318f;
             while (diff < -3.14159f) diff += 6.28318f;
@@ -2064,7 +2051,6 @@ void CoSyncPlayer::TickAnimVars()
 
 std::string CoSyncPlayer::GetAnimationState() const
 {
-    LOG_REQUIREMENT("CoSyncPlayer::GetAnimationState", "Just reads this proxy's own already-stored movement data. No game state involved.");
     if (!m_locoActive)
         return "idle";
 

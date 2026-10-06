@@ -2,7 +2,6 @@
 
 #include "PrismaUI_F4_API.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "Relocation.h"
 
 #include "CoSyncNet.h"
@@ -84,7 +83,6 @@ namespace
 
     std::string JsonEscape(const char* s)
     {
-        LOG_REQUIREMENT("(anonymous)::JsonEscape", "Doesn't touch the game. Safe with a null pointer (treated as an empty string).");
         std::string out;
         if (!s)
             return out;
@@ -119,7 +117,6 @@ namespace
     // Falls back to the game default (18,255,21) if anything is missing.
     void ReadHudColor(int& r, int& g, int& b)
     {
-        LOG_REQUIREMENT("(anonymous)::ReadHudColor", "Doesn't touch the game. Reads the player's prefs INI from disk; always produces a valid colour.");
         r = 18; g = 255; b = 21;
 
         PWSTR docs = nullptr;
@@ -141,7 +138,6 @@ namespace
     // flags: every value here is read from the networking code itself.
     const char* NetStatus()
     {
-        LOG_REQUIREMENT("(anonymous)::NetStatus", "Game thread. Only reads CoSync's own networking state.");
         if (!CoSyncTransport::IsInitialized())
         {
             switch (cosync::CoSync_Main::Get().GetNetState())
@@ -175,7 +171,6 @@ namespace
 
     const char* NetRole()
     {
-        LOG_REQUIREMENT("(anonymous)::NetRole", "Game thread. Only reads CoSync's own networking state.");
         if (!CoSyncTransport::IsInitialized())
             return "NONE";
         return CoSyncTransport::IsHost() ? "HOST" : "CLIENT";
@@ -183,7 +178,6 @@ namespace
 
     bool ViewIsLive()
     {
-        LOG_REQUIREMENT("(anonymous)::ViewIsLive", "Needs the PrismaUI API. Game thread only.");
         return s_api && s_view != 0 && s_api->IsValid(s_view);
     }
 
@@ -192,7 +186,6 @@ namespace
 
     void PushState()
     {
-        LOG_REQUIREMENT("(anonymous)::PushState", "Game thread only. Does nothing until the view exists and its DOM is ready.");
         if (!ViewIsLive() || !s_domReady.load())
             return;
 
@@ -360,7 +353,6 @@ namespace
 
     void PlayMenuSound(const char* which)
     {
-        LOG_REQUIREMENT("(anonymous)::PlayMenuSound", "Game thread only. Only plays vanilla sound descriptors that exist in Fallout4.esm.");
         // Whitelist: the page's argument is untrusted text and must never be
         // passed straight into an engine lookup.
         const char* id = nullptr;
@@ -381,7 +373,6 @@ namespace
     // rejected (2026-09-25 log: A=0 B=0 Up=0 Down=0). Game thread only.
     void BindPadActions()
     {
-        LOG_REQUIREMENT("(anonymous)::BindPadActions", "Game thread only, after the view's DOM is ready.");
         if (s_padBound || !ViewIsLive())
             return;
 
@@ -402,7 +393,6 @@ namespace
 
     void OnDomReadyGameThread(void*)
     {
-        LOG_REQUIREMENT("(anonymous)::OnDomReadyGameThread", "Runs on the game thread via PrismaUI's dispatcher, after the view's DOM is ready.");
         PushState();
         BindPadActions();
 
@@ -416,7 +406,6 @@ namespace
     // Thread not documented by PrismaUI -- only flag + marshal from here.
     void OnDomReady(PrismaView view)
     {
-        LOG_REQUIREMENT("(anonymous)::OnDomReady", "May run on any thread: only sets a flag and hands the follow-up to the game-thread dispatcher.");
         s_domReady.store(true);
         LOG_INFO("[PrismaUI] Multiplayer view %llu DOM ready", (unsigned long long)view);
 
@@ -426,7 +415,6 @@ namespace
 
     void OnConsoleMessage(PrismaView view, PRISMA_UI_API::ConsoleMessageLevel level, const char* message)
     {
-        LOG_REQUIREMENT("(anonymous)::OnConsoleMessage", "May run on any thread: only writes a log line.");
         using L = PRISMA_UI_API::ConsoleMessageLevel;
         const char* msg = message ? message : "";
         switch (level)
@@ -441,7 +429,6 @@ namespace
     // pause-menu Disconnect uses. Game thread.
     void EndSession()
     {
-        LOG_REQUIREMENT("(anonymous)::EndSession", "Game thread only. Safe when no session exists.");
         cosync::CoSync_Main::Get().Shutdown();
         CoSyncOverlay_Disconnect();
         cosync::CoSync_Main::Get().ResetNetState();
@@ -451,7 +438,6 @@ namespace
     // Connects to a GNS endpoint (discovered or typed). Game thread.
     void JoinEndpoint(const std::string& ipv4, uint16_t port, const std::string& label)
     {
-        LOG_REQUIREMENT("(anonymous)::JoinEndpoint", "Game thread only. ipv4/port must already be validated.");
         CoSyncDiscovery::StopSearching();
         if (CoSyncTransport::IsInitialized())
             EndSession();   // leave a failed / previous attempt cleanly first
@@ -533,7 +519,6 @@ namespace
 
     void OnCommand(const char* argument, void*)
     {
-        LOG_REQUIREMENT("(anonymous)::OnCommand", "Runs on the game thread (BindGameThreadUIEvent). Treats the page's argument as untrusted text.");
         CoSyncThreadDiag::NoteWindowEntry();
         const std::string cmdLine = argument ? argument : "";
         const size_t bar = cmdLine.find('|');
@@ -733,7 +718,6 @@ namespace
 
     bool EnsureView()
     {
-        LOG_REQUIREMENT("(anonymous)::EnsureView", "Game thread only, and only after PrismaUI's dispatcher is ready (i.e. from a user action, not plugin load).");
         if (!s_api)
             return false;
         if (ViewIsLive())
@@ -764,7 +748,6 @@ namespace
 
     void OpenMultiplayer(bool fromMainMenu)
     {
-        LOG_REQUIREMENT("(anonymous)::OpenMultiplayer", "Game thread only.");
         if (!EnsureView())
         {
             s_openForInput.store(false);
@@ -793,7 +776,6 @@ namespace
 
     void CloseMultiplayer()
     {
-        LOG_REQUIREMENT("(anonymous)::CloseMultiplayer", "Game thread only. Safe if the view was never created or is already closed.");
         const bool wasOpen = s_wantOpen;
         s_wantOpen = false;
         s_openForInput.store(false);
@@ -806,25 +788,21 @@ namespace
 
     void CloseOnGameThread(void*)
     {
-        LOG_REQUIREMENT("(anonymous)::CloseOnGameThread", "Runs on the game thread via PrismaUI's dispatcher.");
         CloseMultiplayer();
     }
 
     void OpenFromMainMenuOnGameThread(void*)
     {
-        LOG_REQUIREMENT("(anonymous)::OpenFromMainMenuOnGameThread", "Runs on the game thread via PrismaUI's dispatcher.");
         OpenMultiplayer(true);
     }
 
     void OpenFromHotkeyOnGameThread(void*)
     {
-        LOG_REQUIREMENT("(anonymous)::OpenFromHotkeyOnGameThread", "Runs on the game thread via PrismaUI's dispatcher.");
         OpenMultiplayer(false);
     }
 
     void ToggleOnGameThread(void*)
     {
-        LOG_REQUIREMENT("(anonymous)::ToggleOnGameThread", "Runs on the game thread via PrismaUI's dispatcher.");
         if (s_wantOpen)
             CloseMultiplayer();
         else
@@ -836,7 +814,6 @@ namespace CoSyncPrismaUI
 {
     bool Init()
     {
-        LOG_REQUIREMENT("CoSyncPrismaUI::Init", "Game thread, after all F4SE plugins have loaded (kMessage_GameLoaded). Safe to call more than once.");
         if (s_api)
             return true;
 
@@ -859,13 +836,11 @@ namespace CoSyncPrismaUI
 
     bool IsAvailable()
     {
-        LOG_REQUIREMENT("CoSyncPrismaUI::IsAvailable", "Doesn't touch the game. Safe any time.");
         return s_api != nullptr;
     }
 
     void RequestOpenMultiplayer(bool fromMainMenu)
     {
-        LOG_REQUIREMENT("CoSyncPrismaUI::RequestOpenMultiplayer", "Safe from any thread: sets an atomic flag and queues the open on PrismaUI's game-thread dispatcher.");
         if (!s_api)
             return;
 
@@ -882,7 +857,6 @@ namespace CoSyncPrismaUI
 
     bool StartJoin(const std::string& kind, const std::string& value, const std::string& label)
     {
-        LOG_REQUIREMENT("CoSyncPrismaUI::StartJoin", "Game thread only. Values come from CoSync's own rejoin note; validated like menu input.");
         if (kind == "ip")
         {
             const size_t colon = value.rfind(':');
@@ -921,7 +895,6 @@ namespace CoSyncPrismaUI
 
     void RequestToggleMultiplayer()
     {
-        LOG_REQUIREMENT("CoSyncPrismaUI::RequestToggleMultiplayer", "Safe from any thread: only queues work on PrismaUI's game-thread dispatcher.");
         if (!s_api)
         {
             LOG_WARN("[PrismaUI] Toggle ignored -- PrismaUI API not available");
@@ -933,13 +906,11 @@ namespace CoSyncPrismaUI
 
     bool IsMultiplayerOpen()
     {
-        LOG_REQUIREMENT("CoSyncPrismaUI::IsMultiplayerOpen", "Safe from any thread: reads an atomic flag.");
         return s_openForInput.load();
     }
 
     void CloseMultiplayerNow()
     {
-        LOG_REQUIREMENT("CoSyncPrismaUI::CloseMultiplayerNow", "Any thread. Closes synchronously only on PrismaUI's game/window thread; otherwise queues the close.");
         if (!s_api)
             return;
         if (s_api->IsGameThread())
@@ -1323,7 +1294,6 @@ namespace CoSyncPrismaUI
 
     void TickNameplates()
     {
-        LOG_REQUIREMENT("CoSyncPrismaUI::TickNameplates", "CoSync tick, every frame. Projection on the tick; view work on PrismaUI's game thread, one update in flight.");
         if (!s_api)
             return;
         std::string json;
@@ -1386,7 +1356,6 @@ namespace CoSyncPrismaUI
 
     void TickHud()
     {
-        LOG_REQUIREMENT("CoSyncPrismaUI::TickHud", "CoSync tick. Throttled to 10 Hz; the view work runs on PrismaUI's game thread and pushes to the page only when the data changed.");
         if (!s_api)
             return;
 

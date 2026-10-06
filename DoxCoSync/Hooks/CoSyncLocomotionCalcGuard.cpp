@@ -5,7 +5,6 @@
 
 #include "ConsoleLogger.h"
 #include "MinHook.h"
-#include "CoSyncRequirementsLog.h"
 
 #include <atomic>
 #include <cstdint>
@@ -88,7 +87,6 @@ namespace
 
     bool HasAlreadyFaulted(void* actor)
     {
-        LOG_REQUIREMENT("HasAlreadyFaulted", "Doesn't touch the game at all — just checks an actor pointer against its own list of known-bad ones, without reading the actor itself.");
         std::lock_guard<std::mutex> lk(s_faultedActorsMutex);
         for (int i = 0; i < s_faultedActorCount; ++i)
             if (s_faultedActors[i] == actor)
@@ -98,7 +96,6 @@ namespace
 
     void RecordFault(void* actor)
     {
-        LOG_REQUIREMENT("RecordFault", "Doesn't touch the game at all — just adds an actor pointer to its own list of known-bad ones, without reading the actor itself.");
         std::lock_guard<std::mutex> lk(s_faultedActorsMutex);
         for (int i = 0; i < s_faultedActorCount; ++i)
             if (s_faultedActors[i] == actor)
@@ -115,7 +112,6 @@ namespace
     std::atomic<uint64_t> s_callCount{ 0 };
     void LogHeartbeat()
     {
-        LOG_REQUIREMENT("LogHeartbeat", "Doesn't touch the game at all — just reads its own counters.");
         const uint64_t n = ++s_callCount;
         if (n == 1 || n % 5000 == 0)
         {
@@ -134,7 +130,6 @@ namespace
 // one missing lets the optimizer silently strip the __try/__except scope.
 __declspec(noinline) static float CallOriginalSafe(LocomotionCalcFn fn, void* rcx, void* rdx)
 {
-    LOG_REQUIREMENT("CallOriginalSafe", "Needs a valid pointer to the real engine function. The actor passed in might not be fully set up yet (like one that just spawned), so this keeps a safety net around the call.");
     __try
     {
         return fn(rcx, rdx);
@@ -148,7 +143,6 @@ __declspec(noinline) static float CallOriginalSafe(LocomotionCalcFn fn, void* rc
 
 static float __fastcall Detour_LocomotionCalcFn(void* rcx, void* rdx)
 {
-    LOG_REQUIREMENT("Detour_LocomotionCalcFn", "Needs the hook to already be installed so it has the real function to call. Skips any actor that already crashed here before, so it doesn't call the real function on a known-bad state again.");
     LogHeartbeat();
 
     if (!g_origFn)
@@ -162,7 +156,6 @@ static float __fastcall Detour_LocomotionCalcFn(void* rcx, void* rdx)
 
 void InstallLocomotionCalcGuard()
 {
-    LOG_REQUIREMENT("InstallLocomotionCalcGuard", "Must not already be installed. Needs the saved game address to still point at the right function for this game version, and needs the module handle lookup to succeed.");
     if (g_hookInstalled.exchange(true))
         return;
 
@@ -200,7 +193,6 @@ void InstallLocomotionCalcGuard()
 
 void UninstallLocomotionCalcGuard()
 {
-    LOG_REQUIREMENT("UninstallLocomotionCalcGuard", "The hook must currently be installed, and the module handle lookup must resolve to the same base address used when it was installed.");
     if (!g_hookInstalled.exchange(false))
         return;
 

@@ -5,7 +5,6 @@
 #include "CoSyncDoorHook.h"
 #include "CoSyncSharedDialogue.h"
 
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
@@ -114,7 +113,6 @@ static std::atomic<bool> g_hookInstalled{ false };
 // `__C_specific_handler` with a real scope record after the fix.
 __declspec(noinline) static uint32_t SafeReadU32(const void* base, size_t off)
 {
-    LOG_REQUIREMENT("(global)::SafeReadU32", "Safe even with a bad pointer or offset -- returns 0 instead of crashing.");
     __try {
         return *reinterpret_cast<const uint32_t*>(
             reinterpret_cast<const uint8_t*>(base) + off);
@@ -124,7 +122,6 @@ __declspec(noinline) static uint32_t SafeReadU32(const void* base, size_t off)
 
 __declspec(noinline) static uint8_t SafeReadU8(const void* base, size_t off)
 {
-    LOG_REQUIREMENT("(global)::SafeReadU8", "Safe even with a bad pointer or offset -- returns 0xFF instead of crashing.");
     __try {
         return *reinterpret_cast<const uint8_t*>(
             reinterpret_cast<const uint8_t*>(base) + off);
@@ -134,7 +131,6 @@ __declspec(noinline) static uint8_t SafeReadU8(const void* base, size_t off)
 
 __declspec(noinline) static void* SafeReadPtr(const void* base, size_t off)
 {
-    LOG_REQUIREMENT("(global)::SafeReadPtr", "Safe even with a bad pointer or offset -- returns null instead of crashing.");
     __try {
         return *reinterpret_cast<void* const*>(
             reinterpret_cast<const uint8_t*>(base) + off);
@@ -148,7 +144,6 @@ struct RefrInfo { uint32_t refFormID; uint8_t formType; };
 
 static RefrInfo ReadRefrInfo(void* refr) noexcept
 {
-    LOG_REQUIREMENT("(global)::ReadRefrInfo", "Safe with a null reference (returns a blank result). Relies on the safe-read helpers above for anything else invalid.");
     RefrInfo out{ 0, 0xFF };
     if (!refr) return out;
     out.refFormID = SafeReadU32(refr, 0x14);
@@ -178,7 +173,6 @@ static char __fastcall Detour_ActivateWorker(
     void* refr, void* activator, void* a3, void* a4,
     void* a5, void* a6, void* a7)
 {
-    LOG_REQUIREMENT("(global)::Detour_ActivateWorker", "Needs the hook to already be installed so it can call the real game function. Broadcasting the door also needs an active connection.");
     CoSyncThreadDiag::Note(CoSyncThreadDiag::kDoorActivate);
     // round 94 diagnostic: unconditional fire-heartbeat, confirms the
     // round-93 RVA fix (kActivateWorker_RVA) is reached. This fires for
@@ -346,7 +340,6 @@ static char __fastcall Detour_ActivateWorker(
 
 void InstallDoorHook()
 {
-    LOG_REQUIREMENT("(global)::InstallDoorHook", "Needs the game module to resolve and its known internal addresses to be correct. Meant to run once before door syncing can work.");
     if (g_hookInstalled.exchange(true))
         return;
 
@@ -379,7 +372,6 @@ void InstallDoorHook()
 
 void UninstallDoorHook()
 {
-    LOG_REQUIREMENT("(global)::UninstallDoorHook", "Needs the hook to already be installed. Recomputes the same address to remove it cleanly.");
     if (!g_hookInstalled.exchange(false))
         return;
 
@@ -433,7 +425,6 @@ bool CoSyncDoorHook::InLocalActivation()
 
 bool CoSyncDoorHook::IsRefLocked(void* refr)
 {
-    LOG_REQUIREMENT("CoSyncDoorHook::IsRefLocked", "Safe with any reference including null. Reports 'not locked' on any failure so a crash can never block a legitimate door broadcast.");
     if (!refr) return false;
 
     static LockDataGetFn s_fn = nullptr;
@@ -460,13 +451,11 @@ bool CoSyncDoorHook::IsRefLocked(void* refr)
 
 bool CoSyncDoorHook::IsDoork(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncDoorHook::IsDoork", "Just checks the start of a text message, no other requirement.");
     return msg.rfind("DOOR|", 0) == 0;
 }
 
 void CoSyncDoorHook::OnReceiveDoor(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncDoorHook::OnReceiveDoor", "Needs the message to be at least as long as its tag prefix. Bad or blank ID values are rejected.");
     const char* s = msg.c_str() + 5; // skip "DOOR|"
     char* e = nullptr;
     uint32_t refFormID = static_cast<uint32_t>(std::strtoul(s, &e, 10));
@@ -490,7 +479,6 @@ void CoSyncDoorHook::OnReceiveDoor(const std::string& msg)
 // optimizer prove the __try can never fire and strips it).
 __declspec(noinline) static TESObjectREFR* SafeLookupAndCastDoorRefr(uint32_t refFormID)
 {
-    LOG_REQUIREMENT("(global)::SafeLookupAndCastDoorRefr", "Safe with any form ID, including garbage values from a peer's packet. Returns null on failure, not found, or the wrong kind of object.");
     __try
     {
         TESForm* form = LookupFormByID(refFormID);
@@ -511,7 +499,6 @@ __declspec(noinline) static TESObjectREFR* SafeLookupAndCastDoorRefr(uint32_t re
 // SEH isolated: no C++ objects in scope — avoids C2712.
 static void DoActivateRefr(void* refr) noexcept
 {
-    LOG_REQUIREMENT("(global)::DoActivateRefr", "Needs the original game function and a valid reference. The call itself is wrapped in a safety net in case the reference turns out bad.");
     if (!g_origActivate || !refr) return;
     tls_cs_door_applying = true;
     __try {
@@ -523,7 +510,6 @@ static void DoActivateRefr(void* refr) noexcept
 
 void CoSyncDoorHook::FlushPendingDoorOps()
 {
-    LOG_REQUIREMENT("CoSyncDoorHook::FlushPendingDoorOps", "Safe to call with nothing queued -- just does nothing. Real requirements live in the lookup/activate helpers it calls.");
     std::vector<uint32_t> ops;
     {
         std::lock_guard<std::mutex> lk(s_mutex);

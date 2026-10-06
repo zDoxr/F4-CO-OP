@@ -13,7 +13,6 @@
 #include "BShkbAnimationGraph.h"
 #include "hkbBehaviorGraph.h"
 #include "hkbVariableValueSet.h"
-#include "CoSyncRequirementsLog.h"
 
 #include <cstring>
 #include <vector>
@@ -339,7 +338,6 @@ static constexpr uint32_t kMaxSaneVariableSetSize = 4096;
 // file. Fixed here on both functions.
 __declspec(noinline) static bool GetVariableSetDirect(Actor* actor, VariableSetResult& out)
 {
-    LOG_REQUIREMENT("GetVariableSetDirect", "Needs a valid actor with a working animation graph. Reads its animation variables directly; guarded so a bad graph can't crash the game.");
     out.data = nullptr;
     out.size = 0;
 
@@ -429,7 +427,6 @@ __declspec(noinline) static bool GetVariableSetDirect(Actor* actor, VariableSetR
 // See GetVariableSetDirect's own comment above -- same noinline fix, same reason.
 __declspec(noinline) static bool GetVariableSetForWrite(Actor* actor, VariableSetResult& out)
 {
-    LOG_REQUIREMENT("GetVariableSetForWrite", "Needs a valid actor with a working animation graph. Opens its animation variables for writing; guarded so a bad graph can't crash the game.");
 
     out.data = nullptr;
     out.size = 0;
@@ -692,7 +689,6 @@ static const AnimVarCheckEntry kAnimVarCheckTable[] = {
 
 void CoSyncAnimVarSystem::VerifyVariableIndices(Actor* actor)
 {
-    LOG_REQUIREMENT("CoSyncAnimVarSystem::VerifyVariableIndices", "Needs a valid actor with a readable animation variable set. Writes test values into the actor's real graph to check them — this is risky (has crashed the game when run on the live player) so it's currently disabled everywhere it's called.");
     if (!actor) return;
 
     VariableSetResult varSet;
@@ -847,7 +843,6 @@ constexpr uint32_t kFPVar_RenderFPInWorld = 75;
 // function wrapping a raw pointer read in __try/__except).
 __declspec(noinline) static void PatchLocalPlayerSpeedFromFP(Actor* actor, AnimVarSnapshot& snap)
 {
-    LOG_REQUIREMENT("PatchLocalPlayerSpeedFromFP", "Only runs for the local player. Falls back to reading the first-person graph's raw data directly if the normal path isn't ready; guarded so that's safe even if the graph isn't set up yet.");
     if (!actor || actor->formID != 0x14) return;
 
     float vtblSpeed = 0.0f;
@@ -969,7 +964,6 @@ __declspec(noinline) static void PatchLocalPlayerSpeedFromFP(Actor* actor, AnimV
 
 bool CoSyncAnimVarSystem::IsGraphReady(Actor* actor)
 {
-    LOG_REQUIREMENT("CoSyncAnimVarSystem::IsGraphReady", "Needs a valid actor. This IS the readiness check — it just reports whether the actor's animation variables can be read right now.");
     if (!actor) return false;
     VariableSetResult varSet;
     // round 23: this discards .data/.size entirely, but GetVariableSetDirect
@@ -982,7 +976,6 @@ bool CoSyncAnimVarSystem::IsGraphReady(Actor* actor)
 
 bool CoSyncAnimVarSystem::SaveAnimationVariables(Actor* actor, AnimVarSnapshot& outSnapshot)
 {
-    LOG_REQUIREMENT("CoSyncAnimVarSystem::SaveAnimationVariables", "Needs a valid actor with a readable animation variable set. Assumes the graph's variable layout matches our known index table; the raw reads are guarded so a mismatch can't crash the game.");
     g_lastTickStep = "AnimVarSystem:SaveAnimationVariables:entry";
     if (!actor) return false;
 
@@ -1132,7 +1125,6 @@ bool CoSyncAnimVarSystem::SaveAnimationVariables(Actor* actor, AnimVarSnapshot& 
 }
 bool CoSyncAnimVarSystem::LoadAnimationVariables(Actor* actor, const AnimVarSnapshot& snapshot)
 {
-    LOG_REQUIREMENT("CoSyncAnimVarSystem::LoadAnimationVariables", "Needs a valid actor and a valid snapshot, plus a writable animation variable set for that actor. Assumes the graph's layout matches our index table. The iState value must go through the safe setter, not a raw write, to avoid a known engine crash.");
     g_lastTickStep = "AnimVarSystem:LoadAnimationVariables:entry";
     if (!actor || !snapshot.isValid) return false;
 
@@ -1707,7 +1699,6 @@ namespace
 
 bool CoSyncAnimVarSystem::LoadPowerArmorLocomotion(Actor* actor, const AnimVarSnapshot& snapshot)
 {
-    LOG_REQUIREMENT("CoSyncAnimVarSystem::LoadPowerArmorLocomotion", "Needs a valid actor and a valid snapshot. Looks up each variable's index by name, then writes it the same safe, direct way already proven for the regular human graph — never through the disabled engine setter.");
     if (!actor || !snapshot.isValid) return false;
     if (!CoSyncAnimUtils::IsGraphReady(actor)) return false;
 
@@ -1845,7 +1836,6 @@ bool CoSyncAnimVarSystem::LoadPowerArmorLocomotion(Actor* actor, const AnimVarSn
 // them -- which is exactly why this was invisible until now.
 void CoSyncAnimVarSystem::DiagnoseCaptureIndices(Actor* actor, uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncAnimVarSystem::DiagnoseCaptureIndices", "Needs a valid actor. Read-only — just inspects the graph the same way DumpGraphVariableNames does. Guarded, and always releases what it opens.");
     if (!actor) return;
 
     __try
@@ -1909,7 +1899,6 @@ void CoSyncAnimVarSystem::DiagnoseCaptureIndices(Actor* actor, uint32_t entityID
 
 void CoSyncAnimVarSystem::DumpGraphVariableNames(Actor* actor)
 {
-    LOG_REQUIREMENT("CoSyncAnimVarSystem::DumpGraphVariableNames", "Needs a valid actor. Read-only diagnostic — walks the graph's variable table and prints every name it finds, instead of checking against a known list.");
     if (!actor) return;
 
     __try
@@ -1996,7 +1985,6 @@ void CoSyncAnimVarSystem::DumpGraphVariableNames(Actor* actor)
 // data without a real test result; see the call sites in CoSyncPlayer.cpp.
 void CoSyncAnimVarSystem::DumpGraphIndexDiag(Actor* actor, const char* context)
 {
-    LOG_REQUIREMENT("CoSyncAnimVarSystem::DumpGraphIndexDiag", "Needs a valid actor. Read-only diagnostic that accesses the graph the same safe way the other functions in this file do. Guarded.");
     if (!actor) return;
 
     __try
@@ -2029,7 +2017,6 @@ void CoSyncAnimVarSystem::DumpGraphIndexDiag(Actor* actor, const char* context)
 
 void CoSyncAnimVarSystem::DumpVariables(Actor* actor, const char* label)
 {
-    LOG_REQUIREMENT("CoSyncAnimVarSystem::DumpVariables", "Needs a valid actor with a working animation graph — this just saves its current variables and prints them.");
     if (!actor) return;
 
     AnimVarSnapshot snap;
@@ -2052,7 +2039,6 @@ void CoSyncAnimVarSystem::DumpVariables(Actor* actor, const char* label)
 
 size_t AnimVarSnapshot::Serialize(uint8_t* buffer, size_t bufferSize) const
 {
-    LOG_REQUIREMENT("AnimVarSnapshot::Serialize", "Doesn't touch the game — just needs a buffer big enough to hold the data.");
     const size_t needed = SerializedSize();
     if (bufferSize < needed) return 0;
 
@@ -2070,7 +2056,6 @@ size_t AnimVarSnapshot::Serialize(uint8_t* buffer, size_t bufferSize) const
 
 size_t AnimVarSnapshot::Deserialize(const uint8_t* buffer, size_t bufferSize)
 {
-    LOG_REQUIREMENT("AnimVarSnapshot::Deserialize", "Doesn't touch the game — just needs a buffer with enough data in it to read.");
     const size_t needed = SerializedSize();
     if (bufferSize < needed) return 0;
 

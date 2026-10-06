@@ -16,7 +16,6 @@
 #include "CoSyncSessionRules.h"
 #include "TickHook.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "GameReferences.h"
 #include "GameForms.h"
 #include "GameObjects.h"
@@ -509,7 +508,6 @@ namespace CoSyncCombatAuthority
 
     void Install()
     {
-        LOG_REQUIREMENT("CoSyncCombatAuthority::Install", "Plugin load. Needs the verified 1.11.240 exe: every target's prologue is compared before hooking.");
         if (g_installed)
             return;
         g_installed = true;
@@ -555,7 +553,6 @@ namespace CoSyncCombatAuthority
 
     void OnReceiveShot(const std::string& msg)
     {
-        LOG_REQUIREMENT("CoSyncCombatAuthority::OnReceiveShot", "Parses peer-supplied text defensively; only queues. The replay runs in Tick on the game thread.");
         RemoteShot s{};
         unsigned long v[6] = {};
         const char* p = msg.c_str() + 5;

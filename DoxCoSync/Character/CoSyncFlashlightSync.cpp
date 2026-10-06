@@ -9,7 +9,6 @@
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "GameReferences.h"
 #include "GameForms.h"
 
@@ -258,7 +257,6 @@ namespace CoSyncFlashlightSync
 {
     void Install()
     {
-        LOG_REQUIREMENT("CoSyncFlashlightSync::Install", "Plugin load. Prologue-checks every engine function the light builder needs.");
         g_base = reinterpret_cast<uintptr_t>(GetModuleHandleA(nullptr));
         g_ready = PrologueOk(kRVA_LightBuild, kPro_LightBuild, sizeof(kPro_LightBuild), "light builder") &&
                   PrologueOk(kRVA_FindLightMarker, kPro_FindMarker, sizeof(kPro_FindMarker), "light marker search") &&
@@ -292,7 +290,6 @@ namespace CoSyncFlashlightSync
 
     void Tick(double now)
     {
-        LOG_REQUIREMENT("CoSyncFlashlightSync::Tick", "Game thread, every CoSync tick.");
         if (!CoSyncNet::IsConnected())
             return;
 
@@ -344,7 +341,6 @@ namespace CoSyncFlashlightSync
 
     void OnReceive(const std::string& msg)
     {
-        LOG_REQUIREMENT("CoSyncFlashlightSync::OnReceive", "Game thread. Parses peer text defensively; only records the wanted state.");
         unsigned long eid = 0;
         int on = 0;
         if (std::sscanf(msg.c_str() + 3, "%lu|%d", &eid, &on) != 2 || eid == 0)

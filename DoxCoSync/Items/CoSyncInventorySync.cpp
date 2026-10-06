@@ -6,7 +6,6 @@
 #include "ConsoleLogger.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncPlayer.h"
-#include "CoSyncRequirementsLog.h"
 
 #include "GameReferences.h"
 #include "GameFormComponents.h"
@@ -23,14 +22,12 @@
 
 bool CoSyncInventorySync::IsInventory(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncInventorySync::IsInventory", "Just checks the text of a message. No game state needed.");
     return msg.rfind("INV|", 0) == 0;
 }
 
 std::string CoSyncInventorySync::SerializeInventory(uint32_t entityID,
                                                     const std::vector<ItemEntry>& items)
 {
-    LOG_REQUIREMENT("CoSyncInventorySync::SerializeInventory", "Just turns a player's item list into text. Doesn't touch the game at all.");
     if (items.empty())
         return "";
 
@@ -48,7 +45,6 @@ std::string CoSyncInventorySync::SerializeInventory(uint32_t entityID,
 // times this session. Called on every remote NPC death while host+connected.
 __declspec(noinline) static void SnapshotInventory_Impl(Actor* actor, std::vector<CoSyncInventorySync::ItemEntry>& result)
 {
-    LOG_REQUIREMENT("CoSyncInventorySync::SnapshotInventory_Impl", "Needs a valid actor. Only meant to be called through SnapshotInventorySafe, which wraps it safely.");
     BGSInventoryList* invList = actor->inventoryList;
     if (!invList)
         return;
@@ -84,7 +80,6 @@ __declspec(noinline) static void SnapshotInventory_Impl(Actor* actor, std::vecto
 // std::vector) so this one only ever sees a reference parameter.
 static void SnapshotInventorySafe(Actor* actor, std::vector<CoSyncInventorySync::ItemEntry>& result)
 {
-    LOG_REQUIREMENT("CoSyncInventorySync::SnapshotInventorySafe", "Needs a valid actor. Reads their inventory safely, even if it turns out to be corrupted.");
     __try
     {
         SnapshotInventory_Impl(actor, result);
@@ -97,7 +92,6 @@ static void SnapshotInventorySafe(Actor* actor, std::vector<CoSyncInventorySync:
 
 std::vector<CoSyncInventorySync::ItemEntry> CoSyncInventorySync::SnapshotInventory(void* actorVoid)
 {
-    LOG_REQUIREMENT("CoSyncInventorySync::SnapshotInventory", "Handles a missing actor gracefully (returns an empty result). Otherwise needs a real actor to be passed in.");
     std::vector<ItemEntry> result;
 
     Actor* actor = static_cast<Actor*>(actorVoid);
@@ -120,7 +114,6 @@ static std::vector<InventoryOp> s_pendingOps;
 
 void CoSyncInventorySync::OnReceiveInventory(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncInventorySync::OnReceiveInventory", "Needs the message to actually be an inventory packet, checked before reading it.");
     if (!IsInventory(msg))
         return;
 
@@ -181,7 +174,6 @@ void CoSyncInventorySync::OnReceiveInventory(const std::string& msg)
 // FlushPendingMapOps_Impl/FlushPendingMapOpsSafe.
 __declspec(noinline) static void ApplyInventoryOps_Impl(const std::vector<InventoryOp>& ops)
 {
-    LOG_REQUIREMENT("CoSyncInventorySync::ApplyInventoryOps_Impl", "Needs the player manager to be ready, and checks each stand-in character is actually spawned before touching it. Only meant to be called through ApplyInventoryOpsSafe, which wraps it safely.");
     static const BSFixedString kAddItem("AddItem");
     for (const auto& op : ops)
     {
@@ -224,7 +216,6 @@ __declspec(noinline) static void ApplyInventoryOps_Impl(const std::vector<Invent
 
 __declspec(noinline) static void ApplyInventoryOpsSafe(const std::vector<InventoryOp>& ops)
 {
-    LOG_REQUIREMENT("CoSyncInventorySync::ApplyInventoryOpsSafe", "Handles a bad item ID from another player safely instead of crashing. Needs the player manager to be ready.");
     __try
     {
         ApplyInventoryOps_Impl(ops);
@@ -237,7 +228,6 @@ __declspec(noinline) static void ApplyInventoryOpsSafe(const std::vector<Invento
 
 void CoSyncInventorySync::FlushPendingInventoryOps()
 {
-    LOG_REQUIREMENT("CoSyncInventorySync::FlushPendingInventoryOps", "Safe to call any time. Applies whatever inventory updates are queued up, if any.");
     std::vector<InventoryOp> ops;
     {
         std::lock_guard<std::mutex> lk(s_opMutex);

@@ -3,7 +3,6 @@
 
 #include "CoSyncSpawnTasks.h"
 
-#include "CoSyncRequirementsLog.h"
 #include "PluginAPI.h"
 #include "Tasks.h"
 #include "ConsoleLogger.h"
@@ -32,14 +31,12 @@ static const F4SETaskInterface* s_taskIFace = nullptr;
 
 static TESObjectREFR* GetAnchor()
 {
-    LOG_REQUIREMENT("CoSyncSpawnTasks::GetAnchor", "Needs a save to already be loaded, so there is a real player to anchor to. The caller must check the result for null.");
     PlayerCharacter* pc = CoSyncGetPlayer();
     return pc ? static_cast<TESObjectREFR*>(pc) : nullptr;
 }
 
 static TESNPC* ResolveNPC(UInt32 baseFormID)
 {
-    LOG_REQUIREMENT("CoSyncSpawnTasks::ResolveNPC", "Needs a real, non-zero base form ID that actually looks up to an NPC record. Guarded against a crash if the lookup returns a bad pointer.");
     LOG_INFO("[SpawnTask] ResolveNPC START: baseFormID=0x%08X", baseFormID);
 
     if (baseFormID == 0)
@@ -81,7 +78,6 @@ static TESNPC* ResolveNPC(UInt32 baseFormID)
 
 static uint32_t ResolveBaseForSpawn(uint32_t baseFormID, CoSyncEntityType createType, uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncSpawnTasks::ResolveBaseForSpawn", "For a player entity with no base form ID, needs the remote player's base form lookup to succeed. If that lookup fails or crashes, it falls back to the game's default player NPC (form 0x7).");
     LOG_INFO("[SpawnTask] ResolveBaseForSpawn START: entity=%u baseFormID=0x%08X type=%d",
         entityID, baseFormID, (int)createType);
 
@@ -174,13 +170,11 @@ public:
         , m_spawnPos(spawnPos)
         , m_spawnRot(spawnRot)
     {
-        LOG_REQUIREMENT("SpawnRemotePlayerTask::SpawnRemotePlayerTask", "Just stores the arguments it is given. No game state involved.");
         LOG_INFO("[SpawnTask] Constructor: entity=%u base=0x%08X", entityID, baseFormID);
     }
 
     void Run() override
     {
-        LOG_REQUIREMENT("SpawnRemotePlayerTask::Run", "Needs a loaded player to anchor to, a valid NPC base form resolved, and the actual spawn to succeed -- each step is checked before moving to the next one.");
         LOG_INFO(
             "[SpawnTask] Run START entity=%u base=0x%08X type=%s flags=0x%08X spawnPos=(%.1f,%.1f,%.1f)",
             m_entityID,
@@ -482,7 +476,6 @@ public:
     explicit MainThreadLambdaTask(std::function<void()> fn) : m_fn(std::move(fn)) {}
     void Run() override
     {
-        LOG_REQUIREMENT("MainThreadLambdaTask::Run", "Runs on the main thread from F4SE's task queue.");
         if (m_fn)
             m_fn();
     }
@@ -493,7 +486,6 @@ private:
 
 bool CoSyncSpawnTasks::EnqueueMainThread(std::function<void()> fn)
 {
-    LOG_REQUIREMENT("CoSyncSpawnTasks::EnqueueMainThread", "Needs Init() to have run. Safe from any thread.");
     if (!s_taskIFace)
     {
         LOG_ERROR("[CoSyncSpawnTasks] EnqueueMainThread: task interface not ready");
@@ -505,7 +497,6 @@ bool CoSyncSpawnTasks::EnqueueMainThread(std::function<void()> fn)
 
 void CoSyncSpawnTasks::Init(const F4SETaskInterface* taskIFace)
 {
-    LOG_REQUIREMENT("CoSyncSpawnTasks::Init", "Needs a valid task interface. Nothing else in this module works until this succeeds -- EnqueueSpawn just does nothing until then.");
     if (!taskIFace)
     {
         LOG_ERROR("[CoSyncSpawnTasks] Init called with NULL taskIFace!");
@@ -524,7 +515,6 @@ void CoSyncSpawnTasks::EnqueueSpawn(
     const NiPoint3& spawnPos,
     const NiPoint3& spawnRot)
 {
-    LOG_REQUIREMENT("CoSyncSpawnTasks::EnqueueSpawn", "Needs Init() to have already run successfully so the task system is set up.");
     LOG_INFO("[CoSyncSpawnTasks::EnqueueSpawn] START entity=%u base=0x%08X",
         entityID, baseFormID);
 

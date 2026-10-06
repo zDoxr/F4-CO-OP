@@ -19,7 +19,6 @@
 #include "CoSyncDiscovery.h"
 #include "CoSyncSessionConfig.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 
 #include <algorithm>
 #include <atomic>
@@ -178,7 +177,6 @@ namespace
 
     std::vector<Iface> EnumerateInterfaces()
     {
-        LOG_REQUIREMENT("(anonymous)::EnumerateInterfaces", "Doesn't touch the game. Reads the Windows adapter list; returns an empty list on any failure.");
         std::vector<Iface> out;
 
         ULONG size = 16 * 1024;
@@ -470,7 +468,6 @@ namespace
 
     void Worker()
     {
-        LOG_REQUIREMENT("(anonymous)::Worker", "Own thread. Never touches game state -- only sockets and the discovery tables under g_mx.");
         WSADATA wsa{};
         if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
         {
@@ -665,7 +662,6 @@ namespace CoSyncDiscovery
                           const std::string& hostName, uint32_t build,
                           std::function<int()> playerCount)
     {
-        LOG_REQUIREMENT("CoSyncDiscovery::StartAdvertising", "Any thread. playerCount must be thread-safe (called on the discovery worker).");
         {
             std::lock_guard<std::mutex> lk(g_mx);
             g_advertise = true;
@@ -683,7 +679,6 @@ namespace CoSyncDiscovery
 
     void StopAdvertising()
     {
-        LOG_REQUIREMENT("CoSyncDiscovery::StopAdvertising", "Any thread. Safe if not advertising.");
         std::lock_guard<std::mutex> lk(g_mx);
         g_advertise = false;
         g_advCount = nullptr;
@@ -697,7 +692,6 @@ namespace CoSyncDiscovery
 
     void StartSearching()
     {
-        LOG_REQUIREMENT("CoSyncDiscovery::StartSearching", "Any thread. Restarts the search with an empty list.");
         {
             std::lock_guard<std::mutex> lk(g_mx);
             g_search = true;
@@ -710,7 +704,6 @@ namespace CoSyncDiscovery
 
     void StopSearching()
     {
-        LOG_REQUIREMENT("CoSyncDiscovery::StopSearching", "Any thread. Safe if not searching.");
         std::lock_guard<std::mutex> lk(g_mx);
         g_search = false;
         g_sessions.clear();
@@ -751,7 +744,6 @@ namespace CoSyncDiscovery
 
     NetworkInfo GetPrimaryNetwork()
     {
-        LOG_REQUIREMENT("CoSyncDiscovery::GetPrimaryNetwork", "Any thread. Uses a short-lived cache of the adapter list.");
         std::lock_guard<std::mutex> lk(g_mx);
         const auto& ifs = InterfacesLocked();
 
@@ -780,7 +772,6 @@ namespace CoSyncDiscovery
 
     void Shutdown()
     {
-        LOG_REQUIREMENT("CoSyncDiscovery::Shutdown", "Any thread except the discovery worker. Blocks until the worker exits (at most a few hundred ms).");
         {
             std::lock_guard<std::mutex> lk(g_mx);
             g_advertise = false;

@@ -7,7 +7,6 @@
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 
 #include "GameReferences.h"
 #include "GameForms.h"
@@ -360,7 +359,6 @@ namespace CoSyncElevatorSync
 
     void OnReceive(const std::string& msg, bool isHostRole)
     {
-        LOG_REQUIREMENT("CoSyncElevatorSync::OnReceive", "Network side; the host relays, the game thread applies.");
         const bool load = msg.rfind("ELEVL|", 0) == 0;
         const char* p = msg.c_str() + (load ? 6 : 5);
         char* end = nullptr;

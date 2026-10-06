@@ -7,7 +7,6 @@
 #include "CoSyncTransport.h"
 #include "GNS_Core.h"
 #include "CoSyncOverlay.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncDiscovery.h"
 #include "CoSyncWorldTransfer.h"
 #include "CoSyncContentSync.h"
@@ -24,14 +23,12 @@ namespace cosync
 {
     CoSync_Main& CoSync_Main::Get()
     {
-        LOG_REQUIREMENT("cosync::CoSync_Main::Get", "Doesn't touch the game — just returns the one shared instance, safe to call any time.");
         static CoSync_Main inst;
         return inst;
     }
 
     void CoSync_Main::Init()
     {
-        LOG_REQUIREMENT("cosync::CoSync_Main::Init", "Safe to call more than once — does nothing after the first successful call. Sets up networking and the Papyrus helper at plugin startup.");
         if (initialized.load())
         {
             LOG_INFO("[MAIN] Already initialized — skipping");
@@ -59,7 +56,6 @@ namespace cosync
 
     void CoSync_Main::StartHosting(const std::string& ip)
     {
-        LOG_REQUIREMENT("cosync::CoSync_Main::StartHosting", "Only starts if we're currently idle — does nothing otherwise. Expects a valid, bindable IP address, which gets used on a background thread.");
 
         CoSyncNetState expected = CoSyncNetState::Idle;
         if (!m_netState.compare_exchange_strong(expected, CoSyncNetState::Busy))
@@ -79,7 +75,6 @@ namespace cosync
         JoinStartThread();
         m_startThread = std::thread([this, hostName]()
         {
-            LOG_REQUIREMENT("cosync::CoSync_Main::StartHosting::{lambda}", "Needs this object to stay alive for as long as this background thread runs. Also relies on Init() having already run.");
             std::string ip;
             { std::lock_guard<std::mutex> lk(m_argMutex); ip = m_pendingArg; }
 
@@ -132,7 +127,6 @@ namespace cosync
 
     void CoSync_Main::StartJoining(const std::string& connectStr)
     {
-        LOG_REQUIREMENT("cosync::CoSync_Main::StartJoining", "Only starts if we're currently idle — does nothing otherwise. Expects a valid host address/port string, which gets used on a background thread.");
 
         CoSyncNetState expected = CoSyncNetState::Idle;
         if (!m_netState.compare_exchange_strong(expected, CoSyncNetState::Busy))
@@ -149,7 +143,6 @@ namespace cosync
         JoinStartThread();
         m_startThread = std::thread([this]()
         {
-            LOG_REQUIREMENT("cosync::CoSync_Main::StartJoining::{lambda}", "Needs this object to stay alive for as long as this background thread runs. Also relies on Init() having already run.");
             std::string addr;
             { std::lock_guard<std::mutex> lk(m_argMutex); addr = m_pendingArg; }
 
@@ -190,7 +183,6 @@ namespace cosync
 
     void CoSync_Main::Tick(double now)
     {
-        LOG_REQUIREMENT("cosync::CoSync_Main::Tick", "Does nothing unless Init() has already run. Expects an always-increasing time value, which it passes along to the networking tick.");
         if (!initialized.load())
             return;
 
@@ -200,7 +192,6 @@ namespace cosync
 
     void CoSync_Main::Shutdown()
     {
-        LOG_REQUIREMENT("cosync::CoSync_Main::Shutdown", "Safe to call even if we were never initialized. Assumes networking and transport shutdown are themselves safe to call regardless of state.");
         LOG_INFO("[MAIN] Shutting down");
 
         // P10: never tear down while host/join set-up is still running.

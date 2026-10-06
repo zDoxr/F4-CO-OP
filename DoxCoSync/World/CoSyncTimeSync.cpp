@@ -1,6 +1,5 @@
 #include "CoSyncTimeSync.h"
 
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
@@ -39,7 +38,6 @@ static constexpr uint32_t kFormID_GameHour = 0x00000039;
 
 static TESGlobal* GetGameHourGlobal()
 {
-    LOG_REQUIREMENT("(global)::GetGameHourGlobal", "Just needs the form lookup to be callable. Caches the result and safely returns nothing if the GameHour global cannot be found.");
     static TESGlobal* s_cached = nullptr;
     if (!s_cached)
     {
@@ -64,7 +62,6 @@ static bool s_skyMgrKnownBad = false;
 // this project's /GL+/LTCG Release config.
 __declspec(noinline) static bool SafeReadWeatherFormID(void* skyMgr, uint32_t& outFormID)
 {
-    LOG_REQUIREMENT("(global)::SafeReadWeatherFormID", "Needs a valid sky manager pointer. Guarded so a bad pointer is caught safely instead of crashing.");
     __try
     {
         TESForm* w = *reinterpret_cast<TESForm**>(static_cast<char*>(skyMgr) + 0x48);
@@ -79,7 +76,6 @@ __declspec(noinline) static bool SafeReadWeatherFormID(void* skyMgr, uint32_t& o
 
 __declspec(noinline) static bool SafeWriteWeatherToSky(void* skyMgr, TESForm* form)
 {
-    LOG_REQUIREMENT("(global)::SafeWriteWeatherToSky", "Needs a valid, writable sky manager pointer. Guarded so a bad pointer is caught safely instead of crashing.");
     __try
     {
         *reinterpret_cast<TESForm**>(static_cast<char*>(skyMgr) + 0x48) = form;
@@ -103,7 +99,6 @@ __declspec(noinline) static bool SafeWriteWeatherToSky(void* skyMgr, TESForm* fo
 // other Safe* helper in this codebase.
 __declspec(noinline) static void* SafeCallGetSkyManagerSingleton()
 {
-    LOG_REQUIREMENT("(global)::SafeCallGetSkyManagerSingleton", "Needs the game's own sky manager accessor to be callable. Guarded so a crash during its setup is caught instead of taking down the game.");
     __try
     {
         return GetSkyManagerSingleton();
@@ -116,7 +111,6 @@ __declspec(noinline) static void* SafeCallGetSkyManagerSingleton()
 
 static uint32_t GetCurrentWeatherFormID()
 {
-    LOG_REQUIREMENT("(global)::GetCurrentWeatherFormID", "Relies on the safe sky-manager helpers above. Once the sky manager is seen to be broken this session, this just returns 0 instead of trying again.");
     if (s_skyMgrKnownBad)
         return 0;
 
@@ -142,7 +136,6 @@ static uint32_t GetCurrentWeatherFormID()
 
 static void WriteWeatherToSky(TESForm* form)
 {
-    LOG_REQUIREMENT("(global)::WriteWeatherToSky", "Relies on the safe sky-manager helpers above. Does nothing if the form is null or the sky manager is already known to be broken.");
     if (s_skyMgrKnownBad)
         return;
 
@@ -166,7 +159,6 @@ static void WriteWeatherToSky(TESForm* form)
 
 static std::string SerializeTime(float gameHour)
 {
-    LOG_REQUIREMENT("(global)::SerializeTime", "Just formats a number into a string. No game state involved.");
     std::ostringstream ss;
     ss << std::fixed << std::setprecision(4);
     ss << "TD|" << gameHour;
@@ -175,7 +167,6 @@ static std::string SerializeTime(float gameHour)
 
 static bool DeserializeTime(const std::string& msg, float& outGameHour)
 {
-    LOG_REQUIREMENT("(global)::DeserializeTime", "Just parses a string. Returns false if the message is not a valid time packet.");
     if (msg.rfind("TD|", 0) != 0) return false;
     const char* p = msg.c_str() + 3;
     char* end = nullptr;
@@ -189,7 +180,6 @@ static bool DeserializeTime(const std::string& msg, float& outGameHour)
 
 static std::string SerializeWeather(uint32_t formID)
 {
-    LOG_REQUIREMENT("(global)::SerializeWeather", "Just formats a form ID into a string. No game state involved.");
     std::ostringstream ss;
     ss << "WX|" << formID;
     return ss.str();
@@ -197,7 +187,6 @@ static std::string SerializeWeather(uint32_t formID)
 
 static bool DeserializeWeather(const std::string& msg, uint32_t& outFormID)
 {
-    LOG_REQUIREMENT("(global)::DeserializeWeather", "Just parses a string. Returns false if the message is not a valid weather packet.");
     if (msg.rfind("WX|", 0) != 0) return false;
     const char* p = msg.c_str() + 3;
     char* end = nullptr;
@@ -213,7 +202,6 @@ static bool DeserializeWeather(const std::string& msg, uint32_t& outFormID)
 // rather than leaving the one exception.
 __declspec(noinline) static bool SafeReadGameHour(TESGlobal* g, float& outHour)
 {
-    LOG_REQUIREMENT("(global)::SafeReadGameHour", "Needs a valid global-variable pointer. Guarded so a bad pointer is caught safely instead of crashing.");
     __try
     {
         outHour = g->value;
@@ -227,7 +215,6 @@ __declspec(noinline) static bool SafeReadGameHour(TESGlobal* g, float& outHour)
 
 static float GetGameHour()
 {
-    LOG_REQUIREMENT("(global)::GetGameHour", "Relies on the safe helpers above. Returns -1 if the game hour cannot be found or read safely.");
     TESGlobal* g = GetGameHourGlobal();
     if (!g) return -1.f;
 
@@ -262,14 +249,12 @@ namespace
 
 uint32_t CoSyncTimeSync::GetLockedWeatherFormID()
 {
-    LOG_REQUIREMENT("CoSyncTimeSync::GetLockedWeatherFormID", "Just a thread-safe read of a stored value. Safe to call anytime, regardless of session state.");
     std::lock_guard<std::mutex> lk(s_lockMutex);
     return s_hasLockedWeather ? s_lockedWeatherFormID : 0;
 }
 
 void CoSyncTimeSync::Init()
 {
-    LOG_REQUIREMENT("CoSyncTimeSync::Init", "Resets this module's internal state for a new session. Should be called once before Tick() or ForceOverrideOnGameThread() are used.");
     s_initialized       = true;
     s_lastBroadcastTime = 0.0;
     s_lastWeatherFormID = 0;
@@ -295,7 +280,6 @@ void CoSyncTimeSync::Init()
 
 void CoSyncTimeSync::Shutdown()
 {
-    LOG_REQUIREMENT("CoSyncTimeSync::Shutdown", "Clears this module's internal state. Safe to call regardless of whether Init() ran before.");
     s_initialized = false;
 
     std::lock_guard<std::mutex> lk(s_lockMutex);
@@ -306,7 +290,6 @@ void CoSyncTimeSync::Shutdown()
 
 void CoSyncTimeSync::ForceOverrideOnGameThread()
 {
-    LOG_REQUIREMENT("CoSyncTimeSync::ForceOverrideOnGameThread", "Needs Init() to have already run, and only does anything on a client (not the host). Must be called from the game thread since it writes game values directly.");
     if (!s_initialized || CoSyncNet::IsHost())
         return;
 
@@ -387,7 +370,6 @@ void CoSyncTimeSync::ForceOverrideOnGameThread()
 
 void CoSyncTimeSync::Tick(double now)
 {
-    LOG_REQUIREMENT("CoSyncTimeSync::Tick", "Needs Init() to have already run. The part that broadcasts time/weather also needs this session to be the host and connected.");
     if (!s_initialized)
         return;
 
@@ -448,7 +430,6 @@ void CoSyncTimeSync::Tick(double now)
 
 void CoSyncTimeSync::OnReceiveTime(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncTimeSync::OnReceiveTime", "Expects a packet string, and only does anything on a client -- it exits immediately if this session is the host. Malformed packets are safely rejected.");
     if (CoSyncNet::IsHost())
         return;
 
@@ -478,7 +459,6 @@ void CoSyncTimeSync::OnReceiveTime(const std::string& msg)
 
 void CoSyncTimeSync::OnReceiveWeather(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncTimeSync::OnReceiveWeather", "Expects a packet string. On the host it just rebroadcasts the message; on a client, malformed packets are safely rejected.");
     if (CoSyncNet::IsHost())
     {
         CoSyncTransport::Send(msg);

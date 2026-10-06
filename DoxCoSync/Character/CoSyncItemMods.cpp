@@ -6,7 +6,6 @@
 #include "CoSyncPlayerManager.h"
 #include "CoSyncPlayer.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 
 #include "GameForms.h"
 #include "GameObjects.h"
@@ -276,7 +275,6 @@ namespace CoSyncItemMods
 
     void OnReceive(const std::string& msg, bool isHostRole)
     {
-        LOG_REQUIREMENT("CoSyncItemMods::OnReceive", "Main thread (transport inbox).");
         const size_t bar = msg.find('|', 6);
         if (bar == std::string::npos)
             return;

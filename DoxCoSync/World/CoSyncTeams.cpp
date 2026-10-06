@@ -4,7 +4,6 @@
 #include "CoSyncTeams.h"
 
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
 #include "CoSyncProfiles.h"
@@ -1063,7 +1062,6 @@ namespace CoSyncTeams
 
     void OnReceive(const std::string& msg, uint32_t conn, bool isHostRole)
     {
-        LOG_REQUIREMENT("CoSyncTeams::OnReceive", "CoSync tick. Untrusted input: the host acts only on the sender's connection identity.");
         std::lock_guard<std::recursive_mutex> lk(s_mx);
         const char kind = msg[1];
 

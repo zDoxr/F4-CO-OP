@@ -1,6 +1,5 @@
 #include "CoSyncReviveSync.h"
 
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 #include "CoSyncPlayer.h"
 #include "CoSyncPlayerManager.h"
@@ -648,7 +647,6 @@ namespace CoSyncReviveSync
 
     void OnReceive(const std::string& msg, uint32_t conn, bool isHostRole, uint32_t senderEid)
     {
-        LOG_REQUIREMENT("CoSyncReviveSync::OnReceive", "Network side; the game thread applies it. The host checks every message's sender.");
         if (msg.size() > 512) return;
         std::lock_guard<std::mutex> lk(s_opMutex);
         if (s_ops.size() < 256)

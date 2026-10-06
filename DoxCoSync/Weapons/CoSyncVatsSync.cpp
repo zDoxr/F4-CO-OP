@@ -3,7 +3,6 @@
 #include "CoSyncTransport.h"
 #include "CoSyncEntityRegistry.h"
 #include "CoSyncAnimationUtils.h"
-#include "CoSyncRequirementsLog.h"
 
 #include "GameCamera.h"
 #include "Relocation.h"
@@ -46,7 +45,6 @@ static ActorValueInfo* s_apAVI = nullptr;
 
 static ActorValueInfo* GetApAVI()
 {
-    LOG_REQUIREMENT("CoSyncVatsSync::GetApAVI", "Needs the form lookup function to be ready and the Action Points form ID to be valid. The result is cached, so later calls don't need to look it up again.");
     if (!s_apAVI)
     {
         TESForm* form = LookupFormByID(kAVI_ActionPoints);
@@ -68,7 +66,6 @@ static ActorValueInfo* GetApAVI()
 
 static float ReadLocalAP(Actor* player)
 {
-    LOG_REQUIREMENT("CoSyncVatsSync::ReadLocalAP", "Needs GetApAVI() to succeed and the player to exist, both of which are checked before reading the player's stats.");
     ActorValueInfo* avi = GetApAVI();
     if (!avi || !player)
         return 0.f;
@@ -77,7 +74,6 @@ static float ReadLocalAP(Actor* player)
 
 bool CoSyncVatsSync::IsVatsEnter(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncVatsSync::IsVatsEnter", "Doesn't touch the game at all — just needs a valid message string.");
 
     return msg.size() > 10 &&
            msg[0]=='V' && msg[1]=='A' && msg[2]=='T' && msg[3]=='S' &&
@@ -87,7 +83,6 @@ bool CoSyncVatsSync::IsVatsEnter(const std::string& msg)
 
 bool CoSyncVatsSync::IsVatsExit(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncVatsSync::IsVatsExit", "Doesn't touch the game at all — just needs a valid message string.");
 
     return msg.size() > 9 &&
            msg[0]=='V' && msg[1]=='A' && msg[2]=='T' && msg[3]=='S' &&
@@ -97,7 +92,6 @@ bool CoSyncVatsSync::IsVatsExit(const std::string& msg)
 
 std::string CoSyncVatsSync::SerializeVatsEnter(uint32_t entityID, float apCurrent)
 {
-    LOG_REQUIREMENT("CoSyncVatsSync::SerializeVatsEnter", "Doesn't touch the game at all — just needs a valid entity ID and AP value.");
     char buf[80];
     std::snprintf(buf, sizeof(buf), "VATS_ENTER|%u|%.2f", entityID, apCurrent);
     return buf;
@@ -105,7 +99,6 @@ std::string CoSyncVatsSync::SerializeVatsEnter(uint32_t entityID, float apCurren
 
 std::string CoSyncVatsSync::SerializeVatsExit(uint32_t entityID, float apCurrent)
 {
-    LOG_REQUIREMENT("CoSyncVatsSync::SerializeVatsExit", "Doesn't touch the game at all — just needs a valid entity ID and AP value.");
     char buf[80];
     std::snprintf(buf, sizeof(buf), "VATS_EXIT|%u|%.2f", entityID, apCurrent);
     return buf;
@@ -113,7 +106,6 @@ std::string CoSyncVatsSync::SerializeVatsExit(uint32_t entityID, float apCurrent
 
 void CoSyncVatsSync::OnReceiveVatsEnter(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncVatsSync::OnReceiveVatsEnter", "Needs the message to be at least as long as the \"VATS_ENTER|\" prefix, since it skips past that prefix before reading the rest.");
 
     uint32_t eid = 0;
     float ap = 0.f;
@@ -134,7 +126,6 @@ void CoSyncVatsSync::OnReceiveVatsEnter(const std::string& msg)
 
 void CoSyncVatsSync::OnReceiveVatsExit(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncVatsSync::OnReceiveVatsExit", "Needs the message to be at least as long as the \"VATS_EXIT|\" prefix, since it skips past that prefix before reading the rest.");
 
     uint32_t eid = 0;
     float ap = 0.f;
@@ -155,7 +146,6 @@ void CoSyncVatsSync::OnReceiveVatsExit(const std::string& msg)
 
 void CoSyncVatsSync::FlushPendingVatsOps()
 {
-    LOG_REQUIREMENT("CoSyncVatsSync::FlushPendingVatsOps", "Needs the entity registry to be valid so it can look up real actors for queued operations. If an entity hasn't spawned yet, that's fine — it's logged and skipped.");
     std::vector<VatsOp> ops;
     {
         std::lock_guard<std::mutex> lk(s_mutex);
@@ -208,7 +198,6 @@ void CoSyncVatsSync::FlushPendingVatsOps()
 
 bool CoSyncVatsSync::IsEntityInVats(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncVatsSync::IsEntityInVats", "Doesn't touch the game at all — safe to call any time.");
     std::lock_guard<std::mutex> lk(s_vatsMutex);
     return s_inVats.count(entityID) > 0;
 }
@@ -262,7 +251,6 @@ bool CoSyncVatsSync::IsEntityInVats(uint32_t entityID)
 // CoSyncDoorHook.cpp/CoSyncPickupHook.cpp/CoSyncLockHook.cpp).
 __declspec(noinline) static bool SafeReadVatsCameraState(PlayerCamera* cam, TESCameraState*& vatsState, TESCameraState*& activeState)
 {
-    LOG_REQUIREMENT("CoSyncVatsSync::SafeReadVatsCameraState", "Needs a non-null camera pointer, which the caller checks. Wrapped in a safety net so an invalid camera early in a session fails safely instead of crashing.");
     __try
     {
         vatsState   = cam->cameraStates[PlayerCamera::kCameraState_VATS];
@@ -277,7 +265,6 @@ __declspec(noinline) static bool SafeReadVatsCameraState(PlayerCamera* cam, TESC
 
 void CoSyncVatsSync::TickLocalVats(uint32_t myEntityID)
 {
-    LOG_REQUIREMENT("CoSyncVatsSync::TickLocalVats", "Needs the player camera to resolve, which is checked and retried every tick, and needs SafeReadVatsCameraState() to succeed before it can tell whether the player is in VATS.");
     // UPDATE 2026-06-17: was permanently disabling VATS sync after the FIRST
     // SEH-caught failure, on the theory the RVA was stale garbage. It isn't
     // (see SafeReadVatsCameraState's comment above -- independently

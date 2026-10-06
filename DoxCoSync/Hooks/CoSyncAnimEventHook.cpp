@@ -7,7 +7,6 @@
 #include "GameReferences.h"
 #include "GameObjects.h"
 #include "GameTypes.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncNpcWorldSync.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncEntityState.h"
@@ -269,7 +268,6 @@ static bool LocallyDrivesEntity(uint32_t entityID)
 
 static void TryForwardEvent(Actor* actor, const char* tag)
 {
-    LOG_REQUIREMENT("TryForwardEvent", "Needs the actor to be a registered NPC this machine drives, and the event name to already be on the approved list.");
 
     const uint32_t eid = CoSyncNpcWorldSync::GetEntityIDForActor(actor);
     if (eid == 0)
@@ -539,7 +537,6 @@ namespace
 
 void InstallNpcGraphInputCapture()
 {
-    LOG_REQUIREMENT("InstallNpcGraphInputCapture", "Plugin load or later. Swaps one verified vtable slot (Actor's animation-graph holder, slot 1) after checking it still points at the 1.11.240 thunk.");
     if (s_origHolderNotify)
         return;
     const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandle(NULL));
@@ -587,7 +584,6 @@ static int __fastcall HookedReceiveEvent(
     BSAnimationGraphEvent* evnt,
     void*                  dispatcher)
 {
-    LOG_REQUIREMENT("HookedReceiveEvent", "Needs this to be the real animation event listener so it can find the owning actor, and the original game function must stay valid so every event still gets processed normally.");
     CoSyncThreadDiag::Note(CoSyncThreadDiag::kAnimEvent);
 
     // Deliberately NOT forwarding the local player here: player animation sync
@@ -632,7 +628,6 @@ static int __fastcall HookedReceiveEvent(
 
 void InstallAnimEventHook()
 {
-    LOG_REQUIREMENT("InstallAnimEventHook", "Must not already be installed. Needs a valid player with a working animation event listener to hook into.");
     if (s_hookInstalled)
         return;
 
@@ -703,7 +698,6 @@ void InstallAnimEventHook()
 
 void UninstallAnimEventHook()
 {
-    LOG_REQUIREMENT("UninstallAnimEventHook", "The hook must already be installed for there to be anything to remove.");
     if (!s_hookInstalled || !s_hookTarget)
         return;
 

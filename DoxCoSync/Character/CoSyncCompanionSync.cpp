@@ -4,7 +4,6 @@
 
 #include "CoSyncCompanionSync.h"
 
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
@@ -81,19 +80,16 @@ namespace
 
 bool CoSyncCompanionSync::IsCompanionRequest(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncCompanionSync::IsCompanionRequest", "Just checks the text of a message. No game state needed.");
     return msg.rfind("COMP_REQ|", 0) == 0;
 }
 
 bool CoSyncCompanionSync::IsCompanionDismiss(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncCompanionSync::IsCompanionDismiss", "Just checks the text of a message. No game state needed.");
     return msg.rfind("COMP_DISMISS|", 0) == 0;
 }
 
 std::string CoSyncCompanionSync::SerializeRequest(uint32_t ownerEntityID, uint32_t baseFormID)
 {
-    LOG_REQUIREMENT("CoSyncCompanionSync::SerializeRequest", "Just turns a companion request into text. Doesn't touch the game at all.");
     char buf[80];
     std::snprintf(buf, sizeof(buf), "COMP_REQ|%u|%u", ownerEntityID, baseFormID);
     return buf;
@@ -101,7 +97,6 @@ std::string CoSyncCompanionSync::SerializeRequest(uint32_t ownerEntityID, uint32
 
 std::string CoSyncCompanionSync::SerializeDismiss(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncCompanionSync::SerializeDismiss", "Just turns a player ID into text. Doesn't touch the game at all.");
     char buf[64];
     std::snprintf(buf, sizeof(buf), "COMP_DISMISS|%u", entityID);
     return buf;
@@ -109,7 +104,6 @@ std::string CoSyncCompanionSync::SerializeDismiss(uint32_t entityID)
 
 void CoSyncCompanionSync::RequestCompanion(uint32_t ownerEntityID, uint32_t baseFormID)
 {
-    LOG_REQUIREMENT("CoSyncCompanionSync::RequestCompanion", "Needs a real companion to request and the network to be set up first (both checked).");
     if (baseFormID == 0) return;
 
     if (CoSyncNet::IsHost())
@@ -135,7 +129,6 @@ void CoSyncCompanionSync::RequestCompanion(uint32_t ownerEntityID, uint32_t base
 
 void CoSyncCompanionSync::DismissCompanion(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncCompanionSync::DismissCompanion", "Needs a real player ID and the network to be set up first (both checked).");
     if (entityID == 0) return;
 
     if (CoSyncNet::IsHost())
@@ -157,7 +150,6 @@ void CoSyncCompanionSync::DismissCompanion(uint32_t entityID)
 
 void CoSyncCompanionSync::OnReceiveRequest(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncCompanionSync::OnReceiveRequest", "Reads a companion request out of text. A badly formed message is safely rejected, not crashed on.");
 
     const char* p = msg.c_str() + 9;
     char* e = nullptr;
@@ -191,7 +183,6 @@ void CoSyncCompanionSync::OnReceiveRequest(const std::string& msg)
 
 void CoSyncCompanionSync::OnReceiveDismiss(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncCompanionSync::OnReceiveDismiss", "Reads a companion-dismiss notice out of text. Needs the message to be long enough to actually contain one.");
 
     const char* p = msg.c_str() + 13;
     uint32_t entityID = static_cast<uint32_t>(std::strtoul(p, nullptr, 10));
@@ -208,7 +199,6 @@ void CoSyncCompanionSync::OnReceiveDismiss(const std::string& msg)
 
 static uint32_t AllocCompanionEID()
 {
-    LOG_REQUIREMENT("CoSyncCompanionSync::AllocCompanionEID", "Just hands out the next ID from an internal counter. A 0 result means it's run out of IDs to give.");
 
     static uint32_t s_next = 0x00020100u;
     static constexpr uint32_t kMax = 0x000201FFu;
@@ -229,7 +219,6 @@ static uint32_t AllocCompanionEID()
 // TESForm*.
 __declspec(noinline) static TESForm* SafeLookupAndCheckNPCForm(uint32_t formID)
 {
-    LOG_REQUIREMENT("CoSyncCompanionSync::SafeLookupAndCheckNPCForm", "The ID comes from the other player and isn't trusted. Looked up safely so a bad ID can't crash the game.");
     __try
     {
         TESForm* form = LookupFormByID(formID);
@@ -243,7 +232,6 @@ __declspec(noinline) static TESForm* SafeLookupAndCheckNPCForm(uint32_t formID)
 
 __declspec(noinline) static TESNPC* SafeCastNPC(TESForm* form)
 {
-    LOG_REQUIREMENT("CoSyncCompanionSync::SafeCastNPC", "Handles a missing or non-NPC form gracefully instead of crashing.");
     __try
     {
         // 2026-07-04: DYNAMIC_CAST removed — minidump-confirmed broken RTTI
@@ -262,7 +250,6 @@ __declspec(noinline) static TESNPC* SafeCastNPC(TESForm* form)
 
 void CoSyncCompanionSync::FlushPendingCompanionOps()
 {
-    LOG_REQUIREMENT("CoSyncCompanionSync::FlushPendingCompanionOps", "Only the host processes queued spawn/dismiss requests (checked first); looks up any companion forms sent by other players safely.");
     if (!CoSyncNet::IsHost())
         return;
 

@@ -3,7 +3,6 @@
 
 #include "CoSyncLockHook.h"
 
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 #include "CoSyncNet.h"
 #include "CoSyncTransport.h"
@@ -82,7 +81,6 @@ static std::atomic<bool> g_hooksInstalled{ false };
 // See those files for the fuller writeup.
 __declspec(noinline) static uint32_t SafeReadU32(const void* base, size_t off)
 {
-    LOG_REQUIREMENT("(global)::SafeReadU32", "Safe to call with a bad pointer -- wrapped in a crash guard, returns 0 if the read fails.");
     __try {
         return *reinterpret_cast<const uint32_t*>(
             reinterpret_cast<const uint8_t*>(base) + off);
@@ -92,7 +90,6 @@ __declspec(noinline) static uint32_t SafeReadU32(const void* base, size_t off)
 
 __declspec(noinline) static uint8_t SafeReadU8(const void* base, size_t off)
 {
-    LOG_REQUIREMENT("(global)::SafeReadU8", "Safe to call with a bad pointer -- wrapped in a crash guard, returns 0 if the read fails.");
     __try {
         return *reinterpret_cast<const uint8_t*>(
             reinterpret_cast<const uint8_t*>(base) + off);
@@ -102,7 +99,6 @@ __declspec(noinline) static uint8_t SafeReadU8(const void* base, size_t off)
 
 __declspec(noinline) static bool VerifyLockedState(void* refr, bool expected)
 {
-    LOG_REQUIREMENT("(global)::VerifyLockedState", "Needs a valid ref and a resolved game function pointer. The actual read is wrapped in a crash guard.");
     if (!refr || !g_fnLockDataGet) return false;
     __try {
         void* ld = g_fnLockDataGet(refr);
@@ -136,7 +132,6 @@ namespace
 static void OnLockFlip(void* refr, bool newLockedState, LockFlipFn orig,
                        std::atomic<uint64_t>& counter, const char* tag)
 {
-    LOG_REQUIREMENT("(global)::OnLockFlip", "Needs the original game function to actually lock/unlock the door. Sending the update to other players needs a live connection.");
     const uint64_t fire = counter.fetch_add(1, std::memory_order_relaxed) + 1;
 
     // round 94 diagnostic: unconditional fire-heartbeat regardless of
@@ -187,14 +182,12 @@ namespace { std::atomic<uint64_t> g_unlockFires{ 0 }, g_lockFires{ 0 }; }
 
 static void __fastcall Detour_ForceUnlock(void* refr)
 {
-    LOG_REQUIREMENT("(global)::Detour_ForceUnlock", "Needs the hook to already be installed so we can still reach the original game function afterward.");
     CoSyncThreadDiag::Note(CoSyncThreadDiag::kLockFlip);
     OnLockFlip(refr, false, g_origForceUnlock, g_unlockFires, "UNLOCK");
 }
 
 static void __fastcall Detour_ForceLock(void* refr)
 {
-    LOG_REQUIREMENT("(global)::Detour_ForceLock", "Needs the hook to already be installed so we can still reach the original game function afterward.");
     CoSyncThreadDiag::Note(CoSyncThreadDiag::kLockFlip);
     OnLockFlip(refr, true, g_origForceLock, g_lockFires, "LOCK");
 }
@@ -205,7 +198,6 @@ static void __fastcall Detour_ForceLock(void* refr)
 
 void InstallLockHook()
 {
-    LOG_REQUIREMENT("(global)::InstallLockHook", "Needs the game's .exe to be loaded and this game version's lock functions to be at the addresses this build expects. Only meant to run once, before lock syncing can work.");
     if (g_hooksInstalled.exchange(true))
         return;
 
@@ -270,7 +262,6 @@ void InstallLockHook()
 
 void UninstallLockHook()
 {
-    LOG_REQUIREMENT("(global)::UninstallLockHook", "Needs InstallLockHook() to have already succeeded, so there's actually something to remove.");
     if (!g_hooksInstalled.exchange(false))
         return;
 
@@ -285,13 +276,11 @@ void UninstallLockHook()
 
 bool CoSyncLockHook::IsLock(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncLockHook::IsLock", "Doesn't touch the game. Just checks if a message starts with the lock prefix.");
     return msg.rfind("LOCK|", 0) == 0;
 }
 
 void CoSyncLockHook::OnReceiveLock(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncLockHook::OnReceiveLock", "Needs a properly formatted LOCK message. Anything malformed is safely rejected.");
     const char* s = msg.c_str() + 5; // skip "LOCK|"
     char* e = nullptr;
 
@@ -315,7 +304,6 @@ void CoSyncLockHook::OnReceiveLock(const std::string& msg)
 // comment above for why).
 __declspec(noinline) static TESObjectREFR* SafeLookupAndCastLockRefr(uint32_t refFormID)
 {
-    LOG_REQUIREMENT("(global)::SafeLookupAndCastLockRefr", "Safe to call with any ref ID, even a bad one from another player -- wrapped in a crash guard, returns null if it's missing or the wrong type.");
     __try
     {
         TESForm* form = LookupFormByID(refFormID);
@@ -330,7 +318,6 @@ __declspec(noinline) static TESObjectREFR* SafeLookupAndCastLockRefr(uint32_t re
 // SEH isolated: no C++ objects in scope — avoids C2712.
 static void DoLockApply(void* refr, uint8_t locked) noexcept
 {
-    LOG_REQUIREMENT("(global)::DoLockApply", "Needs the resolved game function and a valid ref. The actual game call is wrapped in a crash guard.");
     const LockFlipFn fn = locked ? g_origForceLock : g_origForceUnlock;
     if (!fn || !refr) return;
     tls_cs_lock_applying = true;
@@ -343,7 +330,6 @@ static void DoLockApply(void* refr, uint8_t locked) noexcept
 
 void CoSyncLockHook::FlushPendingLockOps()
 {
-    LOG_REQUIREMENT("CoSyncLockHook::FlushPendingLockOps", "Safe to call any time -- does nothing if there are no pending lock changes.");
     std::vector<LockOp> ops;
     {
         std::lock_guard<std::mutex> lk(s_mutex);

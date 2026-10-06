@@ -11,7 +11,6 @@
 #include "Packets_EntityUpdate.h"
 #include "CoSyncEntityTypes.h"
 #include "CoSyncAnimVarSystem.h"
-#include "CoSyncRequirementsLog.h"
 
 class CoSyncPlayer
 {
@@ -53,7 +52,6 @@ public:
 
     bool IsOwner(uint32_t localEntityID) const
     {
-        LOG_REQUIREMENT("CoSyncPlayer::IsOwner", "Just compares against this proxy's already-set owner ID.");
         return ownerEntityID != 0 && ownerEntityID == localEntityID;
     }
 

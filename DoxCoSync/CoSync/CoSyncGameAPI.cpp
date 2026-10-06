@@ -13,7 +13,6 @@
 #include "PapyrusVM.h"
 #include "PapyrusEvents.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncVMFormArg.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -254,7 +253,6 @@ namespace CoSyncGameAPI
     //   NPCs still aggro the proxy without teammate friendly-fire immunity.
     static void SetupPlayerProxyProtections(Actor* actor, TESNPC* npcBase)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::SetupPlayerProxyProtections", "Needs a freshly spawned, non-null proxy actor and its NPC base record. Skips marking the base essential for the real player's own record (form 0x7) so the actual local player never becomes unkillable by accident.");
 
         // GUARD: never flag base 0x7 — that's the REAL local player's own
         // NPC record (fallback path when CoSync.esp is missing); marking it
@@ -276,7 +274,6 @@ namespace CoSyncGameAPI
 
     void QueueProxyFactionRank(Actor* actor)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::QueueProxyFactionRank", "Needs a non-null actor that's still alive and whose script object is ready. Only call this from the delayed post-spawn step, not during SpawnTask::Run.");
         if (!actor || !IsFormStillLive(actor))
         {
             LOG_WARN("[CoSyncGameAPI::QueueProxyFactionRank] actor=%p is gone, skipping", static_cast<void*>(actor));
@@ -507,7 +504,6 @@ namespace CoSyncGameAPI
 
     TESObjectREFR* SpawnItemAtPosition(TESForm* itemBase, const NiPoint3& pos, const NiPoint3& rot)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::SpawnItemAtPosition", "Needs a non-null item form and a valid player (used to figure out which cell/worldspace to spawn into) — both are checked. Uses the same reference-creation method as SpawnRemoteActor, just without the actor-only setup steps.");
         if (!itemBase)
         {
             LOG_ERROR("[CoSyncGameAPI] SpawnItemAtPosition: no item form was given");
@@ -603,7 +599,6 @@ namespace CoSyncGameAPI
     {
         double GameAPINowSeconds()
         {
-            LOG_REQUIREMENT("CoSyncGameAPI::GameAPINowSeconds", "Doesn't touch any game state — just needs the system's performance-counter frequency to be non-zero (assumed, not checked).");
             static double s_freq = [] {
                 LARGE_INTEGER f{};
                 QueryPerformanceFrequency(&f);
@@ -662,7 +657,6 @@ namespace CoSyncGameAPI
 
         __declspec(noinline) void ResyncActorCellMembership_Impl(Actor* actor, const NiPoint3& pos, const NiPoint3& rot)
         {
-            LOG_REQUIREMENT("CoSyncGameAPI::ResyncActorCellMembership_Impl", "Needs a valid player (checked, returns early if missing). Moves the actor using the game's own move function, which the caller wraps in a crash guard.");
             PlayerCharacter* pc = CoSyncGetPlayer();
             if (!pc)
                 return;
@@ -746,7 +740,6 @@ namespace CoSyncGameAPI
 
         void ResyncActorCellMembership(Actor* actor, const NiPoint3& pos, const NiPoint3& rot)
         {
-            LOG_REQUIREMENT("CoSyncGameAPI::ResyncActorCellMembership", "Uses the actor pointer as a lookup key without checking for null — relies on the caller having already confirmed the actor isn't null.");
             static std::unordered_map<Actor*, double> s_lastResync;
 
             const double now = GameAPINowSeconds();
@@ -832,7 +825,6 @@ namespace CoSyncGameAPI
         const NiPoint3& pos,
         const NiPoint3& rot)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::PositionRemoteActor", "Needs a non-null actor (checked), and for the visual update, a valid root node from the actor (also checked).");
         if (!actor)
             return;
 
@@ -917,7 +909,6 @@ namespace CoSyncGameAPI
         float yaw,
         float tumble)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::PositionRefRaw_Impl", "Needs a non-null reference with a valid root node — both checked. The caller wraps this in a crash guard because the game can free the reference between our check and this write.");
         if (!refr)
             return;
 
@@ -958,7 +949,6 @@ namespace CoSyncGameAPI
         float yaw,
         float tumble)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::PositionRefRaw", "Wraps the real work in a crash guard — a stand-in reference can get freed by the game (cell unload, deletion) between the liveness check and the write, and a crash here must not bring down the whole game.");
         __try
         {
             PositionRefRaw_Impl(refr, pos, yaw, tumble);
@@ -974,7 +964,6 @@ namespace CoSyncGameAPI
         NiPoint3& outPos,
         NiPoint3& outRot)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::GetActorWorldTransform", "Needs a non-null actor (checked) — returns false without writing anything if the actor is null.");
         if (!actor)
             return false;
 
@@ -997,7 +986,6 @@ namespace CoSyncGameAPI
     // RVA alone. Fixed to push both required arguments.
     void DisableActorAI(Actor* actor)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::DisableActorAI", "Needs a non-null actor (checked) and a reachable script VM. Passes both arguments EnableAI expects.");
         LOG_INFO("[CoSyncGameAPI::DisableActorAI] starting for actor=0x%p", actor);
 
         if (!actor)
@@ -1158,7 +1146,6 @@ namespace CoSyncGameAPI
 
     void SteerPuppetPosition(Actor* actor, const NiPoint3& pos, float headingZ)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::SteerPuppetPosition", "Needs a non-null, still-alive actor. Sets its facing direction, then moves it to the given position through the game's own move function, wrapped in a crash guard. The actor's AI and animation keep running normally — we're only pinning its position.");
         if (!actor || !IsFormStillLive(static_cast<TESForm*>(actor)))
             return;
         using SetPos_t = void(*)(Actor*, const NiPoint3*, bool);
@@ -1205,7 +1192,6 @@ namespace CoSyncGameAPI
 
     void SetActorAvoidanceDisabled(Actor* actor, bool disabled)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::SetActorAvoidanceDisabled", "Needs a non-null, still-alive actor. Turns collision-avoidance on or off through the game's own function, wrapped in a crash guard.");
         if (!actor || !IsFormStillLive(static_cast<TESForm*>(actor)))
             return;
         using Fn = void(*)(Actor*, bool);
@@ -1223,7 +1209,6 @@ namespace CoSyncGameAPI
 
     void StopActorCombat(Actor* actor)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::StopActorCombat", "Needs a non-null, still-alive actor. Only calls the game's stop-combat function if the actor is actually in combat. Wrapped in a crash guard.");
         if (!actor || !IsFormStillLive(static_cast<TESForm*>(actor)))
             return;
         __try
@@ -1355,7 +1340,6 @@ namespace CoSyncGameAPI
 
     void KillPuppet(Actor* actor)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::KillPuppet", "Needs a non-null, still-alive actor. Sets its life state to dying, then triggers a real death (ragdoll, loot) through the game's own functions. Wrapped in a crash guard.");
         if (!actor || !IsFormStillLive(static_cast<TESForm*>(actor)))
             return;
         using SetLife_t   = void(*)(Actor*, int);
@@ -1412,7 +1396,6 @@ namespace CoSyncGameAPI
 
     Actor* GetCombatTargetActor(Actor* actor)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::GetCombatTargetActor", "Needs a non-null actor. Reads its current combat-target handle and resolves it to the actual actor. Wrapped in a crash guard; returns null if there's no target. Meant for real host-side NPCs, though the read itself is safe on any live actor.");
         if (!actor)
             return nullptr;
 
@@ -1437,7 +1420,6 @@ namespace CoSyncGameAPI
 
     void EnableActorAI(Actor* actor)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::EnableActorAI", "Needs a non-null actor (checked) and a reachable script VM. Passes both arguments EnableAI expects.");
         if (!actor)
             return;
         if (!IsFormStillLive(static_cast<TESForm*>(actor)))
@@ -1459,7 +1441,6 @@ namespace CoSyncGameAPI
     // despawned proxy via ObjectReference.Enable(false).
     void EnableProxyActor(Actor* actor)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::EnableProxyActor", "Needs a non-null, still-alive actor (checked). Calls the game's own internal enable function directly on the game thread — this works even on references that have an enable-state parent, which the normal script Enable() call silently refuses to touch.");
         if (!actor)
         {
             LOG_WARN("[CoSyncGameAPI::EnableProxyActor] no actor was given");
@@ -1495,7 +1476,6 @@ namespace CoSyncGameAPI
     // path, to reuse already-trusted argument-marshaling plumbing.
     void DespawnProxyActor(Actor* actor)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::DespawnProxyActor", "Needs a non-null actor (checked) and a reachable script VM. Relies on the built-in Disable() script function, which is a stable, well-tested part of the engine.");
         if (!actor)
             return;
         if (!IsFormStillLive(static_cast<TESForm*>(actor)))
@@ -1523,7 +1503,6 @@ namespace CoSyncGameAPI
 
     void DisableWorldActor(TESObjectREFR* refr)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::DisableWorldActor", "Needs a non-null, still-alive reference (checked). Calls the game's own internal disable function directly on the game thread — unlike the script/console Disable command, this also works on references that have an enable-state parent (like camp NPCs placed in the editor). Don't use this on player proxies — use DespawnProxyActor for those instead.");
         if (!refr)
             return;
         if (!IsFormStillLive(static_cast<TESForm*>(refr)))
@@ -1541,7 +1520,6 @@ namespace CoSyncGameAPI
 
     void EnableWorldActor(TESObjectREFR* refr)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::EnableWorldActor", "Needs a non-null, still-alive reference (checked). Uses the same enable path as EnableProxyActor, but works on any reference, not just actors.");
         if (!refr)
             return;
         if (!IsFormStillLive(static_cast<TESForm*>(refr)))
@@ -1557,7 +1535,6 @@ namespace CoSyncGameAPI
 
     int GetActorPowerArmorExtraState(Actor* actor)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::GetActorPowerArmorExtraState", "Needs a non-null, still-alive actor (checked). Just reads a bit of memory to check power armor state — no engine calls, no locks, can't hang. Wrapped in a crash guard so a bad pointer returns -1 instead of crashing.");
         if (!actor || !IsFormStillLive(static_cast<TESForm*>(actor)))
             return -1;
         return ReadExtraPresenceBit(static_cast<TESObjectREFR*>(actor), kExtraTypePowerArmor);
@@ -1565,7 +1542,6 @@ namespace CoSyncGameAPI
 
     bool SwitchToPowerArmorDirect(Actor* actor, TESObjectREFR* chassis)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::SwitchToPowerArmorDirect", "Needs a non-null, still-alive actor and chassis reference (both checked), and must run on the game thread. Calls the game's real power-armor-enter function directly, skipping the script wrapper's silent refusal checks. Wrapped in a crash guard.");
         if (!actor || !chassis)
             return false;
         if (!IsFormStillLive(static_cast<TESForm*>(actor)) ||
@@ -1607,7 +1583,6 @@ namespace CoSyncGameAPI
     // engine to tear down and rebuild the 3D/anim graph), just atomic.
     void RefreshActor3D(Actor* actor)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::RefreshActor3D", "Needs a non-null, still-alive actor (checked). Disables then re-enables it directly on the game thread, back to back, so there's no gap between the two steps.");
         if (!actor)
         {
             LOG_WARN("[CoSyncGameAPI::RefreshActor3D] no actor was given");
@@ -1626,7 +1601,6 @@ namespace CoSyncGameAPI
 
     bool TryRefreshActor3DThrottled(uint32_t entityID, Actor* actor, double cooldownSeconds)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::TryRefreshActor3DThrottled", "Needs a non-null actor (checked; the actual liveness check happens inside RefreshActor3D). Main thread only. Shares one cooldown tracker across every caller so two different systems can't both refresh the same entity at once.");
         if (!actor) return false;
 
         static std::unordered_map<uint32_t, double> s_lastRefreshAt;
@@ -1647,7 +1621,6 @@ namespace CoSyncGameAPI
 
     void InitNpcProxy(Actor* actor)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::InitNpcProxy", "Needs a non-null actor (checked). Runs after RefreshActor3D so these calls happen after the actor is fully enabled. Clears any essential/protected flags the base NPC might carry (like quest-essential enemies), and sends an idle animation event to get the actor out of its default pose once its animation graph is running.");
         if (!actor)
             return;
         if (!IsFormStillLive(static_cast<TESForm*>(actor)))
@@ -1872,7 +1845,6 @@ namespace CoSyncGameAPI
 
     int EnsureStackExtraLists(TESObjectREFR* ref, TESForm* item)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::EnsureStackExtraLists", "Main thread. Needs a live ref and a real item form; builds missing stack lists with the engine's own allocator and constructor, under the inventory write lock.");
         if (!ref || !item || !IsFormStillLive(static_cast<TESForm*>(ref)))
             return -1;
 
@@ -1966,7 +1938,6 @@ namespace CoSyncGameAPI
 
     TBO_InstanceData* BindWeaponInstanceToStack(TESObjectREFR* ref, TESForm* weapon)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::BindWeaponInstanceToStack", "Main thread. Needs a live ref, a WEAP form already in its inventory, and EnsureStackExtraLists run first. Uses the engine's own ExtraDataList instance getter/setter under the inventory write lock.");
         if (!ref || !weapon || weapon->formType != kFormType_WEAP || !IsFormStillLive(static_cast<TESForm*>(ref)))
             return nullptr;
 
@@ -2332,7 +2303,6 @@ namespace CoSyncGameAPI
 
     void TeleportActorTo(Actor* actor, TESObjectREFR* target)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::TeleportActorTo", "Needs a non-null actor and target (checked), and both must still be valid game forms (checked) before queuing the move.");
         if (!actor || !target)
             return;
         if (!IsFormStillLive(static_cast<TESForm*>(actor)) || !IsFormStillLive(static_cast<TESForm*>(target)))
@@ -2382,7 +2352,6 @@ namespace CoSyncGameAPI
 
     void SetLocalPlayerEssential(bool essential)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::SetLocalPlayerEssential", "Needs a valid player whose base form is an NPC record (both checked). Toggles the essential flag on that record directly. This is purely a crash-prevention measure — it keeps the player from hitting the death menu and reload path.");
         Actor* player = CoSyncGetPlayer();
         if (!player || !player->baseForm)
             return;
@@ -2454,13 +2423,11 @@ namespace CoSyncGameAPI
 
     __declspec(noinline) static void ShowNotification_Impl(const char* text)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::ShowNotification_Impl", "Must run on the game thread. Needs a non-null, non-empty string (checked by the caller) and the HUD to be ready, which it is any time a save is loaded. The caller wraps this in a crash guard.");
         g_ShowHUDMessage(text, nullptr, true, true);
     }
 
     void ShowNotification(const char* text)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::ShowNotification", "Must run on the game thread. Wraps the actual engine call in a crash guard so a bad UI state can never bring down the game. Silently does nothing if given null or empty text.");
         if (!text || !*text)
             return;
 
@@ -2483,7 +2450,6 @@ namespace CoSyncGameAPI
 
     void QueueNotification(const char* text)
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::QueueNotification", "Safe to call from any thread — just locks a mutex and copies the string. Doesn't touch any game state until FlushNotifications runs on the game thread.");
         if (!text || !*text)
             return;
 
@@ -2496,7 +2462,6 @@ namespace CoSyncGameAPI
 
     void FlushNotifications()
     {
-        LOG_REQUIREMENT("CoSyncGameAPI::FlushNotifications", "Must run on the game thread. Empties the queue under the lock first, so the actual engine calls happen after the lock is released.");
         std::vector<std::string> pending;
         {
             std::lock_guard<std::mutex> lk(s_notifyMutex);

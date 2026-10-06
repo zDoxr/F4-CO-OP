@@ -20,7 +20,6 @@
 
 #include <atomic>
 #include "CoSync_Main.h"
-#include "CoSyncRequirementsLog.h"
 
 // f4se-0.7.7's documented g_ui RVA (0x030DD8B0) is STALE for FO4 NG 1.11.221 --
 // verified via IDA: every UI::IsMenuOpen / Register*Menu-family caller
@@ -45,7 +44,6 @@ RelocPtr<BSReadWriteLock> g_menuTableLock(0x03DBD370);
 
 static IMenu* CoSync_GetMenu(UI* ui, BSFixedString& name)
 {
-    LOG_REQUIREMENT("(global)::CoSync_GetMenu", "Needs a valid UI object and a real menu name to look up.");
     if (!name.data->Get<char>())
         return nullptr;
 
@@ -75,7 +73,6 @@ namespace
     // correctly (see ScaleformValue.cpp) -- IsNumber() is just too strict.
     bool IsNumericType(const GFxValue& v)
     {
-        LOG_REQUIREMENT("(global)::IsNumericType", "Doesn't touch the game. Safe to call with any value, even an empty one.");
         UInt32 t = v.GetType();
         return t == GFxValue::kType_Int || t == GFxValue::kType_UInt || t == GFxValue::kType_Number;
     }
@@ -86,7 +83,6 @@ namespace
     // risk triggering from a logging helper.
     void LogDisplayObjectInfo(const char* label, GFxValue& obj)
     {
-        LOG_REQUIREMENT("(global)::LogDisplayObjectInfo", "Needs a real label for the log line. Safe to call on any menu object -- missing info just shows as a placeholder.");
         GFxValue x, y, w, h, a, vis;
         obj.GetMember("x", &x);
         obj.GetMember("y", &y);
@@ -116,7 +112,6 @@ namespace
     // no Invoke -- zero crash risk.
     void LogMaskAndScrollRect(const char* label, GFxValue& obj)
     {
-        LOG_REQUIREMENT("(global)::LogMaskAndScrollRect", "Needs a real label for the log line. Safe to call on any menu object -- missing info just shows as 'none' or '?'.");
         GFxValue maskVal;
         if (obj.GetMember("mask", &maskVal) && maskVal.IsObject())
             LogDisplayObjectInfo((std::string(label) + ".mask").c_str(), maskVal);
@@ -160,7 +155,6 @@ namespace
     // value. Pure GetMember, zero risk.
     void LogTransform(const char* label, GFxValue& obj)
     {
-        LOG_REQUIREMENT("(global)::LogTransform", "Needs a real label for the log line. Safe to call on any menu object -- missing info just shows as a placeholder.");
         GFxValue sx, sy, rot;
         obj.GetMember("scaleX", &sx);
         obj.GetMember("scaleY", &sy);
@@ -205,7 +199,6 @@ namespace
 
     bool ResolveMenuMc(GFxMovieRoot* root, GFxValue& outMenuMc)
     {
-        LOG_REQUIREMENT("(global)::ResolveMenuMc", "Safe to call with a missing menu root. Falls back to the last known-good menu if the current lookup fails.");
         if (root && root->GetVariable(&outMenuMc, "root.Menu_mc") && outMenuMc.IsObject())
         {
             if (!g_cachedMenuMcValid)
@@ -234,7 +227,6 @@ namespace
     // though setChildIndex/swapDepths/addEventListener are not.
     void DumpMenuMcChildren(GFxValue& menuMc)
     {
-        LOG_REQUIREMENT("(global)::DumpMenuMcChildren", "Needs a valid menu object with a child list. Exits quietly if that's missing.");
         GFxValue numChildrenVal;
         if (!menuMc.GetMember("numChildren", &numChildrenVal))
         {
@@ -279,7 +271,6 @@ namespace
     // containers are small, so dumping everything is cheap).
     void DumpChildrenOf(GFxValue& obj, const char* label)
     {
-        LOG_REQUIREMENT("(global)::DumpChildrenOf", "Needs a valid menu object with a child list and a real label. Exits quietly if the child list is missing.");
         GFxValue numChildrenVal;
         if (!obj.GetMember("numChildren", &numChildrenVal))
         {
@@ -316,7 +307,6 @@ namespace
     // independent of any local transform/scale on intermediate parents.
     void LogGlobalBounds(GFxValue& obj, const char* label, GFxValue& targetSpace)
     {
-        LOG_REQUIREMENT("(global)::LogGlobalBounds", "Needs a menu object that supports getBounds, and a real label for the log line.");
         GFxValue boundsArgs[1] = { targetSpace };
         GFxValue bounds;
         bool gotBounds = obj.Invoke("getBounds", &bounds, boundsArgs, 1);
@@ -353,7 +343,6 @@ namespace
     // primitives as DumpChildrenOf, zero new Invoke targets.
     void DumpEntryHolderChildren(GFxValue& entryHolder)
     {
-        LOG_REQUIREMENT("(global)::DumpEntryHolderChildren", "Needs a valid entry-holder menu object with a child list.");
         LogDisplayObjectInfo("EntryHolder_mc", entryHolder);
 
         GFxValue numChildrenVal;
@@ -406,7 +395,6 @@ namespace
 
     void InjectMultiplayerEntry(GFxMovieView* view)
     {
-        LOG_REQUIREMENT("(global)::InjectMultiplayerEntry", "Safe to call on any menu, even one that isn't the main menu -- does nothing if there's no menu list to add an entry to.");
         if (!view || !view->movieRoot)
             return;
 
@@ -474,7 +462,6 @@ namespace
     // session, see project_fo4_ng_menu_inject.md CRASH #1-5).
     bool IsActivatePressed()
     {
-        LOG_REQUIREMENT("(global)::IsActivatePressed", "Doesn't touch the game. Just checks if the Activate key was pressed since the last check -- needs to be polled regularly to catch every press.");
         static bool s_wasDown = false;
 
         bool isDown = (GetAsyncKeyState(VK_RETURN) & 0x8000) ||
@@ -495,7 +482,6 @@ namespace
     // consume the press edge and leave the other seeing nothing.
     bool IsMainMenuActivatePressed()
     {
-        LOG_REQUIREMENT("(global)::IsMainMenuActivatePressed", "Doesn't touch the game. Just checks if the Activate key was pressed since the last check, tracked separately for the main menu -- needs to be polled every frame.");
         static bool s_wasDown = false;
 
         bool isDown = (GetAsyncKeyState(VK_RETURN) & 0x8000) ||
@@ -514,7 +500,6 @@ namespace
     // (e.g. no quit-confirm dialog) -- see MainMenu.as ~1119-1127.
     bool IsEscapePressed()
     {
-        LOG_REQUIREMENT("(global)::IsEscapePressed", "Doesn't touch the game. Just checks if Escape was pressed since the last check -- needs to be polled regularly to catch every press.");
         static bool s_wasDown = false;
 
         bool isDown = (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
@@ -536,7 +521,6 @@ namespace
     // BSScrollingList's array-position selectedIndex) and toggles the panel.
     void PollMultiplayerRowActivation(GFxMovieRoot* root)
     {
-        LOG_REQUIREMENT("(global)::PollMultiplayerRowActivation", "Needs a valid menu root. Safe if any of the expected menu pieces are missing -- just exits early.");
         // CACHE PRIMING (2026-06-13): ResolveMenuMc's cached fallback (see
         // its definition) was only ever invoked AFTER an Activate press --
         // by which point "root.Menu_mc" no longer resolves fresh and the
@@ -690,7 +674,6 @@ namespace
     // PrismaUI is required: there is no other multiplayer UI any more.
     void OpenMultiplayerPanel(GFxMovieRoot* root)
     {
-        LOG_REQUIREMENT("(global)::OpenMultiplayerPanel", "Safe to call with a missing menu root -- exits before changing any state.");
         if (!root || g_multiplayerPanelOpen)
             return;
 
@@ -717,7 +700,6 @@ namespace
     // to lock its lists. Pure SetMember -- no Invoke.
     void SetMainPanelFrozen(GFxMovieRoot* root, bool frozen)
     {
-        LOG_REQUIREMENT("(global)::SetMainPanelFrozen", "Needs a valid menu root. Safe if the menu pieces can't be found -- just does nothing.");
         if (!root)
             return;
         GFxValue menuMc;
@@ -800,7 +782,6 @@ namespace
 
     __int64 __fastcall MainMenu_InitMainList_Hook(void* a1)
     {
-        LOG_REQUIREMENT("(global)::MainMenu_InitMainList_Hook", "Needs a valid main-menu pointer. Safe if there's no movie loaded yet, or if the original function was never resolved.");
         __int64 result = g_origInitMainList ? g_origInitMainList(a1) : 0;
 
         // IMenu::movie is at offset 0x40 (STATIC_ASSERT'd in GameMenus.h)
@@ -819,7 +800,6 @@ namespace
 
     bool __fastcall MainMenu_Update_Hook(void* a1)
     {
-        LOG_REQUIREMENT("(global)::MainMenu_Update_Hook", "Needs a valid main-menu pointer. Safe if there's no movie loaded yet, or if the original function was never resolved.");
         bool result = g_origMainMenuUpdate ? g_origMainMenuUpdate(a1) : false;
 
         // IMenu::movie is at offset 0x40 (STATIC_ASSERT'd in GameMenus.h)
@@ -838,7 +818,6 @@ namespace
 
     void InstallMainMenuUpdateHook()
     {
-        LOG_REQUIREMENT("(global)::InstallMainMenuUpdateHook", "Needs the game's main-menu update function to be at the address this build expects. Only meant to be called once.");
         uintptr_t* slot = (uintptr_t*)(RelocationManager::s_baseAddr + kMainMenuVtableRVA
             + kMenuUpdateVtableIndex * sizeof(uintptr_t));
 
@@ -868,7 +847,6 @@ namespace
 
     void InstallInitMainListHook()
     {
-        LOG_REQUIREMENT("(global)::InstallInitMainListHook", "Needs the game's main-menu setup function to be at the address this build expects. Only meant to be called once.");
         uintptr_t* slot = (uintptr_t*)(RelocationManager::s_baseAddr + kMainMenuVtableRVA
             + kInitMainListVtableIndex * sizeof(uintptr_t));
 
@@ -903,7 +881,6 @@ namespace
     // MenuOpenCloseEvent entirely) and from the sink for any later opens.
     void TryInjectIntoMainMenu()
     {
-        LOG_REQUIREMENT("(global)::TryInjectIntoMainMenu", "Needs the game's UI system to be up. Safe if the main menu isn't open yet -- just logs it and exits.");
         if (!g_ui_fixed || !*g_ui_fixed)
         {
             LOG_WARN("[CoSyncMenuInject] TryInjectIntoMainMenu: g_ui_fixed not ready");
@@ -936,7 +913,6 @@ namespace
     public:
         EventResult ReceiveEvent(MenuOpenCloseEvent* evn, void* dispatcher) override
         {
-            LOG_REQUIREMENT("CoSyncMainMenuOpenSink::ReceiveEvent", "Safe to call with an empty event -- just logs it and continues.");
             if (!evn)
             {
                 LOG_WARN("[CoSyncMenuInject] ReceiveEvent: null event");
@@ -991,7 +967,6 @@ namespace
     // full image, not just .rdata.
     static uintptr_t* FindVtableByRTTI(const char* mangledName)
     {
-        LOG_REQUIREMENT("(global)::FindVtableByRTTI", "Needs a real class name to search for. Returns nothing if that name can't be found in the game's own executable.");
         uintptr_t base = RelocationManager::s_baseAddr;
         auto* dos = reinterpret_cast<IMAGE_DOS_HEADER*>(base);
         auto* nt  = reinterpret_cast<IMAGE_NT_HEADERS64*>(base + dos->e_lfanew);
@@ -1112,7 +1087,6 @@ namespace
 
     void InjectDisconnectEntry(GFxMovieView* view)
     {
-        LOG_REQUIREMENT("(global)::InjectDisconnectEntry", "Only does anything while actually connected to a session. Safe if the menu list isn't available.");
         if (!view || !view->movieRoot) return;
         if (!CoSyncTransport::IsInitialized())  return;   // only when in a session
 
@@ -1154,7 +1128,6 @@ namespace
 
     void PollPauseMenuDisconnect(GFxMovieRoot* root)
     {
-        LOG_REQUIREMENT("(global)::PollPauseMenuDisconnect", "Safe with a missing menu root or missing menu pieces -- just exits early. Picking Disconnect always shuts down the session.");
         if (!root) return;
         if (!IsActivatePressed()) return;
 
@@ -1202,7 +1175,6 @@ namespace
 
     __int64 __fastcall PauseMenu_InitMainList_Hook(void* a1)
     {
-        LOG_REQUIREMENT("(global)::PauseMenu_InitMainList_Hook", "Needs a valid pause-menu pointer. Safe if there's no movie loaded yet, or if the original function was never resolved.");
         __int64 result = g_origPauseMenuInitMainList
             ? g_origPauseMenuInitMainList(a1) : 0;
 
@@ -1224,7 +1196,6 @@ namespace
 
     void InstallPauseMenuHook()
     {
-        LOG_REQUIREMENT("(global)::InstallPauseMenuHook", "Needs the pause menu's setup function to be found in the game's own executable. Only meant to be called once.");
         uintptr_t* vtable = FindVtableByRTTI(".?AVPauseMenu@@");
         if (!vtable)
         {
@@ -1267,7 +1238,6 @@ namespace
 // Fires disconnect if the DISCONNECT row (index 99) is highlighted.
 void CoSyncMenuInject_OnMultiplayerHotkey()
 {
-    LOG_REQUIREMENT("(global)::CoSyncMenuInject_OnMultiplayerHotkey", "Safe from any thread: sets an atomic flag or hands off to the PrismaUI dispatcher.");
     if (!CoSyncWorld::IsWorldReady())
         g_multiplayerToggleRequested.store(true);   // main menu: handled by the MainMenu poll
     else
@@ -1276,7 +1246,6 @@ void CoSyncMenuInject_OnMultiplayerHotkey()
 
 void CoSyncMenuInject_PauseMenuKeyActivate()
 {
-    LOG_REQUIREMENT("(global)::CoSyncMenuInject_PauseMenuKeyActivate", "Needs the game's UI system to be up. MULTIPLAYER works any time; DISCONNECT only while connected. Safe if the pause menu isn't open or its pieces are missing.");
     if (!g_ui_fixed || !*g_ui_fixed)   return;
 
     // Look the menu up live from the engine's menu table instead of trusting
@@ -1332,7 +1301,6 @@ void CoSyncMenuInject_PauseMenuKeyActivate()
 
 void CoSyncMenuInject_InstallHooks()
 {
-    LOG_REQUIREMENT("(global)::CoSyncMenuInject_InstallHooks", "Just calls the three individual menu-hook installers. Meant to be called once, as early as possible during plugin load.");
     InstallInitMainListHook();
     InstallMainMenuUpdateHook();
     InstallPauseMenuHook();
@@ -1340,7 +1308,6 @@ void CoSyncMenuInject_InstallHooks()
 
 void CoSyncMenuInject_Init()
 {
-    LOG_REQUIREMENT("(global)::CoSyncMenuInject_Init", "Needs the game's UI system to be up. Meant to be called once, after game data has finished loading.");
     if (!g_ui_fixed || !*g_ui_fixed)
     {
         LOG_ERROR("[CoSyncMenuInject] g_ui_fixed not ready, cannot register MainMenu sink");
@@ -1359,7 +1326,6 @@ void CoSyncMenuInject_Init()
 
 void CoSyncMenuInject_OnScaleformView(GFxMovieView* view)
 {
-    LOG_REQUIREMENT("(global)::CoSyncMenuInject_OnScaleformView", "Gets called for every UI movie the game loads, not just the main menu -- safely does nothing for the ones we don't care about.");
     if (!view || !view->movieRoot)
         return;
 

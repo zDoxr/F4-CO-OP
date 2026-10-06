@@ -8,7 +8,6 @@
 #include "CoSyncTransport.h"
 #include "CoSyncPlayerManager.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncVMFormArg.h"
 #include "GameReferences.h"
 #include "GameForms.h"
@@ -225,7 +224,6 @@ namespace CoSyncWorldSpawnSync
 {
     void Install()
     {
-        LOG_REQUIREMENT("CoSyncWorldSpawnSync::Install", "Plugin load. Fixed-address hook of the console placement worker, prologue-checked.");
         const uintptr_t target = reinterpret_cast<uintptr_t>(GetModuleHandleA(nullptr)) + kRVA_ConsolePlaceWorker;
         if (std::memcmp(reinterpret_cast<const void*>(target), kConsolePlacePrologue, sizeof(kConsolePlacePrologue)) != 0)
         {

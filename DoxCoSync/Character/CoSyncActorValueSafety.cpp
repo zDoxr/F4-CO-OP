@@ -1,6 +1,5 @@
 #include "CoSyncActorValueSafety.h"
 
-#include "CoSyncRequirementsLog.h"
 #include "ConsoleLogger.h"
 
 #include "GameReferences.h"
@@ -21,7 +20,6 @@ namespace CoSyncAVSafety
 
 __declspec(noinline) bool SafeGetValue(Actor* actor, ActorValueInfo* avi, float& out)
 {
-    LOG_REQUIREMENT("CoSyncAVSafety::SafeGetValue", "Needs a valid actor and stat type. Wrapped in a safety guard, since a proxy player with AI turned off may be missing the piece of data this reads.");
     if (!actor || !avi) return false;
     __try
     {
@@ -37,7 +35,6 @@ __declspec(noinline) bool SafeGetValue(Actor* actor, ActorValueInfo* avi, float&
 
 __declspec(noinline) bool SafeGetMaximum(Actor* actor, ActorValueInfo* avi, float& out)
 {
-    LOG_REQUIREMENT("CoSyncAVSafety::SafeGetMaximum", "Needs a valid actor and stat type. Wrapped in a safety guard, since a proxy player with AI turned off may be missing the piece of data this reads.");
     if (!actor || !avi) return false;
     __try
     {
@@ -53,7 +50,6 @@ __declspec(noinline) bool SafeGetMaximum(Actor* actor, ActorValueInfo* avi, floa
 
 __declspec(noinline) bool SafeGetBase(Actor* actor, ActorValueInfo* avi, float& out)
 {
-    LOG_REQUIREMENT("CoSyncAVSafety::SafeGetBase", "Needs a valid actor and stat type. Wrapped in a safety guard, since a proxy player with AI turned off may be missing the piece of data this reads.");
     if (!actor || !avi) return false;
     __try
     {
@@ -69,7 +65,6 @@ __declspec(noinline) bool SafeGetBase(Actor* actor, ActorValueInfo* avi, float& 
 
 __declspec(noinline) bool SafeSetBase(Actor* actor, ActorValueInfo* avi, float value)
 {
-    LOG_REQUIREMENT("CoSyncAVSafety::SafeSetBase", "Needs a valid actor and stat type. Wrapped in a safety guard, since a proxy player with AI turned off may be missing the piece of data this writes to.");
     if (!actor || !avi) return false;
     __try
     {
@@ -92,7 +87,6 @@ __declspec(noinline) bool SafeSetBase(Actor* actor, ActorValueInfo* avi, float v
 // mirroring (ForceActorValue(DAMAGE)). SDK exposes slot 6 as Mod(unk1,avi,val).
 __declspec(noinline) bool SafeForceDamage(Actor* actor, ActorValueInfo* avi, float delta)
 {
-    LOG_REQUIREMENT("CoSyncAVSafety::SafeForceDamage", "Needs a valid actor and stat type. Wrapped in a safety guard, since a proxy player with AI turned off may be missing the piece of data this changes. Applies the change through the game's own damage system, so health bars and death still trigger normally.");
     if (!actor || !avi) return false;
     __try
     {

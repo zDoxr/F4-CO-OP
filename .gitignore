@@ -400,3 +400,6 @@ __pycache__/
 # Log encryption: never commit the private key or encrypted logs
 *.pem
 *.cslog
+
+# Release builds (Tools/make_release.ps1)
+/Release/

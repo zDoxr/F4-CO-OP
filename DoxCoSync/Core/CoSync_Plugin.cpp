@@ -4,6 +4,7 @@
 #include "IDebugLog.h"
 #include <Windows.h>
 #include <DbgHelp.h>
+#include <string>
 #pragma comment(lib, "DbgHelp.lib")
 #include "PluginAPI.h"
 #include "f4se_version.h"
@@ -37,13 +38,46 @@
 #include "CoSyncWorldSync.h"
 #include "CoSyncNpcWorldSync.h"
 #include "CoSyncLoadingScreen.h"
-#include "CoSyncRequirementsLog.h"
 #include "../Animations/CoSyncPlayerAnimation.h"
 #include "CoSyncReviveSync.h"
 #include "CoSyncLocalPlayer.h"
 #include "CoSyncProxyWeaponAuthority.h"
 #include "CoSyncFirstPersonGraph.h"
 #include "CoSyncContentSync.h"
+
+// 0.5.8: GameNetworkingSockets and its runtime (abseil, libcrypto,
+// libprotobuf) ship in Data\F4SE\Plugins\CoSync\ so the mod installs entirely
+// into Data (Vortex / Mod Organizer 2 cannot place files next to
+// Fallout4.exe). GameNetworkingSockets.dll is delay-loaded; loading the four
+// by full path here, dependencies first, means the delay-load helper finds
+// them already in the process. Falls back to the normal search path (the game
+// folder) when the CoSync folder doesn't have them.
+static void PreloadNetworkingRuntime()
+{
+    wchar_t self[MAX_PATH] = {};
+    HMODULE me = nullptr;
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                            reinterpret_cast<LPCWSTR>(&PreloadNetworkingRuntime), &me) ||
+        !GetModuleFileNameW(me, self, MAX_PATH))
+        return;
+    std::wstring dir(self);
+    dir = dir.substr(0, dir.find_last_of(L"\\/") + 1) + L"CoSync\\";
+    static const wchar_t* kDlls[] = { L"abseil_dll.dll", L"libcrypto-3-x64.dll", L"libprotobuf.dll",
+                                      L"GameNetworkingSockets.dll" };
+    for (const wchar_t* name : kDlls)
+    {
+        const std::wstring full = dir + name;
+        HMODULE h = LoadLibraryExW(full.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+        if (!h)
+            h = LoadLibraryW(name);
+        char narrow[64] = {};
+        WideCharToMultiByte(CP_UTF8, 0, name, -1, narrow, sizeof(narrow), nullptr, nullptr);
+        if (h)
+            LOG_INFO("[Plugin] %s loaded", narrow);
+        else
+            LOG_ERROR("[Plugin] %s not found (Data\\F4SE\\Plugins\\CoSync\\) -- multiplayer will not work", narrow);
+    }
+}
 
 extern bool RegisterCoSyncPapyrus(VirtualMachine* vm);
 
@@ -110,7 +144,6 @@ static CRITICAL_SECTION g_vehLock;
 
 static const char* VEH_ModuleLabel(uintptr_t addr, char* buf, size_t bufsz)
 {
-    LOG_REQUIREMENT("(global)::VEH_ModuleLabel", "Needs a writable output buffer. The address can be any value, even garbage, since it's only looked up, never read from directly.");
     HMODULE hMod = nullptr;
     if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
             GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCSTR)addr, &hMod) && hMod)
@@ -130,7 +163,6 @@ static const char* VEH_ModuleLabel(uintptr_t addr, char* buf, size_t bufsz)
 
 static LONG WINAPI CoSync_VEH(EXCEPTION_POINTERS* ep)
 {
-    LOG_REQUIREMENT("(global)::CoSync_VEH", "Relies on Windows supplying valid crash data when it calls this handler. The lock it uses must already be set up first, and this handler must stay installed process-wide so every thread goes through the same lock.");
     DWORD code = ep->ExceptionRecord->ExceptionCode;
     if (code == EXCEPTION_BREAKPOINT || code == DBG_PRINTEXCEPTION_C ||
         code == 0x406D1388 || code == 0xE06D7363)
@@ -491,7 +523,6 @@ static bool IsCoSyncProxyRef(TESObjectREFR* ref)
 
 void OnF4SEMessage(F4SEMessagingInterface::Message* msg)
 {
-    LOG_REQUIREMENT("(global)::OnF4SEMessage", "Safely ignores an empty message. When the game finishes loading, it assumes it's now safe to set up the rest of CoSync's systems.");
     if (!msg)
         return;
 
@@ -567,8 +598,8 @@ extern "C"
 __declspec(dllexport)
 bool F4SEPlugin_Load(const F4SEInterface* f4se)
 {
-    LOG_REQUIREMENT("(global)::F4SEPlugin_Load", "Needs a valid interface handed to it by the mod loader. Called exactly once, right at the start, before any of the other systems it sets up are used.");
     LOG_INFO("CoSync - F4SEPlugin_Load  version=%s", COSYNC_VERSION_STR);
+    PreloadNetworkingRuntime();
 
     // Pre-join content sync: install what the last session downloaded and
     // verified. Must run here -- before InitGameDataThread reads Plugins.txt
@@ -576,7 +607,6 @@ bool F4SEPlugin_Load(const F4SEInterface* f4se)
     // plugin's Load) -- so nothing it replaces is open.
     CoSyncContentSync::ApplyPendingInstall();
 
-    InjectLoadingScreenTexture();
     // 0.5.1 (Bug #9): the one CoSync loading screen follows every LoadingMenu.
     CoSyncLoading::InstallLoadingMenuHooks();
 

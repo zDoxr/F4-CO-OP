@@ -9,7 +9,6 @@
 #include "CoSyncEntityRegistry.h"
 #include "CoSyncPlayerManager.h"
 #include "CoSyncPlayer.h"
-#include "CoSyncRequirementsLog.h"
 
 #include "GameForms.h"
 #include "GameReferences.h"
@@ -53,7 +52,6 @@ namespace
 
 static uint32_t MixHash(uint32_t a, uint32_t b)
 {
-    LOG_REQUIREMENT("CoSyncLootSync::MixHash", "Doesn't touch the game at all — just mixes two numbers together.");
 
 
     uint32_t h = a ^ b;
@@ -67,14 +65,12 @@ static uint32_t MixHash(uint32_t a, uint32_t b)
 
 void CoSyncLootSync::SetSessionSalt(uint32_t salt)
 {
-    LOG_REQUIREMENT("CoSyncLootSync::SetSessionSalt", "Doesn't touch the game at all — just stores a salt value.");
     s_sessionSalt = salt;
     LOG_UPDATED("[LootSync] Session salt set: 0x%08X", salt);
 }
 
 uint32_t CoSyncLootSync::GetSessionSalt()
 {
-    LOG_REQUIREMENT("CoSyncLootSync::GetSessionSalt", "No requirements — safe to call even before SetSessionSalt() has ever been called.");
     return s_sessionSalt;
 }
 
@@ -83,7 +79,6 @@ std::vector<CoSyncInventorySync::ItemEntry> CoSyncLootSync::GeneratePersonalLoot
     uint32_t npcEntityID,
     uint32_t targetPlayerEntityID)
 {
-    LOG_REQUIREMENT("CoSyncLootSync::GeneratePersonalLoot", "Doesn't touch the game at all — just needs a valid item list and entity ID.");
     if (baseItems.empty())
         return {};
 
@@ -132,7 +127,6 @@ void CoSyncLootSync::HostBroadcastPersonalLoot(
     uint32_t                                           npcEntityID,
     const std::vector<CoSyncInventorySync::ItemEntry>& baseItems)
 {
-    LOG_REQUIREMENT("CoSyncLootSync::HostBroadcastPersonalLoot", "Needs to be running as a connected host, and needs the list of connected players to come back valid.");
     if (!CoSyncNet::IsHost() || !CoSyncNet::IsConnected())
         return;
 
@@ -163,19 +157,16 @@ void CoSyncLootSync::HostBroadcastPersonalLoot(
 
 bool CoSyncLootSync::IsSalt(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncLootSync::IsSalt", "Doesn't touch the game at all — just needs a valid message string.");
     return msg.rfind("SALT|", 0) == 0;
 }
 
 bool CoSyncLootSync::IsPersonalLoot(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncLootSync::IsPersonalLoot", "Doesn't touch the game at all — just needs a valid message string.");
     return msg.rfind("PLOOT|", 0) == 0;
 }
 
 std::string CoSyncLootSync::SerializeSalt(uint32_t salt)
 {
-    LOG_REQUIREMENT("CoSyncLootSync::SerializeSalt", "Doesn't touch the game at all — just needs a valid salt value.");
     char buf[32];
     std::snprintf(buf, sizeof(buf), "SALT|%u", salt);
     return buf;
@@ -186,7 +177,6 @@ std::string CoSyncLootSync::SerializePersonalLoot(
     uint32_t                                           sourceEntityID,
     const std::vector<CoSyncInventorySync::ItemEntry>& items)
 {
-    LOG_REQUIREMENT("CoSyncLootSync::SerializePersonalLoot", "Doesn't touch the game at all — just needs valid target/source entity IDs and an item list.");
 
     std::ostringstream ss;
     ss << "PLOOT|" << targetEntityID << "|" << sourceEntityID;
@@ -197,7 +187,6 @@ std::string CoSyncLootSync::SerializePersonalLoot(
 
 void CoSyncLootSync::OnReceiveSalt(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncLootSync::OnReceiveSalt", "Needs the message to be at least as long as the \"SALT|\" prefix, since it skips past that prefix before reading the rest.");
 
     const char* p = msg.c_str() + 5;
     char* end = nullptr;
@@ -212,7 +201,6 @@ void CoSyncLootSync::OnReceiveSalt(const std::string& msg)
 
 void CoSyncLootSync::OnReceivePersonalLoot(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncLootSync::OnReceivePersonalLoot", "Needs the message to be at least as long as the \"PLOOT|\" prefix, and needs our own entity ID to be valid.");
 
     const char* s = msg.c_str() + 6;
     char* e = nullptr;
@@ -291,7 +279,6 @@ static int CountHeld(TESObjectREFR* ref, TESForm* form)
 
 __declspec(noinline) static TESForm* SafeLookupForm(uint32_t formID)
 {
-    LOG_REQUIREMENT("CoSyncLootSync::SafeLookupForm", "Needs the form lookup function to be ready. Wrapped in a safety net so a bad form ID returns nothing instead of crashing.");
     __try
     {
         return LookupFormByID(formID);
@@ -304,7 +291,6 @@ __declspec(noinline) static TESForm* SafeLookupForm(uint32_t formID)
 
 void CoSyncLootSync::FlushPendingLootOps()
 {
-    LOG_REQUIREMENT("CoSyncLootSync::FlushPendingLootOps", "Needs the entity registry to be valid so it can look up real actors for queued operations, and needs each source entity's actor to have already spawned.");
     static const BSFixedString kAddItem("AddItem");
     std::vector<PersonalLootOp> ops;
     {
@@ -360,7 +346,6 @@ void CoSyncLootSync::FlushPendingLootOps()
 void CoSyncLootSync::OnContainerFirstOpen(uint32_t containerRefFormID,
                                            uint32_t playerEntityID)
 {
-    LOG_REQUIREMENT("CoSyncLootSync::OnContainerFirstOpen", "Needs a valid, non-zero container form ID. Nothing else in the game is touched.");
     if (containerRefFormID == 0)
         return;
 

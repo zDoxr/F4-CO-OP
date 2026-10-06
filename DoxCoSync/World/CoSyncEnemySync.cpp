@@ -13,7 +13,6 @@
 #include "CoSyncTransport.h"
 #include "TickHook.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "GameReferences.h"
 #include "GameForms.h"
 #include "GameObjects.h"
@@ -973,7 +972,6 @@ namespace CoSyncEnemySync
 {
     void Install()
     {
-        LOG_REQUIREMENT("CoSyncEnemySync::Install", "Plugin load. Every target is prologue-checked against 1.11.240; a mismatch disables only that part.");
         if (g_installed)
             return;
         g_installed = true;
@@ -1120,7 +1118,6 @@ namespace CoSyncEnemySync
 
     bool ReplayDeath(uint32_t entityID, Actor* puppet, uint32_t killerEntityID, uint32_t flags)
     {
-        LOG_REQUIREMENT("CoSyncEnemySync::ReplayDeath", "Game thread (HealthSync flush). puppet is a live world-actor puppet this machine does not own.");
         if (!g_killCore || !puppet || !CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(puppet)))
             return false;
         for (const PendingKill& p : g_pendingKills)
@@ -1172,7 +1169,6 @@ namespace CoSyncEnemySync
 
     void OnReceive(const std::string& msg)
     {
-        LOG_REQUIREMENT("CoSyncEnemySync::OnReceive", "Parses peer text defensively and only queues; the tick applies it.");
         if (IsHit(msg))
         {
             RxHit h{};
@@ -1217,7 +1213,6 @@ namespace CoSyncEnemySync
 
     void Tick(double now)
     {
-        LOG_REQUIREMENT("CoSyncEnemySync::Tick", "Game thread, every CoSync tick.");
         EnsureForms();
         RebuildGuard();
         if (!CoSyncNet::IsConnected())

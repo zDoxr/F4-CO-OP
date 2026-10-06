@@ -7,7 +7,6 @@
 #include "CoSyncTransport.h"
 #include "CoSyncGameAPI.h"
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 
 #include "GameData.h"
 #include "GameForms.h"
@@ -102,7 +101,6 @@ namespace CoSyncProxyLooks
 {
     uint32_t BaseFormForEntity(uint32_t entityID)
     {
-        LOG_REQUIREMENT("CoSyncProxyLooks::BaseFormForEntity", "Main thread (spawn task). Needs CoSync.esp loaded.");
         auto it = s_slotOf.find(entityID);
         if (it != s_slotOf.end() && SlotBase(it->second))
             return SlotFormID(it->second);
@@ -185,7 +183,6 @@ namespace CoSyncProxyLooks
 
     void OnReceive(const std::string& msg, bool isHostRole)
     {
-        LOG_REQUIREMENT("CoSyncProxyLooks::OnReceive", "Main thread (transport inbox).");
         const size_t bar = msg.find('|', 6);
         if (bar == std::string::npos)
             return;

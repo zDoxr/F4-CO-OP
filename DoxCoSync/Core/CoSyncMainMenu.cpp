@@ -4,7 +4,6 @@
 #include "ScaleformMovie.h"
 #include "ConsoleLogger.h"
 #include "CoSyncMenuInject.h"
-#include "CoSyncRequirementsLog.h"
 
 #define WIN32_LEAN_AND_MEAN
 #define _WINSOCKAPI_
@@ -21,7 +20,6 @@ class CoSync_OnMultiplayerClick : public GFxFunctionHandler
 public:
     void Invoke(Args* args) override
     {
-        LOG_REQUIREMENT("CoSync_OnMultiplayerClick::Invoke", "Needs at least 3 arguments, which is checked. Expects the main menu to send a name, a host flag, and an IP address.");
         if (!args || args->numArgs < 3)
         {
             LOG_WARN("[CoSyncMainMenu] openMultiplayer: expected 3 args, got %d",
@@ -62,7 +60,6 @@ public:
 
 static bool OnScaleformRegister(GFxMovieView* view, GFxValue* f4seRoot)
 {
-    LOG_REQUIREMENT("(global)::OnScaleformRegister", "Safe to call with a missing view or root — it checks for that and just returns. Expects F4SE to call this once for each menu screen it registers.");
     if (!view || !view->movieRoot)
         return true;
     if (!f4seRoot || !f4seRoot->objectInterface)
@@ -82,7 +79,6 @@ static bool OnScaleformRegister(GFxMovieView* view, GFxValue* f4seRoot)
 
 void CoSyncMainMenu_Register(void* f4seScaleformRaw)
 {
-    LOG_REQUIREMENT("(global)::CoSyncMainMenu_Register", "Needs a valid Scaleform interface pointer from F4SE. Meant to be called once when the plugin loads.");
     auto* sf = reinterpret_cast<F4SEScaleformInterface*>(f4seScaleformRaw);
     if (!sf)
     {

@@ -4,7 +4,6 @@
 #include "CoSyncDialogSync.h"
 
 #include "ConsoleLogger.h"
-#include "CoSyncRequirementsLog.h"
 #include "CoSyncNpcWorldSync.h"
 #include "CoSyncEntityRegistry.h"
 #include "CoSyncGameAPI.h"
@@ -166,9 +165,6 @@ namespace
 // (same as every other SEH helper in this codebase).
 __declspec(noinline) static void SafeEnterDialogueCamera()
 {
-    LOG_REQUIREMENT("CoSyncDialogSync::SafeEnterDialogueCamera",
-        "Needs a valid player camera and an initialized dialogue camera state. "
-        "Wrapped in a crash guard so a missing camera or state fails safely.");
     __try
     {
         if (!g_playerCamera || !*g_playerCamera) return;
@@ -188,9 +184,6 @@ __declspec(noinline) static void SafeEnterDialogueCamera()
 
 __declspec(noinline) static void SafeRestoreDialogueCamera()
 {
-    LOG_REQUIREMENT("CoSyncDialogSync::SafeRestoreDialogueCamera",
-        "Needs a valid player camera and a saved camera state from an earlier "
-        "SafeEnterDialogueCamera call. Wrapped in a crash guard; always clears the saved state afterward.");
     __try
     {
         if (!g_playerCamera || !*g_playerCamera || !s_savedCameraState) return;
@@ -210,7 +203,6 @@ __declspec(noinline) static void SafeRestoreDialogueCamera()
 // inlined away under /GL+/LTCG, silently dropping the SEH scope.
 __declspec(noinline) static uint32_t SafeReadFormID(void* form)
 {
-    LOG_REQUIREMENT("CoSyncDialogSync::SafeReadFormID", "Reads a pointer handed to us by the game inside a hook. Wrapped in a crash guard because a form that's being torn down or built can fault.");
     if (!form) return 0;
     __try
     {
@@ -239,7 +231,6 @@ __declspec(noinline) static uint8_t SafeReadTopicCategory(void* topic)
 
 __declspec(noinline) static uint8_t SafeReadFormType(void* form)
 {
-    LOG_REQUIREMENT("CoSyncDialogSync::SafeReadFormType", "Reads a pointer handed to us by the game inside a hook. Wrapped in a crash guard for the same reason as SafeReadFormID.");
     if (!form) return 0;
     __try
     {
@@ -253,7 +244,6 @@ __declspec(noinline) static uint8_t SafeReadFormType(void* form)
 
 __declspec(noinline) static TESForm* SafeLookupForm(uint32_t formID)
 {
-    LOG_REQUIREMENT("CoSyncDialogSync::SafeLookupForm", "The form ID comes from a peer and isn't validated. Wrapped in a crash guard since unchecked peer-supplied form IDs have caused crashes before.");
     if (formID == 0) return nullptr;
     __try
     {
@@ -270,7 +260,6 @@ __declspec(noinline) static TESForm* SafeLookupForm(uint32_t formID)
 // so the detour ignores the dialogue item this itself creates.
 __declspec(noinline) static void SafeSayTopic(Actor* speaker, TESForm* topic)
 {
-    LOG_REQUIREMENT("CoSyncDialogSync::SafeSayTopic", "Needs a still-alive speaker actor (the caller re-checks this) and a valid topic form. Calls the game's own dialogue function, wrapped in a crash guard.");
     if (!speaker || !topic) return;
 
     t_inOurPlayback = true;
@@ -288,7 +277,6 @@ __declspec(noinline) static void SafeSayTopic(Actor* speaker, TESForm* topic)
 
 static void SendDialogLine(uint32_t entityID, uint32_t topicFormID)
 {
-    LOG_REQUIREMENT("CoSyncDialogSync::SendDialogLine", "Doesn't touch game state — just builds and sends a DLG|L packet. The topic ID is sent as decimal text since the receiver parses it that way.");
     char buf[64];
     std::snprintf(buf, sizeof(buf), "DLG|L|%u|%u", entityID, topicFormID);
     CoSyncTransport::Send(std::string(buf));
@@ -365,7 +353,6 @@ static void* __fastcall Detour_BuildDialogueItem(
 
 static void SendDialogOpen(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncDialogSync::SendDialogOpen", "Just needs a valid entity ID — sends a DLG|O packet to say dialogue has opened.");
     char buf[64];
     std::snprintf(buf, sizeof(buf), "DLG|O|%u", entityID);
     CoSyncTransport::Send(std::string(buf));
@@ -375,7 +362,6 @@ static void SendDialogOpen(uint32_t entityID)
 
 static void SendDialogClose(uint32_t entityID)
 {
-    LOG_REQUIREMENT("CoSyncDialogSync::SendDialogClose", "Just needs a valid entity ID — sends a DLG|C packet to say dialogue has closed.");
     char buf[64];
     std::snprintf(buf, sizeof(buf), "DLG|C|%u", entityID);
     CoSyncTransport::Send(std::string(buf));
@@ -389,7 +375,6 @@ static void SendDialogClose(uint32_t entityID)
 // config, silently dropping the SEH scope.
 __declspec(noinline) static bool SafeIsDialogueMenuOpen(UI* ui, const BSFixedString& menuName)
 {
-    LOG_REQUIREMENT("CoSyncDialogSync::SafeIsDialogueMenuOpen", "Needs a non-null UI pointer (checked). Calls the game's own menu-open check, wrapped in a crash guard since a bad UI state can fault it.");
     if (!ui)
         return false;
 
@@ -408,7 +393,6 @@ namespace CoSyncDialogSync
 
 bool IsDialogue(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncDialogSync::IsDialogue", "Doesn't touch game state — just checks a string for a 'DLG|' prefix.");
     return msg.size() > 4
         && msg[0] == 'D'
         && msg[1] == 'L'
@@ -418,7 +402,6 @@ bool IsDialogue(const std::string& msg)
 
 void TickLocalDialogue(double , uint32_t myEntityID)
 {
-    LOG_REQUIREMENT("CoSyncDialogSync::TickLocalDialogue", "Needs a valid UI pointer and a valid player (both checked). Checks the dialogue menu state every tick. Only the host sends dialogue packets — clients only receive them.");
 
     // Host drives dialogue state; clients only receive and apply DLG packets.
     if (!CoSyncNet::IsConnected() || !CoSyncNet::IsHost()) return;
@@ -492,7 +475,6 @@ void TickLocalDialogue(double , uint32_t myEntityID)
 
 void OnReceiveDialogue(const std::string& msg)
 {
-    LOG_REQUIREMENT("CoSyncDialogSync::OnReceiveDialogue", "Needs a properly formatted message (checked). Parses the entity ID and topic ID out of a string sent by a peer, so those values aren't trusted blindly.");
     if (msg.size() < 7)
         return;
 
@@ -555,7 +537,6 @@ void OnReceiveDialogue(const std::string& msg)
 
 void InstallDialogueLineHook()
 {
-    LOG_REQUIREMENT("CoSyncDialogSync::InstallDialogueLineHook", "Needs the target function address to still point at the real game function it was verified against. Only installs once, guarded by a flag.");
     if (g_lineHookInstalled.exchange(true))
         return;
 
@@ -595,7 +576,6 @@ void InstallDialogueLineHook()
 
 void FlushPendingDialogOps()
 {
-    LOG_REQUIREMENT("CoSyncDialogSync::FlushPendingDialogOps", "Needs the entity registry populated so open/close ops can find an actor. Meant to run once per frame to drain the queued dialogue ops.");
 
     std::deque<DialogOp> local;
     {
