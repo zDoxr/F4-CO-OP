@@ -323,6 +323,9 @@ namespace
             case CoSyncWorldTransfer::ClientPhase::Loading:     phase = "loading";     break;
             case CoSyncWorldTransfer::ClientPhase::Ready:       phase = "ready";       break;
             case CoSyncWorldTransfer::ClientPhase::Failed:      phase = "failed";      break;
+            case CoSyncWorldTransfer::ClientPhase::Lobby:       phase = "lobby";       break;
+            case CoSyncWorldTransfer::ClientPhase::Intro:       phase = "intro";       break;
+            case CoSyncWorldTransfer::ClientPhase::WaitingHost: phase = "waitinghost"; break;
             default: break;
             }
             json += ",\"transfer\":{\"phase\":\"";
@@ -558,12 +561,11 @@ namespace
         }
         else if (cmd == "host")
         {
-            // Hosting needs this player's world loaded: every player still
-            // loads their own save, and clients are spawned at the host's
-            // position. The menu disables HOST GAME on the main menu.
-            if (!CoSyncWorld::IsWorldReady())
-                LOG_WARN("[PrismaUI] Host ignored: no save loaded");
-            else if (CoSyncTransport::IsInitialized())
+            // 0.5.1 lobby (Bug #3): hosting may start at the main menu. The
+            // network opens now; players who join wait in the lobby, and the
+            // session itself (CoSyncNet::Init) starts once this player's
+            // New Game / Continue / Load has a world loaded.
+            if (CoSyncTransport::IsInitialized())
                 LOG_WARN("[PrismaUI] Host ignored: already in a session");
             else
             {
@@ -578,9 +580,7 @@ namespace
         {
             // Internet play: host on Steam's networking (P2P + Valve relay);
             // friends find the game through its friends-only Steam lobby.
-            if (!CoSyncWorld::IsWorldReady())
-                LOG_WARN("[PrismaUI] Steam host ignored: no save loaded");
-            else if (CoSyncTransport::IsInitialized())
+            if (CoSyncTransport::IsInitialized())
                 LOG_WARN("[PrismaUI] Steam host ignored: already in a session");
             else if (!CoSyncSteamLobby::IsAvailable())
                 LOG_WARN("[PrismaUI] Steam host ignored: Steam unavailable");

@@ -149,6 +149,10 @@ namespace
     struct Profile
     {
         std::string name;
+        // 0.5.1: the CHARACTER's name (chosen at the Vault-Tec rep in the
+        // intro). A display property only -- identity is the profile key
+        // (SteamID64), so renaming never makes a new player.
+        std::string charName;
         UInt32 level = 1;
         float  xp = 0.f;
         float  special[7] = { 1, 1, 1, 1, 1, 1, 1 };
@@ -202,6 +206,10 @@ namespace
         std::string name = p.name;
         for (char& c : name) if (c == '\n' || c == '\r' || c == '|') c = ' ';
         o << "name=" << name << "\n";
+        std::string cname = p.charName;
+        for (char& c : cname) if (c == '\n' || c == '\r' || c == '|') c = ' ';
+        if (!cname.empty())
+            o << "cname=" << cname << "\n";
         o << "level=" << p.level << "\n";
         o << "xp=" << p.xp << "\n";
         o << "special=";
@@ -267,6 +275,7 @@ namespace
         if (kv["v"] != "1")
             return false;
         p.name  = kv["name"];
+        p.charName = kv["cname"];
         p.level = static_cast<UInt32>(std::strtoul(kv["level"].c_str(), nullptr, 10));
         if (p.level < 1) p.level = 1;
         p.xp    = std::strtof(kv["xp"].c_str(), nullptr);
@@ -668,6 +677,18 @@ namespace
         return true;
     }
 
+    __declspec(noinline) const char* ReadCharacterNameImpl(TESNPC* npc)
+    {
+        __try { return npc ? npc->fullName.name.c_str() : nullptr; }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return nullptr; }
+    }
+
+    std::string ReadCharacterName(TESNPC* npc)
+    {
+        const char* n = ReadCharacterNameImpl(npc);
+        return (n && n[0]) ? std::string(n) : std::string();
+    }
+
     bool Capture(Profile& p)
     {
         PlayerCharacter* pc = CoSyncGetPlayer();
@@ -676,6 +697,7 @@ namespace
             return false;
 
         p.name = CoSyncNet::GetMyName();
+        p.charName = ReadCharacterName(npc);
         p.level = CALL_MEMBER_FN(&npc->actorData, GetLevel)();
         if (ActorValueInfo* xpAV = AVById(kAV_Experience))
             CoSyncAVSafety::SafeGetValue(pc, xpAV, p.xp);
@@ -973,6 +995,14 @@ namespace
         s_modAtMs = GetTickCount64() + 2500;
         HealFully(pc);
         s_characterCreated = true;
+        // 0.5.1: the character keeps the name it was given (a display
+        // property on the player's own record; identity stays the key).
+        if (!p.charName.empty())
+            if (TESNPC* named = PlayerNPC(pc))
+            {
+                named->fullName.name = BSFixedString(p.charName.c_str());
+                LOG_INFO("[Profiles] Character name restored: '%s'", p.charName.c_str());
+            }
         if (RestorePosition(pc, p))
             CoSyncReviveSync::SetRespawnPoint(p.posInterior, p.posSpace, p.pos, p.rotZ, "returned to the saved position");
         TESNPC* npc = PlayerNPC(pc);
@@ -1434,6 +1464,20 @@ namespace CoSyncProfiles
         return it == s_connKey.end() ? std::string() : it->second;
     }
 
+    bool HostHasFinishedCharacter(const std::string& key)
+    {
+        std::string blob;
+        {
+            std::lock_guard<std::mutex> lk(s_mx);
+            auto it = s_profiles.find(key);
+            if (it == s_profiles.end())
+                return false;
+            blob = it->second;
+        }
+        Profile p;
+        return Deserialize(blob, p) && p.created;
+    }
+
     void HostBeforeWorldSave()
     {
         std::lock_guard<std::mutex> lk(s_mx);
@@ -1607,6 +1651,30 @@ namespace CoSyncProfiles
         const std::string msg = "PROFILEUP|" + GetMyProfileKey() + "|" + Serialize(p);
         CoSyncTransport::Send(msg);
         LOG_INFO("[Profiles] Uploaded character (%zu bytes, level %u, %zu items)", msg.size(), p.level, p.items.size());
+    }
+
+    void ClientUploadIntroCharacter()
+    {
+        // 0.5.1 (Bug #4): the character this player just made in Fallout 4's
+        // own intro -- face, body and sex from the mirror, SPECIAL and name
+        // from the Vault-Tec rep, what they carried out of Vault 111 and where
+        // they stand -- becomes their profile in the host's world. Marked
+        // finished, so joining restores it instead of opening CoSync's editor.
+        if (CoSyncNet::IsHost() || !CoSyncTransport::IsInitialized())
+            return;
+        Profile p;
+        CaptureCtx ctx{ &p, false };
+        if (!RunGuarded(CaptureThunk, &ctx, "Capturing the intro character") || !ctx.ok)
+        {
+            LOG_WARN("[Profiles] Could not capture the intro character -- the editor will open in the host's world");
+            return;
+        }
+        p.created = true;
+        s_characterCreated = true;
+        const std::string msg = "PROFILEUP|" + GetMyProfileKey() + "|" + Serialize(p);
+        CoSyncTransport::Send(msg);
+        LOG_INFO("[Profiles] Uploaded the character from my own intro (%zu bytes, level %u, %zu items, looks=%d)",
+            msg.size(), p.level, p.items.size(), p.hasLooks ? 1 : 0);
     }
 
     const char* GetClientStatus() { return s_status; }

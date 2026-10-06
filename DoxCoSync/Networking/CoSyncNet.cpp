@@ -794,6 +794,41 @@ static bool ReadSaltInstanceIDSetting()
     return s_cached != 0;
 }
 
+// 0.5.1: [Network] bLegacyPidIdentity (default 0). Only together with
+// bSaltInstanceID=1 does the identity still change with every launch -- for a
+// same-account two-instance test WITHOUT the CoSyncMultiInstance proxy.
+static bool ReadLegacyPidIdentitySetting()
+{
+    static int s_cached = -1;
+    if (s_cached >= 0)
+        return s_cached != 0;
+    char exePath[MAX_PATH] = {};
+    if (::GetModuleFileNameA(nullptr, exePath, MAX_PATH) == 0)
+    {
+        s_cached = 0;
+        return false;
+    }
+    std::string ini(exePath);
+    const size_t slash = ini.find_last_of("\\/");
+    ini = (slash == std::string::npos) ? std::string() : ini.substr(0, slash + 1);
+    ini += "Data\\F4SE\\Plugins\\CoSync.ini";
+    s_cached = ::GetPrivateProfileIntA("Network", "bLegacyPidIdentity", 0, ini.c_str());
+    return s_cached != 0;
+}
+
+// The CoSyncMultiInstance test proxy's instance index (0 = first/only
+// instance) -- the same source the profile key's "-P<n>" suffix uses.
+static int MultiInstanceIndex()
+{
+    if (HMODULE proxy = ::GetModuleHandleA("nvToolsExt64_1.dll"))
+        if (auto idx = reinterpret_cast<int (*)()>(::GetProcAddress(proxy, "CoSyncMultiInstance_Index")))
+        {
+            const int n = idx();
+            return n > 0 ? n : 0;
+        }
+    return 0;
+}
+
 static bool s_steamIdentity = false;
 
 void CoSyncNet::SetSteamIdentity(bool steam)
@@ -849,19 +884,28 @@ uint64_t CoSyncNet::GetMySteamID()
         const uint64_t pid    = static_cast<uint64_t>(::GetCurrentProcessId());
         const uint64_t realID = CoSyncSteamID::GetSteamID64();
 
+        // 0.5.1 (Bug #4): the identity is the SteamID. The process-id salt
+        // made every launch a NEW network identity (entityID) for the same
+        // Steam account. A second instance on the same account is the
+        // CoSyncMultiInstance test rig, which reports its index -- the same
+        // "-P<n>" the profile key uses -- so that instance stays distinct and
+        // stable too (the gbe_fork rig gives each instance its own account
+        // anyway: 2026-10-05 logs, ...769250839 and ...482304659). The old
+        // pid salt is kept only behind [Network] bLegacyPidIdentity=1.
+        const int  instanceIdx = MultiInstanceIndex();
+        const bool legacyPid   = saltInstanceID && ReadLegacyPidIdentitySetting();
+
         if (realID != 0)
         {
-            s_mySteamID = saltInstanceID ? (realID ^ (pid * 2654435761ULL))
-                                         : realID;
-            LOG_INFO("[CoSyncNet] Instance token=%llu (real SteamID=%llu "
-                     "persona='%s' pid=%llu) salted=%d — set [Network] "
-                     "bSaltInstanceID=0 in CoSync.ini to use the raw Steam id "
-                     "as the identity key (only safe with distinct accounts)",
+            s_mySteamID = legacyPid ? (realID ^ (pid * 2654435761ULL))
+                        : (instanceIdx > 0 ? (realID ^ (0x9E3779B97F4A7C15ULL * static_cast<uint64_t>(instanceIdx)))
+                                           : realID);
+            LOG_INFO("[CoSyncNet] Identity token=%llu from SteamID=%llu (persona='%s', multi-instance index=%d)%s",
                 (unsigned long long)s_mySteamID,
                 (unsigned long long)realID,
                 CoSyncSteamID::GetPersonaName().c_str(),
-                (unsigned long long)pid,
-                saltInstanceID ? 1 : 0);
+                instanceIdx,
+                legacyPid ? " -- LEGACY per-process salt ([Network] bLegacyPidIdentity=1): changes every launch" : "");
         }
         else
         {
@@ -1373,6 +1417,16 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
         CoSyncWorldTransfer::OnReceive(msg, conn, isHostRole);
         return;
     }
+    // 0.5.1 lobby (Bug #3/#4): a client waiting in the lobby, or playing its
+    // own New Game intro, is in a world that is not the host's. The host
+    // broadcasts its session (entities, quests, time, workshop...) to every
+    // connection; none of it may land here. Only the handshake, the roster,
+    // chat and the session's end get through.
+    if (!isHostRole && !CoSyncWorldTransfer::ClientAcceptsSessionTraffic() &&
+        msg.rfind("HELLO|", 0) != 0 && msg.rfind("VER|", 0) != 0 &&
+        msg.rfind("DISCONNECT|", 0) != 0 && msg.rfind("PEERLEFT|", 0) != 0 &&
+        msg.rfind("CHAT|", 0) != 0 && msg.rfind("CHATM|", 0) != 0)
+        return;
     if (CoSyncItemMods::IsItemModsMessage(msg))
     {
         CoSyncItemMods::OnReceive(msg, isHostRole);

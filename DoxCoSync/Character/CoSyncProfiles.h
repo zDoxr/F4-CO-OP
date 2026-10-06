@@ -36,6 +36,8 @@ namespace CoSyncProfiles
     // Host: the profile key a connection identified itself with ("" if none
     // yet). Stable across sessions -- teams use it as the player identity.
     std::string HostGetConnKey(uint32_t conn);
+    // Host, 0.5.1: the world already holds a finished character for this key.
+    bool HostHasFinishedCharacter(const std::string& key);
     // Host: about to write the save that will be sent to a joining client.
     void HostBeforeWorldSave();
 
@@ -48,6 +50,9 @@ namespace CoSyncProfiles
 
     // Client: upload one last snapshot right now (before leaving).
     void ClientUploadNow();
+    // Client, 0.5.1: upload the character made in this player's own New Game
+    // intro (lobby flow), marked finished.
+    void ClientUploadIntroCharacter();
 
     // UI: "", "RESTORING", "CREATING", "CUSTOMIZING", "READY".
     const char* GetClientStatus();

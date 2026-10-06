@@ -201,6 +201,9 @@ namespace
     GFxValue& g_cachedMenuMc = *(new GFxValue());
     bool g_cachedMenuMcValid = false;
 
+    // 0.5.1 lobby: pending "start a New Game" request (GetTickCount64 deadline, 0 = none).
+    std::atomic<uint64_t> g_lobbyNewGameDeadline{ 0 };
+
     bool ResolveMenuMc(GFxMovieRoot* root, GFxValue& outMenuMc)
     {
         LOG_REQUIREMENT("(global)::ResolveMenuMc", "Safe to call with a missing menu root. Falls back to the last known-good menu if the current lookup fails.");
@@ -222,6 +225,41 @@ namespace
         }
 
         return false;
+    }
+
+    // 0.5.1 lobby: start the New Game the host started, through the main
+    // menu's own code object -- the same call its "New" confirm makes, so the
+    // engine runs its normal New Game (intro, character creation, Vault 111).
+    void PollLobbyNewGame(GFxMovieRoot* root)
+    {
+        const uint64_t deadline = g_lobbyNewGameDeadline.load();
+        if (deadline == 0)
+            return;
+        if (GetTickCount64() > deadline)
+        {
+            g_lobbyNewGameDeadline.store(0);
+            LOG_WARN("[CoSyncMenuInject] Lobby: the main menu never became ready -- start a New Game yourself to play the intro");
+            CoSyncGameAPI::QueueNotification("CoSync: the host started a New Game -- choose NEW to start yours");
+            return;
+        }
+        GFxValue menuMc;
+        if (!ResolveMenuMc(root, menuMc))
+            return;
+        GFxValue code;
+        if (!menuMc.GetMember("BGSCodeObj", &code) || !code.IsObject())
+            return;
+        GFxValue ready;
+        if (!code.Invoke("IsMainMenuReady", &ready, nullptr, 0) || ready.GetType() != GFxValue::kType_Bool || !ready.GetBool())
+            return;   // still building the title screen: next frame
+        g_lobbyNewGameDeadline.store(0);
+        // The Multiplayer menu (PrismaUI) sits over the main menu while the
+        // player waits in the lobby: close it so the New Game takes over.
+        if (CoSyncPrismaUI::IsMultiplayerOpen())
+            CoSyncPrismaUI::CloseMultiplayerNow();
+        GFxValue closing; closing.SetBool(true);
+        menuMc.SetMember("bMenuClosing", &closing);
+        const bool ok = code.Invoke("StartNewGame", nullptr, nullptr, 0);
+        LOG_INFO("[CoSyncMenuInject] Lobby: started a New Game from the main menu (%s)", ok ? "ok" : "call refused");
     }
 
 
@@ -824,7 +862,10 @@ namespace
         GFxMovieView* movie = *(GFxMovieView**)((UInt8*)a1 + 0x40);
 
         if (movie && movie->movieRoot)
+        {
             PollMultiplayerRowActivation(movie->movieRoot);
+            PollLobbyNewGame(movie->movieRoot);
+        }
 
         return result;
     }
@@ -1265,6 +1306,12 @@ void CoSyncMenuInject_OnMultiplayerHotkey()
         g_multiplayerToggleRequested.store(true);   // main menu: handled by the MainMenu poll
     else
         CoSyncPrismaUI::RequestToggleMultiplayer();
+}
+
+void CoSyncMenuInject_RequestLobbyNewGame()
+{
+    g_lobbyNewGameDeadline.store(GetTickCount64() + 60000);
+    LOG_INFO("[CoSyncMenuInject] Lobby: New Game requested (waiting for the main menu)");
 }
 
 void CoSyncMenuInject_PauseMenuKeyActivate()

@@ -98,6 +98,9 @@
       case 'requested':   return ['Requesting…', 'dim'];
       case 'downloading': return ['Downloading ' + state.transfer.percent + '%', ''];
       case 'loading':     return ['Loading…', ''];
+      case 'lobby':       return ['In the lobby', 'dim'];
+      case 'intro':       return ['Playing the intro', ''];
+      case 'waitinghost': return ['Waiting for the host', 'dim'];
       case 'ready':       return ['Loaded', ''];
       case 'failed':      return ['Failed', 'bad'];
     }
@@ -378,9 +381,9 @@
                   text: 'Players on your network will see your game under JOIN GAME.' };
           return null;
         }
-        if (!inGame())
-          return { head: 'Load a save first',
-            text: 'Hosting starts from inside your game. Load or start a save, then open Multiplayer with F10.' };
+        if (!inGame() && role() === 'HOST')
+          return { head: 'Lobby open',
+            text: 'Players can join now and wait here. Choose NEW (everyone plays the intro and makes a character), CONTINUE or LOAD -- the others follow you into your game.' };
         if (status() === 'STARTING')
           return { head: 'Starting…', text: 'Opening your game to the network.' };
         if (status() === 'FAILED')
@@ -402,14 +405,14 @@
         }
         return [
           { key: 'steam_host', label: 'Host with Steam Friends', action: 'steam_host',
-            disabled: !inGame() || status() === 'STARTING' || !state.steam.available,
+            disabled: status() === 'STARTING' || !state.steam.available,
             desc: !state.steam.available ? 'Steam is not available.'
                 : (inGame() ? 'Open your game to your Steam friends over the internet. No port forwarding needed.'
-                            : 'Load a save first. Hosting starts from inside your game.') },
+                            : 'Open a lobby for your Steam friends. They wait here until you start NEW, CONTINUE or LOAD.') },
           { key: 'host', label: 'Host on Local Network', action: 'host',
-            disabled: !inGame() || status() === 'STARTING',
+            disabled: status() === 'STARTING',
             desc: inGame() ? 'Open your game to players on your network (same router or Wi-Fi).'
-                           : 'Load a save first. Hosting starts from inside your game.' },
+                           : 'Open a lobby on your network. Players wait here until you start NEW, CONTINUE or LOAD.' },
           { key: 'back', label: 'Back', action: 'back', desc: 'Return to the Multiplayer menu.' },
         ];
       },
@@ -523,6 +526,12 @@
             return { head: 'Downloading the world…', text: 'Receiving the host’s save. You will play in the same world.' };
           case 'loading':
             return { head: 'Loading the world…', text: 'Entering the host’s world. If the game asks you to confirm anything, choose Yes.' };
+          case 'lobby':
+            return { head: 'In the lobby', text: 'Waiting for the host to start. When the host chooses NEW you start your own New Game; CONTINUE or LOAD brings you into the host’s game.' };
+          case 'intro':
+            return { head: 'New Game', text: 'Play the intro and create your character (face, body, SPECIAL, name). When you leave Vault 111 you join the host’s game with that character.' };
+          case 'waitinghost':
+            return { head: 'Waiting for the host', text: 'The host is still in the intro. You join the host’s game as soon as the host leaves Vault 111.' };
         }
         if (inHostWorld()) {
           if (state.profile === 'CREATING')

@@ -977,7 +977,10 @@ namespace
             }
             if (proto != static_cast<uint64_t>(kProtocolVersion)) { HostFail(conn, hc, "protocol_version"); return; }
             if (++hc.requests > kMaxRequests) { HostFail(conn, hc, "too_many_requests"); return; }
-            if (!CoSyncWorld::IsWorldReady()) { HostFail(conn, hc, "host_not_in_game"); return; }
+            // 0.5.1 lobby: the content check no longer needs the host to be in
+            // a game. The plugins and archives are loaded at the main menu;
+            // the world itself follows once the host has one
+            // (CoSyncWorldTransfer lobby).
             hc.nonce = RandomHex(16);
             hc.allowed.clear();
             hc.queued = 0;
