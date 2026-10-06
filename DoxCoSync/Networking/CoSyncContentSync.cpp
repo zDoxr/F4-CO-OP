@@ -2101,7 +2101,7 @@ namespace
             {
                 LOG_INFO("[ContentSync] Rejoining '%s' after the content restart", s_rejoinLabel.c_str());
                 char note[160];
-                std::snprintf(note, sizeof(note), "CoSync: rejoining %s", s_rejoinLabel.empty() ? "the host" : s_rejoinLabel.c_str());
+                std::snprintf(note, sizeof(note), "Rejoining %s", s_rejoinLabel.empty() ? "the host" : s_rejoinLabel.c_str());
                 CoSyncGameAPI::QueueNotification(note);
                 if (!CoSyncPrismaUI::StartJoin(s_rejoinKind, s_rejoinValue, s_rejoinLabel))
                     LOG_WARN("[ContentSync] Rejoin could not start -- join from the Multiplayer menu");
@@ -2117,7 +2117,7 @@ namespace
         if (std::memcmp(reinterpret_cast<const void*>(fn), kQuitGamePrologue, sizeof(kQuitGamePrologue)) != 0)
         {
             LOG_ERROR("[ContentSync] Debug.QuitGame prologue mismatch (not 1.11.240?) -- quit the game yourself");
-            CoSyncGameAPI::QueueNotification("CoSync: please quit and restart Fallout 4");
+            CoSyncGameAPI::QueueNotification("Restart Fallout 4 to finish installing.");
             return;
         }
         LOG_INFO("[ContentSync] Quitting so the new content loads at the next start");

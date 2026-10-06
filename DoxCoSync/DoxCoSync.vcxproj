@@ -367,6 +367,7 @@ exit /b 0
     <ClInclude Include="Networking\CoSyncSessionRules.h" />
     <ClInclude Include="World\CoSyncSharedIntro.h" />
     <ClInclude Include="World\CoSyncVault111.h" />
+    <ClInclude Include="GUI\CoSyncLogCrypt.h" />
     <ClInclude Include="World\CoSyncElevatorSync.h" />
     <ClInclude Include="World\CoSyncSettlementSync.h" />
     <ClInclude Include="World\CoSyncWorkshopEngine.h" />
@@ -587,6 +588,7 @@ exit /b 0
     <ClCompile Include="Networking\CoSyncSessionRules.cpp" />
     <ClCompile Include="World\CoSyncSharedIntro.cpp" />
     <ClCompile Include="World\CoSyncVault111.cpp" />
+    <ClCompile Include="GUI\CoSyncLogCrypt.cpp" />
     <ClCompile Include="World\CoSyncElevatorSync.cpp" />
     <ClCompile Include="World\CoSyncSettlementSync.cpp" />
     <ClCompile Include="World\CoSyncWorkshopEngine.cpp" />

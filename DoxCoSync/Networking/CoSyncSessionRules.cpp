@@ -64,8 +64,8 @@ namespace CoSyncSessionRules
         if (was != pvp)
         {
             LOG_UPDATED("[Rules] Host set the session to %s", pvp ? "PVP (player damage ON)" : "PVE (player damage OFF)");
-            CoSyncGameAPI::QueueNotification(pvp ? "CoSync: PVP -- players can damage each other"
-                                                 : "CoSync: PVE -- players cannot damage each other");
+            CoSyncGameAPI::QueueNotification(pvp ? "Friendly fire on"
+                                                 : "Friendly fire off");
         }
     }
 
@@ -83,8 +83,8 @@ namespace CoSyncSessionRules
         if (s_pvp.exchange(pvp) != pvp)
         {
             LOG_UPDATED("[Rules] Host's session rule: %s", pvp ? "PVP" : "PVE");
-            CoSyncGameAPI::QueueNotification(pvp ? "CoSync: PVP -- players can damage each other"
-                                                 : "CoSync: PVE -- players cannot damage each other");
+            CoSyncGameAPI::QueueNotification(pvp ? "Friendly fire on"
+                                                 : "Friendly fire off");
         }
     }
 

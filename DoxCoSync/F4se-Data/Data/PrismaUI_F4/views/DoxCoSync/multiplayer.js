@@ -64,7 +64,7 @@
   const status = () => state.net.status;
   const inGame = () => state.context === 'ingame';
   const gameName = () => (state.playerName ? state.playerName + "'s Game" : 'Your Game');
-  const networkLabel = () => state.network.available ? state.network.type : 'No Network';
+  const networkLabel = () => state.network.available ? state.network.type : 'None';
   const steamSession = () => !!(state.steam && state.steam.backend);
 
   const FAILED = ['CONNECTION FAILED', 'SESSION FULL', 'VERSION MISMATCH', 'HOST DISCONNECTED', 'FAILED'];
@@ -85,7 +85,7 @@
                  pingCls(p.ping) || (p.inGame || p.host ? '' : 'dim'), 'player']);
     });
     if (state.joining > 0)
-      rows.push(['○  Joining…', state.joining + (state.joining === 1 ? ' player' : ' players'), 'dim', 'player']);
+      rows.push(['○  Joining…', String(state.joining), 'dim', 'player']);
     return rows;
   };
   const statusCls = s => FAILED.indexOf(s) >= 0 ? 'bad' : (s === 'OFFLINE' ? 'dim' : '');
@@ -95,27 +95,27 @@
   const inHostWorld = () => status() === 'CONNECTED' && state.transfer.phase === 'ready';
   const worldLabel = () => {
     switch (state.transfer.phase) {
-      case 'requested':   return ['Requesting…', 'dim'];
+      case 'requested':   return ['Asking host…', 'dim'];
       case 'downloading': return ['Downloading ' + state.transfer.percent + '%', ''];
       case 'loading':     return ['Loading…', ''];
-      case 'lobby':       return ['In the lobby', 'dim'];
-      case 'waitinghost': return ['Host starting…', 'dim'];
+      case 'lobby':       return ['Lobby', 'dim'];
+      case 'waitinghost': return ['Host is starting…', 'dim'];
       case 'ready':       return ['Loaded', ''];
       case 'failed':      return ['Failed', 'bad'];
     }
     return null;
   };
   const XFER_ERRORS = {
-    host_not_in_game: { head: 'The host is not in a game', text: 'The host has to load a save and host from inside their game.' },
-    version_mismatch: { head: 'Different CoSync version', text: 'You and the host are running different versions of CoSync. Both players need the same version.' },
-    save_failed:      { head: 'The host could not save', text: 'The host’s game could not create the world save. Ask the host to try again.' },
-    save_unreadable:  { head: 'The host could not save', text: 'The host’s world save could not be read. Ask the host to try again.' },
-    host_busy:        { head: 'The host is busy', text: 'Try again in a moment.' },
-    checksum:         { head: 'Download damaged', text: 'The world arrived damaged. Try again.' },
-    write_failed:     { head: 'Could not store the world', text: 'Your save folder could not be written to.' },
-    load_failed:      { head: 'Could not load the world', text: 'The host’s world failed to load. Both players need the same mods in the same order.' },
-    content_not_verified: { head: 'Content not verified', text: 'The host refused the world because your mods were not verified first. Try again.' },
-    default:          { head: 'Could not join', text: 'Joining the host’s world failed. Try again.' },
+    host_not_in_game: { head: 'Host isn\u2019t in a game', text: 'The host needs to load a save first.' },
+    version_mismatch: { head: 'Version mismatch', text: 'You and the host need the same CoSync version.' },
+    save_failed:      { head: 'Host couldn\u2019t save', text: 'Ask the host to try again.' },
+    save_unreadable:  { head: 'Host couldn\u2019t save', text: 'Ask the host to try again.' },
+    host_busy:        { head: 'Host is busy', text: 'Try again in a moment.' },
+    checksum:         { head: 'Download failed', text: 'The world arrived broken. Try again.' },
+    write_failed:     { head: 'Couldn\u2019t save the world', text: 'Your save folder is not writable.' },
+    load_failed:      { head: 'Couldn\u2019t load the world', text: 'You need the same mods as the host, in the same order.' },
+    content_not_verified: { head: 'Mods not checked', text: 'Your mods weren\u2019t checked yet. Try again.' },
+    default:          { head: 'Couldn\u2019t join', text: 'Try again.' },
   };
 
   // ── Pre-join content sync (CoSyncContentSync) ───────────────────────────
@@ -133,50 +133,50 @@
   };
   const pct = (a, b) => (b > 0 ? Math.min(100, Math.floor(a * 100 / b)) : 0);
   const BLOCK_TEXT = {
-    official_missing:       n => n + ' is missing. The base game and its DLC cannot be sent by CoSync.',
-    official_different:     n => n + ' is a different version from the host’s. Both players need the same game version.',
-    creationclub_missing:   n => 'Creation Club content ' + n + ' is needed. Get it in the game’s Creation Club menu.',
-    creationclub_different: n => 'Creation Club content ' + n + ' differs from the host’s copy.',
-    creations_missing:      n => 'The Bethesda.net Creation ' + n + ' is needed. Get it in the game’s Creations menu.',
-    creations_different:    n => 'The Bethesda.net Creation ' + n + ' differs from the host’s copy.',
-    official_not_loaded:    n => n + ' is installed but not enabled. Enable it in the game’s Creations / Load Order menu.',
-    host_unreadable:        n => 'The host could not read ' + n + '. Ask the host to check that file.',
-    too_large:              n => 'The missing content (' + n + ') is over the limit for one join.',
+    official_missing:       n => n + ' is missing. CoSync can\u2019t send game or DLC files.',
+    official_different:     n => n + ' doesn\u2019t match the host\u2019s. Update the game.',
+    creationclub_missing:   n => 'You need ' + n + ' from the Creation Club.',
+    creationclub_different: n => n + ' doesn\u2019t match the host\u2019s.',
+    creations_missing:      n => 'You need ' + n + ' from Creations.',
+    creations_different:    n => n + ' doesn\u2019t match the host\u2019s.',
+    official_not_loaded:    n => n + ' is installed but off. Turn it on in Load Order.',
+    host_unreadable:        n => 'The host can\u2019t read ' + n + '.',
+    too_large:              n => 'Too much to download (' + n + ').',
   };
   const CONTENT_ERRORS = {
-    version_mismatch:  { head: 'Different CoSync version', text: 'You and the host are running different versions of CoSync. Both players need the same version.' },
-    protocol_version:  { head: 'Different CoSync version', text: 'The host speaks a different content-sync protocol. Both players need the same CoSync version.' },
-    host_not_in_game:  { head: 'The host is not in a game', text: 'The host has to load a save and host from inside their game.' },
-    bad_manifest:      { head: 'Invalid content list', text: 'The host sent a content list CoSync could not accept. Nothing was downloaded or changed.' },
-    unsafe_path:       { head: 'Unsafe file path refused', text: 'The host listed a file outside the folders CoSync may write to. Nothing was downloaded or changed.' },
-    refused_official:  { head: 'Official content refused', text: 'The host asked to send official game content (base game, DLC or Creation Club). CoSync never transfers it.' },
-    bad_verdict:       { head: 'Invalid answer from the host', text: 'The host’s answer could not be accepted. Nothing was changed.' },
-    too_large:         { head: 'Too much content', text: 'The missing content is over the limit for one join.' },
-    disk_space:        { head: 'Not enough disk space', text: 'There is not enough free space on the drive Fallout 4 is installed on.' },
-    write_failed:      { head: 'Could not save the download', text: 'CoSync could not write to its download folder (Data\\CoSyncContent).' },
-    hash_mismatch:     { head: 'Download damaged', text: 'A file failed its SHA-256 check twice. Nothing was installed. Try again.' },
-    corrupt_transfer:  { head: 'Download damaged', text: 'A part of a file kept arriving damaged. Nothing was installed. Try again.' },
-    host_stalled:      { head: 'The host stopped sending', text: 'Finished files are kept; the download resumes where it stopped when you try again.' },
-    no_response:       { head: 'The host did not answer', text: 'The host did not answer the content check. It may run an older CoSync or have stopped hosting.' },
-    host_read_error:   { head: 'The host could not read a file', text: 'A file changed or could not be read on the host. Ask the host to host again.' },
-    connection_lost:   { head: 'Connection lost', text: 'Finished files are kept; the download resumes where it stopped when you try again.' },
-    install_failed:    { head: 'Could not prepare the install', text: 'The downloaded files were kept but not installed.' },
-    not_loaded:        { head: 'Mods installed but not loaded', text: 'The game did not load them although they are enabled in Plugins.txt. If you use a mod manager (Mod Organizer 2, Vortex), enable them there and start the game from it.' },
-    protocol:          { head: 'Content check failed', text: 'The content check was refused (protocol error).' },
-    flood:             { head: 'Content check failed', text: 'The host stopped the transfer (too many requests).' },
-    too_many_requests: { head: 'Content check failed', text: 'Too many content checks on one connection. Connect again.' },
-    default:           { head: 'Content check failed', text: 'The required content could not be synchronized.' },
+    version_mismatch:  { head: 'Version mismatch', text: 'You and the host need the same CoSync version.' },
+    protocol_version:  { head: 'Version mismatch', text: 'You and the host need the same CoSync version.' },
+    host_not_in_game:  { head: 'Host isn\u2019t in a game', text: 'The host needs to load a save first.' },
+    bad_manifest:      { head: 'Bad mod list', text: 'The host sent a mod list CoSync can\u2019t use. Nothing changed.' },
+    unsafe_path:       { head: 'Unsafe file blocked', text: 'The host tried to send a file outside the game folders. Nothing changed.' },
+    refused_official:  { head: 'Blocked', text: 'CoSync never sends game, DLC or Creation Club files.' },
+    bad_verdict:       { head: 'Bad reply from host', text: 'Nothing changed.' },
+    too_large:         { head: 'Too much to download', text: 'The missing mods are over the size limit.' },
+    disk_space:        { head: 'Not enough space', text: 'Free up space on your Fallout 4 drive.' },
+    write_failed:      { head: 'Couldn\u2019t save the download', text: 'Data\\CoSyncContent is not writable.' },
+    hash_mismatch:     { head: 'Download failed', text: 'A file came through broken. Nothing was installed. Try again.' },
+    corrupt_transfer:  { head: 'Download failed', text: 'A file came through broken. Nothing was installed. Try again.' },
+    host_stalled:      { head: 'Host stopped sending', text: 'Try again. It picks up where it left off.' },
+    no_response:       { head: 'No answer from host', text: 'The host may be on an older CoSync or stopped hosting.' },
+    host_read_error:   { head: 'Host file error', text: 'Ask the host to host again.' },
+    connection_lost:   { head: 'Connection lost', text: 'Try again. It picks up where it left off.' },
+    install_failed:    { head: 'Install failed', text: 'The files were downloaded but not installed.' },
+    not_loaded:        { head: 'Mods not loaded', text: 'Using MO2 or Vortex? Enable them there and launch from it.' },
+    protocol:          { head: 'Mod check failed', text: 'Try again.' },
+    flood:             { head: 'Mod check failed', text: 'Too many requests. Try again later.' },
+    too_many_requests: { head: 'Mod check failed', text: 'Reconnect and try again.' },
+    default:           { head: 'Mod check failed', text: 'Try again.' },
   };
   const contentRows = () => {
     const c = CT();
     const rows = [];
     switch (cPhase()) {
-      case 'requesting': rows.push(['Content', 'Asking the host…', 'dim']); break;
-      case 'preparing':  rows.push(['Content', 'Host is preparing' + (c.checkTotal ? '  ·  ' + c.checkDone + ' / ' + c.checkTotal + ' files' : '…'), 'dim']); break;
-      case 'checking':   rows.push(['Content', 'Checking installed mods  ' + pct(c.checkDone, c.checkTotal) + '%']); break;
-      case 'waiting':    rows.push(['Content', 'Host is verifying your files…', 'dim']); break;
+      case 'requesting': rows.push(['Mods', 'Asking host…', 'dim']); break;
+      case 'preparing':  rows.push(['Mods', 'Host is getting ready' + (c.checkTotal ? '  ·  ' + c.checkDone + ' / ' + c.checkTotal + ' files' : '…'), 'dim']); break;
+      case 'checking':   rows.push(['Mods', 'Checking  ' + pct(c.checkDone, c.checkTotal) + '%']); break;
+      case 'waiting':    rows.push(['Mods', 'Host is checking…', 'dim']); break;
       case 'confirm':
-        rows.push(['Missing content', c.fileCount + (c.fileCount === 1 ? ' file' : ' files') + '  ·  ' + fmtBytes(c.total), 'warn']);
+        rows.push(['Missing', c.fileCount + (c.fileCount === 1 ? ' file' : ' files') + '  ·  ' + fmtBytes(c.total), 'warn']);
         (c.missing || []).slice(0, 8).forEach(m => rows.push(['  ' + m.name, fmtBytes(m.size) + (m.here ? '  ·  different' : '  ·  missing'), 'dim']));
         if ((c.missing || []).length > 8) rows.push(['  …', '+' + ((c.missing || []).length - 8) + ' more', 'dim']);
         break;
@@ -186,18 +186,18 @@
         rows.push(['File', pct(c.fileDone, c.fileSize) + '%  ·  ' + fmtBytes(c.fileDone) + ' / ' + fmtBytes(c.fileSize)]);
         rows.push(['Overall', pct(c.done, c.total) + '%  ·  ' + fmtBytes(c.done) + ' / ' + fmtBytes(c.total)]);
         break;
-      case 'installing': rows.push(['Content', 'Verified  ·  preparing the install…']); break;
-      case 'restart':    rows.push(['Content', 'Verified  ·  restart required', 'warn']); break;
+      case 'installing': rows.push(['Mods', 'Installing…']); break;
+      case 'restart':    rows.push(['Mods', 'Restart needed', 'warn']); break;
       case 'blocked':
         (c.blocked || []).slice(0, 8).forEach(b => rows.push([b.name || b.code, String(b.code).replace(/_/g, ' '), 'bad']));
         break;
-      case 'failed':     rows.push(['Content', 'Failed', 'bad']); break;
-      case 'cancelled':  rows.push(['Content', 'Cancelled', 'dim']); break;
+      case 'failed':     rows.push(['Mods', 'Failed', 'bad']); break;
+      case 'cancelled':  rows.push(['Mods', 'Cancelled', 'dim']); break;
     }
     if ((c.activate || []).length && (cPhase() === 'confirm' || cPhase() === 'restart'))
-      rows.push(['To enable', c.activate.slice(0, 4).join(', ') + (c.activate.length > 4 ? ' …' : '')]);
+      rows.push(['Will enable', c.activate.slice(0, 4).join(', ') + (c.activate.length > 4 ? ' …' : '')]);
     const extra = (c.warnings || []).filter(w => w.code === 'extra').length;
-    if (extra) rows.push(['Your extra mods', extra + ' not used by the host (not synced)', 'dim']);
+    if (extra) rows.push(['Your extra mods', extra + ' (host doesn\u2019t use them)', 'dim']);
     if ((c.native || []).length)
       rows.push(['F4SE plugins (not sent)', c.native.slice(0, 3).join(', ') + (c.native.length > 3 ? ' …' : ''), 'dim']);
     return rows;
@@ -205,28 +205,28 @@
   const contentNotice = () => {
     const c = CT();
     switch (cPhase()) {
-      case 'requesting': return { head: 'Checking required content…', text: 'Asking the host which mods this game uses.' };
-      case 'preparing':  return { head: 'The host is preparing its mod list…', text: 'The host checks its files once (SHA-256); the first time can take a while with large mods.' };
-      case 'checking':   return { head: 'Checking installed mods…', text: 'Comparing your plugins and archives with the host’s (SHA-256).' };
-      case 'waiting':    return { head: 'Verifying…', text: 'The host is checking your answer against its own files.' };
-      case 'confirm':    return { head: 'Missing content detected',
-        text: 'The host uses ' + c.fileCount + ' file(s) (' + fmtBytes(c.total) + ') that you do not have or that differ. CoSync can download them; each file is verified before use, replaced files are backed up, and they are installed when Fallout 4 restarts.' +
-              (c.scripts ? ' Includes ' + c.scripts + ' game script file(s).' : '') };
-      case 'downloading': return { head: 'Downloading required content…', text: 'Every file is checked (SHA-256) before it is used. Cancel keeps what finished; it resumes next time.' };
-      case 'installing': return { head: 'Preparing the install…', text: 'All files passed verification.' };
-      case 'restart':    return { head: 'Restart required',
-        text: 'The content is downloaded and verified. It is installed when Fallout 4 starts again, and CoSync then rejoins this game by itself (within 30 minutes).' };
+      case 'requesting': return { head: 'Checking mods…', text: 'Getting the host\u2019s mod list.' };
+      case 'preparing':  return { head: 'Host is getting ready…', text: 'First time can take a while with big mods.' };
+      case 'checking':   return { head: 'Checking your mods…', text: 'Comparing with the host.' };
+      case 'waiting':    return { head: 'Checking…', text: 'Waiting on the host.' };
+      case 'confirm':    return { head: 'You\u2019re missing mods',
+        text: c.fileCount + ' file(s), ' + fmtBytes(c.total) + '. CoSync can download them. Replaced files are backed up. They install on the next game start.' +
+              (c.scripts ? ' Includes ' + c.scripts + ' script file(s).' : '') };
+      case 'downloading': return { head: 'Downloading…', text: 'Cancel keeps what\u2019s done. It picks up next time.' };
+      case 'installing': return { head: 'Installing…', text: 'All files checked out.' };
+      case 'restart':    return { head: 'Restart needed',
+        text: 'Restart Fallout 4. The mods install and you rejoin automatically (within 30 minutes).' };
       case 'blocked': {
         const b = (c.blocked || [])[0];
         const f = b && BLOCK_TEXT[b.code];
-        return { head: 'This content cannot be synchronized',
-          text: f ? f(b.name) + ((c.blocked || []).length > 1 ? ' (+' + (c.blocked.length - 1) + ' more)' : '') : 'The host uses content that CoSync cannot send.' };
+        return { head: 'Can\u2019t sync this',
+          text: f ? f(b.name) + ((c.blocked || []).length > 1 ? ' (+' + (c.blocked.length - 1) + ' more)' : '') : 'The host uses something CoSync can\u2019t send.' };
       }
       case 'failed': {
         const e = CONTENT_ERRORS[c.error] || CONTENT_ERRORS.default;
         return { head: e.head, text: e.text + (c.detail ? '  (' + c.detail + ')' : '') };
       }
-      case 'cancelled':  return { head: 'Download cancelled', text: 'Finished files are kept and the download resumes next time.' };
+      case 'cancelled':  return { head: 'Cancelled', text: 'What\u2019s done is kept. It picks up next time.' };
     }
     return null;
   };
@@ -262,19 +262,19 @@
     if (r && r !== resultSeen) { resultSeen = r; resultUntil = Date.now() + 6000; }
     if (!r || Date.now() > resultUntil) return null;
     const ok = r.charAt(0) === '1';
-    return { head: ok ? 'Done' : 'Refused', text: r.slice(2) };
+    return { head: ok ? 'Done' : 'Not allowed', text: r.slice(2) };
   };
 
   // The settlement the player stands in: who it belongs to and what they may do.
-  const MODE_TEXT = ['Unassigned', 'Team settlement', 'Personal settlement'];
+  const MODE_TEXT = ['Free', 'Team', 'Personal'];
   const settlementOwner = s => s.mode === 1 ? (s.teamName || 'a team') : (s.mode === 2 ? (s.mine ? 'You' : s.ownerName) : '—');
   const nearestRows = () => {
     const n = TM().nearest || {};
-    if (!n.id) return [['Settlement Here', 'None nearby', 'dim']];
-    const rows = [['Settlement Here', n.name || hex(n.id)]];
-    rows.push(['Type', MODE_TEXT[n.mode] || 'Unassigned', n.mode ? '' : 'dim']);
-    if (n.mode) rows.push(['Belongs To', settlementOwner(n)]);
-    rows.push(['You May Build', n.build ? 'Yes' : 'No', n.build ? '' : 'bad']);
+    if (!n.id) return [['Settlement', 'None nearby', 'dim']];
+    const rows = [['Settlement', n.name || hex(n.id)]];
+    rows.push(['Type', MODE_TEXT[n.mode] || 'Free', n.mode ? '' : 'dim']);
+    if (n.mode) rows.push(['Owner', settlementOwner(n)]);
+    rows.push(['You can build', n.build ? 'Yes' : 'No', n.build ? '' : 'bad']);
     return rows;
   };
   // Live numbers of that settlement (the host's when it is shared with you).
@@ -283,7 +283,7 @@
     if (!s.id || s.food === undefined) return [];
     const n = v => (typeof v === 'number' ? String(v) : '—');
     return [
-      ['Resources', s.synced ? 'Shared with the host' : 'Your game', 'dim', 'section'],
+      ['Resources', s.synced ? 'Shared with host' : 'Local', 'dim', 'section'],
       ['Food · Water', n(s.food) + '  ·  ' + n(s.water)],
       ['Power · Defense', n(s.power) + '  ·  ' + n(s.defense)],
       ['Beds · People', n(s.beds) + '  ·  ' + n(s.population)],
@@ -296,7 +296,7 @@
 
   // Workshop rules draft (host).
   const wsDraft = { mode: 0, free: false };
-  const LIMIT_MODES = ['Fallout 4 Default', 'Custom Limit', 'Unlimited'];
+  const LIMIT_MODES = ['Default', 'Custom', 'Unlimited'];
 
   // ── Screens ─────────────────────────────────────────────────────────────
   // title, rows(), notice(), items(); live: re-render on every state push;
@@ -309,45 +309,44 @@
         const list = [];
         if (role() === 'HOST') {
           list.push({ key: 'yours', label: 'Your Game', go: 'host',
-            desc: 'Players, status and your address.' });
+            desc: 'Players, status, address.' });
         } else if (role() === 'CLIENT') {
           list.push({ key: 'session', label: 'Session', go: 'connect',
-            desc: 'The game you joined.' });
+            desc: 'The game you\u2019re in.' });
         } else {
           list.push({ key: 'host', label: 'Host Game', go: 'host',
-            desc: 'Open your game to your Steam friends or to players on your network.' });
+            desc: 'Let friends join your game.' });
           list.push({ key: 'join', label: 'Join Game', go: 'join',
-            desc: 'Join a Steam friend’s game or a game hosted on your network.' });
+            desc: 'Join a friend\u2019s game.' });
         }
         const myT = myTeam();
         const invN = (TM().invites || []).length;
         list.push({ key: 'team', label: 'Team', go: 'team', disabled: !inGame(),
-          meta: myT ? myT.name : (invN ? invN + (invN === 1 ? ' invitation' : ' invitations') : ''),
-          desc: inGame() ? 'Create or join a team, manage members and your shared team settlement.'
-                         : 'Load a save first. Teams live in the game world.' });
-        list.push({ key: 'settlements', label: 'Settlements', go: 'settlements', disabled: !inGame(),
-          desc: inGame() ? 'Who owns the settlement you are in, your personal settlement, and (host) workshop rules.'
+          meta: myT ? myT.name : (invN ? invN + (invN === 1 ? ' invite' : ' invites') : ''),
+          desc: inGame() ? 'Make or join a team.'
                          : 'Load a save first.' });
-        list.push({ key: 'voice', label: 'Voice & Audio', go: 'voice',
-          desc: 'Microphone, speakers and voice volume.' });
-        list.push({ key: 'status', label: 'Network Status', go: 'status',
-          desc: 'Connection details, for troubleshooting.' });
+        list.push({ key: 'settlements', label: 'Settlements', go: 'settlements', disabled: !inGame(),
+          desc: inGame() ? 'Ownership and build rules.'
+                         : 'Load a save first.' });
+        list.push({ key: 'voice', label: 'Voice', go: 'voice',
+          desc: 'Mic, speakers, volume.' });
+        list.push({ key: 'status', label: 'Network', go: 'status',
+          desc: 'Connection info.' });
         list.push({ key: 'settings', label: 'Settings', go: 'settings',
-          desc: 'Your multiplayer name and controller options.' });
+          desc: 'Name and controller.' });
         if (role() === 'HOST') {
           const pvp = !!(state.rules && state.rules.pvp);
-          list.push({ key: 'pvp', label: pvp ? 'Player Damage: PVP' : 'Player Damage: PVE', action: 'pvp_toggle',
-            meta: pvp ? 'PVP' : 'PVE',
-            desc: pvp ? 'Players can damage each other. Select to switch to PVE (no player damage).'
-                      : 'Players cannot damage each other (default). Select to switch to PVP.' });
+          list.push({ key: 'pvp', label: 'Friendly Fire', action: 'pvp_toggle',
+            meta: pvp ? 'On' : 'Off',
+            desc: pvp ? 'Players can hurt each other.' : 'Players can\u2019t hurt each other.' });
           list.push({ key: 'stop', label: 'Stop Hosting', action: 'stop',
-            desc: 'Close your game to other players. Everyone connected will be disconnected.' });
+            desc: 'Kicks everyone.' });
         }
         if (role() === 'CLIENT')
           list.push({ key: 'leave', label: 'Leave Game', action: 'stop',
-            desc: 'Disconnect from the host.' });
+            desc: 'Disconnect.' });
         list.push({ key: 'back', label: 'Back', action: 'back',
-          desc: inGame() ? 'Return to the game.' : 'Return to the main menu.' });
+          desc: '' });
         return list;
       },
     },
@@ -360,7 +359,7 @@
           const rows = [
             ['Game Name', gameName()],
             ['Status', status(), statusCls(status())],
-            ['Network', steamSession() ? 'Steam (friends)' : networkLabel()],
+            ['Network', steamSession() ? 'Steam' : networkLabel()],
           ];
           if (!steamSession() && state.network.available && state.net.port)
             rows.push(['Address', state.network.address + ' : ' + state.net.port]);
@@ -377,23 +376,23 @@
         if (role() === 'HOST') {
           if (steamSession() && state.steam.error === 'lobby_failed')
             return { head: 'Steam lobby failed',
-              text: 'Your game is open, but Steam could not create the lobby friends use to find it. Stop hosting and try again.' };
+              text: 'Friends can\u2019t find you. Stop hosting and try again.' };
           if (status() === 'WAITING FOR PLAYERS')
             return steamSession()
               ? { head: 'Waiting for friends…',
-                  text: 'Your Steam friends see your game under JOIN GAME, or invite them with INVITE FRIENDS.' }
+                  text: 'They\u2019ll see you under Join Game. Or invite them.' }
               : { head: 'Waiting for players…',
-                  text: 'Players on your network will see your game under JOIN GAME.' };
+                  text: 'They\u2019ll see you under Join Game.' };
           return null;
         }
         if (!inGame() && role() === 'HOST')
           return { head: 'Lobby open',
-            text: 'Players can join now and wait here. Choose NEW, CONTINUE or LOAD -- the others follow you into your game. In a NEW game they arrive after your character creation and make theirs in the house with you.' };
+            text: 'Start or load a game. Everyone follows you in.' };
         if (status() === 'STARTING')
-          return { head: 'Starting…', text: 'Opening your game to the network.' };
+          return { head: 'Starting…', text: '' };
         if (status() === 'FAILED')
-          return { head: 'Could not start hosting',
-            text: 'The network could not be opened. Close other copies of the game and try again. Details are in the CoSync log.' };
+          return { head: 'Couldn\u2019t host',
+            text: 'Close other copies of the game and try again.' };
         return null;
       },
       items: () => {
@@ -402,23 +401,21 @@
           if (steamSession())
             list.push({ key: 'invite', label: 'Invite Friends', action: 'steam_invite',
               disabled: !state.steam.lobby,
-              desc: 'Open the Steam overlay and invite friends to your game.' });
+              desc: 'Opens the Steam overlay.' });
           list.push({ key: 'stop', label: 'Stop Hosting', action: 'stop',
-            desc: 'Close your game to other players. Everyone connected will be disconnected.' });
-          list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to the Multiplayer menu. Your game stays open.' });
+            desc: 'Kicks everyone.' });
+          list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Your game stays open.' });
           return list;
         }
         return [
-          { key: 'steam_host', label: 'Host with Steam Friends', action: 'steam_host',
+          { key: 'steam_host', label: 'Host on Steam', action: 'steam_host',
             disabled: status() === 'STARTING' || !state.steam.available,
-            desc: !state.steam.available ? 'Steam is not available.'
-                : (inGame() ? 'Open your game to your Steam friends over the internet. No port forwarding needed.'
-                            : 'Open a lobby for your Steam friends. They wait here until you start NEW, CONTINUE or LOAD.') },
-          { key: 'host', label: 'Host on Local Network', action: 'host',
+            desc: !state.steam.available ? 'Steam isn\u2019t running.'
+                : 'Steam friends can join. No port forwarding.' },
+          { key: 'host', label: 'Host on LAN', action: 'host',
             disabled: status() === 'STARTING',
-            desc: inGame() ? 'Open your game to players on your network (same router or Wi-Fi).'
-                           : 'Open a lobby on your network. Players wait here until you start NEW, CONTINUE or LOAD.' },
-          { key: 'back', label: 'Back', action: 'back', desc: 'Return to the Multiplayer menu.' },
+            desc: 'Players on your network can join.' },
+          { key: 'back', label: 'Back', action: 'back', desc: '' },
         ];
       },
     },
@@ -432,33 +429,33 @@
         if (state.search.sessions.length || state.steam.games.length) return null;
         if (!state.network.available)
           return { head: 'No network',
-            text: 'This PC is not connected to a network. Connect to your router by cable or Wi-Fi.' };
+            text: 'You\u2019re not connected.' };
         if (state.search.seconds < 3)
-          return { head: 'Searching for games…', text: 'Looking for CoSync games on your network.' };
+          return { head: 'Searching…', text: '' };
         return { head: 'No games found',
-          text: 'Steam friends who host with Steam show up here. For a local game, make sure the host has started hosting and both PCs are on the same network (same router or Wi-Fi); Windows Firewall must allow Fallout 4.' };
+          text: 'Steam friends hosting show up here. On LAN, be on the same network and let Fallout 4 through the firewall.' };
       },
       items: () => {
         const steamList = state.steam.games.map(g => {
           const full = g.players >= state.maxPlayers;
-          let desc = 'Steam friend ' + g.host + '.  ' + g.players + ' / ' + state.maxPlayers + ' players.';
-          if (!g.compatible) desc = 'Different CoSync version (host build ' + g.build + ', yours ' + state.build + '). Both players need the same version.';
+          let desc = g.host + '  ·  ' + g.players + ' / ' + state.maxPlayers + ' players';
+          if (!g.compatible) desc = 'Different version (theirs ' + g.build + ', yours ' + state.build + ').';
           else if (full) desc = 'This game is full.';
           return { key: 's:' + g.id, label: g.name, meta: 'Steam  ' + g.players + ' / ' + state.maxPlayers,
                    disabled: full || !g.compatible, steamJoin: g.id, desc: desc };
         });
         const list = steamList.concat(state.search.sessions.map(s => {
           const full = s.players >= s.max;
-          let desc = 'Hosted by ' + s.host + '.  ' + s.players + ' / ' + s.max + ' players.';
-          if (!s.compatible) desc = 'Different CoSync version (host build ' + s.build + ', yours ' + state.build + '). Both players need the same version.';
+          let desc = s.host + '  ·  ' + s.players + ' / ' + s.max + ' players';
+          if (!s.compatible) desc = 'Different version (theirs ' + s.build + ', yours ' + state.build + ').';
           else if (full) desc = 'This game is full.';
           return { key: 'g:' + s.id, label: s.name, meta: s.players + ' / ' + s.max,
                    disabled: full || !s.compatible, join: s.id, desc: desc };
         }));
-        list.push({ key: 'refresh', label: 'Refresh', action: 'refresh', desc: 'Search your network again.' });
+        list.push({ key: 'refresh', label: 'Refresh', action: 'refresh', desc: '' });
         list.push({ key: 'direct', label: 'Direct Connect', go: 'direct',
-          desc: 'Connect to a host by address. For unusual networks and troubleshooting.' });
-        list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to the Multiplayer menu.' });
+          desc: 'Join by IP address.' });
+        list.push({ key: 'back', label: 'Back', action: 'back', desc: '' });
         return list;
       },
     },
@@ -466,25 +463,25 @@
     direct: {
       title: () => 'Direct Connect',
       notice: () => ({ head: 'Host address',
-        text: "The host can find their address under NETWORK STATUS. The port is 48000 unless the host's screen shows another." }),
+        text: 'The host finds it under Network. Port is usually 48000.' }),
       items: () => [
         { key: 'addr', label: 'Address', field: 'address', placeholder: '192.168.1.20',
-          desc: 'The host\'s IPv4 address, e.g. 192.168.1.20.' },
-        { key: 'port', label: 'Port', field: 'port', placeholder: '48000', desc: 'Usually 48000.' },
-        { key: 'go', label: 'Connect', action: 'direct', desc: 'Connect to this address.' },
-        { key: 'back', label: 'Back', action: 'back', desc: 'Return to Join Game.' },
+          desc: 'e.g. 192.168.1.20' },
+        { key: 'port', label: 'Port', field: 'port', placeholder: '48000', desc: '' },
+        { key: 'go', label: 'Connect', action: 'direct', desc: '' },
+        { key: 'back', label: 'Back', action: 'back', desc: '' },
       ],
     },
 
     connect: {
       title: () => {
         switch (cPhase()) {
-          case 'confirm': case 'downloading': case 'installing': return 'Required Content';
-          case 'restart': return 'Restart Required';
+          case 'confirm': case 'downloading': case 'installing': return 'Mods';
+          case 'restart': return 'Restart Needed';
           case 'blocked': case 'failed': return 'Join Failed';
           case 'cancelled': return 'Cancelled';
         }
-        if (contentShown()) return 'Checking Content';
+        if (contentShown()) return 'Checking Mods';
         if (xferFailed()) return 'Join Failed';
         if (FAILED.indexOf(status()) >= 0) return status();
         return inHostWorld() ? 'Connected' : 'Joining';
@@ -506,86 +503,86 @@
         if (status() === 'OFFLINE' && state.steam.error === 'version_mismatch')
           return XFER_ERRORS.version_mismatch;
         if (status() === 'OFFLINE' && state.steam.error === 'join_failed')
-          return { head: 'Could not join', text: 'The Steam lobby could not be joined. The host may have stopped hosting.' };
+          return { head: 'Couldn\u2019t join', text: 'The host may have stopped hosting.' };
         if (status() === 'OFFLINE' && state.steam.error === 'steam_unavailable')
-          return { head: 'Steam unavailable', text: 'Steam must be running to join a friend’s game.' };
+          return { head: 'Steam isn\u2019t running', text: 'Start Steam and try again.' };
         switch (status()) {
           case 'SESSION FULL':
-            return { head: 'Session full', text: 'This game already has ' + state.maxPlayers + ' players.' };
+            return { head: 'Game is full', text: state.maxPlayers + ' players max.' };
           case 'VERSION MISMATCH':
-            return { head: 'Different CoSync version',
-              text: 'You and the host are running different versions of CoSync. Both players need the same version.' };
+            return { head: 'Version mismatch',
+              text: 'You and the host need the same CoSync version.' };
           case 'HOST DISCONNECTED':
-            return { head: 'Host disconnected', text: 'The host left or the connection was lost.' };
+            return { head: 'Host disconnected', text: '' };
           case 'CONNECTION FAILED':
           case 'FAILED':
-            return { head: 'Unable to connect to the host',
-              text: 'The host may have stopped hosting, or the connection may be blocked (Windows Firewall, or a network that keeps devices apart).' };
+            return { head: 'Couldn\u2019t connect',
+              text: 'The host may have stopped, or a firewall is blocking it.' };
           case 'OFFLINE':
-            return { head: 'Not connected', text: 'Choose a game under JOIN GAME.' };
+            return { head: 'Not connected', text: 'Pick a game under Join Game.' };
         }
         switch (state.transfer.phase) {
           case 'requested':
-            return { head: 'Requesting the world…', text: 'The host is saving its world for you.' };
+            return { head: 'Getting the world…', text: 'The host is saving.' };
           case 'downloading':
-            return { head: 'Downloading the world…', text: 'Receiving the host’s save. You will play in the same world.' };
+            return { head: 'Downloading the world…', text: '' };
           case 'loading':
-            return { head: 'Loading the world…', text: 'Entering the host’s world. If the game asks you to confirm anything, choose Yes.' };
+            return { head: 'Loading…', text: 'If the game asks, choose Yes.' };
           case 'lobby':
-            return { head: 'In the lobby', text: 'Waiting for the host to start. NEW, CONTINUE or LOAD -- you join the host’s game automatically. In a NEW game everyone plays the intro together and creates their character there.' };
+            return { head: 'In the lobby', text: 'Waiting for the host to start. You\u2019ll join automatically.' };
           case 'waitinghost':
-            return { head: 'The host’s game is starting', text: 'You join as soon as the host’s game can be saved (after the host’s own character creation in a New Game).' };
+            return { head: 'Host is starting', text: 'You\u2019ll join in a moment.' };
         }
         if (inHostWorld()) {
           if (state.profile === 'CREATING')
-            return { head: 'New character', text: 'This is your first time in this world. Create your character in the editor.' };
+            return { head: 'New character', text: 'Make your character.' };
           if (state.profile === 'RESTORING')
-            return { head: 'Restoring your character…', text: 'Bringing back your level, perks, inventory and appearance.' };
-          return { head: "You're in", text: "You are playing in the host's world. Your character is saved with the host's game." };
+            return { head: 'Loading your character…', text: '' };
+          return { head: "You're in", text: 'Your character saves with the host\u2019s game.' };
         }
-        return { head: 'Connecting…', text: 'Contacting the host.' };
+        return { head: 'Connecting…', text: '' };
       },
       items: () => {
         switch (cPhase()) {
           case 'confirm':
             return [
-              { key: 'caccept', label: 'Download & Install', action: 'content_accept',
-                desc: 'Download ' + fmtBytes(CT().total) + ', verify every file, and install it when Fallout 4 restarts.' },
-              { key: 'ccancel', label: 'Cancel', action: 'content_cancel', desc: 'Do not download. Leaves this game.' },
+              { key: 'caccept', label: 'Download', action: 'content_accept',
+                desc: fmtBytes(CT().total) + '. Installs on restart.' },
+              { key: 'ccancel', label: 'Cancel', action: 'content_cancel', desc: 'Leaves the game.' },
             ];
           case 'requesting': case 'preparing': case 'checking': case 'waiting': case 'downloading':
-            return [{ key: 'ccancel', label: 'Cancel', action: 'content_cancel', desc: 'Stop and leave this game. Finished files are kept.' }];
+            return [{ key: 'ccancel', label: 'Cancel', action: 'content_cancel', desc: 'Leaves the game. Keeps what\u2019s done.' }];
           case 'installing':
-            return [{ key: 'cwait', label: 'Please wait…', disabled: true, desc: '' }];
+            return [{ key: 'cwait', label: 'Wait…', disabled: true, desc: '' }];
           case 'restart':
             return [
-              { key: 'cquit', label: 'Quit Game', action: 'content_quit', desc: 'Close Fallout 4. Start it again and CoSync installs the content and rejoins this game.' },
-              { key: 'back', label: 'Back', action: 'leave_back', desc: 'Return to the Multiplayer menu. The content is installed at the next start.' },
+              { key: 'cquit', label: 'Quit Game', action: 'content_quit', desc: 'Start it again to install and rejoin.' },
+              { key: 'back', label: 'Back', action: 'leave_back', desc: 'Installs next time you start.' },
             ];
           case 'blocked': case 'failed': case 'cancelled':
             return [
               { key: 'retry', label: 'Try Again', action: 'retry', disabled: !lastJoin, desc: 'Connect to the same game again.' },
-              { key: 'back', label: 'Back', action: 'leave_back', desc: 'Return to the Multiplayer menu.' },
+              { key: 'back', label: 'Back', action: 'leave_back', desc: '' },
             ];
         }
         if (xferFailed() || FAILED.indexOf(status()) >= 0 || status() === 'OFFLINE')
           return [
             { key: 'retry', label: 'Try Again', action: 'retry', disabled: !lastJoin, desc: 'Connect to the same game again.' },
-            { key: 'back', label: 'Back', action: 'leave_back', desc: 'Return to the Multiplayer menu.' },
+            { key: 'back', label: 'Back', action: 'leave_back', desc: '' },
           ];
         if (inHostWorld())
           return [
-            { key: 'leave', label: 'Leave Game', action: 'stop_root', desc: 'Disconnect from the host. Your character stays saved in their world.' },
-            { key: 'back', label: 'Back', action: 'back', desc: 'Return to the Multiplayer menu. You stay connected.' },
+            { key: 'leave', label: 'Leave Game', action: 'stop_root', desc: 'Your character stays saved.' },
+            { key: 'back', label: 'Back', action: 'back', desc: 'You stay connected.' },
           ];
         return [
-          { key: 'cancel', label: 'Cancel', action: 'stop_root', desc: 'Stop joining.' },
+          { key: 'cancel', label: 'Cancel', action: 'stop_root', desc: '' },
         ];
       },
     },
 
     status: {
-      title: () => 'Network Status',
+      title: () => 'Network',
       live: true,
       rows: () => {
         const rows = [
@@ -595,18 +592,18 @@
         ];
         if (state.network.available) {
           rows.push(['Adapter', state.network.adapter]);
-          rows.push(['Local Address', state.network.address]);
+          rows.push(['IP', state.network.address]);
         }
         if (role() === 'HOST')
-          rows.push(['Game Port', String(state.net.port)]);
+          rows.push(['Port', String(state.net.port)]);
         if (role() !== 'NONE')
           rows.push(['Players', state.net.players + ' / ' + state.maxPlayers]);
-        rows.push(['Discovery', state.discovery]);
-        rows.push(['CoSync Build', String(state.build)]);
+        rows.push(['LAN search', state.discovery]);
+        rows.push(['Build', String(state.build)]);
         return rows;
       },
       items: () => [
-        { key: 'back', label: 'Back', action: 'back', desc: 'Return to the Multiplayer menu.' },
+        { key: 'back', label: 'Back', action: 'back', desc: '' },
       ],
     },
 
@@ -619,19 +616,19 @@
         const online = t.members.filter(m => m.online).length;
         return [
           ['Team', t.name],
-          ['Your Role', roleName(me().role)],
+          ['Role', roleName(me().role)],
           ['Leader', t.leaderName || '—'],
-          ['Members', online + ' online  ·  ' + t.members.length + ' total'],
-          ['Team Settlement', t.settlement ? t.settlementName : 'None', t.settlement ? '' : 'dim'],
+          ['Members', online + ' / ' + t.members.length + ' online'],
+          ['Settlement', t.settlement ? t.settlementName : 'None', t.settlement ? '' : 'dim'],
         ];
       },
       notice: () => {
         const r = resultNotice();
         if (r) return r;
         if (!myTeam() && (TM().invites || []).length)
-          return { head: 'You have been invited', text: 'Open an invitation below to accept or decline it.' };
+          return { head: 'You\u2019re invited', text: 'Open it below.' };
         if (!myTeam())
-          return { head: 'Teams', text: 'Play together: a team shares a settlement, team chat and team voice. You can be in one team at a time.' };
+          return { head: 'Teams', text: 'Shared settlement, team chat, team voice. One team at a time.' };
         return null;
       },
       items: () => {
@@ -639,29 +636,29 @@
         const list = [];
         if (!t) {
           list.push({ key: 'create', label: 'Create Team', go: 'team_create', enter: () => { form.teamName = ''; },
-            desc: 'Start a team. You become its leader.' });
-          (TM().invites || []).forEach(inv => list.push({ key: 'inv' + inv.team, label: 'Invitation: ' + inv.name,
+            desc: 'You\u2019ll be the leader.' });
+          (TM().invites || []).forEach(inv => list.push({ key: 'inv' + inv.team, label: 'Invite: ' + inv.name,
             meta: 'from ' + inv.by, go: 'team_invitation', enter: () => { sel.invite = inv.team; },
-            desc: inv.by + ' invited you to join ' + inv.name + ' (' + inv.members + ' members).' }));
+            desc: inv.by + ' invited you  ·  ' + inv.members + ' members' }));
         } else {
           list.push({ key: 'members', label: 'Members', meta: String(t.members.length), go: 'team_members',
-            desc: 'Members and their roles. Promote, demote, remove or hand over leadership.' });
+            desc: 'Roles, promote, kick.' });
           if (isLeader() || isOfficer())
-            list.push({ key: 'invite', label: 'Invite Players', go: 'team_invite', desc: 'Invite players in this game who are not in a team.' });
+            list.push({ key: 'invite', label: 'Invite Players', go: 'team_invite', desc: '' });
           list.push({ key: 'settle', label: 'Team Settlement', meta: t.settlement ? t.settlementName : 'None', go: 'team_settlement',
-            desc: 'The settlement your team builds and lives in together. Its food, water, power and resources are shared.' });
+            desc: 'Everything there is shared.' });
           if (isLeader())
             list.push({ key: 'rename', label: 'Rename Team', go: 'team_rename', enter: () => { form.teamRename = t.name; },
-              desc: 'Change the team name.' });
+              desc: '' });
           list.push({ key: 'leave', label: 'Leave Team', run: () => teamCmd('leave'),
-            confirm: isLeader() ? 'Press again to leave. Leadership passes to an officer (or the longest member).' : 'Press again to leave the team.',
-            desc: 'Leave ' + t.name + '.' });
+            confirm: isLeader() ? 'Press again. An officer takes over.' : 'Press again to leave.',
+            desc: '' });
           if (isLeader())
             list.push({ key: 'disband', label: 'Disband Team', run: () => teamCmd('disband'),
-              confirm: 'Press again to disband. Every member is released and the team settlement becomes unassigned.',
-              desc: 'End the team.' });
+              confirm: 'Press again. The team is gone for good.',
+              desc: '' });
         }
-        list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to the Multiplayer menu.' });
+        list.push({ key: 'back', label: 'Back', action: 'back', desc: '' });
         return list;
       },
     },
@@ -672,11 +669,11 @@
       notice: () => resultNotice(),
       items: () => [
         { key: 'name', label: 'Name', field: 'teamName', maxlen: 24, placeholder: 'Sole Survivors',
-          desc: '3-24 characters. Must be unique in this game.' },
+          desc: '3-24 characters.' },
         { key: 'go', label: 'Create', disabled: clean(form.teamName).length < 3,
           run: () => teamCmd('create|' + clean(form.teamName)), after: 'back',
-          desc: 'Create the team. If you stand in a free settlement the host is using, it becomes the team settlement.' },
-        { key: 'back', label: 'Back', action: 'back', desc: 'Return to Team.' },
+          desc: 'Standing in a free settlement? It becomes the team\u2019s.' },
+        { key: 'back', label: 'Back', action: 'back', desc: '' },
       ],
     },
 
@@ -685,13 +682,13 @@
       live: true,
       rows: () => {
         const inv = (TM().invites || []).find(i => i.team === sel.invite);
-        return inv ? [['Team', inv.name], ['Invited By', inv.by], ['Members', String(inv.members)]]
-                   : [['Invitation', 'No longer valid', 'dim']];
+        return inv ? [['Team', inv.name], ['From', inv.by], ['Members', String(inv.members)]]
+                   : [['Invite', 'Expired', 'dim']];
       },
       items: () => [
-        { key: 'accept', label: 'Accept', run: () => teamCmd('accept|' + sel.invite), after: 'back', desc: 'Join this team as a member.' },
-        { key: 'decline', label: 'Decline', run: () => teamCmd('decline|' + sel.invite), after: 'back', desc: 'Turn the invitation down.' },
-        { key: 'back', label: 'Back', action: 'back', desc: 'Decide later. Invitations expire after two minutes.' },
+        { key: 'accept', label: 'Accept', run: () => teamCmd('accept|' + sel.invite), after: 'back', desc: '' },
+        { key: 'decline', label: 'Decline', run: () => teamCmd('decline|' + sel.invite), after: 'back', desc: '' },
+        { key: 'back', label: 'Back', action: 'back', desc: 'Invites expire in 2 minutes.' },
       ],
     },
 
@@ -704,8 +701,8 @@
         const list = t.members.slice().sort((a, b) => b.role - a.role).map(m => ({
           key: 'm:' + m.key, label: (m.online ? '● ' : '○ ') + m.name + (m.key === me().key ? ' (You)' : ''),
           meta: roleName(m.role), go: 'team_member', enter: () => { sel.member = m.key; },
-          desc: (m.online ? 'Online.' : 'Offline.') + ' ' + roleName(m.role) + '.' }));
-        list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to Team.' });
+          desc: m.online ? 'Online' : 'Offline' }));
+        list.push({ key: 'back', label: 'Back', action: 'back', desc: '' });
         return list;
       },
     },
@@ -716,7 +713,7 @@
       rows: () => {
         const t = myTeam();
         const m = t && t.members.find(x => x.key === sel.member);
-        if (!m) return [['Member', 'No longer in the team', 'dim']];
+        if (!m) return [['Member', 'Left the team', 'dim']];
         return [['Name', m.name], ['Role', roleName(m.role)], ['Status', m.online ? 'Online' : 'Offline', m.online ? '' : 'dim']];
       },
       notice: () => resultNotice(),
@@ -727,18 +724,18 @@
         if (m && m.key !== me().key) {
           if (isLeader() && m.role === 0)
             list.push({ key: 'promote', label: 'Promote to Officer', run: () => teamCmd('promote|' + m.key),
-              desc: 'Officers can invite players and remove members.' });
+              desc: 'Officers can invite and kick.' });
           if (isLeader() && m.role === 1)
             list.push({ key: 'demote', label: 'Demote to Member', run: () => teamCmd('demote|' + m.key),
-              desc: 'Take the officer role away.' });
+              desc: '' });
           if (isLeader())
             list.push({ key: 'lead', label: 'Make Leader', run: () => teamCmd('transfer|' + m.key), after: 'back',
-              confirm: 'Press again to hand leadership to ' + m.name + '. You become an officer.', desc: 'Hand over leadership.' });
+              confirm: 'Press again. You become an officer.', desc: '' });
           if (isLeader() || (isOfficer() && m.role === 0))
-            list.push({ key: 'kick', label: 'Remove from Team', run: () => teamCmd('kick|' + m.key), after: 'back',
-              confirm: 'Press again to remove ' + m.name + ' from the team.', desc: 'Remove this player from the team.' });
+            list.push({ key: 'kick', label: 'Kick', run: () => teamCmd('kick|' + m.key), after: 'back',
+              confirm: 'Press again to kick ' + m.name + '.', desc: '' });
         }
-        list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to Members.' });
+        list.push({ key: 'back', label: 'Back', action: 'back', desc: '' });
         return list;
       },
     },
@@ -753,12 +750,11 @@
           const invited = pending.indexOf(o.key) >= 0;
           return { key: 'i:' + o.key, label: o.name, meta: invited ? 'Invited' : 'Invite', disabled: invited,
             run: () => teamCmd('invite|' + o.key),
-            desc: invited ? o.name + ' has an invitation waiting (it expires after two minutes).'
-                          : 'Send ' + o.name + ' an invitation. They answer from their Team menu (F10).' };
+            desc: invited ? 'Waiting for an answer.' : 'They answer from the Team menu.' };
         });
-        if (!list.length) list.push({ key: 'none', label: 'No players without a team', disabled: true,
-          desc: 'Only players who are online in this game and not in a team can be invited.' });
-        list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to Team.' });
+        if (!list.length) list.push({ key: 'none', label: 'Nobody to invite', disabled: true,
+          desc: 'Everyone online is already in a team.' });
+        list.push({ key: 'back', label: 'Back', action: 'back', desc: '' });
         return list;
       },
     },
@@ -768,24 +764,24 @@
       live: true,
       rows: () => {
         const t = myTeam();
-        const rows = [['Team Settlement', t && t.settlement ? t.settlementName : 'None', t && t.settlement ? '' : 'dim']];
-        if (t && t.settlement) rows.push(['Built Through CoSync', String(builtCount(t.settlement))]);
+        const rows = [['Team settlement', t && t.settlement ? t.settlementName : 'None', t && t.settlement ? '' : 'dim']];
+        if (t && t.settlement) rows.push(['Objects built', String(builtCount(t.settlement))]);
         return rows.concat(nearestRows()).concat(statRows());
       },
-      notice: () => resultNotice() || { head: 'How a team settlement works',
-        text: 'Every member can build there and nobody else can. The host’s game keeps it: food, water, power, defense, beds, happiness and the workbench are the same for every member.' },
+      notice: () => resultNotice() || { head: 'Team settlement',
+        text: 'Only your team can build here. Everything is shared.' },
       items: () => {
         const t = myTeam(), n = TM().nearest || {};
         const list = [];
         if (t && (isLeader() || isOfficer())) {
           list.push({ key: 'here', label: 'Use This Settlement', disabled: !n.id || (n.mode === 1 && n.teamId === t.id),
             run: () => teamCmd('settle'),
-            desc: !n.id ? 'Stand in a settlement (near its workbench) first.'
-                : (n.mode ? 'This settlement is already assigned.' : 'Make ' + (n.name || hex(n.id)) + ' the team settlement. The old one becomes unassigned.') });
+            desc: !n.id ? 'Go to a settlement first.'
+                : (n.mode ? 'Already taken.' : 'Make ' + (n.name || hex(n.id)) + ' your team\u2019s.') });
           list.push({ key: 'clear', label: 'Clear Team Settlement', disabled: !t.settlement, run: () => teamCmd('settle_clear'),
-            confirm: 'Press again. The settlement stays as it is but is no longer shared.', desc: 'Stop sharing the team settlement.' });
+            confirm: 'Press again. Nothing gets removed.', desc: 'Stops sharing it.' });
         }
-        list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to Team.' });
+        list.push({ key: 'back', label: 'Back', action: 'back', desc: '' });
         return list;
       },
     },
@@ -795,10 +791,10 @@
       live: true,
       notice: () => resultNotice(),
       items: () => [
-        { key: 'nm', label: 'Name', field: 'teamRename', maxlen: 24, desc: '3-24 characters, unique in this game.' },
+        { key: 'nm', label: 'Name', field: 'teamRename', maxlen: 24, desc: '3-24 characters.' },
         { key: 'go', label: 'Save', disabled: clean(form.teamRename).length < 3,
-          run: () => teamCmd('rename|' + clean(form.teamRename)), after: 'back', desc: 'Save the new name.' },
-        { key: 'back', label: 'Back', action: 'back', desc: 'Return to Team without renaming.' },
+          run: () => teamCmd('rename|' + clean(form.teamRename)), after: 'back', desc: '' },
+        { key: 'back', label: 'Back', action: 'back', desc: '' },
       ],
     },
 
@@ -807,29 +803,29 @@
       live: true,
       rows: () => nearestRows().concat(statRows()),
       notice: () => resultNotice() || (!state.workshop.hooks && inGame()
-        ? { head: 'Workshop protection unavailable', text: 'The workshop hooks could not be installed on this game version, so building is not protected. See the CoSync log.' }
-        : { head: 'Team and personal settlements', text: 'A personal settlement is yours alone: only you build there and its state is not shared with your team.' }),
+        ? { head: 'Build protection is off', text: 'It doesn\u2019t work on this game version.' }
+        : { head: 'Personal settlements', text: 'Only you can build there. Not shared with your team.' }),
       items: () => {
         const n = TM().nearest || {};
         const all = TM().settlements || [];
         const mine = all.find(s => s.mode === 2 && s.mine);
         const list = [];
-        list.push({ key: 'personal', label: 'Make My Personal Settlement', disabled: !n.id || !!n.mode || !!mine,
+        list.push({ key: 'personal', label: 'Claim as Personal', disabled: !n.id || !!n.mode || !!mine,
           run: () => teamCmd('personal'),
-          desc: !n.id ? 'Stand in a settlement (near its workbench) first.'
-              : (n.mode ? 'This settlement is already assigned.'
-              : (mine ? 'You already have one (' + mine.name + '). Release it first.' : 'Only you will be able to build in ' + (n.name || hex(n.id)) + '.')) });
+          desc: !n.id ? 'Go to a settlement first.'
+              : (n.mode ? 'Already taken.'
+              : (mine ? 'You already have ' + mine.name + '. Release it first.' : 'Only you can build in ' + (n.name || hex(n.id)) + '.')) });
         if (mine)
           list.push({ key: 'release', label: 'Release ' + mine.name, run: () => teamCmd('personal_release'),
-            confirm: 'Press again. The settlement stays as it is but anyone can build there again.', desc: 'Give up your personal settlement.' });
+            confirm: 'Press again. Anyone can build there again.', desc: '' });
         all.forEach(s => list.push({ key: 's:' + s.id, label: s.name, meta: s.mode === 1 ? 'Team · ' + s.teamName : (s.mine ? 'Personal · You' : 'Personal · ' + s.ownerName),
           go: 'settlement', enter: () => { sel.settlement = s.id; },
-          desc: 'Workbench ' + hex(s.id) + '. ' + builtCount(s.id) + ' objects built through CoSync.' }));
+          desc: builtCount(s.id) + ' objects built' }));
         if (inGame() && role() !== 'CLIENT')
           list.push({ key: 'rules', label: 'Workshop Rules', go: 'ws_rules',
             enter: () => { const st = TM().rules || {}; wsDraft.mode = st.limitMode || 0; wsDraft.free = !!st.freeBuild; form.wsLimit = String(st.customLimit || 1000); },
-            desc: 'Build limits and world build restrictions for everyone in your game.' });
-        list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to the Multiplayer menu.' });
+            desc: 'Build limits for everyone.' });
+        list.push({ key: 'back', label: 'Back', action: 'back', desc: '' });
         return list;
       },
     },
@@ -839,18 +835,18 @@
       live: true,
       rows: () => {
         const s = (TM().settlements || []).find(x => x.id === sel.settlement);
-        if (!s) return [['Settlement', 'No longer assigned', 'dim']];
+        if (!s) return [['Settlement', 'Not claimed', 'dim']];
         const lim = (TM().rules || {}).limitMode === 1 ? ' / ' + TM().rules.customLimit : '';
-        return [['Name', s.name], ['Type', MODE_TEXT[s.mode] || '—'], ['Belongs To', settlementOwner(s)],
-                ['Workbench', hex(s.id)], ['Objects Built', builtCount(s.id) + lim]];
+        return [['Name', s.name], ['Type', MODE_TEXT[s.mode] || '—'], ['Owner', settlementOwner(s)],
+                ['Workbench', hex(s.id)], ['Objects built', builtCount(s.id) + lim]];
       },
       notice: () => resultNotice(),
       items: () => {
         const list = [];
         if (TM().authority && role() !== 'CLIENT')
-          list.push({ key: 'unassign', label: 'Unassign (Host)', run: () => teamCmd('admin_release|' + sel.settlement), after: 'back',
-            confirm: 'Press again to make this settlement unassigned. Nothing in it is removed.', desc: 'Host only: return it to everyone.' });
-        list.push({ key: 'back', label: 'Back', action: 'back', desc: 'Return to Settlements.' });
+          list.push({ key: 'unassign', label: 'Free It (Host)', run: () => teamCmd('admin_release|' + sel.settlement), after: 'back',
+            confirm: 'Press again. Nothing gets removed.', desc: '' });
+        list.push({ key: 'back', label: 'Back', action: 'back', desc: '' });
         return list;
       },
     },
@@ -859,23 +855,23 @@
       title: () => 'Workshop Rules',
       live: true,
       rows: () => [
-        ['Workshop Protection', state.workshop.hooks ? 'Active' : 'Unavailable', state.workshop.hooks ? '' : 'bad'],
-        ['Current Build Limit', LIMIT_MODES[(TM().rules || {}).limitMode || 0] +
+        ['Build protection', state.workshop.hooks ? 'On' : 'Off', state.workshop.hooks ? '' : 'bad'],
+        ['Build limit', LIMIT_MODES[(TM().rules || {}).limitMode || 0] +
           (((TM().rules || {}).limitMode === 1) ? ' (' + TM().rules.customLimit + ')' : '')],
       ],
       notice: () => resultNotice() || { head: 'Host rules',
-        text: 'These apply to everyone in your game. Removing world build restrictions lets people build anywhere, but team and personal settlements stay protected.' },
+        text: 'Apply to everyone. Claimed settlements stay protected.' },
       items: () => [
         { key: 'mode', label: 'Build Limit', option: LIMIT_MODES[wsDraft.mode], cycle: d => { wsDraft.mode = wrap(wsDraft.mode + d, 3); },
-          desc: 'Fallout 4 Default keeps the normal size bar. Custom counts objects built per settlement. Unlimited removes the limit.' },
+          desc: 'Default uses the normal size bar.' },
         { key: 'lim', label: 'Custom Limit', field: 'wsLimit', maxlen: 6, placeholder: '1000', disabled: wsDraft.mode !== 1,
-          desc: 'Objects that may be built in one settlement (1-100000).' },
-        { key: 'free', label: 'World Build Limits', option: wsDraft.free ? 'Removed' : 'Normal',
+          desc: 'Max objects per settlement (1-100000).' },
+        { key: 'free', label: 'Build Anywhere', option: wsDraft.free ? 'On' : 'Off',
           cycle: () => { wsDraft.free = !wsDraft.free; },
-          desc: 'Removed: build outside settlement borders (objects belong to the nearest settlement). Team and personal settlements stay protected.' },
+          desc: 'Build outside settlement borders.' },
         { key: 'apply', label: 'Apply', run: () => teamCmd('rules|' + wsDraft.mode + '|' + (parseInt(form.wsLimit, 10) || 1000) + '|' + (wsDraft.free ? 1 : 0)),
-          desc: 'Save these rules for everyone.' },
-        { key: 'back', label: 'Back', action: 'back', desc: 'Return to Settlements.' },
+          desc: '' },
+        { key: 'back', label: 'Back', action: 'back', desc: '' },
       ],
     },
 
@@ -883,16 +879,16 @@
     // 0.3.3 (Stage 8): voice settings. Proximity range is the host's rule and
     // is shown, never edited, here.
     voice: {
-      title: () => 'Voice & Audio',
+      title: () => 'Voice',
       live: true,
       enter: () => native('voice_refresh'),
       rows: () => {
         const v = state.voice || {};
         const inSession = role() !== 'NONE';
         return [
-          ['Microphone', v.micOk ? 'Working' : (inSession ? 'Not available' : 'Starts with a game'), v.micOk ? '' : 'dim'],
-          ['Talk Mode', v.ptt ? 'Push to talk' : 'Voice activation'],
-          ['Voice Range', 'Set by the host', 'dim'],
+          ['Mic', v.micOk ? 'OK' : (inSession ? 'Not found' : 'Starts in game'), v.micOk ? '' : 'dim'],
+          ['Mode', v.ptt ? 'Push to talk' : 'Open mic'],
+          ['Range', 'Host decides', 'dim'],
         ];
       },
       items: () => {
@@ -901,34 +897,33 @@
           const ids = [''].concat((list || []).map(d => d.id));
           const at = Math.max(0, ids.indexOf(cur || ''));
           const d = (list || []).find(x => x.id === cur);
-          return { ids, at, name: cur ? (d ? d.name : 'Unavailable device') : 'Windows Default' };
+          return { ids, at, name: cur ? (d ? d.name : 'Missing device') : 'Default' };
         };
         const inp = pick(v.inputs, v.input);
         const out = pick(v.outputs, v.output);
         const pct = x => Math.round((x || 0) * 100) + '%';
         const step = (x, d, lo, hi, by) => Math.min(hi, Math.max(lo, Math.round(((x || 0) + d * by) * 100) / 100));
         return [
-          { key: 'vin', label: 'Microphone', option: inp.name,
+          { key: 'vin', label: 'Mic', option: inp.name,
             cycle: d => { const id = inp.ids[wrap(inp.at + d, inp.ids.length)]; v.input = id; native('voice|input|' + id); },
-            desc: 'Which microphone to use. Press ← / → to change.' },
-          { key: 'vgain', label: 'Microphone Volume', option: pct(v.gain),
+            desc: '← / → to change' },
+          { key: 'vgain', label: 'Mic Volume', option: pct(v.gain),
             cycle: d => { v.gain = step(v.gain, d, 0, 2, 0.1); native('voice|gain|' + v.gain); },
-            desc: 'How loud you are to other players.' },
-          { key: 'vsens', label: 'Input Sensitivity', option: Math.round((v.sensitivity || 0) * 10) + ' / 10',
+            desc: '' },
+          { key: 'vsens', label: 'Mic Sensitivity', option: Math.round((v.sensitivity || 0) * 10) + ' / 10',
             disabled: !!v.ptt,
             cycle: d => { v.sensitivity = step(v.sensitivity, d, 0, 1, 0.1); native('voice|sensitivity|' + v.sensitivity); },
-            desc: v.ptt ? 'Push to talk is on ([Voice] iPushToTalkKey), so sensitivity is not used.'
-                        : 'How quiet a sound starts your microphone. Higher picks up softer speech (and more background noise).' },
-          { key: 'vout', label: 'Output Device', option: out.name,
+            desc: v.ptt ? 'Not used with push to talk.' : 'Higher picks up quieter sound.' },
+          { key: 'vout', label: 'Speakers', option: out.name,
             cycle: d => { const id = out.ids[wrap(out.at + d, out.ids.length)]; v.output = id; native('voice|output|' + id); },
-            desc: 'Where other players\u2019 voices play. Press ← / → to change.' },
+            desc: '← / → to change' },
           { key: 'vvol', label: 'Voice Volume', option: pct(v.volume),
             cycle: d => { v.volume = step(v.volume, d, 0, 2, 0.1); native('voice|volume|' + v.volume); },
-            desc: 'How loud other players are.' },
-          { key: 'vmute', label: 'Mute Microphone', option: v.muted ? 'On' : 'Off',
+            desc: '' },
+          { key: 'vmute', label: 'Mute Mic', option: v.muted ? 'On' : 'Off',
             cycle: () => { v.muted = !v.muted; native('voice|mute|' + (v.muted ? '1' : '0')); },
-            desc: 'Stop sending your voice.' },
-          { key: 'back', label: 'Back', action: 'back', desc: 'Return to the Multiplayer menu.' },
+            desc: '' },
+          { key: 'back', label: 'Back', action: 'back', desc: '' },
         ];
       },
     },
@@ -940,14 +935,14 @@
         ['Player Name', state.playerName || '—'],
       ],
       items: () => [
-        { key: 'voice', label: 'Voice & Audio', go: 'voice', desc: 'Microphone, speakers and voice volume.' },
+        { key: 'voice', label: 'Voice', go: 'voice', desc: 'Mic, speakers, volume.' },
         { key: 'pad', label: 'Controller Buttons', option: state.controllerStyle === 1 ? 'PlayStation' : 'Xbox',
           toggle: 'controller_style',
-          desc: 'Which button art to show for your controller. Press ← / → or SELECT to change.' },
+          desc: 'Button icons.' },
         { key: 'anim', label: 'Animation Sync', option: state.animTesting ? 'Testing' : 'Current',
           toggle: 'anim_mode',
-          desc: 'Developer option. Current is the production animation sync; Testing enables the experimental path.' },
-        { key: 'back', label: 'Back', action: 'back', desc: 'Return to the Multiplayer menu.' },
+          desc: 'Dev option. Leave on Current.' },
+        { key: 'back', label: 'Back', action: 'back', desc: '' },
       ],
     },
   };
@@ -969,8 +964,8 @@
   const overviewRows = () => {
     const rows = [
       ['Link', status(), statusCls(status())],
-      ['Role', role() === 'HOST' ? 'Host' : (role() === 'CLIENT' ? 'Client' : 'Not in a session'), role() === 'NONE' ? 'dim' : ''],
-      ['Network', steamSession() ? 'Steam (friends)' : networkLabel(), state.network.available || steamSession() ? '' : 'dim'],
+      ['Role', role() === 'HOST' ? 'Host' : (role() === 'CLIENT' ? 'Client' : 'None'), role() === 'NONE' ? 'dim' : ''],
+      ['Network', steamSession() ? 'Steam' : networkLabel(), state.network.available || steamSession() ? '' : 'dim'],
     ];
     if (role() === 'CLIENT' && state.net.joinTarget) rows.push(['Host', state.net.joinTarget]);
     if (role() === 'HOST' && !steamSession() && state.network.available && state.net.port)
@@ -1194,7 +1189,7 @@
         const port = (direct.port || '48000').trim();
         if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(addr) || !/^\d{1,5}$/.test(port)) {
           sound('cancel');
-          $('desc').textContent = 'Enter an address like 192.168.1.20 and a port like 48000.';
+          $('desc').textContent = 'Use an address like 192.168.1.20 and port 48000.';
           return;
         }
         sound('ok');

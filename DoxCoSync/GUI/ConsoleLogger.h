@@ -3,6 +3,13 @@
 #include <windows.h>
 #include <cstdio>
 #include <cstdarg>
+#include <cstring>
+
+#include "CoSyncLogCrypt.h"
+
+// 0.5.7: no console window any more, and the log files are encrypted
+// (CoSyncLogCrypt.h) -- only the developers can read them, with
+// tools/cslog_decrypt.py.
 
 enum class LogColor
 {
@@ -14,27 +21,6 @@ enum class LogColor
     PURPLE = 13,   // bright magenta — reserved for animation testing logs
 };
 
-inline void EnsureConsole()
-{
-    static bool initialized = false;
-    if (initialized) return;
-
-
-    FreeConsole();
-
-
-    AllocConsole();
-
-
-    FILE* fDummy;
-    freopen_s(&fDummy, "CONIN$", "r", stdin);
-    freopen_s(&fDummy, "CONOUT$", "w", stdout);
-    freopen_s(&fDummy, "CONOUT$", "w", stderr);
-
-    SetConsoleTitleA("Doxr's CoSync Debug Console");
-
-    initialized = true;
-}
 
 // UPDATE 2026-06-17: SEH-guarded formatting helpers, hoisted above
 // ConsoleLogColor so both it and CoSyncUpdatedLog_Printf can share them.
@@ -124,60 +110,12 @@ static void RawFallbackCopy(char* dest, size_t destsz, const char* a, const char
     dest[pos] = '\0';
 }
 
-inline void ConsoleLogColor(LogColor color, const char* fmt, ...)
-{
-    EnsureConsole();
-
-    static CRITICAL_SECTION cs;
-    static bool cs_init = false;
-
-    if (!cs_init)
-    {
-        InitializeCriticalSection(&cs);
-        cs_init = true;
-    }
-
-    EnterCriticalSection(&cs);
-
-    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    SetConsoleTextAttribute(hConsole, (int)color);
-
-    // Moved off the stack -- see CoSyncUpdatedLog_Printf's comment, same reasoning.
-    thread_local char buffer[4096];
-
-    va_list args;
-    va_start(args, fmt);
-    const bool fmtOk = SafeVsnprintf(buffer, sizeof(buffer), fmt, args);
-    va_end(args);
-    if (!fmtOk)
-    {
-        RawFallbackCopy(buffer, sizeof(buffer), "<log formatting crashed -- recovered>");
-    }
-
-    // UPDATE 2026-06-17: crash #7 was a cascade of 5 successive faults, each
-    // landing at a different offset, with the game surviving briefly
-    // between each one. That meant the underlying corruption persists
-    // across the whole thread once triggered, not just one call -- and the
-    // unconditional `printf`/`fprintf` calls below (which run on every
-    // single log line, success or recovery) were the ones still hitting
-    // the same broken CRT printf-formatting machinery, completely
-    // unguarded. They never needed format parsing at all -- `buffer`/`line`
-    // are already fully-formed strings -- so route them through
-    // `WriteConsoleA`/`fwrite` instead, a different CRT/Win32 code path
-    // that bypasses `__stdio_common_vfprintf`/format validation entirely.
-    WriteConsoleA(hConsole, buffer, (DWORD)strlen(buffer), nullptr, nullptr);
-    WriteConsoleA(hConsole, "\n", 1, nullptr, nullptr);
-
-    SetConsoleTextAttribute(hConsole, 7);
-
-    LeaveCriticalSection(&cs);
-}
 
 inline void CoSyncUpdatedLog_Write(const char* line)
 {
     static CRITICAL_SECTION cs;
     static bool  cs_init = false;
-    static FILE* s_file  = nullptr;
+    static CoSyncCryptLog* s_file = nullptr;
     static bool  s_tried = false;
 
     if (!cs_init)
@@ -193,30 +131,29 @@ inline void CoSyncUpdatedLog_Write(const char* line)
         s_tried = true;
         // PID-based filename so two Goldberg instances sharing the same game
         // folder each get their own log file instead of clobbering each other.
-        // Example: CoSyncUpdated_12345.log / CoSyncUpdated_12345.prev.log
+        // Example: CoSyncUpdated_12345.cslog / CoSyncUpdated_12345.prev.cslog
         char logPath[MAX_PATH];
         char prevPath[MAX_PATH];
         const DWORD pid = GetCurrentProcessId();
-        snprintf(logPath,  sizeof(logPath),  "Data\\F4SE\\Plugins\\CoSyncUpdated_%lu.log",      (unsigned long)pid);
-        snprintf(prevPath, sizeof(prevPath), "Data\\F4SE\\Plugins\\CoSyncUpdated_%lu.prev.log", (unsigned long)pid);
+        snprintf(logPath,  sizeof(logPath),  "Data\\F4SE\\Plugins\\CoSyncUpdated_%lu.cslog",      (unsigned long)pid);
+        snprintf(prevPath, sizeof(prevPath), "Data\\F4SE\\Plugins\\CoSyncUpdated_%lu.prev.cslog", (unsigned long)pid);
 
         MoveFileExA(logPath, prevPath, MOVEFILE_REPLACE_EXISTING);
-        fopen_s(&s_file, logPath, "w");
+        s_file = CoSyncCryptLog_Open(logPath);
         if (s_file)
         {
             char openMsg[128];
             snprintf(openMsg, sizeof(openMsg),
-                "=== CoSyncUpdated_%lu.log opened (role set after CoSyncNet::Init) ===\n",
+                "=== CoSyncUpdated_%lu log opened (role set after CoSyncNet::Init) ===\n",
                 (unsigned long)pid);
-            fwrite(openMsg, 1, strlen(openMsg), s_file);
+            CoSyncCryptLog_Write(s_file, openMsg, strlen(openMsg));
         }
     }
 
     if (s_file)
     {
-        fwrite(line, 1, strlen(line), s_file);
-        fwrite("\n", 1, 1, s_file);
-        fflush(s_file);
+        CoSyncCryptLog_Write(s_file, line, strlen(line));
+        CoSyncCryptLog_Write(s_file, "\n", 1);
     }
 
     LeaveCriticalSection(&cs);
@@ -230,7 +167,7 @@ inline void CoSyncAnimTestLog_Write(const char* line)
 {
     static CRITICAL_SECTION cs;
     static bool  cs_init = false;
-    static FILE* s_file  = nullptr;
+    static CoSyncCryptLog* s_file = nullptr;
     static bool  s_tried = false;
 
     if (!cs_init)
@@ -247,22 +184,21 @@ inline void CoSyncAnimTestLog_Write(const char* line)
         char logPath[MAX_PATH];
         char prevPath[MAX_PATH];
         const DWORD pid = GetCurrentProcessId();
-        snprintf(logPath,  sizeof(logPath),  "Data\\F4SE\\Plugins\\CoSyncAnimTest_%lu.log",      (unsigned long)pid);
-        snprintf(prevPath, sizeof(prevPath), "Data\\F4SE\\Plugins\\CoSyncAnimTest_%lu.prev.log", (unsigned long)pid);
+        snprintf(logPath,  sizeof(logPath),  "Data\\F4SE\\Plugins\\CoSyncAnimTest_%lu.cslog",      (unsigned long)pid);
+        snprintf(prevPath, sizeof(prevPath), "Data\\F4SE\\Plugins\\CoSyncAnimTest_%lu.prev.cslog", (unsigned long)pid);
         MoveFileExA(logPath, prevPath, MOVEFILE_REPLACE_EXISTING);
-        fopen_s(&s_file, logPath, "w");
+        s_file = CoSyncCryptLog_Open(logPath);
         if (s_file)
         {
             static const char kOpenMsg[] = "=== CoSyncAnimTest log opened ===\n";
-            fwrite(kOpenMsg, 1, sizeof(kOpenMsg) - 1, s_file);
+            CoSyncCryptLog_Write(s_file, kOpenMsg, sizeof(kOpenMsg) - 1);
         }
     }
 
     if (s_file)
     {
-        fwrite(line, 1, strlen(line), s_file);
-        fwrite("\n", 1, 1, s_file);
-        fflush(s_file);
+        CoSyncCryptLog_Write(s_file, line, strlen(line));
+        CoSyncCryptLog_Write(s_file, "\n", 1);
     }
 
     LeaveCriticalSection(&cs);
@@ -342,10 +278,7 @@ inline void CoSyncUpdatedLog_Printf(LogColor color, const char* fmt, ...)
         RawFallbackCopy(buffer, sizeof(buffer), "[", tsbuf, "] <log formatting crashed -- recovered>");
     }
 
-
-    ConsoleLogColor(color, "%s", buffer);
-
-
+    (void)color;   // was the console colour; the console is gone (0.5.7)
     CoSyncUpdatedLog_Write(buffer);
 }
 
@@ -368,7 +301,6 @@ inline void CoSyncAnimTestLog_Printf(const char* fmt, ...)
     if (!SafeTimestampWrap(buffer, sizeof(buffer), tsbuf, msgbuf))
         RawFallbackCopy(buffer, sizeof(buffer), "[", tsbuf, "] <log formatting crashed -- recovered>");
 
-    ConsoleLogColor(LogColor::PURPLE, "%s", buffer);
     CoSyncAnimTestLog_Write(buffer);
 }
 

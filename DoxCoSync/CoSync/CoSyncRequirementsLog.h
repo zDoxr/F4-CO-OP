@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <cstring>
 
+#include "CoSyncLogCrypt.h"   // 0.5.7: encrypted like the main log
+
 // Separate from CoSyncUpdated.log on purpose -- this is a static contract
 // list ("what does this function need to be true to work correctly"),
 // not a live trace. One line per function, written the first time that
@@ -16,7 +18,7 @@ inline void LogFunctionRequirement(const char* functionName, const char* require
 {
     static CRITICAL_SECTION cs;
     static bool  cs_init = false;
-    static FILE* s_file  = nullptr;
+    static CoSyncCryptLog* s_file = nullptr;
     static bool  s_tried = false;
 
     if (!cs_init)
@@ -31,19 +33,18 @@ inline void LogFunctionRequirement(const char* functionName, const char* require
     {
         s_tried = true;
         // Keep the previous session's log (see ConsoleLogger.h — same rationale).
-        MoveFileExA("Data\\F4SE\\Plugins\\CoSyncRequirements.log",
-                    "Data\\F4SE\\Plugins\\CoSyncRequirements.prev.log",
+        MoveFileExA("Data\\F4SE\\Plugins\\CoSyncRequirements.cslog",
+                    "Data\\F4SE\\Plugins\\CoSyncRequirements.prev.cslog",
                     MOVEFILE_REPLACE_EXISTING);
-        fopen_s(&s_file, "Data\\F4SE\\Plugins\\CoSyncRequirements.log", "w");
+        s_file = CoSyncCryptLog_Open("Data\\F4SE\\Plugins\\CoSyncRequirements.cslog");
     }
 
     if (s_file)
     {
-        fwrite(functionName, 1, strlen(functionName), s_file);
-        fwrite(": ", 1, 2, s_file);
-        fwrite(requirement, 1, strlen(requirement), s_file);
-        fwrite("\n", 1, 1, s_file);
-        fflush(s_file);
+        CoSyncCryptLog_Write(s_file, functionName, strlen(functionName));
+        CoSyncCryptLog_Write(s_file, ": ", 2);
+        CoSyncCryptLog_Write(s_file, requirement, strlen(requirement));
+        CoSyncCryptLog_Write(s_file, "\n", 1);
     }
 
     LeaveCriticalSection(&cs);

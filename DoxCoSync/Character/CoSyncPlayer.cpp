@@ -621,7 +621,7 @@ void CoSyncPlayer::RevealOnFirstTransform()
     // "they have loaded" is true rather than merely "they connected".
     {
         char note[160];
-        std::snprintf(note, sizeof(note), "%s has loaded in",
+        std::snprintf(note, sizeof(note), "%s loaded in",
             username.empty() ? "Player" : username.c_str());
         CoSyncGameAPI::QueueNotification(note);
     }

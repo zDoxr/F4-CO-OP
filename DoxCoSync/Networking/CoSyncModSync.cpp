@@ -166,7 +166,7 @@ namespace CoSyncModSync
             if (diff.find("missing") != std::string::npos || diff.find("extra") != std::string::npos)
             {
                 char note[200];
-                std::snprintf(note, sizeof(note), "%s has different mods -- items from mods only one of you has will not sync",
+                std::snprintf(note, sizeof(note), "%s has different mods. Some things won't sync.",
                     senderName.empty() ? "A player" : senderName.c_str());
                 CoSyncGameAPI::QueueNotification(note);
             }
@@ -193,7 +193,7 @@ namespace CoSyncModSync
             // Order differences are translated (CoSyncFormIdMap); only plugins
             // one side lacks remain a real problem.
             if (what.find("missing") != std::string::npos || what.find("extra") != std::string::npos)
-                CoSyncGameAPI::QueueNotification("Your mods differ from the host's. Items, NPCs and places from mods only one of you has will not sync -- see the CoSync log.");
+                CoSyncGameAPI::QueueNotification("Your mods don't match the host's. Some things won't sync.");
         }
     }
 }

@@ -104,7 +104,7 @@ namespace
         if (now - s_lastBlockNote > 3000)   // autosave bursts: one message
         {
             s_lastBlockNote = now;
-            CoSyncGameAPI::QueueNotification("Saving is off in co-op. The host saves the world.");
+            CoSyncGameAPI::QueueNotification("Only the host can save.");
         }
         return true;
     }

@@ -1656,7 +1656,7 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
             if (!who.empty())
                 std::snprintf(note, sizeof(note), "%s left the game", who.c_str());
             else
-                std::snprintf(note, sizeof(note), "Disconnected from the session");
+                std::snprintf(note, sizeof(note), "Disconnected");
             CoSyncGameAPI::QueueNotification(note);
         }
 
@@ -2719,8 +2719,8 @@ void CoSyncNet::OnGNSConnected()
     // is the "you're in" confirmation.
     CoSyncGameAPI::QueueNotification(
         (s_isHost || (s_pendingInit && s_pendingHostFlag))
-            ? "CoSync: session started — waiting for players"
-            : "CoSync: connected to host");
+            ? "Hosting. Waiting for players."
+            : "Connected");
 
     g_CoSyncPlayerManager.SetLocalEntityID(GetMyEntityID());
 

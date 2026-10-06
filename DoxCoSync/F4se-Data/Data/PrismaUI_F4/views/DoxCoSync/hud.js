@@ -130,17 +130,8 @@
     voice.className = 'voice' + (on ? ' on' : '') + (on && v.tx ? ' tx' : '') +
       (on && v.mode === 'T' ? ' teamvoice' : '') + (on && v.muted ? ' muted' : '') + (on && !v.mic ? ' nomic' : '');
     if (!on) { voice.innerHTML = ''; return; }
-    let text;
-    if (!v.mic) text = 'NO MICROPHONE';
-    else if (v.muted) text = 'MIC MUTED';
-    else text = (v.mode === 'T' ? 'TEAM' : 'PROXIMITY') + ' VOICE';
+    // 0.5.7: icon only -- it glows while you talk, red when muted / no mic.
     voice.innerHTML = MIC_SVG;
-    const mode = el('span', 'mode', voice);
-    mode.textContent = text;
-    if (v.mic && !v.muted) {
-      const k = el('span', 'key', voice);
-      k.textContent = v.ptt ? 'PUSH TO TALK' : 'OPEN MIC';
-    }
   };
 
   // Your own downed / dead state: ONE countdown to the actual respawn in the
@@ -159,11 +150,11 @@
     if (st === 1) {
       dTitle.textContent = 'DOWNED';
       if (s.reviver) dSub.textContent = s.reviver + ' is reviving you';
-      else if (rv > 0) dSub.textContent = 'seconds until respawn  ·  a teammate with a Stimpak can revive you for ' + rv + ' s';
-      else dSub.textContent = 'seconds until respawn  ·  too late to be revived';
+      else if (rv > 0) dSub.textContent = 'until respawn  ·  Stimpak revive: ' + rv + 's';
+      else dSub.textContent = 'until respawn';
     } else {
       dTitle.textContent = 'YOU DIED';
-      dSub.textContent = 'seconds until respawn at your last save';
+      dSub.textContent = 'until respawn at your last save';
     }
   };
 

@@ -697,7 +697,7 @@ namespace
         if (!CoSyncPrismaUI::IsAvailable())
         {
             LOG_ERROR("[CoSyncMenuInject] MULTIPLAYER needs PrismaUI (PrismaUI_F4.dll) -- it is not loaded");
-            CoSyncGameAPI::QueueNotification("CoSync: the Multiplayer menu requires PrismaUI to be installed");
+            CoSyncGameAPI::QueueNotification("CoSync needs PrismaUI for its menu.");
             return;
         }
 

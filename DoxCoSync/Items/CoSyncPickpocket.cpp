@@ -272,7 +272,7 @@ namespace
             if (!f) continue;
             CoSyncGameAPI::NativeAddItem(proxy, f, static_cast<UInt32>(missing));
             if (pc) CoSyncGameAPI::NativeRemoveItem(reinterpret_cast<TESObjectREFR*>(pc), f, static_cast<UInt32>(missing));
-            CoSyncGameAPI::QueueNotification("You can't take what they are wearing.");
+            CoSyncGameAPI::QueueNotification("You can't take what they're wearing.");
         }
     }
 
@@ -320,7 +320,7 @@ namespace
                     ++reverted;
         }
         if (reverted)
-            CoSyncGameAPI::QueueNotification("Some of it was gone before you could take it.");
+            CoSyncGameAPI::QueueNotification("Some of it was already gone.");
         ClearAttempt(reverted ? "result applied (partly reverted)" : "result applied");
     }
 
@@ -531,7 +531,7 @@ namespace CoSyncPickpocket
         case Phase::Requested:
             if (t > s_att.deadline)
             {
-                CoSyncGameAPI::QueueNotification("They did not hold still long enough.");
+                CoSyncGameAPI::QueueNotification("They moved away.");
                 ClearAttempt("no answer");
             }
             return;

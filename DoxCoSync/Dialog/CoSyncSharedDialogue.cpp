@@ -370,7 +370,7 @@ namespace CoSyncSharedDialogue
             CoSyncPlayer* np = g_CoSyncPlayerManager.GetPlayerByEntityID(std::strtoul(f[2].c_str(), nullptr, 10));
             Actor* npc = np ? np->actorRef : nullptr;
             const std::string line = (cp ? cp->username : std::string("A player")) + " wants to talk to " +
-                                     ActorName(npc) + ". Start the conversation; they will see it and can choose.";
+                                     ActorName(npc) + ". Start it and they can pick the answers.";
             CoSyncGameAPI::QueueNotification(line.c_str());
             CoSyncChat::AddLocalLine("Dialogue", line);
             return;

@@ -481,13 +481,13 @@ namespace
         if (op == WorkshopOp::Build && SessionLive() && CoSyncWorldSync::IsKnownUnsafePlaceAtMeForm(c.base))
         {
             char b[160];
-            std::snprintf(b, sizeof(b), "That object (0x%08X) is on CoSync's crash blocklist for remote spawning and cannot be built in multiplayer yet.", c.base);
+            std::snprintf(b, sizeof(b), "That object (0x%08X) can't be built in multiplayer yet.", c.base);
             DenyNote(b);
             return false;
         }
         if (op == WorkshopOp::Build && !AuthorityNow() && IsActorBase(c.base))
         {
-            DenyNote("Turrets, robots and other actors can only be built by the host in multiplayer.");
+            DenyNote("Only the host can build turrets and robots.");
             return false;
         }
         if (op == WorkshopOp::Build && s_limitMode.load() == static_cast<int>(CoSyncTeams::BuildLimitMode::Custom))
@@ -496,7 +496,7 @@ namespace
             if (n >= lim)
             {
                 char b[128];
-                std::snprintf(b, sizeof(b), "Build limit reached for this settlement (%u / %u).", n, lim);
+                std::snprintf(b, sizeof(b), "Build limit reached (%u / %u).", n, lim);
                 DenyNote(b);
                 return false;
             }
@@ -1463,21 +1463,21 @@ namespace
             if (!Finite(o.pos) || !Finite(o.rot)) return Deny(conn, 'P', cref, "Invalid placement.");
             if (!WorkshopByID(o.ws)) return Deny(conn, 'P', cref, "That is not a settlement.");
             if (IsActorBase(o.base))
-                return Deny(conn, 'P', cref, "Turrets, robots and other actors can only be built by the host in multiplayer.");
+                return Deny(conn, 'P', cref, "Only the host can build turrets and robots.");
             if ((o.base & 0xFF000000u) == 0xFF000000u || !LookupFormByID(o.base))
-                return Deny(conn, 'P', cref, Fmt("That object (0x%08X) is not in the host's game data (a mod the host does not have?).", o.base));
+                return Deny(conn, 'P', cref, Fmt("The host doesn't have that object (0x%08X). Missing mod?", o.base));
             if (CoSyncWorldSync::IsKnownUnsafePlaceAtMeForm(o.base))
-                return Deny(conn, 'P', cref, Fmt("That object (0x%08X) is on CoSync's crash blocklist for remote spawning and cannot be built in multiplayer yet.", o.base));
+                return Deny(conn, 'P', cref, Fmt("That object (0x%08X) can't be built in multiplayer yet.", o.base));
             if (IsSplineBase(o.base))
-                return Deny(conn, 'P', cref, "Wires are not shared in multiplayer yet.");
+                return Deny(conn, 'P', cref, "Wires don't sync yet.");
             if (!CheckAll(key, o.ws, 0, o.pos, WorkshopOp::Build, why)) return Deny(conn, 'P', cref, why);
             if (!s_freeBuild.load() && !OrigContains(o.ws, o.pos))
-                return Deny(conn, 'P', cref, "That spot is outside the settlement's build area.");
+                return Deny(conn, 'P', cref, "That's outside the build area.");
             if (s_limitMode.load() == static_cast<int>(CoSyncTeams::BuildLimitMode::Custom))
             {
                 const uint32_t n = CountFor(o.ws);
                 if (n >= s_customLimit.load())
-                    return Deny(conn, 'P', cref, Fmt("Build limit reached for this settlement (%u / %u).", n, s_customLimit.load()));
+                    return Deny(conn, 'P', cref, Fmt("Build limit reached (%u / %u).", n, s_customLimit.load()));
             }
             Obj& r = RegAdd(o);
             RecountAuthority();
@@ -1500,7 +1500,7 @@ namespace
             if (!WorkshopByID(o.ws)) return Deny(conn, 'P', cref, "That is not a settlement.");
             TESObjectREFR* a = ResolveEnd(v[3]);
             TESObjectREFR* b = ResolveEnd(v[4]);
-            if (!a || !b) return Deny(conn, 'P', cref, "The host does not know one of the wired objects yet.");
+            if (!a || !b) return Deny(conn, 'P', cref, "The host doesn't have one of those objects yet.");
             o.pos = a->pos;
             if (!CheckAll(key, o.ws, 0, o.pos, WorkshopOp::Build, why)) return Deny(conn, 'P', cref, why);
             Obj& r = RegAdd(o);
@@ -1530,7 +1530,7 @@ namespace
             }
             if (!s_freeBuild.load() && !OrigContains(o->ws, pos))
             {
-                Deny(conn, 'M', cref, "That spot is outside the settlement's build area.");
+                Deny(conn, 'M', cref, "That's outside the build area.");
                 BroadcastMove(*o, conn);
                 return;
             }

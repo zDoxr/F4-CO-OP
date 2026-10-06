@@ -245,7 +245,7 @@ namespace
                     canSave == 1 ? "yes -- the save itself failed" : "unavailable",
                     s_saveAttempts, kMaxSaveAttempts);
                 if (s_saveAttempts == 1)
-                    CoSyncGameAPI::QueueNotification("A player is joining -- close menus so the game can save.");
+                    CoSyncGameAPI::QueueNotification("A player is joining. Close your menus.");
                 s_saveRetryAtMs = static_cast<double>(GetTickCount64()) + 500.0;
                 return;   // requests stay pending
             }
@@ -419,8 +419,8 @@ namespace CoSyncWorldTransfer
             const bool starting = reason == "starting";
             SetPhase(starting ? ClientPhase::WaitingHost : ClientPhase::Lobby);
             LOG_INFO("[WorldXfer] In the host's lobby -- %s", starting ? "the host's game is starting" : "the host is at the main menu");
-            CoSyncGameAPI::QueueNotification(starting ? "CoSync: the host's game is starting -- you join in a moment"
-                                                      : "CoSync: in the lobby -- waiting for the host to start the game");
+            CoSyncGameAPI::QueueNotification(starting ? "Host is starting. Joining soon."
+                                                      : "In the lobby. Waiting for the host.");
             return;
         }
         if (msg.rfind("WORLDBEGIN|", 0) == 0)
@@ -515,7 +515,7 @@ namespace CoSyncWorldTransfer
         if (s_returnToMenu)
         {
             s_returnToMenu = false;
-            CoSyncGameAPI::QueueNotification("The co-op session ended. Returning to the main menu.");
+            CoSyncGameAPI::QueueNotification("Session ended.");
             QuitToMainMenu();
         }
 

@@ -2,6 +2,13 @@
 
 ---
 
+## [0.5.7] — 2026-10-06
+
+- **Debug console removed:** the "Doxr's CoSync Debug Console" window no longer opens.
+- **Logs are encrypted:** `CoSyncUpdated_<pid>.cslog`, `CoSyncAnimTest_<pid>.cslog` and `CoSyncRequirements.cslog` in `Data\F4SE\Plugins`. Each file gets its own random AES-256 key, wrapped with an RSA-2048 public key built into the DLL (Windows CNG). Only the private key can read them. Decrypt with `tools/cslog_decrypt.py`. The unused plain `CoSync.log` path and its debugger output are gone.
+- **Mic indicator:** the "PROXIMITY VOICE / OPEN MIC" text in the bottom-left is gone. Only the mic icon is left: it lights up while talking and turns red when muted or when there is no mic.
+- **UI text:** the menu, HUD, chat hint and in-game notifications were rewritten to be short and direct. PVP/PVE is now "Friendly Fire On/Off".
+
 ## [0.5.6] — 2026-10-06
 
 ### Vault 111 for every player (built only; not yet run in game)

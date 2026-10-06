@@ -680,11 +680,11 @@ namespace CoSyncReviveSync
         if (!tp || !tp->isDowned || !tp->actorRef)
             return;   // not down (or dead: DIED clears isDowned)
         if (s_localDownSince > 0.0)
-            return Note("You can't revive anyone while you are down.");
+            return Note("You can't revive while down.");
         if (s_ch.state != Ch::None)
             return;   // already reviving / asking
         if (StimpakCount() <= 0)
-            return Note("You need a Stimpak to revive them!");
+            return Note("You need a Stimpak.");
         const uint32_t me = CoSyncNet::GetMyEntityID();
         s_ch.state = Ch::Claiming;
         s_ch.target = target;
@@ -706,7 +706,7 @@ namespace CoSyncReviveSync
             if (now > s_ch.deadline)
             {
                 if (s_ch.state == Ch::Finishing)
-                    Note("The revive did not go through.");
+                    Note("Revive failed.");
                 CancelLocalChannel(s_ch.state == Ch::Claiming ? "no answer from the host" : "no confirmation", s_ch.state == Ch::Finishing);
             }
             return;
@@ -719,14 +719,14 @@ namespace CoSyncReviveSync
         const float dx = tp->actorRef->pos.x - pc->pos.x, dy = tp->actorRef->pos.y - pc->pos.y, dz = tp->actorRef->pos.z - pc->pos.z;
         if (dx * dx + dy * dy + dz * dz > kReviveMaxRangeSq)
         {
-            Note("Revive interrupted -- you moved away.");
+            Note("Revive cancelled. You moved away.");
             return CancelLocalChannel("moved out of range", true);
         }
         if (now - s_ch.start < SettingChannelSeconds())
             return;
         if (StimpakCount() <= 0)
         {
-            Note("You no longer have a Stimpak.");
+            Note("You're out of Stimpaks.");
             return CancelLocalChannel("no Stimpak left", true);
         }
         // Done: the host accepts it (or not); the Stimpak is spent on its REVIVED.

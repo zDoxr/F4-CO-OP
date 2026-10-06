@@ -651,7 +651,7 @@ namespace
     Result Handle(const std::string& actorKey, const std::string& actorName, const std::vector<std::string>& a)
     {
         if (actorKey.empty())
-            return Fail("Your identity is not known to the host yet.");
+            return Fail("The host doesn't know you yet. Try again.");
         if (a.empty())
             return Fail("Empty request.");
         const std::string& op = a[0];
@@ -669,10 +669,10 @@ namespace
         {
             if (mine) return Fail("Leave your current team first.");
             std::string name;
-            if (!CleanName(arg(1), 3, 24, name)) return Fail("Team names are 3-24 letters, numbers or symbols.");
+            if (!CleanName(arg(1), 3, 24, name)) return Fail("Names are 3-24 characters.");
             for (const auto& t : s_state.teams)
                 if (IEquals(t.name, name)) return Fail("That team name is taken.");
-            if (s_state.teams.size() >= kMaxTeams) return Fail("This game has too many teams.");
+            if (s_state.teams.size() >= kMaxTeams) return Fail("Too many teams.");
             Team t;
             t.id = s_nextTeamId++;
             t.name = name;
@@ -681,7 +681,7 @@ namespace
             s_state.teams.push_back(std::move(t));
             AdoptHostSettlement(s_state.teams.back());
             LOG_INFO("[Teams] '%s' created team '%s'", actorName.c_str(), name.c_str());
-            return { true, "Team " + name + " created. You are its leader." };
+            return { true, "Team " + name + " created." };
         }
 
         if (op == "accept" || op == "decline")
@@ -689,7 +689,7 @@ namespace
             const uint32_t tid = ToU32(arg(1));
             auto it = std::find_if(s_state.invites.begin(), s_state.invites.end(),
                 [&](const Invite& i) { return i.teamId == tid && i.key == actorKey; });
-            if (it == s_state.invites.end()) return Fail("That invitation is no longer valid.");
+            if (it == s_state.invites.end()) return Fail("That invite expired.");
             const std::string inviter = it->inviter;
             s_state.invites.erase(it);
             Team* t = FindTeam(tid);
@@ -697,7 +697,7 @@ namespace
             if (op == "decline")
             {
                 if (Member* l = LeaderOf(*t)) NotifyKey(l->key, actorName + " declined the invitation to " + t->name + ".");
-                return { true, "Invitation declined." };
+                return { true, "Declined." };
             }
             if (mine) return Fail("Leave your current team first.");
             if (t->members.size() >= kMaxMembers) return Fail("That team is full.");
@@ -711,14 +711,14 @@ namespace
         if (op == "personal")   // claim the settlement I stand in as my own
         {
             const uint32_t ws = ToU32(arg(1));
-            if (!ValidWorkshop(ws)) return Fail("Stand in a settlement (near its workbench) first.");
+            if (!ValidWorkshop(ws)) return Fail("Go to a settlement first.");
             if (Settlement* s = FindSettlement(ws))
             {
                 if (s->mode == SettlementMode::Personal && s->owner == actorKey) return Fail("This is already your settlement.");
-                return Fail(s->mode == SettlementMode::Team ? "This is a team settlement." : "This settlement belongs to another player.");
+                return Fail(s->mode == SettlementMode::Team ? "This is a team settlement." : "Someone else owns this.");
             }
-            if (PersonalSettlement(actorKey)) return Fail("You already have a personal settlement. Release it first.");
-            if (s_state.settlements.size() >= kMaxSettlements) return Fail("Too many assigned settlements.");
+            if (PersonalSettlement(actorKey)) return Fail("You already have one. Release it first.");
+            if (s_state.settlements.size() >= kMaxSettlements) return Fail("Too many claimed settlements.");
             Settlement s;
             s.ws = ws;
             s.mode = SettlementMode::Personal;
@@ -726,7 +726,7 @@ namespace
             s.name = SettlementNameOf(ws);
             s_state.settlements.push_back(s);
             LOG_INFO("[Teams] '%s' made 0x%08X ('%s') a personal settlement", actorName.c_str(), ws, s.name.c_str());
-            return { true, s.name + " is now your personal settlement. Only you can build there." };
+            return { true, s.name + " is yours now." };
         }
 
         if (op == "personal_release")
@@ -737,7 +737,7 @@ namespace
             const uint32_t ws = s->ws;
             s_state.settlements.erase(std::remove_if(s_state.settlements.begin(), s_state.settlements.end(),
                 [&](const Settlement& x) { return x.ws == ws; }), s_state.settlements.end());
-            return { true, n + " is no longer your personal settlement." };
+            return { true, n + " is no longer yours." };
         }
 
         if (op == "admin_release")   // host: return any settlement to unassigned
@@ -745,16 +745,16 @@ namespace
             if (!isHost) return Fail("Only the host can do that.");
             const uint32_t ws = ToU32(arg(1));
             Settlement* s = FindSettlement(ws);
-            if (!s) return Fail("That settlement is not assigned.");
+            if (!s) return Fail("That settlement isn't claimed.");
             const std::string n = s->name;
             s_state.settlements.erase(std::remove_if(s_state.settlements.begin(), s_state.settlements.end(),
                 [&](const Settlement& x) { return x.ws == ws; }), s_state.settlements.end());
-            return { true, n + " is unassigned again." };
+            return { true, n + " is free again." };
         }
 
         if (op == "rules")
         {
-            if (!isHost) return Fail("Only the host can change workshop rules.");
+            if (!isHost) return Fail("Only the host can do that.");
             const uint32_t mode = ToU32(arg(1));
             if (mode > 2) return Fail("Unknown build limit mode.");
             const uint32_t limit = ToU32(arg(2));
@@ -784,7 +784,7 @@ namespace
             {
                 DisbandTeam(tid);
                 LOG_INFO("[Teams] '%s' disbanded (last member left)", tname.c_str());
-                return { true, "You left " + tname + ". It had no members left and was disbanded." };
+                return { true, "You left " + tname + ". It's gone now." };
             }
             if (leader)
             {
@@ -810,7 +810,7 @@ namespace
         {
             if (!leader) return Fail("Only the leader can rename the team.");
             std::string name;
-            if (!CleanName(arg(1), 3, 24, name)) return Fail("Team names are 3-24 letters, numbers or symbols.");
+            if (!CleanName(arg(1), 3, 24, name)) return Fail("Names are 3-24 characters.");
             for (const auto& t : s_state.teams)
                 if (t.id != mine->id && IEquals(t.name, name)) return Fail("That team name is taken.");
             mine->name = name;
@@ -819,7 +819,7 @@ namespace
 
         if (op == "invite")
         {
-            if (!leader && !officer) return Fail("Only the leader and officers can invite players.");
+            if (!leader && !officer) return Fail("Only leaders and officers can invite.");
             const std::string& tk = arg(1);
             const Online* t = OnlineByKey(tk);
             if (!t) return Fail("That player is not online.");
@@ -830,7 +830,7 @@ namespace
                 if (i.teamId == mine->id && i.key == tk) return Fail(t->name + " already has an invitation from your team.");
             s_state.invites.push_back({ mine->id, tk, actorName, Now() + kInviteSeconds });
             NotifyKey(tk, actorName + " invited you to join " + mine->name + ". Open Multiplayer (F10) > Team to answer.");
-            return { true, "Invitation sent to " + t->name + "." };
+            return { true, "Invite sent to " + t->name + "." };
         }
 
         if (op == "kick")
@@ -839,7 +839,7 @@ namespace
             if (!t) return Fail("That player is not in your team.");
             if (t->key == actorKey) return Fail("Use Leave Team instead.");
             if (!leader && !(officer && t->role == Role::Member))
-                return Fail(officer ? "Officers can only remove members." : "Only the leader and officers can remove players.");
+                return Fail(officer ? "Officers can only remove members." : "Only leaders and officers can kick.");
             const std::string tname = t->name, tkey = t->key;
             RemoveMember(*mine, tkey);
             NotifyKey(tkey, "You were removed from " + mine->name + ".");
@@ -851,7 +851,7 @@ namespace
         {
             if (!leader) return Fail("Only the leader can promote or demote.");
             Member* t = target(arg(1));
-            if (!t || t->key == actorKey) return Fail("Choose another member of your team.");
+            if (!t || t->key == actorKey) return Fail("Pick someone else.");
             if (op == "promote")
             {
                 if (t->role != Role::Member) return Fail(t->name + " is already an officer.");
@@ -869,7 +869,7 @@ namespace
         {
             if (!leader) return Fail("Only the leader can hand over leadership.");
             Member* t = target(arg(1));
-            if (!t || t->key == actorKey) return Fail("Choose another member of your team.");
+            if (!t || t->key == actorKey) return Fail("Pick someone else.");
             me->role = Role::Officer;
             t->role = Role::Leader;
             NotifyTeam(*mine, t->name + " now leads " + mine->name + ".", "");
@@ -878,19 +878,19 @@ namespace
 
         if (op == "settle")   // make the settlement I stand in the team settlement
         {
-            if (!leader && !officer) return Fail("Only the leader and officers can choose the team settlement.");
+            if (!leader && !officer) return Fail("Only leaders and officers can do that.");
             const uint32_t ws = ToU32(arg(1));
-            if (!ValidWorkshop(ws)) return Fail("Stand in a settlement (near its workbench) first.");
+            if (!ValidWorkshop(ws)) return Fail("Go to a settlement first.");
             if (Settlement* s = FindSettlement(ws))
             {
-                if (s->mode == SettlementMode::Team && s->teamId == mine->id) return Fail("This already is your team settlement.");
+                if (s->mode == SettlementMode::Team && s->teamId == mine->id) return Fail("It's already your team's.");
                 return Fail(s->mode == SettlementMode::Team ? "This is another team's settlement." :
                             "This is a player's personal settlement.");
             }
             // One team settlement: moving it releases the old one.
             s_state.settlements.erase(std::remove_if(s_state.settlements.begin(), s_state.settlements.end(),
                 [&](const Settlement& x) { return x.mode == SettlementMode::Team && x.teamId == mine->id; }), s_state.settlements.end());
-            if (s_state.settlements.size() >= kMaxSettlements) return Fail("Too many assigned settlements.");
+            if (s_state.settlements.size() >= kMaxSettlements) return Fail("Too many claimed settlements.");
             Settlement s;
             s.ws = ws;
             s.mode = SettlementMode::Team;
@@ -898,19 +898,19 @@ namespace
             s.name = SettlementNameOf(ws);
             s_state.settlements.push_back(s);
             NotifyTeam(*mine, s.name + " is now the team settlement of " + mine->name + ".", actorKey);
-            return { true, s.name + " is now your team settlement." };
+            return { true, s.name + " is your team's now." };
         }
 
         if (op == "settle_clear")
         {
-            if (!leader && !officer) return Fail("Only the leader and officers can do that.");
+            if (!leader && !officer) return Fail("Only leaders and officers can do that.");
             Settlement* s = TeamSettlement(mine->id);
             if (!s) return Fail("Your team has no settlement.");
             const std::string n = s->name;
             s_state.settlements.erase(std::remove_if(s_state.settlements.begin(), s_state.settlements.end(),
                 [&](const Settlement& x) { return x.mode == SettlementMode::Team && x.teamId == mine->id; }), s_state.settlements.end());
             NotifyTeam(*mine, n + " is no longer the team settlement.", actorKey);
-            return { true, n + " is no longer your team settlement." };
+            return { true, n + " is no longer your team's." };
         }
 
         return Fail("Unknown team request.");

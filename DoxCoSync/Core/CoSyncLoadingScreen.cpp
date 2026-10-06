@@ -162,9 +162,9 @@ namespace
             status = buf;
         }
         else if (phase == P::Loading)
-            status = "Joining the host's world";
+            status = "Joining";
         else if (newGame)
-            status = "Waiting for the host's game";
+            status = "Waiting for host";
         else
             status = "Syncing Commonwealth";
 
