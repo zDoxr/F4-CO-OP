@@ -606,6 +606,7 @@ bool F4SEPlugin_Load(const F4SEInterface* f4se)
     // and opens plugins/archives (F4SE lets that thread run only after every
     // plugin's Load) -- so nothing it replaces is open.
     CoSyncContentSync::ApplyPendingInstall();
+    CoSyncContentSync::EnsureOwnPluginEnabled();
 
     // 0.5.1 (Bug #9): the one CoSync loading screen follows every LoadingMenu.
     CoSyncLoading::InstallLoadingMenuHooks();

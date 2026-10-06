@@ -2165,6 +2165,32 @@ namespace CoSyncContentSync
         catch (...) { LOG_ERROR("[ContentSync] Startup: pending install threw -- skipped"); }
     }
 
+    void EnsureOwnPluginEnabled()
+    {
+        try
+        {
+            const Paths& p = P();
+            if (p.pluginsTxt.empty())
+                return;
+            if (GetFileAttributesW((p.data + L"\\CoSync.esp").c_str()) == INVALID_FILE_ATTRIBUTES)
+            {
+                LOG_WARN("[ContentSync] Startup: CoSync.esp is not in Data -- reinstall CoSync");
+                return;
+            }
+            std::string text;
+            ReadWholeFile(p.pluginsTxt, text, 4u << 20);   // a missing file is an empty list
+            bool changed = false;
+            const std::string next = ActivateInPluginsTxt(text, { "CoSync.esp" }, {}, changed);
+            if (!changed)
+                return;
+            if (WriteWholeFileAtomic(p.pluginsTxt, next))
+                LOG_INFO("[ContentSync] Startup: CoSync.esp was not enabled -- enabled it in Plugins.txt");
+            else
+                LOG_WARN("[ContentSync] Startup: could not enable CoSync.esp in Plugins.txt -- enable it in your mod manager");
+        }
+        catch (...) { LOG_ERROR("[ContentSync] Startup: enabling CoSync.esp threw -- skipped"); }
+    }
+
     void OnGameLoaded()
     {
         Disk().Post([]

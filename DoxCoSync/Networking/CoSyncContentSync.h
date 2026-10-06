@@ -55,6 +55,13 @@ namespace CoSyncContentSync
     // nothing it replaces is in use.
     void ApplyPendingInstall();
 
+    // 0.5.9, F4SEPlugin_Load: CoSync.esp switched on in Plugins.txt if it is
+    // in Data but not enabled. Same timing as above -- the engine reads
+    // Plugins.txt only after every plugin's Load -- so it loads this session.
+    // Mod Organizer's Plugins.txt is redirected to the profile, so this also
+    // enables it there.
+    void EnsureOwnPluginEnabled();
+
     // F4SE kMessage_GameLoaded: arms the automatic rejoin after a content
     // restart.
     void OnGameLoaded();

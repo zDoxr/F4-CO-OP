@@ -2,6 +2,11 @@
 
 ---
 
+## [0.5.9] — 2026-10-06
+
+- **CoSync.esp enables itself:** at plugin load (before the game reads Plugins.txt) CoSync turns `CoSync.esp` on if it is in Data but disabled, so it loads in that same session. This works with Vortex, and with Mod Organizer 2, whose Plugins.txt is redirected to the profile.
+- **FOMOD installer:** the release zip is now `fomod\` plus `CoSync\` (the Data files). It installs with no questions when PrismaUI (`F4SE\Plugins\PrismaUI_F4.dll`) and Address Library (`F4SE\Pluginsersion-1-11-240-0.bin`) are present. Otherwise it shows one page that says what is missing. Mod managers do not let one mod enable others.
+
 ## [0.5.8] — 2026-10-06
 
 - **Requirements log removed:** all 939 `LOG_REQUIREMENT` calls and `CoSyncRequirementsLog.h` are gone, so there is no `CoSyncRequirements` file any more.
