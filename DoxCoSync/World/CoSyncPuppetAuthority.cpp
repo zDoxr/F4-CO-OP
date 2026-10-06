@@ -102,6 +102,7 @@ namespace
 
     // ── Diagnostics ─────────────────────────────────────────────────────────
     std::atomic<uint32_t> g_dRefusedEntries{ 0 }, g_dAllowedEntries{ 0 }, g_dSpeedOverrides{ 0 }, g_dDirOverrides{ 0 };
+    std::atomic<uint32_t> g_dRefusedProxyEntries{ 0 };   // 0.5.1: player proxies' own combat
     std::atomic<uint32_t> g_dPackageHolds{ 0 };
     uint32_t g_dStarts = 0, g_dStops = 0;
 
@@ -207,7 +208,10 @@ namespace
     void* __fastcall Detour_ChoosePackage(Actor* actor)
     {
         void* hold = g_holdPkg.load(std::memory_order_acquire);
-        if (hold && actor && CoSyncEnemySync::IsGuardedPuppet(actor) &&
+        // 0.5.1: another PLAYER's proxy is driven by that player's machine
+        // exactly like a puppet (position, pose, weapon, furniture), so its
+        // own sandbox/wander package must not choose destinations either.
+        if (hold && actor && (CoSyncEnemySync::IsGuardedPuppet(actor) || CoSyncEnemySync::IsPlayerProxy(actor)) &&
             !SafeReadPtr(actor, kActor_CombatCtrl) &&     // combat: the owner's fight (combat gate)
             !PackageExempt(actor) &&
             !SafeForcedPackage(actor) &&                  // a scene / quest override runs as before
@@ -222,6 +226,21 @@ namespace
     // ── Detours ─────────────────────────────────────────────────────────────
     char __fastcall Detour_CombatEntry(void* process, Actor* actor, Actor* target, int64_t a4)
     {
+        // 0.5.1 (Bug #2): a remote PLAYER's proxy never runs a fight of its
+        // own. Its player's machine runs that player's combat; the proxy only
+        // shows it (bones, replicated weapon state, SHOT replays). With its
+        // own combat AI live it turned, aimed, moved and drew/holstered
+        // against the replicated state every frame -- 2026-10-05 logs:
+        // [WeaponAuthority] refused ~50-100 AI holster/draw calls per SECOND
+        // on the player proxies (0xFF000DB8, 0xFF0012AB, 0xFF0014C2 ...) for
+        // the whole session, while every tick wrote the network pose and
+        // position back: one character, two simulations, alternating frames.
+        // NPCs can still fight the proxy -- that is the NPC's combat entry.
+        if (actor && CoSyncEnemySync::IsPlayerProxy(actor))
+        {
+            g_dRefusedProxyEntries.fetch_add(1, std::memory_order_relaxed);
+            return 0;
+        }
         if (actor && CoSyncEnemySync::IsGuardedPuppet(actor))
         {
             Actor* allowed = nullptr;
@@ -551,11 +570,11 @@ namespace CoSyncPuppetAuthority
 
         const uint32_t refused = g_dRefusedEntries.exchange(0), allowed = g_dAllowedEntries.exchange(0),
                        sp = g_dSpeedOverrides.exchange(0), dr = g_dDirOverrides.exchange(0),
-                       holds = g_dPackageHolds.exchange(0);
-        if (refused || allowed || sp || dr || g_dStarts || g_dStops || holds)
-            LOG_UPDATED("[PuppetAuthority] last 10 s: local combat entries refused=%u allowed(owner's target)=%u | owner combat started=%u stopped=%u | "
+                       holds = g_dPackageHolds.exchange(0), proxyRefused = g_dRefusedProxyEntries.exchange(0);
+        if (refused || allowed || sp || dr || g_dStarts || g_dStops || holds || proxyRefused)
+            LOG_UPDATED("[PuppetAuthority] last 10 s: local combat entries refused=%u allowed(owner's target)=%u | player proxies' own combat refused=%u | owner combat started=%u stopped=%u | "
                         "locomotion channel writes replaced: speed=%u direction=%u | puppets steered=%zu | own packages replaced by hold=%u",
-                refused, allowed, g_dStarts, g_dStops, sp, dr, g_processOfPuppet.size(), holds);
+                refused, allowed, proxyRefused, g_dStarts, g_dStops, sp, dr, g_processOfPuppet.size(), holds);
         g_dStarts = g_dStops = 0;
     }
 }
