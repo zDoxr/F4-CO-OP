@@ -28,6 +28,7 @@
 #include "PapyrusVM.h"
 #include "PapyrusEvents.h"
 
+#include <atomic>
 #include <cstdio>
 
 #define WIN32_LEAN_AND_MEAN
@@ -101,6 +102,15 @@ namespace
     // state 1/2), as opposed to essential bleedout (7). Only real death tears
     // the actor-value owner down; bleedout does not.
     bool s_localTrulyDead = false;
+
+    // 0.5.1: the downed clock ran out and the player is being brought back:
+    // once standing again they are moved to the most recent save's position.
+    bool s_respawnPending = false;
+    // 0.5.1: a save finished loading (set from the F4SE message, consumed by
+    // the next tick) -- see CoSyncLocalPlayer::OnGameLoaded.
+    std::atomic<bool> s_loadResetPending{ false };
+    // 0.5.1: next time the engine's live essential bit is verified.
+    double s_nextEssentialCheck = 0.0;
 
     static ActorValueInfo* GetHealthAVICached()
     {
@@ -419,6 +429,11 @@ bool CoSyncLocalPlayer::IsLocallyConfirmedDead()
     return s_deathPacketSent && s_localTrulyDead;
 }
 
+void CoSyncLocalPlayer::OnGameLoaded()
+{
+    s_loadResetPending.store(true);
+}
+
 bool CoSyncLocalPlayer::GetLocalTransform(NiPoint3& outPos, NiPoint3& outRot)
 {
     LOG_REQUIREMENT("CoSyncLocalPlayer::GetLocalTransform", "Needs the local player to exist before reading its position and rotation.");
@@ -490,6 +505,53 @@ void CoSyncLocalPlayer::Tick(double now)
     Actor* player = GetLocalPlayerActor();
     if (!player)
         return;
+
+    // 0.5.1: a save was loaded. Whatever downed / dead / respawning state
+    // this machine had belongs to the player the load replaced: the host's
+    // 2026-10-05 log shows a death reload leaving the HUD on "DOWNED" and the
+    // host's own revive clock running for a player that was standing again.
+    if (s_loadResetPending.exchange(false))
+    {
+        const bool wasDown = s_deathPacketSent || s_localDownedSince > 0.0 || s_localDiedAt > 0.0;
+        if (wasDown)
+        {
+            static const BSFixedString kSetNoBleedoutRecovery("SetNoBleedoutRecovery");
+            VMArray<VMVariable> args;
+            bool v = false;
+            VMVariable vv; vv.Set(&v); args.Push(&vv);
+            CallFunctionNoWait(player, kSetNoBleedoutRecovery, args);
+        }
+        s_deathPacketSent = false;
+        s_localTrulyDead = false;
+        s_recoveryReleased = false;
+        s_consecutiveAliveTicks = 0;
+        s_localDownedSince = 0.0;
+        s_localDiedAt = 0.0;
+        s_pendingLocalHealPercent = -1.f;
+        s_localReviverEID = 0;
+        s_respawnPending = false;
+        CoSyncReviveSync::OnLocalUp();
+        if (wasDown)
+            CoSyncReviveSync::AnnounceLocalUp();
+        CoSyncGameAPI::SetLocalPlayerEssential(true);
+        s_nextEssentialCheck = now + 1.0;
+        LOG_UPDATED("[LocalPlayer] Save loaded -- downed/respawn state cleared%s, essential re-asserted",
+            wasDown ? " (was down: peers told I am up)" : "");
+    }
+
+    // 0.5.1: the engine's live essential bit (Actor+0x43C 0x40000) is what
+    // turns lethal damage into bleedout. A load, a quest script's
+    // Actor.SetEssential, or a missed recompute can drop it; while it is
+    // missing the next lethal hit is a real death and a vanilla save reload.
+    if (now >= s_nextEssentialCheck)
+    {
+        s_nextEssentialCheck = now + 1.0;
+        if (!CoSyncGameAPI::IsActorEssentialNow(player))
+        {
+            LOG_UPDATED_WARN("[LocalPlayer] engine essential bit was OFF during the session -- re-asserting");
+            CoSyncGameAPI::SetLocalPlayerEssential(true);
+        }
+    }
 
     // Dead-player gate: actorValueOwner sub-objects are torn down on death
     // and cause a crash at the HP-sync read block below. Check here with SEH
@@ -598,12 +660,13 @@ void CoSyncLocalPlayer::Tick(double now)
                             LOG_UPDATED("[LocalPlayer] Revived by entity=%u -- recovery released, %.0f health restored",
                                 reviverEID, amount);
                         else
-                            LOG_UPDATED("[LocalPlayer] Respawned after death -- recovery released, %.0f health restored", amount);
+                            LOG_UPDATED("[LocalPlayer] Respawning -- recovery released, %.0f health restored; moving to the last save's position once up", amount);
                     }
                     CoSyncReviveSync::OnLocalUp();
 
                     s_pendingLocalHealPercent = revived ? CoSyncReviveSync::SettingHealthPercent() : -1.f;
                     s_localReviverEID = revived ? reviverEID : 0;
+                    s_respawnPending = !revived;
                     s_recoveryReleased = true;
                 }
             }
@@ -673,8 +736,23 @@ void CoSyncLocalPlayer::Tick(double now)
                 // DOWNED in everyone else's UI and kept the Revive prompt.
                 // Tell them we are up (reviver 0 = recovered unaided); a real
                 // revive was already announced by the reviver.
+                //
+                // 0.5.1: standing again ALWAYS ends the local downed state --
+                // also when the engine recovered on its own without our release
+                // (OnLocalUp used to run only on the release path, so the HUD
+                // and the host's clock outlived such a recovery). Idempotent.
+                // A respawn now also puts the player back where the shared
+                // world was last saved.
+                if (s_respawnPending)
+                {
+                    s_respawnPending = false;
+                    CoSyncReviveSync::MoveToRespawnPoint();
+                }
+                CoSyncReviveSync::OnLocalUp();
+                s_localDownedSince = 0.0;
+                s_localDiedAt = 0.0;
                 if (s_pendingLocalHealPercent < 0.f)
-                    CoSyncTransport::Send(CoSyncReviveSync::SerializeRevived(eid, 0));
+                    CoSyncReviveSync::AnnounceLocalUp();
                 s_recoveryReleased = false;
 
                 // The revive heal itself now happens at revive time (above).

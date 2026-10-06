@@ -21,6 +21,8 @@
 //                                                exactly ONE Stimpak (never earlier, never twice)
 //   target  -> all     REVIVED|<t>|0             back on their feet after dying (respawn)
 //   host    -> all     DIED|<t>                  the clock ran out: t died, no more revives
+//   host    -> all     SVPT|<host>|0             the host saved the world: everyone records
+//                                                where they stand as their respawn point
 //
 // ANIMATION: the engine's own "use a Stimpak on someone" activation idle --
 // the dyn_Activation idles 3rdPUseStimpakOnTarget / 1stPStimPakOnTarget /
@@ -58,6 +60,15 @@ namespace CoSyncReviveSync
     // answer from the host long after the clock ran out (host gone).
     bool ConsumeLocalDeath(double secondsDown);
     void OnLocalUp();                     // standing again (revive or respawn)
+    // 0.5.1: tell everyone "on my feet without a revive" (REVIVED|me|0).
+    void AnnounceLocalUp();
+    // 0.5.1: respawn = back to where this player stood at the shared world's
+    // most recent save. The host records it on every save and tells the
+    // clients (SVPT|hostEid|0) to record theirs; a load records it too.
+    void RecordRespawnPoint(const char* why);
+    void SetRespawnPoint(bool interior, uint32_t space, const float pos[3], float rotZ, const char* why);
+    void HostOnWorldSaved();
+    bool MoveToRespawnPoint();
     // Seconds the player stays dead before respawning.
     float RespawnSeconds();
 
@@ -65,7 +76,8 @@ namespace CoSyncReviveSync
     struct LocalStatus
     {
         int         state = 0;
-        int         secondsLeft = 0;      // downed: until death; dead: until respawn
+        int         secondsLeft = 0;      // downed and dead: until the respawn
+        int         reviveSecondsLeft = 0;// downed: the revive window left
         std::string reviver;              // downed: who is reviving you ("" = nobody)
     };
     LocalStatus GetLocalStatus(double now);

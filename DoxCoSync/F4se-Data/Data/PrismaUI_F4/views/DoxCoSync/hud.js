@@ -4,7 +4,8 @@
  *     { hud:[r,g,b], players:[{ id, name, level, hp, maxHp, rads, ap, maxAp, downed, hurt,
  *                               team, role, talking }],
  *       voice:{ on, mic, mode:'P'|'T', muted, tx, ptt },     (team fields: CoSyncTeams)
- *       self:{ state:0|1|2, secs, reviver } }                 (you: ok / downed / dead -- CoSyncReviveSync)
+ *       self:{ state:0|1|2, secs, rv, reviver } }             (you: ok / downed / dead -- CoSyncReviveSync;
+ *                                                               secs = until respawn, rv = revive window left)
  * Pushed by CoSyncPrismaUI::TickHud only when the data changed (<= 10 Hz);
  * senders stream their vitals at 10 Hz with a 1 s exact resync.
  *
@@ -142,23 +143,27 @@
     }
   };
 
-  // Your own downed / dead state: a countdown in the middle of the screen.
+  // Your own downed / dead state: ONE countdown to the actual respawn in the
+  // middle of the screen (0.5.1). secs = seconds until you respawn at the
+  // last save's position; rv = what is left of the revive window.
   let downKey = null;
   const updateSelf = s => {
     const st = s && s.state ? s.state : 0;
-    const key = st ? [st, s.secs, s.reviver || ''].join('|') : '';
+    const rv = s && s.rv ? s.rv : 0;
+    const key = st ? [st, s.secs, rv, s.reviver || ''].join('|') : '';
     if (key === downKey) return;
     downKey = key;
-    downed.className = 'downed' + (st === 1 ? ' on' : '') + (st === 2 ? ' on dead' : '') + (st === 1 && s.secs <= 10 ? ' urgent' : '');
+    downed.className = 'downed' + (st === 1 ? ' on' : '') + (st === 2 ? ' on dead' : '') + (st === 1 && rv <= 10 ? ' urgent' : '');
     if (!st) return;
+    dCount.textContent = String(Math.max(0, s.secs));
     if (st === 1) {
       dTitle.textContent = 'DOWNED';
-      dCount.textContent = String(Math.max(0, s.secs));
-      dSub.textContent = s.reviver ? s.reviver + ' is reviving you' : 'seconds until death  ·  a teammate with a Stimpak can revive you';
+      if (s.reviver) dSub.textContent = s.reviver + ' is reviving you';
+      else if (rv > 0) dSub.textContent = 'seconds until respawn  ·  a teammate with a Stimpak can revive you for ' + rv + ' s';
+      else dSub.textContent = 'seconds until respawn  ·  too late to be revived';
     } else {
       dTitle.textContent = 'YOU DIED';
-      dCount.textContent = String(Math.max(0, s.secs));
-      dSub.textContent = 'respawning';
+      dSub.textContent = 'seconds until respawn at your last save';
     }
   };
 

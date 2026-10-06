@@ -24,6 +24,11 @@ namespace CoSyncLocalPlayer
     // state right now" without running their own independent HP poll.
     bool IsLocallyConfirmedDead();
 
+    // 0.5.1: a save finished loading (F4SE PostLoadGame, any thread). The
+    // next tick drops any downed/dead state the load replaced, tells peers
+    // this player is up, and re-asserts the session's essential flag.
+    void OnGameLoaded();
+
 
     void ForceUpdate();
 

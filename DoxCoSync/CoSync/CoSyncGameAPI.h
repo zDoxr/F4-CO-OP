@@ -342,6 +342,11 @@ namespace CoSyncGameAPI
     // A death-menu reload is incompatible with multiplayer anyway (it reloads
     // only one peer's whole game). Call true on connect, false on disconnect.
     void SetLocalPlayerEssential(bool essential);
+    // 0.5.1: the engine's LIVE essential bit on the actor (Actor+0x43C
+    // 0x40000), which is what decides bleedout vs death -- the base flag only
+    // reaches it through RecomputeActorEssential (sub_140C5B2B0).
+    bool IsActorEssentialNow(Actor* actor);
+    bool RecomputeActorEssential(Actor* actor);
 
     // ── On-screen notification (the vanilla "Debug.Notification" toast) ──────
     //

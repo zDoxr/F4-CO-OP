@@ -18,6 +18,7 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#include <cstring>
 #include <unordered_map>
 #include <unordered_set>
 #include <cmath>
@@ -261,8 +262,11 @@ namespace CoSyncGameAPI
         if (npcBase->formID != 0x00000007u)
         {
             ActorBaseFlags32(npcBase) |= TESActorBaseData::kFlagEssential;
-            LOG_INFO("[CoSyncGameAPI] marked proxy base 0x%08X as essential (flags now 0x%llX)",
-                npcBase->formID, (unsigned long long)npcBase->actorData.flags);
+            // 0.5.1: the actor's live copy (Actor+0x43C) is what the kill
+            // test reads; the base flag alone reaches it only on a reload.
+            RecomputeActorEssential(actor);
+            LOG_INFO("[CoSyncGameAPI] marked proxy base 0x%08X as essential (flags now 0x%llX, actor essential=%d)",
+                npcBase->formID, (unsigned long long)npcBase->actorData.flags, IsActorEssentialNow(actor) ? 1 : 0);
         }
 
         // SetFactionRank is NOT queued here — the VM script object for a
@@ -2391,8 +2395,47 @@ namespace CoSyncGameAPI
             ? (ActorBaseFlags32(npcBase) | TESActorBaseData::kFlagEssential)
             : (ActorBaseFlags32(npcBase) & ~static_cast<uint32_t>(TESActorBaseData::kFlagEssential));
 
-        LOG_INFO("[CoSyncGameAPI] set local player essential=%d, base=0x%08X, flags=0x%llX",
-            essential ? 1 : 0, npcBase->formID, (unsigned long long)npcBase->actorData.flags);
+        // 0.5.1: the base flag alone did not protect the HOST. The engine's
+        // "may this actor die" test reads the ACTOR's own copy -- Actor+0x43C
+        // bit 0x40000 (sub_140C5DFF0 tests it before the kill core; the
+        // Actor.IsEssential native sub_141107A00 returns it). That copy is
+        // rebuilt from the base (or an ExtraEssentialProtected override) only
+        // by sub_140C5B2B0, which the engine runs on load and from
+        // Actor.SetEssential. A client loads the host's world after
+        // connecting, so its copy picked the flag up; the host never reloads,
+        // so its player stayed killable: 2026-10-05 host log, DOWN at
+        // 18:53:47 then the vanilla death reload at 18:53:54.
+        const bool recomputed = RecomputeActorEssential(player);
+        LOG_INFO("[CoSyncGameAPI] set local player essential=%d, base=0x%08X, flags=0x%llX, actor essential now=%d (recompute %s)",
+            essential ? 1 : 0, npcBase->formID, (unsigned long long)npcBase->actorData.flags,
+            IsActorEssentialNow(player) ? 1 : 0, recomputed ? "ok" : "UNAVAILABLE");
+    }
+
+    // Actor+0x43C bit 0x40000 = the engine's live essential state for this
+    // actor (IDA 1.11.240: sub_141107A00 / sub_140C5DFF0 / sub_140C5B2B0).
+    __declspec(noinline) bool IsActorEssentialNow(Actor* actor)
+    {
+        if (!actor)
+            return false;
+        __try { return (*reinterpret_cast<const uint32_t*>(reinterpret_cast<const uint8_t*>(actor) + 0x43C) & 0x40000u) != 0; }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
+    // sub_140C5B2B0(Actor*): rebuilds Actor+0x43C essential (0x40000) and
+    // protected (0x80000) from ExtraEssentialProtected, else the base ACBS.
+    __declspec(noinline) bool RecomputeActorEssential(Actor* actor)
+    {
+        static const uint8_t kPrologue[12] = { 0x40, 0x53, 0x48, 0x83, 0xEC, 0x20, 0x8B, 0x81, 0x30, 0x01, 0x00, 0x00 };
+        static const uintptr_t fn = reinterpret_cast<uintptr_t>(GetModuleHandleA(nullptr)) + 0x00C5B2B0;
+        static const bool ok = std::memcmp(reinterpret_cast<const void*>(fn), kPrologue, sizeof(kPrologue)) == 0;
+        if (!ok || !actor)
+            return false;
+        __try
+        {
+            reinterpret_cast<int(__fastcall*)(Actor*)>(fn)(actor);
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
     }
 
     // ── On-screen notification ──────────────────────────────────────────────

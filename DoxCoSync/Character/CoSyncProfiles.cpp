@@ -37,6 +37,8 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include "CoSyncReviveSync.h"
+
 #include <map>
 #include <mutex>
 #include <sstream>
@@ -971,7 +973,8 @@ namespace
         s_modAtMs = GetTickCount64() + 2500;
         HealFully(pc);
         s_characterCreated = true;
-        RestorePosition(pc, p);
+        if (RestorePosition(pc, p))
+            CoSyncReviveSync::SetRespawnPoint(p.posInterior, p.posSpace, p.pos, p.rotZ, "returned to the saved position");
         TESNPC* npc = PlayerNPC(pc);
         if (!p.hasLooks || !npc || !ApplyLooks(pc, npc, p))
             s_openLooksMenu = true;   // appearance could not be restored: let them redo it

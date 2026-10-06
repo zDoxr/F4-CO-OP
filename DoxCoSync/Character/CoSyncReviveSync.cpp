@@ -33,6 +33,7 @@
 #include <vector>
 
 extern PlayerCharacter* CoSyncGetPlayer();
+extern RelocAddr<_MoveRefrToPosition> MoveRefrToPosition;
 
 namespace
 {
@@ -208,6 +209,55 @@ namespace
     // currently animating (bones paused).
     std::unordered_set<uint32_t> s_keyworded;
 
+    // 0.5.1: where this player stood when the shared world was last saved
+    // (the host's save is the only save -- clients never save). A respawn
+    // puts the player back there. Written on the game thread / F4SE message
+    // thread, read on the game thread; guarded.
+    struct RespawnPoint
+    {
+        bool     valid = false;
+        bool     interior = false;
+        uint32_t space = 0;          // CELL (interior) or WRLD formID
+        float    pos[3] = {};
+        float    rotZ = 0.f;
+    };
+    std::mutex   s_respawnMx;
+    RespawnPoint s_respawn;
+
+    __declspec(noinline) bool CaptureRespawnPointImpl(PlayerCharacter* pc, RespawnPoint& out)
+    {
+        __try
+        {
+            TESObjectREFR* ref = reinterpret_cast<TESObjectREFR*>(pc);
+            TESWorldSpace* ws = CALL_MEMBER_FN(ref, GetWorldspace)();
+            TESObjectCELL* cell = ref->parentCell;
+            const uint32_t space = ws ? reinterpret_cast<TESForm*>(ws)->formID : (cell ? cell->formID : 0);
+            if (!space || (space >> 24) == 0xFF)
+                return false;   // runtime forms are never stable across a load
+            out.valid = true;
+            out.interior = (ws == nullptr);
+            out.space = space;
+            out.pos[0] = ref->pos.x; out.pos[1] = ref->pos.y; out.pos[2] = ref->pos.z;
+            out.rotZ = ref->rot.z;
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
+    void RecordRespawnPointLocal(const char* why)
+    {
+        PlayerCharacter* pc = CoSyncGetPlayer();
+        RespawnPoint rp;
+        if (!pc || !CaptureRespawnPointImpl(pc, rp))
+            return;
+        {
+            std::lock_guard<std::mutex> lk(s_respawnMx);
+            s_respawn = rp;
+        }
+        LOG_INFO("[ReviveSync] respawn point (%s): %s 0x%08X at (%.0f,%.0f,%.0f)", why,
+            rp.interior ? "cell" : "worldspace", rp.space, rp.pos[0], rp.pos[1], rp.pos[2]);
+    }
+
     // Downed proxies' ref IDs, for the activate-text hook (engine thread).
     std::mutex                   s_downedRefsMutex;
     std::unordered_set<uint32_t> s_downedRefs;
@@ -299,6 +349,13 @@ namespace
     {
         const uint32_t me = CoSyncNet::GetMyEntityID();
 
+        if (tag == "SVPT")
+        {
+            // The host just saved the shared world: this is now our "most
+            // recent save" position.
+            RecordRespawnPointLocal("the host saved the world");
+            return;
+        }
         if (tag == "DOWN")
         {
             if (t == me) return;   // our own state is CoSynclocalplayer's
@@ -583,7 +640,7 @@ namespace CoSyncReviveSync
 {
     bool IsReviveMessage(const std::string& msg)
     {
-        static const char* const kTags[] = { "DOWN|", "RVCLAIM|", "RVGRANT|", "RVDENY|", "RVCANCEL|", "RVDONE|", "REVIVED|", "DIED|" };
+        static const char* const kTags[] = { "DOWN|", "RVCLAIM|", "RVGRANT|", "RVDENY|", "RVCANCEL|", "RVDONE|", "REVIVED|", "DIED|", "SVPT|" };
         for (const char* t : kTags)
             if (msg.rfind(t, 0) == 0) return true;
         return false;
@@ -749,6 +806,90 @@ namespace CoSyncReviveSync
         s_localDeadSince = 0.0;
         s_localReviver = 0;
         s_pendingDeath.store(false);
+        s_pendingRevive.store(0);
+        // 0.5.1: the host's own clock for its own player. Send() never loops
+        // back to the host, so the host's "back on my feet" never reached
+        // s_hostDown: its clock ran on and 30 s later declared the (standing)
+        // host dead -- 2026-10-05 host log "entity=1989621027's time ran out".
+        if (CoSyncTransport::IsInitialized() && CoSyncTransport::IsHost())
+            s_hostDown.erase(CoSyncNet::GetMyEntityID());
+    }
+
+    void AnnounceLocalUp()
+    {
+        // REVIVED|me|0 = "on my feet again without a revive" (respawn, a
+        // reload, the engine's own recovery). The host relays it; everyone
+        // clears their downed flag and the Revive prompt for this player.
+        const std::string m = SerializeRevived(CoSyncNet::GetMyEntityID(), 0);
+        if (CoSyncTransport::IsInitialized() && CoSyncNet::IsConnected())
+            CoSyncTransport::Send(m);
+    }
+
+    void RecordRespawnPoint(const char* why)
+    {
+        RecordRespawnPointLocal(why);
+    }
+
+    void SetRespawnPoint(bool interior, uint32_t space, const float pos[3], float rotZ, const char* why)
+    {
+        if (!space || (space >> 24) == 0xFF || !pos)
+            return;
+        RespawnPoint rp;
+        rp.valid = true;
+        rp.interior = interior;
+        rp.space = space;
+        rp.pos[0] = pos[0]; rp.pos[1] = pos[1]; rp.pos[2] = pos[2];
+        rp.rotZ = rotZ;
+        {
+            std::lock_guard<std::mutex> lk(s_respawnMx);
+            s_respawn = rp;
+        }
+        LOG_INFO("[ReviveSync] respawn point (%s): %s 0x%08X at (%.0f,%.0f,%.0f)", why,
+            interior ? "cell" : "worldspace", space, pos[0], pos[1], pos[2]);
+    }
+
+    void HostOnWorldSaved()
+    {
+        if (!CoSyncTransport::IsInitialized() || !CoSyncTransport::IsHost())
+            return;
+        RecordRespawnPointLocal("world saved");
+        if (CoSyncNet::IsConnected())
+            CoSyncTransport::Send(Msg("SVPT", CoSyncNet::GetMyEntityID(), 0));
+    }
+
+    bool MoveToRespawnPoint()
+    {
+        RespawnPoint rp;
+        {
+            std::lock_guard<std::mutex> lk(s_respawnMx);
+            rp = s_respawn;
+        }
+        PlayerCharacter* pc = CoSyncGetPlayer();
+        if (!pc || !rp.valid)
+        {
+            LOG_UPDATED_WARN("[ReviveSync] respawn: no saved position yet -- respawning where I fell");
+            return false;
+        }
+        TESForm* f = LookupFormByID(rp.space);
+        TESObjectCELL* cell = nullptr;
+        TESWorldSpace* ws = nullptr;
+        if (rp.interior && f && f->formType == kFormType_CELL)
+            cell = static_cast<TESObjectCELL*>(f);
+        else if (!rp.interior && f && f->formType == kFormType_WRLD)
+            ws = reinterpret_cast<TESWorldSpace*>(f);
+        if (!cell && !ws)
+        {
+            LOG_UPDATED_WARN("[ReviveSync] respawn: saved space 0x%08X is not a %s -- respawning where I fell",
+                rp.space, rp.interior ? "cell" : "worldspace");
+            return false;
+        }
+        NiPoint3 pos(rp.pos[0], rp.pos[1], rp.pos[2]);
+        NiPoint3 rot(0.f, 0.f, rp.rotZ);
+        UInt32 nullHandle = 0;
+        MoveRefrToPosition(reinterpret_cast<TESObjectREFR*>(pc), &nullHandle, cell, ws, &pos, &rot);
+        LOG_UPDATED("[ReviveSync] respawned at the last save's position: %s 0x%08X (%.0f,%.0f,%.0f)",
+            rp.interior ? "cell" : "worldspace", rp.space, rp.pos[0], rp.pos[1], rp.pos[2]);
+        return true;
     }
 
     float RespawnSeconds()
@@ -760,6 +901,10 @@ namespace CoSyncReviveSync
 
     LocalStatus GetLocalStatus(double)
     {
+        // 0.5.1: one countdown to the actual respawn. Downed: the revive
+        // window plus the respawn delay ("respawn in N"), with the revive
+        // window shown on its own; dead: the remaining respawn delay. It used
+        // to show only "seconds until death" and then start a second count.
         LocalStatus st;
         const double now = NowSeconds();
         if (s_localDeadSince > 0.0)
@@ -770,7 +915,9 @@ namespace CoSyncReviveSync
         else if (s_localDownSince > 0.0)
         {
             st.state = 1;
-            st.secondsLeft = (std::max)(0, static_cast<int>(SettingDownedSeconds() - (now - s_localDownSince) + 0.999));
+            const double reviveLeft = (std::max)(0.0, SettingDownedSeconds() - (now - s_localDownSince));
+            st.reviveSecondsLeft = static_cast<int>(reviveLeft + 0.999);
+            st.secondsLeft = static_cast<int>(reviveLeft + RespawnSeconds() + 0.999);
             if (s_localReviver) st.reviver = NameOf(s_localReviver);
         }
         return st;

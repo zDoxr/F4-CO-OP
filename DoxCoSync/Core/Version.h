@@ -37,9 +37,14 @@
 //       teams (TQ/TS/TR/TN), team and personal settlements with host-
 //       authoritative settlement state (SSR/SSI/SSD), team chat / voice
 //       ('T' scope), plus the teams + bug-fix directive's other changes.
+// 0.5.1 (2026-10-05): ten-bug multiplayer stability pass -- one downed /
+//       revive / respawn state machine for host and client (SVPT respawn
+//       points), PVE default + host PVP rule, SteamID identity, client NPC
+//       talk, team-only vitals, main-menu lobby, shared loading screen,
+//       per-player companions.
 #define COSYNC_VERSION_MAJOR 0
 #define COSYNC_VERSION_MINOR 5
-#define COSYNC_VERSION_PATCH 0
+#define COSYNC_VERSION_PATCH 1
 #define COSYNC_VERSION_TAG   ""
 
 // Numeric form used on the wire. MINOR and PATCH must stay below 100 for the

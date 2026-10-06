@@ -40,6 +40,7 @@
 #include "CoSyncRequirementsLog.h"
 #include "../Animations/CoSyncPlayerAnimation.h"
 #include "CoSyncReviveSync.h"
+#include "CoSyncLocalPlayer.h"
 #include "CoSyncProxyWeaponAuthority.h"
 #include "CoSyncFirstPersonGraph.h"
 #include "CoSyncContentSync.h"
@@ -530,11 +531,23 @@ void OnF4SEMessage(F4SEMessagingInterface::Message* msg)
     case F4SEMessagingInterface::kMessage_PreSaveGame:
         LOG_UPDATED("[SaveDiag] PreSaveGame fired -- engine save starting");
         CoSyncNpcWorldSync::DiagnoseDisabledOriginalsForSave();
+        // 0.5.1: "respawn at the most recent save" -- this save is now the
+        // most recent one; the host tells every client to record theirs.
+        CoSyncReviveSync::RecordRespawnPoint("game saved");
+        CoSyncReviveSync::HostOnWorldSaved();
         break;
     case F4SEMessagingInterface::kMessage_PostLoadGame:
         // data = bool: did the load succeed. Completes a client's switch into
         // the host's world (CoSyncWorldTransfer).
         CoSyncWorldTransfer::OnPostLoadGame(msg->data != nullptr);
+        if (msg->data != nullptr)
+        {
+            CoSyncReviveSync::RecordRespawnPoint("save loaded");
+            // 0.5.1: a load replaces the player -- any downed/dead state from
+            // before it is void, and the engine's essential bit is rebuilt
+            // from the save (CoSyncLocalPlayer re-asserts it).
+            CoSyncLocalPlayer::OnGameLoaded();
+        }
         break;
     case F4SEMessagingInterface::kMessage_NewGame:
         CoSyncWorldTransfer::OnNewGame();

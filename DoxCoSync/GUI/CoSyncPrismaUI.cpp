@@ -1164,6 +1164,7 @@ namespace CoSyncPrismaUI
         json += ",\"ptt\":";   json += vs.pushToTalk ? "true" : "false";
         json += "}";
         json += ",\"self\":{\"state\":" + std::to_string(self.state) + ",\"secs\":" + std::to_string(self.secondsLeft);
+        json += ",\"rv\":" + std::to_string(self.reviveSecondsLeft);
         json += ",\"reviver\":\"" + JsonEscape(self.reviver.c_str()) + "\"}}";
 
         if (json != s_hudLastJson)

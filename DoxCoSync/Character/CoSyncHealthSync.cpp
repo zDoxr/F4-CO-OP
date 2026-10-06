@@ -516,8 +516,23 @@ void CoSyncHealthSync::FlushPendingHealthOps()
             if (target < 0.f)   target = 0.f;
             if (target > effectiveMax) target = effectiveMax;
 
-            if (CoSyncNpcWorldSync::IsWorldActorEntityID(op.entityID) &&
-                CoSyncGameAPI::PuppetModeEnabled())
+            if (!CoSyncNpcWorldSync::IsWorldActorEntityID(op.entityID))
+            {
+                // 0.5.1: a PLAYER proxy mirrors its owner's CURRENT health.
+                // This used SetBase(target): the local hit that started it all
+                // stays on the proxy as a damage modifier, so after every HP
+                // packet the proxy read (new base - that old damage) and
+                // TickDamageDetection reported the same hit AGAIN -- 2026-10-05
+                // client log: one 9.9 shot became "TX DMG 9.9" every ~165 ms
+                // (hp 80->70.1, 78.1->68.2, 68.2->58.3 ...) until the host
+                // went down; the host's own NPC hits on the client did the
+                // same with 2.7. The damage-mode delta sets current = target
+                // exactly, so the baseline below equals what is read next.
+                float cur = 0.f;
+                if (CoSyncAVSafety::SafeGetValue(actor, healthAVI, cur) && std::fabs(target - cur) >= 0.01f)
+                    CoSyncAVSafety::SafeForceDamage(actor, healthAVI, target - cur);
+            }
+            else if (CoSyncGameAPI::PuppetModeEnabled())
             {
                 // FalloutTogether/TiltedEvolution-style: apply enemy health the
                 // DAMAGE way (ForceCurrent, AVO vtable slot 6 — IDA-verified) so it
