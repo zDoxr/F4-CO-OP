@@ -2,6 +2,15 @@
 
 ---
 
+## [0.5.10] — 2026-10-06
+
+Steam networking review before the public release.
+
+- **Join from the Steam friends list while the game is closed:** Steam starts the game with `+connect_lobby <id>`. CoSync now reads it and joins that lobby once Steam is up (the game has to be started through F4SE).
+- **Relay warm-up:** Steam's relay network measurement now starts as soon as the Steam API is bound, instead of at host/join time.
+- **Steam connect timeout** raised from 15 s to 30 s, so first-time relay routes have time to connect.
+- **Steam send-rate floor** lowered from 512 KB/s to Valve's default of 128 KB/s. The floor is sent even when a player's upload can't carry it, which caused packet loss on slow home connections. The rate still climbs to whatever the link measures.
+
 ## [0.5.9] — 2026-10-06
 
 - **CoSync.esp enables itself:** at plugin load (before the game reads Plugins.txt) CoSync turns `CoSync.esp` on if it is in Data but disabled, so it loads in that same session. This works with Vortex, and with Mod Organizer 2, whose Plugins.txt is redirected to the profile.

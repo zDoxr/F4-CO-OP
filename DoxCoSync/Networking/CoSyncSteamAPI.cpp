@@ -230,6 +230,9 @@ bool CoSyncSteamAPI::Init()
 
     g_available.store(true);
     LOG_INFO("[SteamAPI] bound: steamID=%llu appID=%u", (unsigned long long)MySteamID(), AppID());
+    // 0.5.9: start measuring the relay network now (it takes a few seconds),
+    // so it is ready by the time someone hosts or joins.
+    InitRelay();
     return true;
 }
 

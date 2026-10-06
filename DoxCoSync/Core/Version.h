@@ -56,7 +56,7 @@
 //       skipped every tick for ~5 s at a time (proxies froze).
 #define COSYNC_VERSION_MAJOR 0
 #define COSYNC_VERSION_MINOR 5
-#define COSYNC_VERSION_PATCH 9
+#define COSYNC_VERSION_PATCH 10
 #define COSYNC_VERSION_TAG   ""
 
 // Numeric form used on the wire. MINOR and PATCH must stay below 100 for the

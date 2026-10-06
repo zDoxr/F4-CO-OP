@@ -303,7 +303,7 @@ bool GNS_Session::StartHost(const char* ip)
     if (steam)
     {
         SteamNetworkingConfigValue_t sopts[2]{};
-        sopts[0].SetInt32(k_ESteamNetworkingConfig_TimeoutInitial, 15000);
+        sopts[0].SetInt32(k_ESteamNetworkingConfig_TimeoutInitial, 30000);   // 0.5.9: relay routes can take longer the first time
         sopts[1].SetInt32(k_ESteamNetworkingConfig_TimeoutConnected, 10000);
         m_listenSocket = sock->CreateListenSocketP2P(kSteamVirtualPort, 2, sopts);
         if (m_listenSocket == k_HSteamListenSocket_Invalid)
@@ -415,7 +415,7 @@ bool GNS_Session::StartClient(const std::string& connectString)
         ident.Clear();
         ident.SetSteamID64(hostID);
         SteamNetworkingConfigValue_t sopts[2]{};
-        sopts[0].SetInt32(k_ESteamNetworkingConfig_TimeoutInitial, 15000);
+        sopts[0].SetInt32(k_ESteamNetworkingConfig_TimeoutInitial, 30000);   // 0.5.9: relay routes can take longer the first time
         sopts[1].SetInt32(k_ESteamNetworkingConfig_TimeoutConnected, 10000);
         LOG_INFO("[GNS] Connecting over Steam to host %llu", (unsigned long long)hostID);
         m_clientState.store(GNSClientState::Connecting);
@@ -1054,14 +1054,17 @@ bool GNS_Session::SelectBackend(bool steam)
     if (steam)
     {
         CoSyncSteamAPI::InitRelay();
-        // Same buffers as the open-source setup (GNS_Core.cpp); a lower rate
-        // floor than LAN because this path crosses the internet.
+        // Same buffers as the open-source setup (GNS_Core.cpp). 0.5.9: rate
+        // floor = Valve's default 128 KB/s (was 512 KB/s). The floor is sent
+        // even when the link can't carry it, so on a slow home upload a high
+        // floor turned into packet loss; the rate still climbs to what the
+        // connection measures.
         if (auto* u = gUtils())
         {
             u->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_SendBufferSize, 32 * 1024 * 1024);
             u->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_RecvBufferSize, 32 * 1024 * 1024);
             u->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_RecvBufferMessages, 16384);
-            u->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_SendRateMin, 512 * 1024);
+            u->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_SendRateMin, 128 * 1024);
             u->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_SendRateMax, 8 * 1024 * 1024);
         }
     }

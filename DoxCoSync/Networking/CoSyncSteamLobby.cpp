@@ -8,6 +8,10 @@
 #include "CoSync_Main.h"
 #include "ConsoleLogger.h"
 
+#include <Windows.h>
+
+#include <cstdlib>
+#include <cstring>
 #include <mutex>
 #include <unordered_map>
 
@@ -136,9 +140,34 @@ std::string CoSyncSteamLobby::LastError()
     return s_error;
 }
 
+// 0.5.9: Steam starts the game with "+connect_lobby <lobby id>" when a friend
+// picks "Join Game" (or accepts an invite) while their game is closed. Read
+// once, as soon as Steam is up; the join then runs like an in-game invite.
+static uint64_t LobbyFromCommandLine()
+{
+    const char* cmd = ::GetCommandLineA();
+    const char* p = cmd ? std::strstr(cmd, "+connect_lobby") : nullptr;
+    if (!p)
+        return 0;
+    p += std::strlen("+connect_lobby");
+    while (*p == ' ' || *p == '\t' || *p == '"')
+        ++p;
+    return std::strtoull(p, nullptr, 10);
+}
+
 void CoSyncSteamLobby::Tick(double now)
 {
     std::lock_guard<std::mutex> lk(s_mutex);
+    static bool s_cmdChecked = false;
+    if (!s_cmdChecked && CoSyncSteamAPI::Init())
+    {
+        s_cmdChecked = true;
+        if (const uint64_t lobby = LobbyFromCommandLine())
+        {
+            LOG_INFO("[SteamLobby] Started by Steam to join lobby %llu", (unsigned long long)lobby);
+            s_joinLobbyWanted = lobby;
+        }
+    }
     const bool anythingToDo = s_wantHost || s_createCall || s_lobby || s_joinLobbyWanted || s_joinCall || s_browsing;
     if (!anythingToDo)
         return;
