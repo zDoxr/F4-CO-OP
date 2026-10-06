@@ -1261,6 +1261,26 @@ namespace CoSyncTeams
         return o ? o->key : std::string();
     }
 
+    bool AreTeammates(uint32_t entityA, uint32_t entityB)
+    {
+        if (!entityA || !entityB || entityA == entityB)
+            return false;
+        std::lock_guard<std::recursive_mutex> lk(s_mx);
+        if (AuthorityNow() && CoSyncTransport::IsInitialized())
+            RebuildOnline();
+        const Online* a = OnlineByEid(entityA);
+        const Online* b = OnlineByEid(entityB);
+        if (!a || !b || a->key.empty() || b->key.empty())
+            return false;
+        const Team* ta = TeamOfKey(a->key);
+        return ta && ta == TeamOfKey(b->key);
+    }
+
+    bool IsLocalTeammate(uint32_t entityID)
+    {
+        return AreTeammates(CoSyncNet::GetMyEntityID(), entityID);
+    }
+
     bool GetBadge(uint32_t entityID, Badge& out)
     {
         std::lock_guard<std::recursive_mutex> lk(s_mx);

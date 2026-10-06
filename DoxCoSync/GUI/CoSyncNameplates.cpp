@@ -148,6 +148,9 @@ namespace CoSyncNameplates
                     continue;
                 if (std::find(drawn.begin(), drawn.end(), p->actorRef) != drawn.end())
                     continue;
+                // 0.5.1 (Bug #6): names (and levels) only over teammates.
+                if (!CoSyncTeams::IsLocalTeammate(eid))
+                    continue;
                 uint32_t ws, cell;
                 if (g_CoSyncPlayerManager.GetEntityLocation(eid, ws, cell) &&
                     !CoSyncPlayerManager::IsLocalLocation(ws, cell))

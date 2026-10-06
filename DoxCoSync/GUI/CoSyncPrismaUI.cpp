@@ -1074,10 +1074,13 @@ namespace CoSyncPrismaUI
         ChatUpdateOnGameThread(s_hudSessionLive.load());
         const uint64_t nowMs = GetTickCount64();
 
-        // Teammates only: the vanilla HUD already shows your own bars.
+        // Teammates only: the vanilla HUD already shows your own bars, and
+        // 0.5.1 (Bug #6) another player's health, AP, radiation and name are
+        // shown only to members of the same team (their vitals are not even
+        // sent to anyone else -- CoSyncNet::SendMyVitals).
         std::vector<CoSyncHudPlayer> players = CoSyncOverlay_GetLobbySnapshot();
         players.erase(std::remove_if(players.begin(), players.end(),
-            [](const CoSyncHudPlayer& p) { return p.isLocal; }), players.end());
+            [](const CoSyncHudPlayer& p) { return p.isLocal || !CoSyncTeams::IsLocalTeammate(p.entityID); }), players.end());
 
         // 0.5.0: your own downed / dead countdown (CoSyncReviveSync) keeps
         // the view up even without teammate cards.

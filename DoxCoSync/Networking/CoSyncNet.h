@@ -85,6 +85,11 @@ public:
     static bool IsInitialized();
     static bool IsConnected();
 
+    // 0.5.1 (Bug #6): this player's vitals (HP|) to its teammates only --
+    // the host sends to them directly, a client through the host's
+    // team-filtered relay.
+    static void SendMyVitals(const std::string& msg);
+
     static void SendMyEntityUpdate(
         uint32_t entityID,
         const NiPoint3& pos,

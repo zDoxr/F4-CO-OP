@@ -1355,6 +1355,30 @@ void CoSyncNet::HostSpawnNpc(
     g_CoSyncPlayerManager.EnqueueEntityCreate(p);
 }
 
+// 0.5.1 (Bug #6): host -> the online teammates of `subjectEid` only (never the
+// connection it came from). No team = nobody else receives it.
+static void HostSendPlayerVitals(uint32_t subjectEid, const std::string& msg, HSteamNetConnection from)
+{
+    std::vector<uint32_t> conns;
+    std::string team;
+    const std::string key = CoSyncTeams::KeyForEntity(subjectEid);
+    if (key.empty() || !CoSyncTeams::GetTeamAudience(key, conns, team))
+        return;
+    for (uint32_t c : conns)
+        if (c != 0 && c != static_cast<uint32_t>(from))
+            CoSyncTransport::SendTo(static_cast<HSteamNetConnection>(c), msg);
+}
+
+void CoSyncNet::SendMyVitals(const std::string& msg)
+{
+    if (!CoSyncTransport::IsInitialized())
+        return;
+    if (CoSyncTransport::IsHost())
+        HostSendPlayerVitals(GetMyEntityID(), msg, k_HSteamNetConnection_Invalid);
+    else
+        CoSyncTransport::Send(msg);   // the host relays it to our teammates only
+}
+
 void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnection conn)
 {
 
@@ -1949,9 +1973,17 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
 
     if (CoSyncHealthSync::IsHP(msg))
     {
-
+        // 0.5.1 (Bug #6): a PLAYER's vitals (health, AP, radiation, level)
+        // go only to that player's teammates -- not merely hidden by the UI
+        // elsewhere, never sent. NPC health is world state: everyone.
         if (isHostRole)
-            CoSyncTransport::Send(msg);
+        {
+            const uint32_t subject = static_cast<uint32_t>(std::strtoul(msg.c_str() + 3, nullptr, 10));
+            if (CoSyncNpcWorldSync::IsWorldActorEntityID(subject))
+                CoSyncTransport::Send(msg);
+            else
+                HostSendPlayerVitals(subject, msg, conn);
+        }
         NoteWorldActorContact(msg, msg.find('|') + 1);
         CoSyncHealthSync::OnReceiveHP(msg);
         return;

@@ -97,6 +97,11 @@ namespace CoSyncTeams
 
     // Player key of an online player entity, "" if unknown.
     std::string KeyForEntity(uint32_t entityID);
+    // 0.5.1 (Bug #6): both online players are members of the same team.
+    // Health, AP, radiation and the name of another player are shown -- and
+    // their vitals sent -- only when this is true.
+    bool AreTeammates(uint32_t entityA, uint32_t entityB);
+    bool IsLocalTeammate(uint32_t entityID);
     // Team name and role of an online player entity (HUD / nameplates).
     bool GetBadge(uint32_t entityID, Badge& out);
     const char* RoleName(Role r);

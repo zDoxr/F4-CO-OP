@@ -864,7 +864,7 @@ void CoSyncLocalPlayer::Tick(double now)
 
             if (changed || resync)
             {
-                CoSyncTransport::Send(CoSyncHealthSync::SerializeHP(myEntityID, curHP, maxHP, myLevel, curRads, curAP, maxAP));
+                CoSyncNet::SendMyVitals(CoSyncHealthSync::SerializeHP(myEntityID, curHP, maxHP, myLevel, curRads, curAP, maxAP));
                 s_lastSentHP     = curHP;
                 s_lastSentMaxHP  = maxHP;
                 s_lastSentRads   = curRads;
