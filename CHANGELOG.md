@@ -2,6 +2,28 @@
 
 ---
 
+## [0.5.3] — 2026-10-05
+
+### The New Game intro, together (built only; not yet run in game)
+
+From the 21:29–21:50 test (host `CoSyncUpdated_17160`, client `31700`).
+
+- **Vault-Tec rep never came to the door:** the client's own copy of MQ101 reacted to the host's stage 30 by setting 70/65/75/85 itself; sent as client quest progress (QSREQ) the host applied them and its intro skipped the rep (21:33:01). During the shared intro a client sets no quest stage of its own (the host's stages still arrive and run there), and the host refuses intro requests.
+- **FaceGen at the mirror:** a new client is moved to the bathroom mirror spot (`MQ101PlayerStartMarker01`) facing it; the editor camera looks back from the mirror; sex change included.
+- **SPECIAL / name at the right moment:** in a shared New Game a client gets the SPECIAL menu when the host's Vault-Tec rep opens it (or at once after the mirror if the host is already past it). A client joining a normal game still gets it right after FaceGen.
+- **Vault 111:** the first player inside `PrewarVault111` brings everyone still outside (`INTRO|vault`).
+- **Cryopods:** on every machine the residents leave the six resident pods (both cryo rooms share one layout) and every other player is shown in a pod of their own, stacked past six; each player is in the scripted player pod on their own machine. The spouse stays (the Kellogg scene needs them).
+- Version 0.5.3 (new `INTRO` messages).
+
+## [0.5.2] — 2026-10-05
+
+- New Game from the lobby is played together in the host's world (clients join once the host's world can be saved); character creation in place.
+- Settlement ratings land exactly on the host's values (a defense pushed the client's to 999).
+- Lobby join at the main menu no longer refused (`host_not_in_game`).
+- Loading screen stays up between back-to-back loading menus (no flash of the vanilla one).
+
+---
+
 ## [0.5.1] — 2026-10-05
 
 ### Ten-bug multiplayer stability pass

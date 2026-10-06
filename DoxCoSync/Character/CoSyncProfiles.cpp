@@ -38,6 +38,7 @@
 #include <cstdio>
 #include <cstring>
 #include "CoSyncReviveSync.h"
+#include "CoSyncSharedIntro.h"
 
 #include <map>
 #include <mutex>
@@ -1174,6 +1175,25 @@ namespace
             if (now < s_editorAt)
                 return;
             s_wasFirstPerson = IsFirstPerson();
+            // 0.5.3: in a shared New Game the new player stands at the
+            // bathroom mirror like the host did (MQ101PlayerStartMarker01),
+            // facing it, and the editor camera looks back from the mirror.
+            uint32_t wsID = 0; NiPoint3 mpos; float mrot = 0.f;
+            if (CoSyncSharedIntro::GetMirrorSpot(wsID, mpos, mrot))
+            {
+                TESForm* wf = LookupFormByID(wsID);
+                if (wf && wf->formType == kFormType_WRLD)
+                {
+                    NiPoint3 r(0.f, 0.f, mrot);
+                    UInt32 nh = 0;
+                    MoveRefrToPosition(reinterpret_cast<TESObjectREFR*>(pc), &nh, nullptr,
+                        reinterpret_cast<TESWorldSpace*>(wf), &mpos, &r);
+                    LOG_INFO("[Profiles] Shared New Game: to the bathroom mirror for character creation");
+                    s_editorStage = EditorStage::ThirdPerson;
+                    s_editorAt = now + 2.0;   // let the move settle
+                    return;
+                }
+            }
             s_editorStage = EditorStage::ThirdPerson;
             s_editorAt = now + 0.5;
             return;
@@ -1222,6 +1242,18 @@ namespace
                 LOG_WARN("[Profiles] The character editor did not open");
                 s_editorStage = EditorStage::Returning;
                 s_editorAt = now;
+                return;
+            }
+            // 0.5.3: in a shared New Game the SPECIAL menu (points and the
+            // name) waits for its place in the story -- the Vault-Tec rep at
+            // the host's door (CoSyncSharedIntro). Anyone else gets it now.
+            if (CoSyncSharedIntro::IsSharedIntro())
+            {
+                s_characterCreated = true;
+                CoSyncSharedIntro::OnLocalCharacterMade();
+                LOG_INFO("[Profiles] Mirror done -- SPECIAL and name come with the Vault-Tec rep");
+                s_editorStage = EditorStage::Returning;
+                s_editorAt = now + 5.0;
                 return;
             }
             // 0.5.2: then the game's own SPECIAL menu -- the Vault-Tec

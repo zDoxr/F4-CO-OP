@@ -1,3 +1,4 @@
+#include "CoSyncSharedIntro.h"
 #include "CoSyncQuestSync.h"
 
 #include "CoSyncRequirementsLog.h"
@@ -287,6 +288,13 @@ static void ApplyClientStageRequests(std::vector<QuestReqOp>& reqs)
         {
             LOG_UPDATED_WARN("[QuestSync] QSREQ from entity=%u over 30/s -- dropped quest=0x%08X stage=%d",
                 op.sender, op.questFormID, op.stage);
+            continue;
+        }
+        // 0.5.3: the intro is the host's story alone.
+        if (CoSyncSharedIntro::HostRefusesRequest(op.questFormID))
+        {
+            LOG_UPDATED("[QuestSync] QSREQ quest=0x%08X stage=%d from entity=%u refused -- the intro follows the host's story",
+                op.questFormID, op.stage, op.sender);
             continue;
         }
         TESQuest* quest = nullptr;

@@ -1,4 +1,5 @@
 #define WIN32_LEAN_AND_MEAN
+#include "CoSyncSharedIntro.h"
 #include <Windows.h>
 
 #include "CoSyncQuestHook.h"
@@ -102,6 +103,17 @@ static void __fastcall Detour_SetCurrentStageID(
     // internal setter, not this native), so they never come back here.
     if (CoSyncNet::IsConnected() && !CoSyncNet::IsHost())
     {
+        // 0.5.3: in a shared New Game intro the host's story is the only one.
+        // This client's copy of MQ101 reacted to the host's stage 30 by setting
+        // 70/65/75/85 itself; forwarded as QSREQ they pushed the host past the
+        // Vault-Tec rep (2026-10-05 21:33:01). The host's stages still arrive
+        // (applied past this hook) and run their fragments here.
+        if (thisObj && CoSyncSharedIntro::BlockClientStage(thisObj->formID))
+        {
+            LOG_UPDATED("[QuestHook] [CLIENT] quest=0x%08X stage=%d not set here -- the shared intro follows the host's story",
+                thisObj->formID, aiStageID);
+            return;
+        }
         if (g_origSetStage)
             g_origSetStage(vm, stackID, thisObj, aiStageID);
         if (!thisObj) return;

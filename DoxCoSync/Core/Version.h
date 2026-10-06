@@ -46,9 +46,12 @@
 //       world (WORLDGO removed, WORLDWAIT|starting), character creation in
 //       place + the SPECIAL menu, settlement ratings land exactly on the
 //       host's values, no loading-screen flicker between loading menus.
+// 0.5.3 (2026-10-05): shared intro -- story lockstep, mirror FaceGen,
+//       SPECIAL with the Vault-Tec rep, Vault 111 brings everyone, players in
+//       the cryopods (INTRO messages).
 #define COSYNC_VERSION_MAJOR 0
 #define COSYNC_VERSION_MINOR 5
-#define COSYNC_VERSION_PATCH 2
+#define COSYNC_VERSION_PATCH 3
 #define COSYNC_VERSION_TAG   ""
 
 // Numeric form used on the wire. MINOR and PATCH must stay below 100 for the

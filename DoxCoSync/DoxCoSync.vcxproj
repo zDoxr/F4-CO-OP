@@ -365,6 +365,7 @@ exit /b 0
     <ClInclude Include="World\CoSyncTeams.h" />
     <ClInclude Include="Items\CoSyncPickpocket.h" />
     <ClInclude Include="Networking\CoSyncSessionRules.h" />
+    <ClInclude Include="World\CoSyncSharedIntro.h" />
     <ClInclude Include="World\CoSyncElevatorSync.h" />
     <ClInclude Include="World\CoSyncSettlementSync.h" />
     <ClInclude Include="World\CoSyncWorkshopEngine.h" />
@@ -583,6 +584,7 @@ exit /b 0
     <ClCompile Include="World\CoSyncTeams.cpp" />
     <ClCompile Include="Items\CoSyncPickpocket.cpp" />
     <ClCompile Include="Networking\CoSyncSessionRules.cpp" />
+    <ClCompile Include="World\CoSyncSharedIntro.cpp" />
     <ClCompile Include="World\CoSyncElevatorSync.cpp" />
     <ClCompile Include="World\CoSyncSettlementSync.cpp" />
     <ClCompile Include="World\CoSyncWorkshopEngine.cpp" />

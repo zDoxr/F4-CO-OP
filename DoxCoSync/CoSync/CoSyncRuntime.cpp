@@ -9,6 +9,7 @@
 #include "CoSyncSettlementSync.h"
 #include "CoSyncPickpocket.h"
 #include "CoSyncSessionRules.h"
+#include "CoSyncSharedIntro.h"
 #include "CoSyncLoadingScreen.h"
 #include "CoSyncElevatorSync.h"
 #include "CoSyncWorkshopAuthority.h"
@@ -598,6 +599,10 @@ void CoSyncRuntime_TickGameThread()
     // 0.5.1: the host's PVE / PVP rule, re-sent every 5 s.
     g_lastTickStep = "RTGT:CoSyncSessionRules::Tick";
     CoSyncSessionRules::Tick(now);
+
+    // 0.5.3: the shared New Game intro (SPECIAL timing, Vault 111, cryopods).
+    g_lastTickStep = "RTGT:CoSyncSharedIntro::Tick";
+    CoSyncSharedIntro::Tick(now);
     g_lastTickStep = "RTGT:CoSyncElevatorSync::Tick";
     CoSyncElevatorSync::Tick(now);
 

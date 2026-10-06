@@ -59,6 +59,7 @@
 #include "CoSyncItemMods.h"
 #include "CoSyncTeams.h"
 #include "CoSyncSessionRules.h"
+#include "CoSyncSharedIntro.h"
 #include "CoSyncSettlementSync.h"
 #include "CoSyncPickpocket.h"
 #include "CoSyncElevatorSync.h"
@@ -626,6 +627,7 @@ void CoSyncNet::Init(bool isHost)
     CoSyncHealthSync::Reset();
     CoSyncReviveSync::Reset();
     CoSyncSessionRules::Reset();
+    CoSyncSharedIntro::Reset();
     CoSyncElevatorSync::Reset();
     CoSyncOutfitSync::Reset();
     CoSyncProxyWeaponAuthority::Reset();
@@ -742,6 +744,7 @@ void CoSyncNet::Shutdown()
     CoSyncSettlementSync::OnSessionEnd();
     CoSyncPickpocket::Reset();
     CoSyncSessionRules::Reset();
+    CoSyncSharedIntro::Reset();
     CoSyncWorkshopAuthority::OnSessionEnd();
     CoSyncChat::OnSessionEnd();
     CoSyncVoice::OnSessionEnd();
@@ -1448,6 +1451,12 @@ void CoSyncNet::OnReceive(const std::string& rawMsg, double now, HSteamNetConnec
     if (CoSyncSessionRules::IsRulesMessage(msg))
     {
         CoSyncSessionRules::OnReceive(msg, isHostRole);
+        return;
+    }
+    // 0.5.3: the New Game intro played together (CoSyncSharedIntro).
+    if (CoSyncSharedIntro::IsIntroMessage(msg))
+    {
+        CoSyncSharedIntro::OnReceive(msg, isHostRole);
         return;
     }
     // 0.5.1 lobby (Bug #3/#4): a client waiting in the lobby, or playing its
