@@ -321,6 +321,13 @@ namespace
     // followers are recognised live via IsPlayerTeammate on its actor.)
     std::unordered_set<uint32_t>           s_companionEntities;
 
+    // 0.5.1: Actor::IsPlayerTeammate under SEH (the actor may be mid-unload).
+    __declspec(noinline) bool SafeIsPlayerTeammate(Actor* a)
+    {
+        __try { return a && a->IsPlayerTeammate(); }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
     // Host: per-ref throttle for NPCDEAD replies to NPCSEEN reports.
     std::unordered_map<uint32_t, double>   s_npcDeadSentAt;
 
@@ -1150,7 +1157,15 @@ __declspec(noinline) static void TickScanWorldActors_Impl(double now)
         // 0.4.4: the host can no longer simulate it, but a client is right
         // there: that client takes it over in place (same ID, same body)
         // instead of everyone destroying and re-creating it.
-        if (isHost && !wasDead)
+        // 0.5.1 (Bug #10): never a companion. The host's follower lagging
+        // behind a door, or one told to wait, would otherwise be simulated on
+        // a client's machine -- where its follow package targets THAT
+        // client: the client would control the host's companion. Client-owned
+        // companions (s_companionEntities) belong to their owner only.
+        bool isCompanion = s_companionEntities.count(eid) != 0;
+        if (!isCompanion && CoSyncGameAPI::IsFormStillLive(static_cast<TESForm*>(actor)))
+            isCompanion = SafeIsPlayerTeammate(actor);
+        if (isHost && !wasDead && !isCompanion)
         {
             const uint32_t taker = HostNearestClientFor(eid, 8000.f);
             if (taker != 0)

@@ -25,6 +25,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <mutex>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -61,6 +62,17 @@ namespace
     std::vector<uint32_t>        s_toSpawn;     // client: saved companions still to bring
     double                       s_spawnAt = 0.0;
     bool                         s_characterApplied = false;
+
+    // 0.5.1 (Bug #10): native recruit / dismiss detection beside the Papyrus
+    // follower poll (CoSyncQuest), which reported nothing in the 2026-10-05
+    // session. Teammates seen in the loaded area last scan, and how long each
+    // of OUR copies has been loaded without being a teammate any more.
+    std::unordered_set<uint32_t>         s_seenMates;
+    // Recruited NPCs (the reference the player talked to) already turned into
+    // a copy: the Papyrus poll and the native scan both report one recruit.
+    std::unordered_set<uint32_t>         s_handledSources;
+    std::unordered_map<uint32_t, double> s_notMateSince;
+    double                               s_nextNativeScan = 0.0;
 
     double NowSeconds() { return static_cast<double>(GetTickCount64()) / 1000.0; }
 
@@ -213,6 +225,8 @@ namespace
             const uint32_t base = a->baseForm->formID;
             if (IsCoSyncBase(base))
                 return;
+            if (!s_handledSources.insert(n.ref).second)
+                return;   // this recruit was already turned into our copy
             if (!s_characterApplied)
             {
                 HandBack(a);   // followed the save's player, i.e. the host
@@ -329,6 +343,58 @@ namespace CoSyncCompanions
         for (const Note& n : notes)
             ClientHandleNote(n, now);
 
+        // 0.5.1: the native scan. A teammate not seen before = recruited here
+        // (ClientHandleNote skips our own copies and the host's inherited
+        // followers); one of our copies that is loaded but no longer a
+        // teammate for 3 s = dismissed (an unloaded copy is never "dismissed").
+        if (s_characterApplied && now >= s_nextNativeScan)
+        {
+            s_nextNativeScan = now + 2.0;
+            std::vector<Actor*> mates;
+            if (SafeCollectTeammates(mates))
+            {
+                std::unordered_set<uint32_t> nowMates;
+                for (Actor* a : mates)
+                {
+                    nowMates.insert(a->formID);
+                    if (!s_seenMates.count(a->formID) && !FindMine(a->formID) && !s_inherited.count(a->formID))
+                    {
+                        LOG_INFO("[Companions] Native scan: new teammate ref=0x%08X", a->formID);
+                        ClientHandleNote(Note{ a->formID, true }, now);
+                    }
+                }
+                s_seenMates.swap(nowMates);
+                // A recruited source the Followers quest has let go (our copy
+                // took its place) may be recruited again later.
+                for (auto it = s_handledSources.begin(); it != s_handledSources.end();)
+                    it = s_seenMates.count(*it) ? std::next(it) : s_handledSources.erase(it);
+                std::vector<uint32_t> dismissed;
+                for (const Mine& m : s_mine)
+                {
+                    if (!m.made || now < m.readyAt + 5.0)
+                        continue;   // the Followers quest has not taken it yet
+                    Actor* a = ActorByRef(m.ref);
+                    const bool loaded = a && a->parentCell;
+                    if (!loaded || s_seenMates.count(m.ref))
+                    {
+                        s_notMateSince.erase(m.ref);
+                        continue;
+                    }
+                    double& since = s_notMateSince[m.ref];
+                    if (since == 0.0)
+                        since = now;
+                    else if (now - since >= 3.0)
+                        dismissed.push_back(m.ref);
+                }
+                for (uint32_t ref : dismissed)
+                {
+                    s_notMateSince.erase(ref);
+                    LOG_INFO("[Companions] Native scan: my companion ref=0x%08X is no longer a teammate -- dismissed", ref);
+                    ClientHandleNote(Note{ ref, false }, now);
+                }
+            }
+        }
+
         if (!s_toSpawn.empty() && now >= s_spawnAt && s_characterApplied && !CoSyncProfiles::IsEditorBusy())
         {
             for (uint32_t b : s_toSpawn)
@@ -386,5 +452,9 @@ namespace CoSyncCompanions
         s_toSpawn.clear();
         s_spawnAt = 0.0;
         s_characterApplied = false;
+        s_seenMates.clear();
+        s_handledSources.clear();
+        s_notMateSince.clear();
+        s_nextNativeScan = 0.0;
     }
 }
