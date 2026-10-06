@@ -302,9 +302,12 @@ static char __fastcall Detour_ActivateWorker(
     }
     if (elevKind == CoSyncElevatorSync::Kind::LoadElevator)
     {
-        static std::atomic<uint32_t> s_n{ 0 };
-        if (++s_n <= 10)
-            LOG_INFO("[DoorHook] load elevator ref 0x%08X not replicated (each player rides their own)", ri.refFormID);
+        // 0.5.1 (Bug #5): each machine still runs its own ride (a load
+        // elevator moves its rider through a load door), but players standing
+        // at the same elevator are now taken along (ELEVL) instead of being
+        // left behind on the other side of the cell transition.
+        if (actResult != 0 && activator && activator == static_cast<void*>(CoSyncGetPlayer()))
+            CoSyncElevatorSync::OnLocalLoadElevatorActivated(ri.refFormID);
         return actResult;
     }
 

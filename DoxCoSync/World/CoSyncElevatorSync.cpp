@@ -15,6 +15,7 @@
 #include "PapyrusInterfaces.h"
 #include "PapyrusValue.h"
 
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <mutex>
@@ -60,6 +61,15 @@ namespace
     // ── Received ELEV, applied on the game thread ───────────────────────────
     std::mutex             g_rxMx;
     std::vector<uint32_t>  g_rx;   // control ref form IDs
+    std::vector<uint32_t>  g_rxLoad;   // 0.5.1: load-elevator refs (ELEVL)
+
+    // 0.5.1: a load elevator taken along with another player: how close this
+    // player must stand to the reference that was used (the panel / door /
+    // ride button), and the per-reference dedupe so a ride triggers once.
+    constexpr float  kRideAlongRadius = 450.f;
+    constexpr float  kMovingElevatorRadius = 4096.f;
+    constexpr double kLoadDedupeSeconds = 4.0;
+    std::unordered_map<uint32_t, double> g_lastLoadByRef;   // under g_lastMx (key 0: last ride)
 
     // Last activation per master on this machine (local press or replay):
     // two players pressing together move the car once.
@@ -209,6 +219,65 @@ namespace
         __except (EXCEPTION_EXECUTE_HANDLER) { return nullptr; }
     }
 
+    // One ride = one ELEVL each way. A ride is several activations (the
+    // panel, then the scripts' own door activation as the player), so the
+    // window is per machine, not per reference: whatever started the ride
+    // here -- our press or someone else's ELEVL -- the rest of it is quiet.
+    bool LoadRecentlyUsed(uint32_t /*ref*/, double now)
+    {
+        std::lock_guard<std::mutex> lk(g_lastMx);
+        auto it = g_lastLoadByRef.find(0);
+        if (it != g_lastLoadByRef.end() && now - it->second < kLoadDedupeSeconds)
+            return true;
+        g_lastLoadByRef[0] = now;
+        return false;
+    }
+
+    __declspec(noinline) bool SamePlaceAndClose(TESObjectREFR* ref, PlayerCharacter* pc, float radius, float& distOut)
+    {
+        distOut = -1.f;
+        __try
+        {
+            if (!ref || !pc || !ref->parentCell || !pc->parentCell)
+                return false;
+            TESWorldSpace* refWs = CALL_MEMBER_FN(ref, GetWorldspace)();
+            TESWorldSpace* pcWs  = CALL_MEMBER_FN(reinterpret_cast<TESObjectREFR*>(pc), GetWorldspace)();
+            // Interiors: the same cell. Exteriors: the same worldspace (the
+            // player may stand in the neighbouring grid cell).
+            if (refWs ? (refWs != pcWs) : (ref->parentCell != pc->parentCell))
+                return false;
+            const float dx = ref->pos.x - pc->pos.x, dy = ref->pos.y - pc->pos.y, dz = ref->pos.z - pc->pos.z;
+            distOut = sqrtf(dx * dx + dy * dy + dz * dz);
+            return distOut <= radius;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
+    void ApplyRemoteLoad(uint32_t refID)
+    {
+        PlayerCharacter* pc = CoSyncGetPlayer();
+        TESObjectREFR* ref = SafeLookupRef(refID);
+        if (!pc || !ref)
+            return;
+        float dist = -1.f;
+        if (!SamePlaceAndClose(ref, pc, kRideAlongRadius, dist))
+        {
+            LOG_INFO("[ElevSync] ELEVL 0x%08X: not at that elevator (%.0f units) -- not taken along", refID, dist);
+            return;
+        }
+        if (LoadRecentlyUsed(refID, Now()))
+        {
+            LOG_INFO("[ElevSync] ELEVL 0x%08X ignored: used here moments ago", refID);
+            return;
+        }
+        // As OUR player, like the local press would be -- the load elevator's
+        // scripts and the load door act on the activator. ActivateAs marks it
+        // as an applied activation, so it is not sent back.
+        const bool ok = CoSyncDoorHook::ActivateAs(ref, reinterpret_cast<TESObjectREFR*>(pc));
+        LOG_UPDATED("[ElevSync] ELEVL applied: riding along -- load elevator ref 0x%08X activated as the local player (%.0f units away) -> %s",
+            refID, dist, ok ? "ok" : "refused by the engine");
+    }
+
     void ApplyRemote(uint32_t control)
     {
         PlayerCharacter* pc = CoSyncGetPlayer();
@@ -218,10 +287,14 @@ namespace
         // Only where this player is: the same cell as the control (the scan
         // has it). Anyone elsewhere finds the car where they last left it --
         // the elevator's own script handles a call from another floor.
+        // 0.5.1: interiors = the same cell; exteriors = the same worldspace
+        // within sight of the control (a player one grid cell over was
+        // skipped before). The scan must know it as a moving control here.
         const uint32_t master = MasterOf(control);
-        if (!master || ref->parentCell != pc->parentCell)
+        float dist = -1.f;
+        if (!master || !SamePlaceAndClose(ref, pc, kMovingElevatorRadius, dist))
         {
-            LOG_INFO("[ElevSync] ELEV 0x%08X not applied: not in this player's cell", control);
+            LOG_INFO("[ElevSync] ELEV 0x%08X not applied: not at that elevator here (%.0f units)", control, dist);
             return;
         }
         if (AlreadyMoving(master, Now()))
@@ -269,13 +342,27 @@ namespace CoSyncElevatorSync
 
     bool IsElevatorMessage(const std::string& msg)
     {
-        return msg.rfind("ELEV|", 0) == 0;
+        return msg.rfind("ELEV|", 0) == 0 || msg.rfind("ELEVL|", 0) == 0;
+    }
+
+    void OnLocalLoadElevatorActivated(uint32_t refFormID)
+    {
+        if (!CoSyncNet::IsConnected() || !refFormID)
+            return;
+        // The panel, the car door and the scripted re-activations of one ride
+        // arrive together: one ELEVL per reference per ride.
+        if (LoadRecentlyUsed(refFormID, Now()))
+            return;
+        const std::string msg = "ELEVL|" + std::to_string(CoSyncNet::GetMyEntityID()) + "|" + std::to_string(refFormID);
+        CoSyncTransport::Send(msg);
+        LOG_UPDATED("[ElevSync] TX ELEVL load elevator ref 0x%08X (players at this elevator ride along)", refFormID);
     }
 
     void OnReceive(const std::string& msg, bool isHostRole)
     {
         LOG_REQUIREMENT("CoSyncElevatorSync::OnReceive", "Network side; the host relays, the game thread applies.");
-        const char* p = msg.c_str() + 5;
+        const bool load = msg.rfind("ELEVL|", 0) == 0;
+        const char* p = msg.c_str() + (load ? 6 : 5);
         char* end = nullptr;
         const uint32_t sender = static_cast<uint32_t>(std::strtoul(p, &end, 10));
         if (!end || *end != '|')
@@ -288,8 +375,9 @@ namespace CoSyncElevatorSync
         if (sender == CoSyncNet::GetMyEntityID())
             return;
         std::lock_guard<std::mutex> lk(g_rxMx);
-        if (g_rx.size() < 64)
-            g_rx.push_back(control);
+        std::vector<uint32_t>& q = load ? g_rxLoad : g_rx;
+        if (q.size() < 64)
+            q.push_back(control);
     }
 
     void Tick(double)
@@ -315,13 +403,16 @@ namespace CoSyncElevatorSync
             g_loadRefs.swap(loadRefs);
         }
 
-        std::vector<uint32_t> rx;
+        std::vector<uint32_t> rx, rxLoad;
         {
             std::lock_guard<std::mutex> lk(g_rxMx);
             rx.swap(g_rx);
+            rxLoad.swap(g_rxLoad);
         }
         for (uint32_t c : rx)
             ApplyRemote(c);
+        for (uint32_t r : rxLoad)
+            ApplyRemoteLoad(r);
     }
 
     void Reset()
@@ -334,10 +425,12 @@ namespace CoSyncElevatorSync
         {
             std::lock_guard<std::mutex> lk(g_rxMx);
             g_rx.clear();
+            g_rxLoad.clear();
         }
         {
             std::lock_guard<std::mutex> lk(g_lastMx);
             g_lastByMaster.clear();
+            g_lastLoadByRef.clear();
         }
         g_scannedCell = nullptr;
         g_nextScan = 0.0;

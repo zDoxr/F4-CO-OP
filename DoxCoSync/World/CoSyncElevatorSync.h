@@ -51,6 +51,15 @@ namespace CoSyncElevatorSync
     void OnLocalControlActivated(uint32_t refFormID);
 
     bool IsElevatorMessage(const std::string& msg);
+
+    // 0.5.1 (Bug #5): the local player used a LOAD elevator (its call panel,
+    // its door, or the ride button inside the car -- the ones that change
+    // cell, e.g. Diamond City's ElevTransPub up to the Upper Stands). Every
+    // other player standing at that same elevator is taken along: their
+    // machine activates the same reference as their own player
+    // (ELEVL|<eid>|<ref>), so the engine runs the ride and the cell
+    // transition for them too and both arrive at the same destination.
+    void OnLocalLoadElevatorActivated(uint32_t refFormID);
     void OnReceive(const std::string& msg, bool isHostRole);
 
     void Tick(double now);
