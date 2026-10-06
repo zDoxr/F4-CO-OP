@@ -101,3 +101,51 @@ voice mode `U`.
 
 - Voice has no left/right panning yet, and uses the Windows default devices.
 - Nameplates are not hidden behind walls yet (no verified engine line-of-sight call).
+
+---
+
+# 0.5.1 — ten-bug stability pass (built, NOT yet run in game)
+
+Report: `docs/MP_STABILITY_051_REPORT.md`. Logs: `CoSyncUpdated_<pid>.log` from every player.
+Setup: gbe_fork two-instance rig or two PCs. Keep `[Session] bPVP=0` unless a row says PVP.
+
+## 0.5.1-1 Host only
+
+| # | Step | Expect | Log evidence |
+|---|------|--------|--------------|
+| 1 | Main menu → Multiplayer → Host on Local Network | Hosting starts at the main menu ("Lobby open") | `[GNS] Host` |
+| 2 | NEW GAME; play to the bathroom mirror | Normal intro, nothing CoSync-specific | no `held back` / no errors |
+| 3 | Save (any save) | — | `respawn point (game saved)` |
+| 4 | Take lethal damage | Bleedout, NOT death; no save reload | `set local player essential=1 ... actor essential now=1`, `[LocalPlayer] Down` |
+| 5 | Stay down | One countdown (revive window + respawn) | HUD `DOWNED`, then `YOU DIED` |
+| 6 | Wait for 0 | Stand up at the step-3 spot, HUD gone, full health | `respawned at the last save's position` |
+| 7 | Go down again, then load a save while down | HUD cleared after the load | `Save loaded -- downed/respawn state cleared` |
+
+## 0.5.1-2 Host + client
+
+| # | Step | Expect | Log evidence |
+|---|------|--------|--------------|
+| 1 | H hosts at main menu; C joins from main menu | C: "In the lobby" | C: `In the host's lobby -- the host is at the main menu` |
+| 2 | H chooses NEW | C's game starts a New Game by itself | C: `Lobby: started a New Game from the main menu (ok)` |
+| 3 | Both: mirror (change sex + face), Codsworth, Vault-Tec rep (SPECIAL + name) | Each gets the full character creation | — |
+| 4 | Cryopod | Each in their own intro; cryopod only after the walk to Vault 111 | — |
+| 5 | C exits Vault 111 first | C: "Waiting for the host" | C: `My intro is complete`, `Uploaded the character from my own intro` |
+| 6 | H exits Vault 111 | C loads H's world with C's own face/sex/SPECIAL/name | H: `The world is ready -- sending it`; C: `Character name restored` |
+| 7 | Restart both games, rejoin | Same `Identity token` as before, same character, no duplicate player | `Identity token=` identical |
+| 8 | C goes down, H revives with a Stimpak | Revive animation, C up at 50 % | `revive of entity=... confirmed by the host` |
+| 9 | C goes down, no revive | C respawns at its last save point (H's last save) | C: `respawned at the last save's position` |
+| 10 | H goes down, C revives | Same as 8 with roles swapped | H: `Revived by entity=` |
+| 11 | H goes down, no revive | Same as 9; no H save reload | no `Co-save: loaded` on H |
+| 12 | Walk side by side 2 min, first & third person, NPC fight nearby | No flicker of either character | `[WeaponAuthority] refused` near 0 for player proxies; `player proxies' own combat refused=` |
+| 13 | Door into an interior and back out together | Both arrive; proxies reappear | `Local transition -- rebuilding proxy` |
+| 14 | Diamond City public elevator (Skylift) to the Upper Stands, both in the car | Both ride and arrive together | `TX ELEVL` / `ELEVL applied: riding along` |
+| 15 | Same, partner far away | Partner not taken | `ELEVL ... not at that elevator` |
+| 16 | H recruits Dogmeat, C recruits Piper | Both see both companions; each commands only their own | C: `Recruited base=... spawning my own copy`, H: `Companion entity=... owned by` |
+| 17 | H walks through a door away from Dogmeat | Dogmeat is not handed to C | no `takes it over in place` for Dogmeat's entity |
+| 18 | C activates H without sneaking / sneaking | nothing / Pickpocket | — |
+| 19 | C talks to an NPC (Codsworth, a merchant) | Normal dialogue / barter on C | no `[DialogGate]` |
+| 20 | Not in a team: look at each other | No HUD card, no nameplate | — |
+| 21 | Same team | Card (HP/AP/rads) + nameplate | H relays `HP|` to C only now |
+| 22 | PVE: shoot each other | No damage | `hit(s) by my player on another player refused (PVE)` |
+| 23 | H menu: Player Damage → PVP; shoot once | One drop the size of the shot, no drain | one `TX DMG ... attacker=` per hit |
+| 24 | Any load (CONTINUE, door, elevator, join, respawn) | The CoSync loading screen | `[Loading] LoadingMenu up` / `closed` |

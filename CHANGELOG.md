@@ -2,6 +2,28 @@
 
 ---
 
+## [0.5.1] — 2026-10-05
+
+### Ten-bug multiplayer stability pass
+
+From the 0.5.0 two-instance test (host `CoSyncUpdated_37552`, client `CoSyncUpdated_37964`, 18:13–19:04). **Built and deployed only; not yet run in game.** Full engineering report: `docs/MP_STABILITY_051_REPORT.md`; tests: `docs/TESTING_MATRIX.md` §0.5.1.
+
+- **Revive / respawn (host and client, one state machine):** the host was never really essential — the engine's kill test reads the actor's own flag (`Actor+0x43C` 0x40000), rebuilt only by `sub_140C5B2B0`, which is now called; it is verified every second in a session. Downed state is cleared on every way back up (revive, respawn, engine recovery, a save load); the host's own revive clock is cleared too. Respawn = back to where you stood at the shared world's last save (`SVPT`). One HUD countdown to the actual respawn.
+- **Instant health drain:** player-proxy health was mirrored with `SetBase`, so one hit was re-reported after every HP packet (log: `TX DMG 9.9` every ~165 ms). Proxies now mirror the owner's current value and never keep a local hit.
+- **PVE by default, PVP as a host option** (`[Session] bPVP`, Multiplayer menu): player-on-player hits are refused at `Actor::DoHitMe` in PVE; `DMG` carries the attacker.
+- **Flicker:** player proxies ran their own combat AI and wander package against the network state every frame (~50–100 refused AI holster/draw calls per second); they now get the puppet combat and package gates.
+- **Main-menu lobby:** host from the main menu; clients wait (`WORLDWAIT`); CONTINUE / LOAD sends the world to everyone waiting.
+- **New Game:** clients start their own New Game when the host does (`WORLDGO`) and play the real intro (FaceGen, sex, SPECIAL, name); they join the host's world with that character once both are out of Vault 111. A client outside the host's world neither sends nor takes session traffic.
+- **Identity:** the SteamID64 (+ multi-instance index); the per-launch process salt is gone (`[Network] bLegacyPidIdentity=1` to bring it back).
+- **Elevators:** load elevators (e.g. Diamond City's) take everyone standing at them along (`ELEVL`).
+- **Team privacy:** health, AP, rads and names reach and show only teammates.
+- **NPC Talk on clients restored** (the client gate refused every actor); player-to-player stays Pickpocket / Revive only.
+- **One CoSync loading screen** (`loading.html`, the new design) for every load: LoadingMenu vtable hooks + CoSync's own loads.
+- **Sharepanions:** native recruit/dismiss detection; companions are never handed to another player.
+- Version 0.5.1 (network 501; new `SVPT`, `ELEVL`, `RULES`, `WORLDWAIT`, `WORLDGO`; `WORLDREQ` and `DMG` gain a field).
+
+---
+
 ## [0.4.4] — 2026-10-01
 
 ### Faster NPC updates in crowded areas; no reset when ownership changes
