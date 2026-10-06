@@ -465,8 +465,13 @@ void CoSyncPlayerManager::ProcessEntityCreate(const EntityCreatePacket& p)
         const bool nameChanged = (player.username != p.username);
         player.username = p.username;
         if (nameChanged)
+        {
             LOG_UPDATED("[NameSync APPLY] entity=%u username set to '%s' (type=%u)",
                 p.entityID, p.username.c_str(), (unsigned)p.type);
+            // 0.5.4: a spawned player proxy shows the new name in game too.
+            if (p.type == CoSyncEntityType::Player && player.hasSpawned)
+                CoSyncProxyLooks::ApplyDisplayName(p.entityID);
+        }
     }
     else
     {
@@ -508,6 +513,20 @@ void CoSyncPlayerManager::ProcessEntityCreate(const EntityCreatePacket& p)
 
         LOG_INFO("[PlayerMgr] Queued CREATE for spawn entity=%u base=0x%08X",
             p.entityID, p.baseFormID);
+        if (p.type == CoSyncEntityType::Player)
+            LOG_INFO("[CoSyncProxy] CREATE SteamID=%llu EntityID=%u Username='%s' -> spawn queued",
+                (unsigned long long)CoSyncNet::GetSteamIDForEntity(p.entityID), p.entityID,
+                player.username.c_str());
+    }
+    else if (p.type == CoSyncEntityType::Player)
+    {
+        // A repeated CREATE (REQENT answer, re-broadcast, reconnect handshake)
+        // never spawns: one entity, one CoSyncPlayer, one proxy. Logged once
+        // per entity so a duplicate is visible without spamming.
+        static std::unordered_set<uint32_t> s_reuseLogged;
+        if (s_reuseLogged.insert(p.entityID).second)
+            LOG_INFO("[CoSyncProxy] CREATE again for EntityID=%u Username='%s' -- reusing existing proxy %p (spawned=%d)",
+                p.entityID, player.username.c_str(), static_cast<void*>(player.actorRef), player.hasSpawned ? 1 : 0);
     }
 }
 
@@ -701,6 +720,10 @@ void CoSyncPlayerManager::DespawnEntity(uint32_t entityID, const char* reason)
         CoSyncPlayer* proxy = itPlayer->second.get();
         LOG_UPDATED("[PlayerMgr] Despawn entity=%u actor=%p (%s)",
             entityID, static_cast<void*>(proxy ? proxy->actorRef : nullptr), reason);
+        if (proxy && proxy->createType == CoSyncEntityType::Player)
+            LOG_INFO("[CoSyncProxy] DESTROY EntityID=%u Username='%s' ProxyFormID=0x%08X ProxyRef=%p (%s)",
+                entityID, proxy->username.c_str(),
+                proxy->actorRef ? proxy->actorRef->formID : 0u, static_cast<void*>(proxy->actorRef), reason);
 
         CoSyncPowerArmorSync::OnProxyRemoved(proxy);   // 0.3.3 (Stage 5)
         CoSyncFlashlightSync::OnProxyRemoved(entityID); // 0.4.3: its light goes with it

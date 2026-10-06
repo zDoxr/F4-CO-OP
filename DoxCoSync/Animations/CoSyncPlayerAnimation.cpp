@@ -153,6 +153,34 @@ static SetGraphVarBoolFn    g_setBool          = nullptr;
 static SetGraphVarIntFn     g_setInt           = nullptr;
 static SetGraphVarFloatFn   g_setFloat         = nullptr;
 
+// 0.5.4 -- transform-only re-bake of a proxy skeleton (see BakeSkeletonWorld).
+// All verified in IDA on 1.11.240:
+//   sub_140344820  NiTransform compose: out = parentWorld * local, the exact
+//                  call NiAVObject's world-transform update (vtable slot 52,
+//                  sub_1416C8AC0) makes; (parentWorld, out, local), 64-byte
+//                  SSE transforms, 16-byte aligned.
+//   sub_1416C7230  BSFlattenedBoneTree: copies every bone node's world
+//                  transform into the tree's flattened array (the tail of the
+//                  tree's own downward pass, slot 49 sub_1416C6F00).
+//   0x02684FC0     BSFlattenedBoneTree vtable.
+//   vtable slot 3  GetAsNiNode: `mov rax, rcx` on NiNode/BSFadeNode/
+//                  BSFlattenedBoneTree, `xor eax, eax` on leaf NiAVObjects.
+static constexpr uintptr_t RVA_NITRANSFORM_COMPOSE      = 0x00344820;
+static constexpr uintptr_t RVA_FLATTENED_TREE_SYNC      = 0x016C7230;
+static constexpr uintptr_t RVA_VTBL_FLATTENED_BONE_TREE = 0x02684FC0;
+static constexpr size_t    NIOBJ_VTBL_GET_AS_NINODE     = 3;
+// NiAVObject +0x108 flag: world = parent world, the local transform ignored
+// (the branch slot 52 takes when it is set).
+static constexpr uint64_t  kNiFlag_WorldFromParent      = 0x200000000000ULL;
+
+using TransformComposeFn = void* (__fastcall*)(const void* parentWorld, void* out, const void* local);
+using FlattenedSyncFn    = void  (__fastcall*)(void* tree);
+using GetAsNiNodeFn      = void* (__fastcall*)(void* obj);
+
+static TransformComposeFn   g_composeTransform = nullptr;
+static FlattenedSyncFn      g_flattenedSync    = nullptr;
+static uintptr_t            g_vtFlattenedTree  = 0;
+
 // Global skeleton capture filled each frame by CaptureBones(), consumed by
 // ApplySkeleton(). Both are called on the main thread, no locking needed.
 static CoSyncPlayerAnimation::SkeletonCapture g_localCapture = {};
@@ -260,13 +288,19 @@ void Init(uintptr_t moduleBase) noexcept
     g_setInt         = reinterpret_cast<SetGraphVarIntFn    >(moduleBase + RVA_SET_GRAPH_VAR_INT);
     g_setFloat       = reinterpret_cast<SetGraphVarFloatFn  >(moduleBase + RVA_SET_GRAPH_VAR_FLOAT);
 
+    g_composeTransform = reinterpret_cast<TransformComposeFn>(moduleBase + RVA_NITRANSFORM_COMPOSE);
+    g_flattenedSync    = reinterpret_cast<FlattenedSyncFn   >(moduleBase + RVA_FLATTENED_TREE_SYNC);
+    g_vtFlattenedTree  = moduleBase + RVA_VTBL_FLATTENED_BONE_TREE;
+
     LOG_INFO("[PlayerAnim] Init — RVAs resolved:"
              "  Bool=0x%08X  Int=0x%08X  Float=0x%08X"
-             "  UpdateDownwardPass=vtable slot %zu (no RVA)",
+             "  bake: compose=0x%08X flattenedSync=0x%08X FBT vtable=0x%08X",
              (unsigned)RVA_SET_GRAPH_VAR_BOOL,
              (unsigned)RVA_SET_GRAPH_VAR_INT,
              (unsigned)RVA_SET_GRAPH_VAR_FLOAT,
-             NIAV_VTBL_UPDATE_DOWNWARD_PASS);
+             (unsigned)RVA_NITRANSFORM_COMPOSE,
+             (unsigned)RVA_FLATTENED_TREE_SYNC,
+             (unsigned)RVA_VTBL_FLATTENED_BONE_TREE);
     LOG_INFO("[PlayerAnim] TODO RVAs (need IDA semantic confirm):"
              "  BSFSMake=0x%08X  MoveTo=0x%08X"
              "  MovementTick=0x%08X  UpdatePerFrame=0x%08X",
@@ -835,6 +869,14 @@ __declspec(noinline) static bool SafeReadScale(void* node, float& out) noexcept
     __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
+// Local transform only. 0.5.4: these used to also OR 0x2 into the node's
+// +0x108 flags as a "dirty" bit. In the engine that bit is SELECTIVE_UPDATE
+// (NiNode's downward pass, sub_1416BF1E0, only descends into children that
+// carry it), so setting it changed which subtrees -- and which geometry --
+// the engine's own per-frame pass of the proxy visits, i.e. the geometry
+// count its BSFadeNode compares against the flattened geometry list. World
+// transforms are now baked by BakeSkeletonWorld; the engine's flags are left
+// as the engine set them.
 __declspec(noinline) static void SafeWriteRotation(void* node, const float rot[9]) noexcept
 {
     __try {
@@ -843,8 +885,6 @@ __declspec(noinline) static void SafeWriteRotation(void* node, const float rot[9
         p[0]=rot[0]; p[1]=rot[1]; p[2]=rot[2]; p[3]=0.0f;
         p[4]=rot[3]; p[5]=rot[4]; p[6]=rot[5]; p[7]=0.0f;
         p[8]=rot[6]; p[9]=rot[7]; p[10]=rot[8]; p[11]=0.0f;
-        *reinterpret_cast<uint64_t*>(
-            reinterpret_cast<uint8_t*>(node) + 0x108) |= 0x2ULL;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {}
 }
@@ -855,8 +895,6 @@ __declspec(noinline) static void SafeWriteTranslation(void* node, const float tr
         float* p = reinterpret_cast<float*>(
             reinterpret_cast<uint8_t*>(node) + 0x60);
         p[0]=trans[0]; p[1]=trans[1]; p[2]=trans[2];
-        *reinterpret_cast<uint64_t*>(
-            reinterpret_cast<uint8_t*>(node) + 0x108) |= 0x2ULL;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {}
 }
@@ -1756,25 +1794,116 @@ static constexpr float kBonePoseMaxExtrap        = 1.5f;  // FO4_Wrld kNpcPoseMa
 // std::unordered_map/std::string bone cache). Same reasoning as every other
 // SEH helper in this file; noinline per the established GetFloat/
 // SafeReadSkelRoot lesson (see that function's own comment above).
-// The update_data buffer is a NiUpdateData. Slot 49 reads AND WRITES the dword
-// at update_data+0x10 (it folds the node's own +0x108 bit 3 into bit 0 of that
-// field, then tests it to decide whether to run NiTimeControllers), so the
-// buffer must be writable -- a stack array is. 512 bytes is far more than the
-// struct needs and keeps any internal read in bounds. Zero-initialised means
-// time 0.0, matching what FO4_Wrld passes.
-__declspec(noinline) static void SafeUpdateDownward(void* root, uint32_t proxyFormID) noexcept
+// 0.5.4 -- ROOT CAUSE of the remote-player flicker, and its replacement.
+//
+// The re-stamp used to bake the pose with the root BSFadeNode's full
+// UpdateDownwardPass (vtable slot 49, BSFadeNode override sub_14217DE70) fed a
+// ZEROED 512-byte NiUpdateData, once per frame on every bone-replicated player
+// proxy. In IDA that pass is far more than a transform update:
+//   * fTimeSinceUpdate (+0x1AC) := the context's time, i.e. 0;
+//   * nodes with controllers (+0x108 bit 3) run them at time 0;
+//   * it counts the geometry reached through the selective-update flags
+//     (context +0x14) and, when that differs from the fade node's flattened
+//     geometry list (kGeomArray, +0x168, count +0x178), tears the list down
+//     and rebuilds it (sub_14217ED30) -- or, for a count of 0, clears it
+//     (sub_14217EDC0) -- then recomputes the node's world bound from the list
+//     after zeroing its radius (sub_14217EE50).
+// kGeomArray and that bound are what the renderer culls and draws the actor
+// from. Rewriting them from a fabricated context, on the animation worker, in
+// the middle of the engine's own frame is a direct "visible / not drawn"
+// mechanism, and it was the only per-frame pass that touched the fade node of
+// player proxies alone (NPC puppets never get the re-stamp).
+//
+// The re-stamp only needs the bones' WORLD transforms to follow the locals it
+// just wrote. This does exactly that and nothing else: every node below the
+// root gets world = parentWorld * local through the engine's own compose
+// (sub_140344820, what slot 52 computes), parents before children, and a
+// BSFlattenedBoneTree gets its flattened array refreshed from its nodes
+// (sub_1416C7230) once its subtree is done. Untouched: the root itself (its
+// world is the engine's), every previous-frame transform (+0xC0, which the
+// engine's own update already rolled this frame -- rolling it again would
+// zero the motion vectors), bounds, controllers, fade state and the
+// flattened geometry list.
+static constexpr int      kBakeMaxDepth    = 64;
+static constexpr uint32_t kBakeMaxNodes    = 1024;
+static constexpr uint32_t kBakeMaxChildren = 256;
+
+__declspec(noinline) static void BakeNodeWorld(uint8_t* node, int depth, uint32_t& visited) noexcept
 {
-    uint8_t update_data[512] = {};
+    if (depth > kBakeMaxDepth || visited >= kBakeMaxNodes)
+        return;
     __try
     {
-        void** vt = *reinterpret_cast<void***>(root);
-        auto fn = reinterpret_cast<UpdateDownwardPassFn>(vt[NIAV_VTBL_UPDATE_DOWNWARD_PASS]);
-        fn(root, update_data, 0u);
+        const uint8_t* parent = *reinterpret_cast<uint8_t* const*>(node + 0x28);
+        if (!IsValidUserPtr(parent))
+            return;
+
+        const uint64_t flags = *reinterpret_cast<const uint64_t*>(node + 0x108);
+        if (flags & kNiFlag_WorldFromParent)
+        {
+            std::memcpy(node + 0x70, parent + 0x70, 64);
+        }
+        else
+        {
+            alignas(16) uint8_t world[64];
+            g_composeTransform(parent + 0x70, world, node + 0x30);
+            std::memcpy(node + 0x70, world, 64);
+        }
+        ++visited;
+
+        void** vt = *reinterpret_cast<void***>(node);
+        if (!reinterpret_cast<GetAsNiNodeFn>(vt[NIOBJ_VTBL_GET_AS_NINODE])(node))
+            return;   // leaf (geometry, light...): no children
+
+        void** children = *reinterpret_cast<void***>(node + 0x128);
+        uint32_t nch = *reinterpret_cast<const uint16_t*>(node + 0x132);
+        if (nch > kBakeMaxChildren) nch = kBakeMaxChildren;
+        if (nch && IsValidUserPtr(children))
+        {
+            for (uint32_t i = 0; i < nch; ++i)
+            {
+                uint8_t* child = static_cast<uint8_t*>(children[i]);
+                if (child && IsValidUserPtr(child))
+                    BakeNodeWorld(child, depth + 1, visited);
+            }
+        }
+
+        if (reinterpret_cast<uintptr_t>(vt) == g_vtFlattenedTree)
+            g_flattenedSync(node);
     }
-    __except (EXCEPTION_EXECUTE_HANDLER) {
-        LOG_WARN("[PlayerAnim] UpdateDownwardPass crashed and was caught on proxy 0x%08X", proxyFormID);
-    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {}
 }
+
+// Bakes every node BELOW `root` (the proxy's 3D root, whose own world
+// transform stays the engine's). False if the walk faulted at the top.
+__declspec(noinline) static bool BakeSkeletonWorld(void* root, uint32_t& visited) noexcept
+{
+    visited = 0;
+    if (!g_composeTransform || !g_flattenedSync || !root)
+        return false;
+    __try
+    {
+        uint8_t* r = static_cast<uint8_t*>(root);
+        void** children = *reinterpret_cast<void***>(r + 0x128);
+        uint32_t nch = *reinterpret_cast<const uint16_t*>(r + 0x132);
+        if (nch > kBakeMaxChildren) nch = kBakeMaxChildren;
+        if (!nch || !IsValidUserPtr(children))
+            return false;
+        for (uint32_t i = 0; i < nch; ++i)
+        {
+            uint8_t* child = static_cast<uint8_t*>(children[i]);
+            if (child && IsValidUserPtr(child))
+                BakeNodeWorld(child, 1, visited);
+        }
+        if (*reinterpret_cast<uintptr_t*>(r) == g_vtFlattenedTree)
+            g_flattenedSync(r);   // the tree IS the root: its array, not its world
+        return true;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+}
+
+static std::atomic<uint64_t> g_bakeNodes{0};
+static std::atomic<uint64_t> g_bakeFailures{0};
 
 bool ReassertPoseForGraphRoot(void* graphRootNode) noexcept
 {
@@ -1806,8 +1935,15 @@ bool ReassertPoseForGraphRoot(void* graphRootNode) noexcept
         if (w.hasTrans) SafeWriteTranslation(w.node, w.trans);
     }
 
-    if (rec.skelRoot)
-        SafeUpdateDownward(rec.skelRoot, rec.formID);
+    // Transform-only bake (see BakeSkeletonWorld for why it is no longer the
+    // fade node's full downward pass). rec.skelRoot is pinned by the bone
+    // cache for as long as this record exists (ReleaseBoneCacheEntry erases
+    // the record before it drops the pin).
+    uint32_t visited = 0;
+    if (rec.skelRoot && BakeSkeletonWorld(rec.skelRoot, visited))
+        g_bakeNodes.store(visited, std::memory_order_relaxed);
+    else
+        g_bakeFailures.fetch_add(1, std::memory_order_relaxed);
 
     g_reassertCount.fetch_add(1, std::memory_order_relaxed);
     return true;
@@ -2382,9 +2518,12 @@ bool ApplySkeleton(Actor* proxy, const CoSyncPlayerAnimation::SkeletonCapture& c
     // restamps: the re-stamp is now the only CoSync bake (see the 2026-10-03
     // note above), so this line has to show it climbing in minimal mode too.
     if (s_applyCount % 300 == 1)
-        LOG_INFO("[PlayerAnim] ApplySkeleton #%u: applied %u/%u to proxy 0x%08X (cached=%zu missed=%u) restamps=%llu",
+        LOG_INFO("[PlayerAnim] ApplySkeleton #%u: applied %u/%u to proxy 0x%08X (cached=%zu missed=%u) restamps=%llu"
+                 " bakedNodes=%llu bakeFailures=%llu",
                  s_applyCount, applied, capture.count, proxy->formID, entry.nodesByHash.size(), missed,
-                 static_cast<unsigned long long>(g_reassertCount.load(std::memory_order_relaxed)));
+                 static_cast<unsigned long long>(g_reassertCount.load(std::memory_order_relaxed)),
+                 static_cast<unsigned long long>(g_bakeNodes.load(std::memory_order_relaxed)),
+                 static_cast<unsigned long long>(g_bakeFailures.load(std::memory_order_relaxed)));
 
     return applied > 0;
 }

@@ -131,8 +131,32 @@ namespace CoSyncProxyLooks
         return false;
     }
 
+    void ApplyDisplayName(uint32_t entityID)
+    {
+        // 0.5.4: the name the game shows for the proxy (crosshair / activate
+        // prompt, HUD target bar, kill messages) is its base's FULL, which
+        // CoSync.esp ships as "2nd Player" on all seven RMPlayer records.
+        // Every remote player owns one of those bases (BaseFormForEntity), so
+        // the owner's network username goes on it. The identity itself stays
+        // SteamID -> entityID -> CoSyncPlayer; this is display only. A player
+        // on the shared fallback base (an 8th+ remote player) is left alone:
+        // that base would show somebody else's name.
+        TESNPC* base = OwnedBase(entityID);
+        CoSyncPlayer* pl = g_CoSyncPlayerManager.GetPlayerByEntityID(entityID);
+        if (!base || !pl || pl->username.empty())
+            return;
+        const char* cur = base->fullName.name.c_str();
+        if (cur && pl->username == cur)
+            return;
+        base->fullName.name = BSFixedString(pl->username.c_str());
+        LOG_INFO("[CoSyncProxy] NAME entity=%u base=0x%08X shown as '%s' (was '%s')",
+            entityID, base->formID, pl->username.c_str(), cur ? cur : "");
+    }
+
     void ApplyToBaseBeforeSpawn(uint32_t entityID, TESNPC* base)
     {
+        if (base && base == OwnedBase(entityID))
+            ApplyDisplayName(entityID);
         auto it = s_looks.find(entityID);
         if (!base || it == s_looks.end() || base != OwnedBase(entityID))
             return;

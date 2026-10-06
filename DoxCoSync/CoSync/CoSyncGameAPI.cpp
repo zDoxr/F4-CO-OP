@@ -900,9 +900,15 @@ namespace CoSyncGameAPI
         root->m_worldTransform.rot = rotMat;
         root->m_worldTransform.pos = pos;
 
-        // Propagate updated root transform down through all child bones
-        NiAVObject::NiUpdateData ctx;
-        root->UpdateWorldData(&ctx);
+        // 0.5.4: no root->UpdateWorldData() any more. That is vtable slot 52
+        // (sub_1416C8AC0, IDA 1.11.240): it recomputes THIS node's world from
+        // its parent and first copies the current world into the previous-
+        // frame transform (+0xC0). It never touched the bones ("propagate
+        // down" was wrong), the world it produced is the one written just
+        // above, and the copy made the proxy's previous == current every tick
+        // -- twice a frame -- so its motion vectors were zero against the
+        // engine's own update. The bones follow the root in the engine's
+        // update of the actor and in the pose re-stamp's bake.
     }
 
     __declspec(noinline) static void PositionRefRaw_Impl(

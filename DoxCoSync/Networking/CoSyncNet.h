@@ -136,6 +136,11 @@ public:
     };
     static std::vector<PeerInfo> HostGetPeers();
 
+    // SteamID64 of the peer that introduced itself (HELLO) as this entity,
+    // 0 if this machine never received that peer's HELLO (a client only
+    // receives the host's). Diagnostics / identity logging.
+    static uint64_t GetSteamIDForEntity(uint32_t entityID);
+
     // Host only: clients that are connected at the transport level but have
     // not introduced themselves (HELLO) yet -- still loading their save.
     static int GetJoiningCount();

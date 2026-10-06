@@ -2,6 +2,18 @@
 
 ---
 
+## [0.5.4] — 2026-10-06
+
+### Remote-player proxy flicker and identity (built only; not yet run in game)
+
+Report: `docs/PROXY_FLICKER_REPORT.md`. Evidence from the 22:53–23:03 test (host `CoSyncUpdated_13380`, client `1308`) and IDA on 1.11.240.
+
+- **Flicker:** the per-frame pose re-stamp baked the proxy's bones with the root `BSFadeNode`'s full downward pass and a zeroed update context. That pass also resets the fade node's update time, runs controllers at time 0 and rebuilds or clears the fade node's flattened geometry list and its world bound, which the renderer culls and draws the actor from. Replaced with a transform-only bake: each bone's world = parent world × local through the engine's own compose, plus the flattened bone tree refresh. The bone writers no longer set the engine's selective-update flag.
+- **CoSync ticked twice per frame:** F4SE runs permanent tasks on both engine queue pumps (`Main::Update` and the NonRendersafeAI job). The tick now runs once per frame on the `Main::Update` pump, and on another pump only when that one doesn't run (menus, loading).
+- `PositionRemoteActor` no longer calls the root's world-transform update (vtable slot 52). That call only reset the proxy's previous-frame transform.
+- **Identity:** a remote player's proxy is named after its owner's CoSync username instead of CoSync.esp's "2nd Player". Each player owns one RMPlayer base, so the name is set per player and updated when the CREATE name changes.
+- `[CoSyncProxy]` log lines for CREATE / reuse / SPAWN / DESTROY / NAME (SteamID, EntityID, Username, proxy FormID and pointer). Also new: a 30 s tick-pump summary, plus `bakedNodes=` / `bakeFailures=` on the `ApplySkeleton #` line.
+
 ## [0.5.3] — 2026-10-05
 
 ### The New Game intro, together (built only; not yet run in game)

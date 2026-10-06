@@ -34,8 +34,13 @@ namespace CoSyncProxyLooks
     // Any of the seven proxy bases (load-order resolved).
     bool IsProxyBaseFormID(uint32_t formID);
 
-    // Spawn path, right before PlaceAtMe: write the known look onto the base.
+    // Spawn path, right before PlaceAtMe: write the known look (and the
+    // owner's username, see ApplyDisplayName) onto the base.
     void ApplyToBaseBeforeSpawn(uint32_t entityID, TESNPC* base);
+
+    // The proxy's in-game name (its base's FULL, "2nd Player" in CoSync.esp)
+    // := the owner's CoSync username. No-op without an owned base slot.
+    void ApplyDisplayName(uint32_t entityID);
 
     // Proxy gone: its slot can be reused.
     void OnProxyDespawned(uint32_t entityID);

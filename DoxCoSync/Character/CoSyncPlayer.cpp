@@ -21,6 +21,7 @@
 #include "CoSyncOverlay.h"
 #include "CoSyncNpcWorldSync.h"
 #include "../Hooks/TickHook.h"
+#include "CoSyncNet.h"
 #include "PapyrusVM.h"
 #include "PapyrusEvents.h"
 
@@ -168,6 +169,10 @@ bool CoSyncPlayer::SpawnInWorld(TESObjectREFR* anchor, TESNPC* npcBase)
         RegisterProxyVisuals();
 
     LOG_INFO("[CoSyncPlayer] Spawn END entity=%u actor=%p", entityID, actorRef);
+    if (createType == CoSyncEntityType::Player)
+        LOG_INFO("[CoSyncProxy] SPAWN SteamID=%llu EntityID=%u Username='%s' ProxyFormID=0x%08X ProxyRef=%p disabledUntilFirstPos=%d",
+            (unsigned long long)CoSyncNet::GetSteamIDForEntity(entityID), entityID, username.c_str(),
+            actorRef->formID, static_cast<void*>(actorRef), m_awaitingFirstTransform ? 1 : 0);
     return true;
 }
 

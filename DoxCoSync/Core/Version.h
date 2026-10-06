@@ -49,9 +49,12 @@
 // 0.5.3 (2026-10-05): shared intro -- story lockstep, mirror FaceGen,
 //       SPECIAL with the Vault-Tec rep, Vault 111 brings everyone, players in
 //       the cryopods (INTRO messages).
+// 0.5.4 (2026-10-06): remote-player proxy flicker -- transform-only pose bake
+//       (no more zero-context BSFadeNode downward pass), one CoSync tick per
+//       frame, proxy shows its owner's username instead of "2nd Player".
 #define COSYNC_VERSION_MAJOR 0
 #define COSYNC_VERSION_MINOR 5
-#define COSYNC_VERSION_PATCH 3
+#define COSYNC_VERSION_PATCH 4
 #define COSYNC_VERSION_TAG   ""
 
 // Numeric form used on the wire. MINOR and PATCH must stay below 100 for the

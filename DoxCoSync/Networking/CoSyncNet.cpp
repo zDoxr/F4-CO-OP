@@ -2900,6 +2900,15 @@ std::vector<CoSyncNet::PeerInfo> CoSyncNet::HostGetPeers()
     return out;
 }
 
+uint64_t CoSyncNet::GetSteamIDForEntity(uint32_t entityID)
+{
+    std::lock_guard<std::mutex> lk(s_peerMutex);
+    for (const auto& kv : s_peers)
+        if (kv.second.entityID == entityID)
+            return kv.first;
+    return 0;
+}
+
 std::vector<uint32_t> CoSyncNet::GetConnectedPeerEntityIDs()
 {
     std::vector<uint32_t> out;
